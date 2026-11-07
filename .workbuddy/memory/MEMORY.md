@@ -1,0 +1,41 @@
+# Ontos 项目长期记忆
+
+## 项目形态
+- 顶层：`ontos`（后端 Maven 多模块，单进程单体，唯一部署单元 `ontos-server`）、`ontos-ui`（Vite/React/TS 前端）。
+- 定位：本体驱动的确定性问数系统。自然语言 → 类型化 DSL → 确定性编译 → 只读 Query DS（RLS）→ 审计。
+- 方案文档：`docs/02-solutions/architecture/智能问数系统技术选型方案-v1.1.md`（技术栈冻结）、`docs/02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md`（v1.4 架构）。
+
+## 已冻结技术基线
+- JDK **21**、Spring Boot **4.0.x（≥4.0.3）**、AgentScope Java **2.1.0-BETA1**、PostgreSQL 18、Jackson 3（`tools.jackson.*`）。
+- Boot 大版本以 AgentScope starter 的 Maven Central POM 为准，不是 3.x；版本依据一律实测，不采信第三方博客。
+
+## 用户明确偏好（必须遵守）
+- 后端整体代码风格**尽量参考 yudao-boot-mini**（github.com/yudaocode/yudao-boot-mini），保持规范。
+- **通用/工具类代码直接抄 yudao 的实现，不要自己发挥**；仅在文件头标注来源与必要适配（Jackson 2→3、javax→jakarta）。
+- 后端**按功能架构拆多模块**，不要把代码全塞进一个包；模块内按 controller / service / dal.dataobject / dal.mysql / core / enums 分层。
+- 工程约定固化在根目录 `AGENTS.md`，改动前先读。
+
+## 前端规范基线（必须遵守，两套边界不要混淆）
+- **参考 yak-ops 的只是「工程规范」**：`ontos-ui/FRONTEND_RULES.md`（迁移自 `D:/tianxy/code/yak-ops/yak-ops-ui/FRONTEND_RULES.md`）只约束目录分层、`service/http` 三层、状态与请求原则、命名、Lint/格式化、架构检查、测试方式。配套 `ontos-ui/docs/tooling.md`。改动前端前必须先读，禁止另起一套写法。
+- **框架与组件一律用我们自己的选型**：`docs/02-solutions/architecture/智能问数系统技术选型方案-v1.1.md` **附录 A**（shadcn/ui + Tailwind v4 + Radix、CopilotKit Headless/AG-UI、TanStack Table + ECharts + Monaco、React Hook Form + Zod、TanStack Query + Zustand、Vite + TS + pnpm，纯静态产物由 Spring Boot 单体托管）。**附录 A 是权威，不要修订它去迁就实现**。
+- 用户明确澄清过：「我只是让参考其前端代码规范，框架组件还是用我们的选型」。因此**不得把来源项目基于 `@base-ui/react` 的组件库当作本项目组件选型**。
+- **归位已完成（2026-11-07，W5/T5.2–T5.4）**：`packages/ontos-ui` 已重写为 shadcn/ui + Radix，来源组件库与 `--yak-*` token 已清除，架构检查全局禁止回流。AG-UI 侧仍待 PoC #10 验收后切 CopilotKit Headless（T5.5）。
+- 请求方向 `app/<域>` → `service/<域>` → `service/http`；fetch 只允许在 `service/http/request.ts`（含 SSE）。服务端数据用 Query 缓存，分页筛选放 URL，样式用语义 token 不硬编码颜色。规范由 `ontos-ui/scripts/` 下脚本强制，禁止为跑通而放宽。
+
+## 文档规范（必须遵守）
+- **唯一入口 `docs/README.md`**（文档规范 + 总索引）。新增/修改/查找文档前必须先读；`docs/` 根目录除它外不得有 `.md`。
+- 分层：`00-governance` 治理模板/检查脚本、`01-decisions` ADR、`02-solutions` 方案、`03-plans` 计划、`04-specs` 规格、`05-progress` 进度、`06-verification` 验证、`07-references` 参考、`99-archive` 归档；层级上限 3 层，每个一级目录有 README.md。
+- 起稿用 `docs/00-governance/templates/` 七类模板；统一头块 8 字段；**已冻结文档不得原地改**（升版本 + 归档旧版 + 更新总索引）；进度 append-only。
+- SSOT：技术栈版本/锁定项只在 `02-solutions`，阶段编号 M0–M8 只在 `03-plans/roadmap`；其它文档只引用不复制。相对链接必须可解析。
+- 提交前跑 `node docs/00-governance/check-docs.mjs`。
+- 存量文档已归位：技术选型与架构方案在 `docs/02-solutions/architecture/`，大计划在 `docs/03-plans/roadmap/`，全仓引用已同步。
+
+## 环境注意
+- 用户级 `~/.npmrc` 写死失效代理 `http://127.0.0.1:7897`，会让 `npm/pnpm install` 静默卡死；用 `NPM_CONFIG_USERCONFIG=/dev/null pnpm install --registry=https://registry.npmmirror.com` 绕过。
+- **本地 PG18 可用**（用户 2026-11-06 确认）：Windows 服务 `postgresql-x64-18`，安装目录 `D:\pg`（18.6-5），超管 `postgres/123456`，`psql` 不在 PATH 用绝对路径 `D:/pg/bin/psql.exe`。双库 `ontos`（System DB）/ `ontos_queryds`（Query DS），只读角色 `ontos_query_ro/ontos_query_ro`。`docker` 命令不在 PATH，compose 未使用。
+- **Spring Boot 4 坑**：Flyway 自动配置拆到 `spring-boot-flyway` 模块，仅依赖 `flyway-core` 不会执行迁移；`ontos-server/pom.xml` 必须保留 `spring-boot-starter-flyway`，否则生产部署静默缺表。
+- `pnpm` 11.5.1 已装；前端已按 ADR-0001 切 pnpm workspaces（根 `pnpm-workspace.yaml`，`packageManager: pnpm@11.5.1`）。
+  pnpm 10+ 默认禁跑依赖安装脚本，`esbuild` 需在 `pnpm-workspace.yaml` 的 `allowBuilds` 放行，否则 vite 起不来。
+- 环境注入了 `SERVER__PORT=51719`（hooks 代理占用），会顶掉 `application.yml` 的 8080；`java -jar` 启动必须显式 `--server.port=8080`。
+- 批量删除（>50 文件/次）被环境删除保护拦截（`SAFE_DELETE_BULK_CONFIRM_REQUIRED`）；清 `node_modules`/vite 缓存要分批或用 pnpm 自己处理，不要用 `rm -rf` 硬来。
+- 视觉复核：本机有 playwright 浏览器缓存，仓库没装 playwright，可用 `D:/tianxy/code/semantica/explorer/node_modules/playwright-core` + `executablePath` 截图；chromium 要 `--no-proxy-server`，且 Git Bash 会把以 `/` 开头的参数当路径转换。
