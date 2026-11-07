@@ -22,7 +22,7 @@
 | 3 | 7 | 跨轮差分与存在性保护 | 探针级 | **通过**（现行初值 FAIL，ADR-0002 修订后 PASS） | [PoC-07](PoC-07-跨轮差分与存在性保护.md)、[ADR-0002](../../01-decisions/ADR-0002-跨轮差分规则修订.md) |
 | 4 | 3 | AgentScope 2.1.0-BETA1 准入 | 探针级 | **未通过**（坐标/Boot/API 差异达标；五类终态重建 68.8%） | [PoC-03](PoC-03-AgentScope准入.md) |
 | 5 | 4 | 编译器 SQL 输出 | 探针级 | **部分通过**（QUERY 20/20 逐字一致、EXPLAIN 全通过；非 QUERY 模式静默出错缺陷已修复为 fail-closed 拒绝，其余模式实现待 M2） | [PoC-04](PoC-04-编译器SQL输出.md) |
-| 6 | 8 | 复合意图拆分 | — | **判据集与探针已交付**（30 题冻结 + 结构探针通过；结果待 M2） | [题集](../evaluation/复合意图题集-v1.json)、本文 §3.1 |
+| 6 | 8 | 复合意图拆分 | — | **判据集与探针已交付**（30 题冻结 + 结构探针通过；结果待 M2） | [题集](../../99-archive/evaluation/复合意图题集-v1.json)、本文 §3.1 |
 | 7 | 10 | 前端直连 AG-UI SSE | 协议级 + 界面级 | **部分通过**（4/6 类事件重建；CopilotKit 未验证） | [PoC-10](PoC-10-协议探针.md) |
 | 8 | 5 | 中文与模糊召回 | — | **判据集与探针已交付**（300 条冻结 + 结构探针通过；召回率待 M5） | [样本集](../evaluation/中文提及样本集-v1.json)、本文 §3.2 |
 | 9 | 9 | 运维自检与可观测性 | — | **判据与探针已交付**（本地 3 项 pass / 2 项 env_pending；多副本待 M4） | [探针读数](PoC-09-probe-raw.json)、本文 §3.3 |
@@ -78,7 +78,7 @@
 | 判据 | 引用 §7 #8：≥30 道复合题；子查询独立编译 / 独立授权 / 结果隔离 100%（合并 SQL 次数 0、共享中间结果集次数 0）；单子查询失败不阻断其他返回 100%；`parent_request_id` / `sub_intent_id` 审计完整率 100%；`depends_on` 继承后重新校验授权 100% |
 | 样本结构 | `{id, question, expectedSubIntents[≥2], dependsOn[], failurePlan["none"|"one"|"all"], scopePerSubIntent[]}` |
 | 最小探针 | 通过 `/query/compile` 逐子意图编译，比对 `sub_intent_id` 独立性；注入单子查询失败验证其余仍返回 |
-| 现状 | 编译器只支持单意图（见 #4），`sub_intents` 仅存在于 agent 输出，未进入编译链路。**已交付**：30 道复合题冻结（[复合意图题集-v1.json](../evaluation/复合意图题集-v1.json)，覆盖结果依赖 / 并行独立 / 单失败 / 跨 scope / 复合时间五类）+ [run-poc08-composite.mjs](../../../scripts/poc/run-poc08-composite.mjs) 结构探针（schema / DAG / 题面卫生验证通过） |
+| 现状 | 编译器只支持单意图（见 #4），`sub_intents` 仅存在于 agent 输出，未进入编译链路。**已交付**：30 道复合题冻结（[复合意图题集-v1.json](../../99-archive/evaluation/复合意图题集-v1.json)，覆盖结果依赖 / 并行独立 / 单失败 / 跨 scope / 复合时间五类）+ [run-poc08-composite.mjs](../../../scripts/poc/run-poc08-composite.mjs) 结构探针（schema / DAG / 题面卫生验证通过） |
 | 回填阶段 | M2 |
 
 ### 3.2 `#5` 中文与模糊召回（待 M5）
@@ -146,7 +146,7 @@
 - [PoC-04 · 编译器 SQL 输出](PoC-04-编译器SQL输出.md)
 - [PoC-07 · 跨轮差分与存在性保护](PoC-07-跨轮差分与存在性保护.md)
 - [PoC-10 · 前端直连 AG-UI SSE](PoC-10-协议探针.md)
-- [复合意图题集 v1](../evaluation/复合意图题集-v1.json) + [PoC-08 探针读数](PoC-08-probe-raw.json)
+- [复合意图题集 v1](../../99-archive/evaluation/复合意图题集-v1.json) + [PoC-08 探针读数](PoC-08-probe-raw.json)
 - [中文提及样本集 v1](../evaluation/中文提及样本集-v1.json) + [PoC-05 探针读数](PoC-05-probe-raw.json)
 - [PoC-09 自检探针读数](PoC-09-probe-raw.json) / [PoC-06 pgvector 探针读数](PoC-06-probe-raw.json)
 - [M0 硬阻断结论 v2](M0-硬阻断结论-v2.md)（G1 汇总）
