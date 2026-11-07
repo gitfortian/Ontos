@@ -11,7 +11,8 @@
 - [零号冒烟集 v1](evaluation/零号冒烟集-v1.md)（已冻结，20 题题目与分类；gold 待 M1/M2 补齐）
 - [PoC-01 · RLS 最终边界报告 v1](poc/PoC-01-RLS最终边界.md)（系统级，限定范围 PASS，500 次检查 0 越权）
 - [PoC-02 · 发布快照可复现报告 v1](poc/PoC-02-发布快照可复现.md)（系统级 PASS，跨 2 次重启 300/300 逐字一致）
-- [PoC-03 · AgentScope 准入报告 v1](poc/PoC-03-AgentScope准入.md)（坐标/Boot/API 差异通过；**五类终态重建缺凭据未执行，#3 未通过**）
+- [PoC-03 · AgentScope 准入报告 v1](poc/PoC-03-AgentScope准入.md)（坐标/Boot/API 差异通过；五类终态重建 FAIL，协议层 100%、语义层 68.8%）
+- [PoC-04 · 编译器 SQL 输出报告 v1](poc/PoC-04-编译器SQL输出.md)（QUERY 20/20 逐字一致、EXPLAIN 全通过；**非 QUERY 模式静默生成错 SQL，高危**）
 - [PoC-07 · 跨轮差分与存在性保护报告 v1](poc/PoC-07-跨轮差分与存在性保护.md)（探针级，现行初值 FAIL、修订退路 PASS）
 - [PoC-10 · 前端直连 AG-UI SSE（协议 + 界面）v1](poc/PoC-10-协议探针.md)（协议段四类事件可达、幂等通过；界面段 20/20 重建 4/6 类事件；CopilotKit 主路线待 T5.5）
 - [M0 硬阻断结论 v2](poc/M0-硬阻断结论-v2.md)（G1 汇总与闸门判定：**G1 关闭**，三项决策已签字；M0 退出仍需 G2–G8）

@@ -198,6 +198,7 @@ node docs/00-governance/check-docs.mjs
 | PoC-01 · RLS 最终边界报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-01-RLS最终边界.md`](06-verification/poc/PoC-01-RLS最终边界.md) |
 | PoC-02 · 发布快照可复现报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-02-发布快照可复现.md`](06-verification/poc/PoC-02-发布快照可复现.md) |
 | PoC-03 · AgentScope 准入报告 | 验证 | 草稿 | v1 | [`06-verification/poc/PoC-03-AgentScope准入.md`](06-verification/poc/PoC-03-AgentScope准入.md) |
+| PoC-04 · 编译器 SQL 输出报告 | 验证 | 草稿 | v1 | [`06-verification/poc/PoC-04-编译器SQL输出.md`](06-verification/poc/PoC-04-编译器SQL输出.md) |
 | PoC-07 · 跨轮差分与存在性保护报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-07-跨轮差分与存在性保护.md`](06-verification/poc/PoC-07-跨轮差分与存在性保护.md) |
 | PoC-10 · 前端直连 AG-UI SSE（协议 + 界面） | 验证 | 草稿 | v1 | [`06-verification/poc/PoC-10-协议探针.md`](06-verification/poc/PoC-10-协议探针.md) |
 | M0 硬阻断结论 | 验证 | 已冻结 | v2 | [`06-verification/poc/M0-硬阻断结论-v2.md`](06-verification/poc/M0-硬阻断结论-v2.md) |

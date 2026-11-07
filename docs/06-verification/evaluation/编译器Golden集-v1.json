@@ -1,0 +1,361 @@
+{
+  "generatedAt": "2026-11-07T04:55:12.246860300Z",
+  "manifestId": "manifest-golden-001",
+  "contentHash": "feca266c21eac0882a3dafb5dab70142c83050cab92db056b875759d8bcf94f0",
+  "note": "由当前编译器生成并人工审阅后冻结；M2 补齐非 QUERY 模式后必须重新生成并升版本",
+  "cases": [
+    {
+      "id": "q01",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\", \"public\".\"fact_order\".\"region\" as \"region\" from \"public\".\"fact_order\" group by \"public\".\"fact_order\".\"region\" fetch next ? rows only",
+      "bindValues": [
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q02",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\" from \"public\".\"fact_order\" group by () fetch next ? rows only",
+      "bindValues": [
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q03",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\", \"public\".\"fact_order\".\"region\" as \"region\", \"public\".\"fact_order\".\"channel\" as \"channel\" from \"public\".\"fact_order\" group by \"public\".\"fact_order\".\"region\", \"public\".\"fact_order\".\"channel\" fetch next ? rows only",
+      "bindValues": [
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q04",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\", \"public\".\"fact_order\".\"order_date\" as \"order_date\" from \"public\".\"fact_order\" group by \"public\".\"fact_order\".\"order_date\" fetch next ? rows only",
+      "bindValues": [
+        "50"
+      ],
+      "appliedLimit": 50
+    },
+    {
+      "id": "q05",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\", \"public\".\"fact_order\".\"region\" as \"region\" from \"public\".\"fact_order\" where \"public\".\"fact_order\".\"region\" = ? group by \"public\".\"fact_order\".\"region\" fetch next ? rows only",
+      "bindValues": [
+        "华东",
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q06",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\", \"public\".\"fact_order\".\"region\" as \"region\" from \"public\".\"fact_order\" where \"public\".\"fact_order\".\"region\" in (?, ?) group by \"public\".\"fact_order\".\"region\" fetch next ? rows only",
+      "bindValues": [
+        "华东",
+        "华南",
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q07",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\", \"public\".\"fact_order\".\"region\" as \"region\" from \"public\".\"fact_order\" where \"public\".\"fact_order\".\"region\" not in (?) group by \"public\".\"fact_order\".\"region\" fetch next ? rows only",
+      "bindValues": [
+        "西北",
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q08",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\" from \"public\".\"fact_order\" where \"public\".\"fact_order\".\"order_date\" >= ? group by () fetch next ? rows only",
+      "bindValues": [
+        "2026-01-01T00:00:00Z",
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q09",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\" from \"public\".\"fact_order\" where \"public\".\"fact_order\".\"order_date\" <= ? group by () fetch next ? rows only",
+      "bindValues": [
+        "2026-06-30T00:00:00Z",
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q10",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\" from \"public\".\"fact_order\" where \"public\".\"fact_order\".\"order_date\" between ? and ? group by () fetch next ? rows only",
+      "bindValues": [
+        "2026-01-01T00:00:00Z",
+        "2026-03-31T00:00:00Z",
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q11",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\", \"public\".\"fact_order\".\"region\" as \"region\" from \"public\".\"fact_order\" where (\"public\".\"fact_order\".\"order_date\" >= cast(? as timestamp) and \"public\".\"fact_order\".\"order_date\" <= cast(? as timestamp)) group by \"public\".\"fact_order\".\"region\" fetch next ? rows only",
+      "bindValues": [
+        "2026-01-01T00:00:00Z",
+        "2026-01-31T23:59:59Z",
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q12",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\", \"public\".\"fact_order\".\"region\" as \"region\", \"public\".\"fact_order\".\"channel\" as \"channel\" from \"public\".\"fact_order\" where (\"public\".\"fact_order\".\"channel\" = ? and \"public\".\"fact_order\".\"order_date\" >= cast(? as timestamp) and \"public\".\"fact_order\".\"order_date\" <= cast(? as timestamp)) group by \"public\".\"fact_order\".\"region\", \"public\".\"fact_order\".\"channel\" fetch next ? rows only",
+      "bindValues": [
+        "线上",
+        "2026-02-01T00:00:00Z",
+        "2026-02-28T23:59:59Z",
+        "200"
+      ],
+      "appliedLimit": 200
+    },
+    {
+      "id": "q13",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\", \"public\".\"fact_order\".\"region\" as \"region\" from \"public\".\"fact_order\" group by \"public\".\"fact_order\".\"region\" fetch next ? rows only",
+      "bindValues": [
+        "1"
+      ],
+      "appliedLimit": 1
+    },
+    {
+      "id": "q14",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\", \"public\".\"fact_order\".\"region\" as \"region\" from \"public\".\"fact_order\" group by \"public\".\"fact_order\".\"region\" fetch next ? rows only",
+      "bindValues": [
+        "500"
+      ],
+      "appliedLimit": 500
+    },
+    {
+      "id": "q15",
+      "mode": "QUERY",
+      "metricId": "order_cnt",
+      "status": "compiled",
+      "sql": "select count(*) as \"value\", \"public\".\"fact_order\".\"channel\" as \"channel\" from \"public\".\"fact_order\" group by \"public\".\"fact_order\".\"channel\" fetch next ? rows only",
+      "bindValues": [
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q16",
+      "mode": "QUERY",
+      "metricId": "customer_cnt",
+      "status": "compiled",
+      "sql": "select count(distinct \"public\".\"fact_order\".\"customer_id\") as \"value\", \"public\".\"fact_order\".\"region\" as \"region\" from \"public\".\"fact_order\" group by \"public\".\"fact_order\".\"region\" fetch next ? rows only",
+      "bindValues": [
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q17",
+      "mode": "QUERY",
+      "metricId": "avg_amount",
+      "status": "compiled",
+      "sql": "select avg(\"public\".\"fact_order\".\"amount\") as \"value\", \"public\".\"fact_order\".\"region\" as \"region\" from \"public\".\"fact_order\" group by \"public\".\"fact_order\".\"region\" fetch next ? rows only",
+      "bindValues": [
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q18",
+      "mode": "QUERY",
+      "metricId": "min_amount",
+      "status": "compiled",
+      "sql": "select min(\"public\".\"fact_order\".\"amount\") as \"value\" from \"public\".\"fact_order\" group by () fetch next ? rows only",
+      "bindValues": [
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q19",
+      "mode": "QUERY",
+      "metricId": "max_amount",
+      "status": "compiled",
+      "sql": "select max(\"public\".\"fact_order\".\"amount\") as \"value\" from \"public\".\"fact_order\" group by () fetch next ? rows only",
+      "bindValues": [
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "q20",
+      "mode": "QUERY",
+      "metricId": "gmv",
+      "status": "compiled",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\", \"public\".\"fact_order\".\"region\" as \"region\", \"public\".\"fact_order\".\"channel\" as \"channel\" from \"public\".\"fact_order\" where (\"public\".\"fact_order\".\"channel\" = ? and \"public\".\"fact_order\".\"region\" in (?, ?)) group by \"public\".\"fact_order\".\"region\", \"public\".\"fact_order\".\"channel\" fetch next ? rows only",
+      "bindValues": [
+        "线上",
+        "华东",
+        "华南",
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "l01",
+      "mode": "LOOKUP",
+      "metricId": "gmv",
+      "status": "SILENT_WRONG_MODE",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\" from \"public\".\"fact_order\" where \"public\".\"fact_order\".\"region\" = ? group by () fetch next ? rows only",
+      "bindValues": [
+        "华东",
+        "1"
+      ],
+      "appliedLimit": 1
+    },
+    {
+      "id": "l02",
+      "mode": "LOOKUP",
+      "metricId": "customer_cnt",
+      "status": "SILENT_WRONG_MODE",
+      "sql": "select count(distinct \"public\".\"fact_order\".\"customer_id\") as \"value\" from \"public\".\"fact_order\" where \"public\".\"fact_order\".\"region\" = ? group by () fetch next ? rows only",
+      "bindValues": [
+        "华南",
+        "1"
+      ],
+      "appliedLimit": 1
+    },
+    {
+      "id": "l03",
+      "mode": "LOOKUP",
+      "metricId": "gmv",
+      "status": "SILENT_WRONG_MODE",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\" from \"public\".\"fact_order\" where \"public\".\"fact_order\".\"region\" in (?, ?) group by () fetch next ? rows only",
+      "bindValues": [
+        "华东",
+        "华南",
+        "10"
+      ],
+      "appliedLimit": 10
+    },
+    {
+      "id": "l04",
+      "mode": "LOOKUP",
+      "metricId": "avg_amount",
+      "status": "SILENT_WRONG_MODE",
+      "sql": "select avg(\"public\".\"fact_order\".\"amount\") as \"value\" from \"public\".\"fact_order\" group by () fetch next ? rows only",
+      "bindValues": [
+        "1"
+      ],
+      "appliedLimit": 1
+    },
+    {
+      "id": "b01",
+      "mode": "LOOKUP_BATCH",
+      "metricId": "gmv",
+      "status": "SILENT_WRONG_MODE",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\" from \"public\".\"fact_order\" where \"public\".\"fact_order\".\"region\" in (?, ?, ?) group by () fetch next ? rows only",
+      "bindValues": [
+        "华东",
+        "华南",
+        "华北",
+        "50"
+      ],
+      "appliedLimit": 50
+    },
+    {
+      "id": "b02",
+      "mode": "LOOKUP_BATCH",
+      "metricId": "customer_cnt",
+      "status": "SILENT_WRONG_MODE",
+      "sql": "select count(distinct \"public\".\"fact_order\".\"customer_id\") as \"value\" from \"public\".\"fact_order\" group by () fetch next ? rows only",
+      "bindValues": [
+        "20"
+      ],
+      "appliedLimit": 20
+    },
+    {
+      "id": "b03",
+      "mode": "LOOKUP_BATCH",
+      "metricId": "order_cnt",
+      "status": "SILENT_WRONG_MODE",
+      "sql": "select count(*) as \"value\", \"public\".\"fact_order\".\"channel\" as \"channel\" from \"public\".\"fact_order\" group by \"public\".\"fact_order\".\"channel\" fetch next ? rows only",
+      "bindValues": [
+        "10"
+      ],
+      "appliedLimit": 10
+    },
+    {
+      "id": "f01",
+      "mode": "FUNNEL",
+      "metricId": "order_cnt",
+      "status": "SILENT_WRONG_MODE",
+      "sql": "select count(*) as \"value\", \"public\".\"fact_order\".\"order_date\" as \"order_date\" from \"public\".\"fact_order\" group by \"public\".\"fact_order\".\"order_date\" fetch next ? rows only",
+      "bindValues": [
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "f02",
+      "mode": "FUNNEL",
+      "metricId": "gmv",
+      "status": "SILENT_WRONG_MODE",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\", \"public\".\"fact_order\".\"channel\" as \"channel\" from \"public\".\"fact_order\" group by \"public\".\"fact_order\".\"channel\" fetch next ? rows only",
+      "bindValues": [
+        "100"
+      ],
+      "appliedLimit": 100
+    },
+    {
+      "id": "y01",
+      "mode": "YOY_MOM",
+      "metricId": "gmv",
+      "status": "SILENT_WRONG_MODE",
+      "sql": "select sum(\"public\".\"fact_order\".\"amount\") as \"value\", \"public\".\"fact_order\".\"order_date\" as \"order_date\" from \"public\".\"fact_order\" group by \"public\".\"fact_order\".\"order_date\" fetch next ? rows only",
+      "bindValues": [
+        "100"
+      ],
+      "appliedLimit": 100
+    }
+  ]
+}
