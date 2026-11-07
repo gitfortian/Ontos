@@ -1,0 +1,18 @@
+{
+  "probe": "PoC-05 最小探针（判据级交付）",
+  "criteriaRef": "技术选型 v1.1 §7 #5",
+  "setStatus": "pending_m5 —— 结构与卫生已验证；Top-5 召回率与「模糊候选进入 DSL 次数为 0」待 M5 检索层实现后回填",
+  "setVersion": "v1",
+  "total": 300,
+  "criteriaMinCases": 300,
+  "totalMeetsCriteria": true,
+  "proportions": {
+    "colloquial": 90,
+    "pinyin": 45,
+    "synonym": 120,
+    "typo": 45
+  },
+  "clarifyCandidates": 6,
+  "structureErrors": [],
+  "warnings": []
+}

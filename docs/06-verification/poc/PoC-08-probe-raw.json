@@ -1,0 +1,14 @@
+{
+  "probe": "PoC-08 最小探针（判据级交付）",
+  "criteriaRef": "技术选型 v1.1 §7 #8",
+  "setStatus": "pending_m2 —— 结构与卫生已验证；独立授权/结果隔离/失败注入/审计链路待 M2 完整验收",
+  "setVersion": "v1",
+  "caseCount": 30,
+  "criteriaMinCases": 30,
+  "caseCountMeetsCriteria": true,
+  "structureErrors": [],
+  "live": {
+    "enabled": false,
+    "cases": {}
+  }
+}

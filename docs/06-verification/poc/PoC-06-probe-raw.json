@@ -1,0 +1,13 @@
+{
+  "probe": "PoC-06 最小探针（判据级交付）",
+  "criteriaRef": "技术选型 v1.1 §7 #6",
+  "setStatus": "pending_m5 —— 版本可探测已验证；是否启用由 M5 配对评测收益决定，探针不给出启用结论",
+  "prodMinVersion": "0.8.4",
+  "availableVersion": "0.8.7",
+  "installedVersion": "none",
+  "versionProbeStatus": "version_readable",
+  "meetsProdMin": true,
+  "versionGate": "可用版本 0.8.7 ≥ 生产下限 0.8.4",
+  "enabled": false,
+  "note": "pgvector 未启用，符合「M5 条件触发」的当前预期"
+}
