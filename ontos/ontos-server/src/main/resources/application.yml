@@ -56,8 +56,11 @@ ontos:
       # 生产必须保持 false；身份由认证网关注入
       dev-headers: false
     cors:
+      # 开发环境两种写法都可能出现：浏览器按地址栏原样带 Origin，
+      # localhost 与 127.0.0.1 在 CORS 里是两个不同的源，只配一个会导致 AG-UI 403。
       allowed-origins:
         - http://localhost:5173
+        - http://127.0.0.1:5173
 
 agentscope:
   agui:
