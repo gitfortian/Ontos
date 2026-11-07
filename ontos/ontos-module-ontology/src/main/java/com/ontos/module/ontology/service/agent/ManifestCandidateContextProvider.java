@@ -34,19 +34,24 @@ public class ManifestCandidateContextProvider implements AgentContextProvider {
     }
 
     @Override
-    public java.util.Set<String> candidateAssetIds() {
+    public java.util.List<com.ontos.framework.common.agent.CandidateAsset> candidateVocabulary() {
         PublishedManifest manifest = manifestService.getActiveManifestOrNull();
         if (manifest == null || manifest.getSemantic() == null) {
-            return java.util.Set.of();
+            return java.util.List.of();
         }
-        java.util.Set<String> ids = new java.util.HashSet<>();
+        java.util.List<com.ontos.framework.common.agent.CandidateAsset> vocabulary = new java.util.ArrayList<>();
+        // demo 清单暂无别名字段（M1/T2.3 起随业务化命名规格补齐）；先以业务名参与机械判定
         if (manifest.getSemantic().getMetrics() != null) {
-            manifest.getSemantic().getMetrics().forEach(metric -> ids.add(metric.getId()));
+            manifest.getSemantic().getMetrics().forEach(metric ->
+                    vocabulary.add(new com.ontos.framework.common.agent.CandidateAsset(
+                            metric.getId(), metric.getName(), java.util.Set.of())));
         }
         if (manifest.getSemantic().getDimensions() != null) {
-            manifest.getSemantic().getDimensions().forEach(dimension -> ids.add(dimension.getId()));
+            manifest.getSemantic().getDimensions().forEach(dimension ->
+                    vocabulary.add(new com.ontos.framework.common.agent.CandidateAsset(
+                            dimension.getId(), dimension.getName(), java.util.Set.of())));
         }
-        return java.util.Set.copyOf(ids);
+        return java.util.List.copyOf(vocabulary);
     }
 
     @Override

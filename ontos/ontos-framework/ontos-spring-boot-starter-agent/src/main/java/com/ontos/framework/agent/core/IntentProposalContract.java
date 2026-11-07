@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
+import com.ontos.framework.common.agent.CandidateAsset;
 import com.ontos.framework.common.util.json.JsonUtils;
 
 /**
@@ -52,13 +53,19 @@ public final class IntentProposalContract {
             "(?i)(```sql|\\bselect\\b[\\s\\S]{0,200}?\\bfrom\\b|\\binsert\\s+into\\b"
                     + "|\\bdelete\\s+from\\b|\\bupdate\\s+\\w+\\s+set\\b|\\bdrop\\s+table\\b)");
 
-    private final Supplier<Set<String>> candidateIds;
+    private final Supplier<List<CandidateAsset>> vocabularySupplier;
 
-    public IntentProposalContract(Supplier<Set<String>> candidateIds) {
-        this.candidateIds = candidateIds == null ? Set::of : candidateIds;
+    public IntentProposalContract(Supplier<List<CandidateAsset>> vocabularySupplier) {
+        this.vocabularySupplier = vocabularySupplier == null ? List::of : vocabularySupplier;
     }
 
+    /** 无用户问题上下文的校验（单测与兼容入口）：跳过「点名资产」判定，其余规则不变。 */
     public ValidationResult validate(String text) {
+        return validate(text, null);
+    }
+
+    public ValidationResult validate(String text, String userQuestion) {
+        List<CandidateAsset> vocabulary = vocabularySupplier.get();
         List<Violation> violations = new ArrayList<>();
         Map<String, Object> parsed = parseObject(text, violations);
         if (parsed == null) {
@@ -74,6 +81,7 @@ public final class IntentProposalContract {
                     "缺少 terminal 字段。必须显式输出 terminal ∈ [query, composite, discovery, clarification, out_of_capability]。"));
             return finish(violations, parsed);
         }
+        checkAssetMentioned(parsed, terminal, userQuestion, vocabulary, violations);
         if (!TERMINALS.contains(terminal)) {
             violations.add(new Violation("UNKNOWN_TERMINAL",
                     "terminal 值 \"" + terminal + "\" 不在封闭枚举内。"));
@@ -120,6 +128,14 @@ public final class IntentProposalContract {
                 if (discovery == null) {
                     violations.add(new Violation("MISSING_DISCOVERY",
                             "terminal=discovery 时必须给出 discovery 对象（metrics/dimensions/analysis_modes）。"));
+                } else if (discovery instanceof Map<?, ?> box) {
+                    List<String> missing = java.util.stream.Stream.of("metrics", "dimensions", "analysis_modes")
+                            .filter(key -> !box.containsKey(key))
+                            .toList();
+                    if (!missing.isEmpty()) {
+                        violations.add(new Violation("MISSING_DISCOVERY",
+                                "discovery 对象三键必须同时给出（无内容给空数组），缺少: " + String.join(", ", missing) + "。"));
+                    }
                 }
                 if (clarification != null || outOfCapability) {
                     violations.add(new Violation("TERMINAL_CONFLICT",
@@ -206,7 +222,7 @@ public final class IntentProposalContract {
     }
 
     private void checkCandidateIds(Map<String, Object> parsed, String terminal, List<Violation> violations) {
-        Set<String> allowed = candidateIds.get();
+        Set<String> allowed = candidateAssetIds();
         if (allowed.isEmpty()) {
             return;
         }
@@ -216,6 +232,38 @@ public final class IntentProposalContract {
         if ("discovery".equals(terminal) && parsed.get("discovery") instanceof Map<?, ?> discovery) {
             checkWhitelistedIds(discovery.get("metrics"), "metric_id", allowed, violations);
             checkWhitelistedIds(discovery.get("dimensions"), "dimension_id", allowed, violations);
+        }
+    }
+
+    /** 候选资产 ID 全集（硬性边界 2 的白名单），由词表派生。 */
+    private Set<String> candidateAssetIds() {
+        return vocabularySupplier.get().stream()
+                .map(CandidateAsset::assetId)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * 机械闸门（检索瀑布第一级的前置）：执行类终态（query/composite）要求用户问题
+     * 点名了至少一个候选资产的名称或别名——「泛化问法必须澄清」由此从模型判断变成字符串匹配。
+     * 问题为空（单测/兼容入口）或词表为空时跳过。
+     */
+    private void checkAssetMentioned(Map<String, Object> parsed, String terminal,
+                                     String userQuestion, List<CandidateAsset> vocabulary,
+                                     List<Violation> violations) {
+        if (userQuestion == null || userQuestion.isBlank() || vocabulary.isEmpty()) {
+            return;
+        }
+        if (!"query".equals(terminal) && !"composite".equals(terminal)) {
+            return;
+        }
+        String normalizedQuestion = userQuestion.toLowerCase();
+        boolean mentioned = vocabulary.stream()
+                .anyMatch(asset -> asset.terms().stream()
+                        .anyMatch(term -> normalizedQuestion.contains(term.toLowerCase())));
+        if (!mentioned) {
+            violations.add(new Violation("ASSET_NOT_MENTIONED",
+                    "用户问题没有提及任何候选指标或维度（如「最近业绩怎么样」「看看销售情况」）。"
+                            + "必须输出 terminal=clarification，在候选中列出可用指标让用户选择，禁止自行猜测指标执行。"));
         }
     }
 

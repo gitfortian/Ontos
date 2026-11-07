@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import com.ontos.framework.agent.config.AgentProperties;
 import com.ontos.framework.common.agent.AgentContextProvider;
+import com.ontos.framework.common.agent.CandidateAsset;
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.model.Model;
 import io.agentscope.core.model.ModelCreationContext;
@@ -96,15 +97,15 @@ public class OntosAgentFactory {
         return builder.build();
     }
 
-    /** 候选集 ID 白名单：聚合全部 Provider 的资产 ID，供输出契约做语义校验（硬性边界 2）。 */
+    /** 候选资产词表：聚合全部 Provider，供输出契约做 ID 白名单与「点名资产」判定。 */
     private IntentProposalContract buildContract() {
         List<AgentContextProvider> providers = this.contextProviders;
         return new IntentProposalContract(() -> {
-            java.util.Set<String> ids = new java.util.HashSet<>();
+            java.util.List<CandidateAsset> vocabulary = new java.util.ArrayList<>();
             for (AgentContextProvider provider : providers) {
-                ids.addAll(provider.candidateAssetIds());
+                vocabulary.addAll(provider.candidateVocabulary());
             }
-            return java.util.Set.copyOf(ids);
+            return java.util.List.copyOf(vocabulary);
         });
     }
 

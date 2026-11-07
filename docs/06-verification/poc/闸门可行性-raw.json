@@ -1,0 +1,717 @@
+{
+  "generatedAt": "2026-11-07T11:57:16.408Z",
+  "purpose": "「点名资产」机械闸门可行性验证（检索瀑布第一级前置）",
+  "sampleCount": 26,
+  "offline": [
+    {
+      "withAlias": false,
+      "question": "上个月的 GMV 是多少",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "华东的成交金额",
+      "kind": "gate-pass",
+      "hit": false,
+      "gate": "误拦",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "按渠道统计订单数",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "今年订单数有多少",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "近 7 天的 GMV",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "华南的 GMV 和订单数",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "各区域的成交金额和渠道订单数",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "订单数按区域分布",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "最近业绩怎么样",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "看看销售情况",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "帮我分析一下",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "经营状况如何",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "数据表现怎么样",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "最近生意好不好",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "情况怎么样",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "业绩如何",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "预测下个季度的销量",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "员工工资有多少",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "竞对的价格是多少",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "明天天气如何",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "你能查哪些数据",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "有哪些指标可以用",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "有什么维度",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "支持哪些分析方式",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": false,
+      "question": "卖了多少",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": "别名机制检验：仅业务名词表会误拦"
+    },
+    {
+      "withAlias": false,
+      "question": "成交额多少",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": "同上；试验别名表下应放行为 query"
+    },
+    {
+      "withAlias": true,
+      "question": "上个月的 GMV 是多少",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "华东的成交金额",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "按渠道统计订单数",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "今年订单数有多少",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "近 7 天的 GMV",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "华南的 GMV 和订单数",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "各区域的成交金额和渠道订单数",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "订单数按区域分布",
+      "kind": "gate-pass",
+      "hit": true,
+      "gate": "放行",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "最近业绩怎么样",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "看看销售情况",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "帮我分析一下",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "经营状况如何",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "数据表现怎么样",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "最近生意好不好",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "情况怎么样",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "业绩如何",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "预测下个季度的销量",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "员工工资有多少",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "竞对的价格是多少",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "明天天气如何",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "你能查哪些数据",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "有哪些指标可以用",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "有什么维度",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "支持哪些分析方式",
+      "kind": "free",
+      "hit": false,
+      "gate": "n/a（free 类，闸门不介入）",
+      "note": ""
+    },
+    {
+      "withAlias": true,
+      "question": "卖了多少",
+      "kind": "gate-block",
+      "hit": false,
+      "gate": "正确拦截",
+      "note": "别名机制检验：仅业务名词表会误拦"
+    },
+    {
+      "withAlias": true,
+      "question": "成交额多少",
+      "kind": "gate-block",
+      "hit": true,
+      "gate": "漏拦（词表命中但属泛化问法）",
+      "note": "同上；试验别名表下应放行为 query"
+    }
+  ],
+  "live": {
+    "rows": [
+      {
+        "question": "上个月的 GMV 是多少",
+        "kind": "gate-pass",
+        "expect": "query",
+        "modelTerminal": "query",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "华东的成交金额",
+        "kind": "gate-pass",
+        "expect": "query",
+        "modelTerminal": "clarification",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": false,
+        "error": null
+      },
+      {
+        "question": "按渠道统计订单数",
+        "kind": "gate-pass",
+        "expect": "query",
+        "modelTerminal": "query",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "今年订单数有多少",
+        "kind": "gate-pass",
+        "expect": "query",
+        "modelTerminal": "query",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "近 7 天的 GMV",
+        "kind": "gate-pass",
+        "expect": "query",
+        "modelTerminal": "query",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "华南的 GMV 和订单数",
+        "kind": "gate-pass",
+        "expect": "composite",
+        "modelTerminal": "composite",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "各区域的成交金额和渠道订单数",
+        "kind": "gate-pass",
+        "expect": "composite",
+        "modelTerminal": "composite",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "订单数按区域分布",
+        "kind": "gate-pass",
+        "expect": "query",
+        "modelTerminal": "query",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "最近业绩怎么样",
+        "kind": "gate-block",
+        "expect": "clarification",
+        "modelTerminal": "clarification",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "看看销售情况",
+        "kind": "gate-block",
+        "expect": "clarification",
+        "modelTerminal": "clarification",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "帮我分析一下",
+        "kind": "gate-block",
+        "expect": "clarification",
+        "modelTerminal": "clarification",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "经营状况如何",
+        "kind": "gate-block",
+        "expect": "clarification",
+        "modelTerminal": "clarification",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "数据表现怎么样",
+        "kind": "gate-block",
+        "expect": "clarification",
+        "modelTerminal": "clarification",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "最近生意好不好",
+        "kind": "gate-block",
+        "expect": "clarification",
+        "modelTerminal": "clarification",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "情况怎么样",
+        "kind": "gate-block",
+        "expect": "clarification",
+        "modelTerminal": "clarification",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "业绩如何",
+        "kind": "gate-block",
+        "expect": "clarification",
+        "modelTerminal": "clarification",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "预测下个季度的销量",
+        "kind": "free",
+        "expect": "out_of_capability",
+        "modelTerminal": "out_of_capability",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "员工工资有多少",
+        "kind": "free",
+        "expect": "out_of_capability",
+        "modelTerminal": "out_of_capability",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "竞对的价格是多少",
+        "kind": "free",
+        "expect": "out_of_capability",
+        "modelTerminal": "out_of_capability",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "明天天气如何",
+        "kind": "free",
+        "expect": "out_of_capability",
+        "modelTerminal": "out_of_capability",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "你能查哪些数据",
+        "kind": "free",
+        "expect": "discovery",
+        "modelTerminal": "discovery",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "有哪些指标可以用",
+        "kind": "free",
+        "expect": "discovery",
+        "modelTerminal": "discovery",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "有什么维度",
+        "kind": "free",
+        "expect": "discovery",
+        "modelTerminal": "discovery",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "支持哪些分析方式",
+        "kind": "free",
+        "expect": "discovery",
+        "modelTerminal": "discovery",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "卖了多少",
+        "kind": "gate-block",
+        "expect": "clarification",
+        "modelTerminal": "clarification",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      },
+      {
+        "question": "成交额多少",
+        "kind": "gate-block",
+        "expect": "clarification",
+        "modelTerminal": "clarification",
+        "gateFired": false,
+        "repairEvents": 0,
+        "messageBlocks": 1,
+        "met": true,
+        "error": null
+      }
+    ],
+    "tally": {
+      "pass": 25,
+      "fail": 1
+    }
+  }
+}

@@ -1,5 +1,7 @@
 package com.ontos.framework.common.agent;
 
+import java.util.List;
+
 /**
  * 向 Agent 提供「当前可用候选集」的契约。
  *
@@ -19,15 +21,16 @@ public interface AgentContextProvider {
     String candidateContext();
 
     /**
-     * 候选集内的资产 ID 白名单（metric_id / dimension_id / scenario_id / skill_id），
-     * 供输出契约做「只能引用候选集内 ID」的程序化校验（硬性边界 2）。
+     * 候选资产词表（ID + 业务名 + 别名），供输出契约做两件事：
+     * ①「只能引用候选集内 ID」的程序化校验（硬性边界 2）；
+     * ②「问题是否点名了资产」的机械判定——未点名却输出执行类终态时强制澄清。
      *
-     * <p>默认空集合：表示当前无候选集，语义校验跳过（提示词已约定此时输出能力发现）。
+     * <p>默认空列表：表示当前无候选集，两项校验都跳过（提示词已约定此时输出能力发现）。
      *
-     * @return 不可变 ID 集合，不得返回 null
+     * @return 不可变列表，不得返回 null
      */
-    default java.util.Set<String> candidateAssetIds() {
-        return java.util.Set.of();
+    default List<CandidateAsset> candidateVocabulary() {
+        return List.of();
     }
 
 }

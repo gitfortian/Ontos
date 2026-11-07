@@ -72,6 +72,7 @@ public class IntentProposalRepairMiddleware implements MiddlewareBase {
                                             java.util.function.Function<ReasoningInput, Flux<AgentEvent>> next,
                                             AtomicInteger attempts) {
         StringBuilder text = new StringBuilder();
+        String userQuestion = userQuestionOf(input);
         return next.apply(input)
                 .concatMap(event -> {
                     if (event instanceof TextBlockDeltaEvent delta && delta.getDelta() != null) {
@@ -84,14 +85,14 @@ public class IntentProposalRepairMiddleware implements MiddlewareBase {
                         // 本轮没有任何文本增量：工具调用等中间态，不是提案轮，跳过契约校验
                         return Flux.empty();
                     }
-                    return verdict(input, next, attempts, text.toString());
+                    return verdict(input, next, attempts, text.toString(), userQuestion);
                 }));
     }
 
     private Flux<AgentEvent> verdict(ReasoningInput input,
                                      java.util.function.Function<ReasoningInput, Flux<AgentEvent>> next,
-                                     AtomicInteger attempts, String text) {
-        IntentProposalContract.ValidationResult result = contract.validate(text);
+                                     AtomicInteger attempts, String text, String userQuestion) {
+        IntentProposalContract.ValidationResult result = contract.validate(text, userQuestion);
         if (result.valid()) {
             return Flux.empty();
         }
@@ -113,6 +114,31 @@ public class IntentProposalRepairMiddleware implements MiddlewareBase {
                         Map.of("attempt", attempt, "violations", result.violations().stream()
                                 .map(IntentProposalContract.Violation::toString).toList())))
                 .concatWith(reasoningRound(repairInput, next, attempts));
+    }
+
+    /** 提取本轮输入里的用户问题（第一条 USER 消息），供「点名资产」机械判定。 */
+    private static String userQuestionOf(ReasoningInput input) {
+        if (input == null || input.messages() == null) {
+            return null;
+        }
+        return input.messages().stream()
+                .filter(msg -> msg.getRole() == MsgRole.USER)
+                .findFirst()
+                .map(IntentProposalRepairMiddleware::textOf)
+                .orElse(null);
+    }
+
+    /** 包内可见：提取消息文本，供契约校验与单测复用。 */
+    static String textOf(io.agentscope.core.message.Msg message) {
+        if (message == null) {
+            return "";
+        }
+        List<TextBlock> blocks = message.getContentBlocks(TextBlock.class);
+        if (blocks == null || blocks.isEmpty()) {
+            return "";
+        }
+        return blocks.stream().map(TextBlock::getText).filter(java.util.Objects::nonNull)
+                .reduce("", (a, b) -> a + b);
     }
 
     private static List<Msg> appendMessage(List<Msg> messages, String feedback) {

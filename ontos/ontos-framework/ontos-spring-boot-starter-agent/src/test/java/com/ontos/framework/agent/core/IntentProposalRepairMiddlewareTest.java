@@ -36,7 +36,7 @@ class IntentProposalRepairMiddlewareTest {
     private final AgentProperties properties = new AgentProperties();
 
     private IntentProposalRepairMiddleware middleware() {
-        return new IntentProposalRepairMiddleware(new IntentProposalContract(java.util.Set::of), properties);
+        return new IntentProposalRepairMiddleware(new IntentProposalContract(java.util.List::of), properties);
     }
 
     private static ReasoningInput input() {
