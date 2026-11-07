@@ -207,6 +207,8 @@ node docs/00-governance/check-docs.mjs
 | ADR-0004 · 首发业务域与 Scenario 范围 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0004-首发业务域与Scenario范围.md`](01-decisions/ADR-0004-首发业务域与Scenario范围.md) |
 | ADR-0005 · 评测门槛与 PoC 执行责任 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0005-评测门槛与PoC执行责任.md`](01-decisions/ADR-0005-评测门槛与PoC执行责任.md) |
 | ADR-0006 · G2 有条件关闭与重开口径 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0006-G2有条件关闭与重开口径.md`](01-decisions/ADR-0006-G2有条件关闭与重开口径.md) |
+| ADR-0007 · jOOQ 命名与 schema 映射规范 | 决策 | 草稿 | v1 | [`01-decisions/ADR-0007-jOOQ命名与schema映射规范.md`](01-decisions/ADR-0007-jOOQ命名与schema映射规范.md) |
+| ADR-0008 · 缓存落库形态与失效口径 | 决策 | 草稿 | v1 | [`01-decisions/ADR-0008-缓存落库形态与失效口径.md`](01-decisions/ADR-0008-缓存落库形态与失效口径.md) |
 | PoC-01 · RLS 最终边界报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-01-RLS最终边界.md`](06-verification/poc/PoC-01-RLS最终边界.md) |
 | PoC-02 · 发布快照可复现报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-02-发布快照可复现.md`](06-verification/poc/PoC-02-发布快照可复现.md) |
 | PoC-03 · AgentScope 准入报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-03-AgentScope准入.md`](06-verification/poc/PoC-03-AgentScope准入.md) |
