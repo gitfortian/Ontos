@@ -4,6 +4,7 @@ import { AskPage } from "@/app/ask/page";
 import { ApprovalsPage } from "@/app/approvals/page";
 import { AuditPage } from "@/app/audit/page";
 import { ManifestsPage } from "@/app/ontology/manifests/page";
+import { CopilotKitProbePage } from "@/app/probe/copilotkit/page";
 
 import AppLayout from "../layout/AppLayout";
 
@@ -16,6 +17,8 @@ export default function AppRouter() {
         <Route path="/ontology/manifests" element={<ManifestsPage />} />
         <Route path="/approvals" element={<ApprovalsPage />} />
         <Route path="/audit" element={<AuditPage />} />
+        {/* T5.5 验证页：CopilotKit Headless 直连 AG-UI SSE，验完可移除 */}
+        <Route path="/probe/copilotkit" element={<CopilotKitProbePage />} />
         <Route path="*" element={<Navigate replace to="/ask" />} />
       </Route>
     </Routes>

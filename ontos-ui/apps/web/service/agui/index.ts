@@ -1,5 +1,6 @@
 import { stream, type StreamEvent } from "@/service/http/request";
 
+import { redactAguiEvent } from "./redact";
 import type { AguiEvent } from "./types";
 
 /**
@@ -28,8 +29,9 @@ export const streamAgui = async (
       state: {},
       forwardedProps: {},
     },
-    onEvent: (event: StreamEvent) => onEvent(event as AguiEvent),
+    onEvent: (event: StreamEvent) => onEvent(redactAguiEvent(event) as AguiEvent),
   });
 };
 
+export { redactAguiEvent } from "./redact";
 export type { AguiEvent, AguiEventType } from "./types";

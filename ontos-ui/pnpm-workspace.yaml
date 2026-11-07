@@ -4,4 +4,17 @@ packages:
 
 # pnpm 10+ 默认禁止依赖执行安装脚本；vite 依赖 esbuild 的原生二进制
 allowBuilds:
+  # 遥测包，明确拒绝执行其安装脚本
+  '@scarf/scarf': false
   esbuild: true
+
+minimumReleaseAgeExclude:
+  - '@copilotkit/a2ui-renderer@1.85.0'
+  - '@copilotkit/core@1.85.0'
+  - '@copilotkit/learning@1.85.0'
+  - '@copilotkit/mcp-apps-renderer@1.85.0'
+  - '@copilotkit/react-core@1.85.0'
+  - '@copilotkit/runtime-client-gql@1.85.0'
+  - '@copilotkit/shared@1.85.0'
+  - '@copilotkit/web-components@1.85.0'
+  - '@copilotkit/web-inspector@1.85.0'
