@@ -133,17 +133,29 @@ node scripts/verify-baseline.mjs          # 上面四项 + jar 启动探活，�
 | GET | `/api/v1/approvals` | 审批单分页（按租户隔离） |
 | POST | `/api/v1/approvals/{id}/decide` | 批准 / 拒绝 PENDING 单据 |
 | GET | `/api/v1/audit-logs` | 审计日志分页 |
+| POST | `/api/v1/ontology/publish` | 发布清单（dry-run 预检 / 确认发布） |
+| GET | `/api/v1/ontology/publish-records` | 发布历史（含预检留痕） |
+| GET | `/api/v1/ontology/assets` | 资产浏览（按类型分组） |
+| GET | `/api/v1/ontology/manifests/{id}/diff/{baseId}` | 两清单资产级 diff |
+| GET | `/api/v1/ontology/impact` | 资产影响反查 |
+| GET | `/api/v1/ontology/paths` | 本体路径规划（调试端点） |
+| POST | `/api/v1/ontology/manifests/{id}/activate` | 激活指定清单（发布后激活 / 回滚） |
 | POST | `/agent/ontos` | AG-UI SSE 事件流 |
 | GET | `/actuator/health` | 健康检查 |
 
 统一响应为 `CommonResult<T>`（`code=0` 成功），分页为 `PageResult<T>`。
+发布/激活/规划等管理端点经策略闸门（M4 前非 local profile 整体 403）。
 
-## 当前状态（M0 已通过，进入 M1）
+## 当前状态（M1 实施完成，验收附条件）
 
 已落地：多模块骨架、yudao 风格通用层、双数据源、发布清单加载与哈希校验、
-DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、Flyway 迁移、AG-UI 注册、前端四页与 SSE 客户端、架构守护测试、
-阶段零 PoC 全链验收与 M0 闸门关闭（见 `docs/06-verification/checklists/M0-验收报告-v2.md`）、阶段零决策 ADR-0002~0006、版本事实台账。
+DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、Flyway 迁移、AG-UI 注册、前端页面与 SSE 客户端、架构守护测试、
+阶段零 PoC 全链验收与 M0 闸门关闭（ADR-0002~0006、版本事实台账）、
+**M1 全部实施任务**：意图提案契约校验与修复轮（机械闸门）、清单 payload v2 与本体元模型、
+交易域首发建模（6 表 RLS）与首发清单、发布链路（dry-run/确认/激活/回滚/发布脚本）、
+路径规划器（golden 优先/授权子图/歧义标记）、请求级八态状态机与迁移审计、管理界面三页。
+详见 `docs/06-verification/checklists/M1-验收报告-v1.md`（E1–E5/E8 满足）。
 
-待补齐（阶段一及以后）：策略快照落库（`PolicyService` 目前默认 fail-closed，仅 local 放行）、
-跨表 Join 路径规划、会话状态与多轮消歧、8 种分析模式的编译实现、模型扩展 profile 实跑验证、
-生产身份网关联调、清单 CI 发布流水线、冒烟集 gold 与评测脚本（T1.4 登记）。参见 `docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md` 与 `docs/02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md`。
+待补齐（M1 定稿前）：G2 正式批 2/3（跨自然日，批 1 已 100%）、ADR-0007/0008 签字、
+管理页浏览器人工复核、冒烟集 gold 与分词器选型 ADR（T1.4/T1.6/T1.7）。
+M2 编码在 M1 验收定稿前不启动。参见 `docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md`。
