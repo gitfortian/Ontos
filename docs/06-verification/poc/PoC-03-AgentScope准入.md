@@ -130,9 +130,10 @@
 
 **已完成的接入准备**（使该项可一键执行）：
 
-- 工程引入 `agentscope-extensions-model-openai:2.1.0-BETA1`，通过 ServiceLoader 注册 5 个 provider；
-- 实测 `ModelRegistry.canResolve()`：`openai:` / `deepseek:` / `kimi:` / `glm:` / `minimax:` 全部可解析，`dashscope:` 不可解析（见 §7）；
-- 默认模型改为 `openai:gpt-4o-mini` + `OPENAI_BASE_URL`，可指向任意 OpenAI 协议兼容的云厂商端点。
+- 工程引入 `agentscope-extensions-model-openai:2.1.0-BETA1` 作为 OpenAI 协议族的模型实现；
+- 配置改为标准 **OpenAI 三件套**：`ontos.agent.model`（模型名）+ `ontos.agent.base-url`（兼容端点）+ `ontos.agent.api-key`（密钥，仅环境变量），**不绑定具体厂商**；
+- 凭据经 `ModelCreationContext` 显式传入，不依赖 provider 约定环境变量名；
+- 实测（`ConfigProbe`，无需真凭据）：显式 base-url/api-key 可解析模型、纯模型名可构建 `HarnessAgent`、缺凭据时错误信息含可执行排查线索。
 
 ## 7. 准入过程中修掉的配置缺陷
 
@@ -140,7 +141,7 @@
 
 这意味着即使配好 API Key，AG-UI 调用也必然在模型解析阶段失败——原配置在任何情况下都跑不通，属未被触发的缺陷（此前只有「无数据库模式启动」覆盖，未真正调用 AG-UI）。
 
-已修正为 OpenAI 协议族默认值，并保留 `ONTOS_AGENT_MODEL` 覆盖能力。
+已改为标准 OpenAI 三件套（模型名 + 兼容端点 + 密钥），不再绑定任何厂商前缀，换供应商只需改 `base-url` 与模型名。
 
 ## 8. 结论
 

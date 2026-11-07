@@ -8,7 +8,7 @@
 ## 已冻结技术基线
 - JDK **21**、Spring Boot **4.0.x（≥4.0.3）**、AgentScope Java **2.1.0-BETA1**、PostgreSQL 18、Jackson 3（`tools.jackson.*`）。
 - Boot 大版本以 AgentScope starter 的 Maven Central POM 为准，不是 3.x；版本依据一律实测，不采信第三方博客。
-- **模型 provider 统一走 OpenAI 协议族**：依赖 `agentscope-extensions-model-openai`（一个 artifact 注册 `openai:` / `deepseek:` / `kimi:` / `glm:` / `minimax:` 五个 provider），凭据只走环境变量。默认 `openai:gpt-4o-mini` + `OPENAI_BASE_URL` 可指向任意兼容云厂商。**不要再写 dashscope 前缀**——工程没引入该扩展，`ModelRegistry` 解析不到。
+- **模型接入只认 OpenAI 协议，不绑定厂商**（用户 2026-11-07 明确）：配置是标准三件套 `ontos.agent.model` + `base-url` + `api-key`（密钥仅环境变量），换供应商只改 `base-url` 与模型名。实现上依赖 `agentscope-extensions-model-openai`，但**不要在配置/文档里暴露各家的 provider 前缀**——用户明确说「先不适配各家模型」。`dashscope:` 前缀解析不到（工程没引入该扩展），不要再用。
 
 ## 用户明确偏好（必须遵守）
 - 后端整体代码风格**尽量参考 yudao-boot-mini**（github.com/yudaocode/yudao-boot-mini），保持规范。
