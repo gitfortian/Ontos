@@ -1,0 +1,201 @@
+{
+  "generatedAt": "2026-11-07T14:01:29.288Z",
+  "baseUrl": "http://127.0.0.1:8080",
+  "total": 19,
+  "passed": 19,
+  "passRate": 1,
+  "results": [
+    {
+      "kind": "direct",
+      "label": "ontology.Customer.placesOrder（正向）",
+      "expect": "UNIQUE",
+      "status": "UNIQUE",
+      "hops": 1,
+      "candidateCount": 1,
+      "met": true,
+      "reason": null,
+      "golden": true
+    },
+    {
+      "kind": "direct",
+      "label": "ontology.Customer.placesOrder（逆向）",
+      "expect": "UNIQUE",
+      "status": "UNIQUE",
+      "hops": 1,
+      "candidateCount": 1,
+      "met": true,
+      "reason": null,
+      "golden": true
+    },
+    {
+      "kind": "direct",
+      "label": "ontology.Order.containsItem（正向）",
+      "expect": "UNIQUE",
+      "status": "UNIQUE",
+      "hops": 1,
+      "candidateCount": 1,
+      "met": true,
+      "reason": null,
+      "golden": true
+    },
+    {
+      "kind": "direct",
+      "label": "ontology.Order.containsItem（逆向）",
+      "expect": "UNIQUE",
+      "status": "UNIQUE",
+      "hops": 1,
+      "candidateCount": 1,
+      "met": true,
+      "reason": null,
+      "golden": true
+    },
+    {
+      "kind": "direct",
+      "label": "ontology.OrderItem.refersProduct（正向）",
+      "expect": "UNIQUE",
+      "status": "UNIQUE",
+      "hops": 1,
+      "candidateCount": 1,
+      "met": true,
+      "reason": null,
+      "golden": true
+    },
+    {
+      "kind": "direct",
+      "label": "ontology.OrderItem.refersProduct（逆向）",
+      "expect": "UNIQUE",
+      "status": "UNIQUE",
+      "hops": 1,
+      "candidateCount": 1,
+      "met": true,
+      "reason": null,
+      "golden": true
+    },
+    {
+      "kind": "direct",
+      "label": "ontology.Customer.performsEvent（正向）",
+      "expect": "UNIQUE",
+      "status": "UNIQUE",
+      "hops": 1,
+      "candidateCount": 1,
+      "met": true,
+      "reason": null,
+      "golden": false
+    },
+    {
+      "kind": "direct",
+      "label": "ontology.Customer.performsEvent（逆向）",
+      "expect": "UNIQUE",
+      "status": "UNIQUE",
+      "hops": 1,
+      "candidateCount": 1,
+      "met": true,
+      "reason": null,
+      "golden": false
+    },
+    {
+      "kind": "direct",
+      "label": "ontology.Order.recordsEvent（正向）",
+      "expect": "UNIQUE",
+      "status": "UNIQUE",
+      "hops": 1,
+      "candidateCount": 1,
+      "met": true,
+      "reason": null,
+      "golden": false
+    },
+    {
+      "kind": "direct",
+      "label": "ontology.Order.recordsEvent（逆向）",
+      "expect": "UNIQUE",
+      "status": "UNIQUE",
+      "hops": 1,
+      "candidateCount": 1,
+      "met": true,
+      "reason": null,
+      "golden": false
+    },
+    {
+      "kind": "direct",
+      "label": "ontology.Event.attributedToChannel（正向）",
+      "expect": "UNIQUE",
+      "status": "UNIQUE",
+      "hops": 1,
+      "candidateCount": 1,
+      "met": true,
+      "reason": null,
+      "golden": false
+    },
+    {
+      "kind": "direct",
+      "label": "ontology.Event.attributedToChannel（逆向）",
+      "expect": "UNIQUE",
+      "status": "UNIQUE",
+      "hops": 1,
+      "candidateCount": 1,
+      "met": true,
+      "reason": null,
+      "golden": false
+    },
+    {
+      "kind": "direct",
+      "label": "ontology.Order.attributedToChannel（正向）",
+      "expect": "UNIQUE",
+      "status": "UNIQUE",
+      "hops": 1,
+      "candidateCount": 1,
+      "met": true,
+      "reason": null,
+      "golden": true
+    },
+    {
+      "kind": "direct",
+      "label": "ontology.Order.attributedToChannel（逆向）",
+      "expect": "UNIQUE",
+      "status": "UNIQUE",
+      "hops": 1,
+      "candidateCount": 1,
+      "met": true,
+      "reason": null,
+      "golden": true
+    },
+    {
+      "kind": "golden-priority",
+      "label": "客户→渠道 golden 优先",
+      "expect": "UNIQUE+golden",
+      "status": "UNIQUE",
+      "met": true,
+      "candidateCount": 1
+    },
+    {
+      "kind": "multi-hop",
+      "label": "客户→商品 3 跳全 golden",
+      "expect": "UNIQUE+3hops+golden",
+      "status": "UNIQUE",
+      "hops": 3,
+      "met": true
+    },
+    {
+      "kind": "negative",
+      "label": "未知业务对象",
+      "expect": "NONE",
+      "status": "NONE",
+      "met": true
+    },
+    {
+      "kind": "negative",
+      "label": "授权域排除 product",
+      "expect": "NONE",
+      "status": "NONE",
+      "met": true,
+      "reason": "跳数 ≤ 3 内无合法路径（或全部被授权子图排除）"
+    },
+    {
+      "kind": "negative",
+      "label": "跳数不足 maxHops=2",
+      "expect": "NONE",
+      "status": "NONE",
+      "met": true
+    }
+  ]
+}
