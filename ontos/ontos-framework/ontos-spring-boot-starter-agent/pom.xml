@@ -16,6 +16,10 @@
 
   <dependencies>
     <dependency>
+      <groupId>com.ontos</groupId>
+      <artifactId>ontos-common</artifactId>
+    </dependency>
+    <dependency>
       <groupId>io.agentscope</groupId>
       <artifactId>agentscope-harness</artifactId>
     </dependency>

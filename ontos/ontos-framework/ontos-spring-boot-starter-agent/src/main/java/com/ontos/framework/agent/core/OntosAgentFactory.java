@@ -2,12 +2,17 @@ package com.ontos.framework.agent.core;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import com.ontos.framework.agent.config.AgentProperties;
+import com.ontos.framework.common.agent.AgentContextProvider;
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.model.Model;
 import io.agentscope.core.model.ModelCreationContext;
 import io.agentscope.core.model.ModelRegistry;
+import io.agentscope.core.session.SessionHistoryMode;
 import io.agentscope.harness.agent.HarnessAgent;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.util.StringUtils;
@@ -22,6 +27,9 @@ import org.springframework.util.StringUtils;
  * <p>凭据通过 {@link ModelCreationContext} 显式传入，不依赖 provider 约定环境变量名；
  * 同一个进程可同时持有多个不同端点的模型实例，缓存键包含上下文指纹（由框架负责），不会串号。
  *
+ * <p>候选集由 {@link AgentContextProvider} 在每次构建时提供并追加到系统提示词：
+ * 没有候选集时模型只能退化成「能力发现」或编造 ID——这是 PoC #3 终态重建失败的主因。
+ *
  * <p>身份不放在 Builder 里，请求级身份由 AG-UI 适配器传入的 RuntimeContext 决定。
  */
 public class OntosAgentFactory {
@@ -30,20 +38,38 @@ public class OntosAgentFactory {
 
     private final AgentProperties properties;
     private final ResourceLoader resourceLoader;
+    private final List<AgentContextProvider> contextProviders;
 
     public OntosAgentFactory(AgentProperties properties, ResourceLoader resourceLoader) {
+        this(properties, resourceLoader, List.of());
+    }
+
+    public OntosAgentFactory(AgentProperties properties, ResourceLoader resourceLoader,
+                             List<AgentContextProvider> contextProviders) {
         this.properties = properties;
         this.resourceLoader = resourceLoader;
+        this.contextProviders = contextProviders == null ? List.of() : List.copyOf(contextProviders);
     }
 
     public Agent create() {
         return HarnessAgent.builder()
                 .name("ontos")
                 .agentId("ontos")
-                .sysPrompt(readPrompt())
+                .sysPrompt(buildSystemPrompt())
                 .model(resolveModel())
                 .workspace(properties.getWorkspace())
                 .maxIters(properties.getMaxIters())
+                // 每次构建使用独立 session：AguiAgentRegistry 只接受 Supplier<Agent>，
+                // 注册层拿不到 AG-UI 的 threadId，若沿用默认 session 会让所有请求共享历史——
+                // 实测 messages 从 2 一路涨到 11，越跑越慢直至 token 超限返回空。
+                // 代价是 M0 不支持多轮上下文；M1 需要按 threadId 维护 agent 实例
+                // （或在适配层把 threadId 映射成 sessionId），不能靠默认值。
+                .defaultSessionId("ontos-" + UUID.randomUUID())
+                // 会话历史改用 LEGACY 模式：默认的 EVENT_LOG 模式会在 session log 里做
+                // 「未完成工具调用的显式对账」，配合每请求新 session 会抛
+                // SessionLogException: Explicit reconciliation required for unknown tool calls，
+                // 表现为请求立刻返回空内容（实测 20 次里 7 次）。
+                .sessionHistoryMode(SessionHistoryMode.LEGACY)
                 // 安全边界：HarnessAgent 默认会装配 execute / write_file / edit_file / web_fetch /
                 // agent_spawn 等通用工具，对「只做意图提案」的问数 agent 属越权面——
                 // 模型可以据此读写宿主机文件、执行命令、访问外网、派生无限子 agent。
@@ -63,6 +89,16 @@ public class OntosAgentFactory {
                 // memory_* / session_* / task_* / agent_* 这 13 个暂无公开开关关闭，
                 // 登记为 M1 待办：用 PermissionContextState 的 deny 规则按工具名收敛。
                 .build();
+    }
+
+    /** 系统提示词 + 候选集。候选集为空时保持提示词原样，不追加空段落。 */
+    private String buildSystemPrompt() {
+        String base = readPrompt();
+        String candidates = contextProviders.stream()
+                .map(AgentContextProvider::candidateContext)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.joining("\n\n"));
+        return candidates.isEmpty() ? base : base + "\n\n" + candidates;
     }
 
     /**
