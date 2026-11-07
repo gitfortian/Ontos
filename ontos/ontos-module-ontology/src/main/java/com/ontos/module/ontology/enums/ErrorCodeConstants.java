@@ -14,5 +14,8 @@ public interface ErrorCodeConstants {
     ErrorCode ASSET_MODE_NOT_ALLOWED = new ErrorCode(1_001_000_004, "指标不支持该分析模式: {}");
     ErrorCode DIMENSION_NOT_ALLOWED = new ErrorCode(1_001_000_005, "维度不在指标允许范围: {}");
     ErrorCode MANIFEST_HASH_MISMATCH = new ErrorCode(1_001_000_006, "发布清单内容哈希校验失败: {}");
+    ErrorCode PUBLISH_VALIDATION_FAILED = new ErrorCode(1_001_000_007, "发布预检未通过: {}");
+    ErrorCode MANIFEST_ALREADY_EXISTS = new ErrorCode(1_001_000_008, "manifest_id 已存在，清单不可变: {}");
+    ErrorCode PUBLISH_PAYLOAD_INVALID = new ErrorCode(1_001_000_009, "发布载荷缺失或不可解析");
 
 }

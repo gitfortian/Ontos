@@ -62,4 +62,39 @@ public class PublishedSnapshotRepository {
         return rows.stream().findFirst();
     }
 
+    /**
+     * 发布插入：content_hash 在 PG 侧按 jsonb 规范文本计算（与种子 SQL、运行时读取口径一致），
+     * Java 侧不自行序列化哈希——避免键序/空白差异破坏 PoC #2 的可复现口径。
+     * 版本列在 M1 统一取 manifestId（版本化资产组随首发清单演进）。
+     *
+     * @return 数据库计算出的 content_hash
+     */
+    public String insertSnapshot(String manifestId, String payloadJson, String createdBy) {
+        return jdbcTemplate.queryForObject(
+                """
+                INSERT INTO published_snapshot (manifest_id, content_hash, ontology_version, semantic_version,
+                                                policy_version, rule_version, time_parser_version,
+                                                copy_template_version, payload, created_by)
+                SELECT :manifestId, encode(digest(CAST(:payload AS jsonb)::text, 'sha256'), 'hex'),
+                       :manifestId, :manifestId, :manifestId, :manifestId, :manifestId, :manifestId,
+                       CAST(:payload AS jsonb), :createdBy
+                RETURNING content_hash
+                """,
+                Map.of("manifestId", manifestId, "payload", payloadJson, "createdBy", createdBy),
+                String.class);
+    }
+
+    /** 发布历史（含 dry-run 预检记录），审计可回放。 */
+    public void insertPublishRecord(String manifestId, String contentHash, boolean dryRun,
+                                    String sourceRef, String publishedBy) {
+        jdbcTemplate.update(
+                """
+                INSERT INTO publish_record (manifest_id, content_hash, dry_run, source_ref, published_by)
+                VALUES (:manifestId, :contentHash, :dryRun, :sourceRef, :publishedBy)
+                """,
+                Map.of("manifestId", manifestId, "contentHash", contentHash,
+                        "dryRun", dryRun, "sourceRef", sourceRef == null ? "" : sourceRef,
+                        "publishedBy", publishedBy));
+    }
+
 }
