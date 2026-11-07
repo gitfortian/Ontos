@@ -20,7 +20,7 @@
 | 四个 artifact 均存在对应 BETA 坐标 | **通过** | §3.1 |
 | 与 Spring Boot 4.0.x（≥4.0.3）兼容 | **通过** | §3.2 |
 | 产出相对 2.0.4 的破坏性 API 差异清单 | **通过** | §4 |
-| 5 类结构化终态在 20 次会话中重建成功率 100% | **未执行（缺模型凭据）** | §6 |
+| 5 类结构化终态在 20 次会话中重建成功率 100% | **失败（56.3%）** | §6 |
 
 **因此 `#3` 整体未通过，G2 未关闭。** 前三项通过不等于准入通过。
 
@@ -35,10 +35,9 @@
 | 脚本 | `scripts/poc/verify-agentscope-admission.mjs` |
 | 原始输出 | [`AgentScope-准入证据-raw.json`](AgentScope-准入证据-raw.json) |
 
-边界：本报告不覆盖
+边界：本报告覆盖五类终态重建（§6），但不覆盖
 
-- 五类结构化终态的端到端重建（需真实模型凭据）；
-- AG-UI 六类事件的可达性与重连幂等（属 `#10`，由 T3.2/T3.5 负责）；
+- AG-UI 六类事件的可达性与重连幂等（属 `#10`，见 PoC-10 协议探针）；
 - 生产部署行为（副本、扩缩容、长会话稳定性）。
 
 ## 3. 坐标与兼容性
@@ -120,20 +119,55 @@
 
 判断：该表述是文档撰写时的假设（可能源自更早的 1.x → 2.0 变更），不是 2.0.4 → 2.1.0-BETA1 的事实。**报告按实测写，不按判据表述写**；建议技术选型下次升版时更正这句，避免 M1 按错误假设做兼容层。
 
-## 6. 未执行项：五类结构化终态端到端重建
+### 5.1 第二处表述不符：`streamEvents()`
 
-判据要求澄清四要素、discovery、审批回传、复合子结果、原因码五类终态，经 `streamEvents()` + AG-UI 在 20 次会话中重建成功率 100%。
+判据写「经 `streamEvents()` + AG-UI 重建终态」。实测 **2.0.4 与 2.1.0-BETA1 都没有 `streamEvents()`**：
 
-**未执行原因**：需要真实模型凭据。本机环境无任何 provider 的 API Key，探针无法发起会话。
+| 版本 | `StreamableAgent` 上的流式方法 |
+|---|---|
+| 2.0.4 | `stream(...)`，12 个重载，无 `streamEvents` |
+| 2.1.0-BETA1 | 同上 |
 
-**处理方式**：不降级、不估算、不记「部分通过」。该项状态为 `BLOCKED`，凭据到位后由 `#3` 的终态探针补齐，在此之前 `#3` 按未通过处理。
+流式入口是 `stream(Msg)` / `stream(List<Msg>, StreamOptions)`，返回 `Flux<Event>`。报告按实际的 `stream()` 执行，判据表述建议在下次升版时一并更正。
 
-**已完成的接入准备**（使该项可一键执行）：
+## 6. 五类结构化终态端到端重建（已执行，失败）
+
+经真实 AG-UI 通道（`POST /agent/run/{agentId}`）跑 20 次会话，解析 `TEXT_MESSAGE_CONTENT` 拼出的 JSON，按字段判定终态。
+
+| 终态 | 命中 | 判定依据 |
+|---|---|---|
+| 澄清四要素 | **3/4** | `clarification` 非空对象 |
+| 能力发现 | **2/4** | `needs_discovery = true` |
+| 审批回传 | **N/A** | system prompt 未定义该字段，属 M1 审批流能力；不计入分母，也不记为通过 |
+| 复合子结果 | **1/4** | `sub_intents.length >= 2` |
+| 原因码 | **3/4** | `out_of_capability = true` 且 `reason_code` 非空 |
+
+**适用会话成功率 56.3%（9/16），判据要求 100% → FAIL。**
+
+### 6.1 失败模式与根因
+
+| 失败模式 | 次数 | 表现 | 根因 |
+|---|---|---|---|
+| 空响应 | 4 | HTTP 200、955–1709 ms 返回、**无任何 `TEXT_MESSAGE_CONTENT`** | 模型输出被截断（reasoning 消耗掉 token 预算）或框架提前结束，两种都会让前端拿到空回答 |
+| 超时 | 3 | 180 s 未结束，被探针中止 | 模型通过 `agent_spawn` 派生 `general-purpose-subagent` 去检索候选集，子 agent 又跑一轮工具循环（见 §6.2） |
+| 判定未通过 | 4 | 有 JSON 但字段不满足 | 复合意图未被拆成 ≥2 个子意图；部分澄清只给出 `ambiguity` 而候选为空 |
+
+### 6.2 根因不是模型能力，是配置缺口
+
+三条相互叠加：
+
+1. **没有候选集**。system prompt 要求「只能引用候选集里出现过的 `metric_id` / `dimension_id`」，但 M0 没有把已发布清单注入 context。模型缺输入，只能退化成 `needs_discovery` 或自己去找。
+2. **工具未收敛**。`HarnessAgent` 默认装配含 `agent_spawn` 的工具集，模型据此派生子 agent 检索。`disableFilesystemTools` / `disableShellTool` / `disableWebTools` 可关掉文件与命令能力，但 `agent_spawn` 一组没有公开关闭开关，`enableMetaTool(false)` 实测无效。
+3. **token 预算与 reasoning 模型不匹配**。当前是带思维链的模型，reasoning 会吃掉输出预算，出现过 `finish_reason=length` 且 `content` 为空。
+
+**结论**：该判据在 M0 不具备通过条件，需要 M1 的「候选集注入 + 工具白名单」两项能力到位后重跑，而不是靠调 prompt 或放宽判定。
+
+### 6.3 已完成的接入准备
 
 - 工程引入 `agentscope-extensions-model-openai:2.1.0-BETA1` 作为 OpenAI 协议族的模型实现；
-- 配置改为标准 **OpenAI 三件套**：`ontos.agent.model`（模型名）+ `ontos.agent.base-url`（兼容端点）+ `ontos.agent.api-key`（密钥，仅环境变量），**不绑定具体厂商**；
+- 配置为标准 **OpenAI 三件套**：`ontos.agent.model` + `ontos.agent.base-url` + `ontos.agent.api-key`（密钥仅环境变量），不绑定厂商；
 - 凭据经 `ModelCreationContext` 显式传入，不依赖 provider 约定环境变量名；
-- 实测（`ConfigProbe`，无需真凭据）：显式 base-url/api-key 可解析模型、纯模型名可构建 `HarnessAgent`、缺凭据时错误信息含可执行排查线索。
+- 真实连通已验证：`call()` 与 `stream()` 均返回正常中文，`stream` 产出 `REASONING` / `AGENT_RESULT` 事件。
 
 ## 7. 准入过程中修掉的配置缺陷
 
@@ -150,13 +184,15 @@
 | artifact 坐标 | 通过 |
 | Boot 4.0.x / JDK 21 兼容 | 通过（POM 声明 4.0.1 + 工程实跑） |
 | 破坏性 API 差异清单 | 通过（见 §4，含对判据表述的纠正） |
-| 五类结构化终态重建 | **未执行（缺凭据）** |
+| 五类结构化终态重建 | **失败（56.3%，9/16）** |
 | `#3` 整体 | **未通过，G2 未关闭** |
 
 回退目标保持 `2.0.4` 不变；BETA 不得进入生产。
 
 ## 9. 证据路径
 
-- `scripts/poc/verify-agentscope-admission.mjs` — 核验脚本（可重复执行）
+- `scripts/poc/verify-agentscope-admission.mjs` — 坐标/Boot/API 差异核验（可重复执行）
+- `scripts/poc/run-poc03-terminal-states.mjs` — 五类终态重建探针
+- [`PoC-03-终态重建-raw.json`](PoC-03-终态重建-raw.json) — 20 次会话的逐条判定与失败原因
 - [`AgentScope-准入证据-raw.json`](AgentScope-准入证据-raw.json) — 本次运行的原始输出
 - [M0 硬阻断结论 v2](M0-硬阻断结论-v2.md) — G1 汇总（与本文件不冲突，G2 独立）
