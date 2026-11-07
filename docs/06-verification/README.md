@@ -13,7 +13,7 @@
 - [M0 基线自检输出](checklists/M0-基线自检-2026-11-07.txt)（G7 的归档原始输出，4 PASS / 0 FAIL）
 - [零号冒烟集 v1](evaluation/零号冒烟集-v1.md)（已冻结，20 题题目与分类；gold 待 M1/M2 补齐）
 - [编译器 Golden 集 v1](evaluation/编译器Golden集-v1.json)（30 条，QUERY 20 + 非 QUERY 10；M2 补齐模式后升版）
-- [复合意图题集 v1](evaluation/复合意图题集-v1.json)（PoC #8 判据集，30 题；结果待 M2 回填）
+- [复合意图题集 v2](evaluation/复合意图题集-v2.json)（PoC #8 判据集，30 题；assetRef 已校准至首发清单真实 ID，结果待 M2 回填）
 - [中文提及样本集 v1](evaluation/中文提及样本集-v1.json)（PoC #5 判据集，300 条 120/90/45/45；结果待 M5 回填）
 - [PoC-01 · RLS 最终边界报告 v1](poc/PoC-01-RLS最终边界.md)（系统级，限定范围 PASS，500 次检查 0 越权；补验不通过的后果见 ADR-0006/验收报告 v2）
 - [PoC-02 · 发布快照可复现报告 v1](poc/PoC-02-发布快照可复现.md)（系统级 PASS，跨 2 次重启 300/300 逐字一致）

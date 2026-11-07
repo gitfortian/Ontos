@@ -1,0 +1,1058 @@
+{
+  "setId": "poc08-composite-intents",
+  "version": "v2",
+  "frozenAt": "2026-11-07",
+  "criteriaRef": "技术选型 v1.1 §7 #8（判据与阈值一律引用上游，不在此复制）",
+  "note": "M0 / T3.3 交付：仅冻结题目与期望拆分，不执行、不判通过。执行结果与 gold 校准待 M2 回填（编译器当前只支持单意图，见 PoC-04）。；其中 metric.refund_amount / metric.high_value_customer 等为规划资产，当前 demo 清单不含。 v2 校准（2026-11-07，T2.6）：assetRef 已对齐首发清单 2026.11.07-first-r3 的真实资产 ID（entity.* → concept.*，attr.* → property.*）；全部引用经清单校验存在。",
+  "schema": {
+    "id": "c01..c30，只增不改",
+    "question": "复合问题原文",
+    "category": "result_dependent | parallel_independent | failure_single | cross_scope | composite_time",
+    "expectedSubIntents": [
+      {
+        "seq": "从 1 连续编号",
+        "intent": "QUERY | LOOKUP | BOOLEAN_RULE",
+        "assetRef": "规划资产 ID",
+        "dimensions": [
+          "分组维度，可空"
+        ],
+        "scope": "交易域 trade / 客户域 customer / 商品域 product",
+        "dependsOn": [
+          "依赖的其他子查询 seq"
+        ],
+        "derive": "结果加工说明（仅描述，不出现 SQL）",
+        "failureInjection": "failurePlan=one 时标注允许失败的子查询 seq"
+      }
+    ],
+    "dependsOn": "存在依赖关系的子查询 seq 列表",
+    "failurePlan": "none | one | all",
+    "scopePerSubIntent": "与 expectedSubIntents 一一对应的 scope 列表"
+  },
+  "cases": [
+    {
+      "id": "c01",
+      "question": "各区域上个月的 GMV 是多少？其中华东占比多少？",
+      "category": "result_dependent",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.region"
+          ],
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [],
+          "scope": "trade",
+          "dependsOn": [
+            1
+          ],
+          "derive": "华东 GMV 除以总量，输入取 seq1 已授权脱敏后的结果"
+        }
+      ],
+      "dependsOn": [
+        2
+      ],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c02",
+      "question": "今年总订单数是多少？线上渠道的占多少？",
+      "category": "result_dependent",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.order_count",
+          "dimensions": [],
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.order_count",
+          "dimensions": [
+            "dim.channel"
+          ],
+          "scope": "trade",
+          "dependsOn": [
+            1
+          ],
+          "derive": "线上渠道订单数除以 seq1 总量"
+        }
+      ],
+      "dependsOn": [
+        2
+      ],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c03",
+      "question": "华东和华南哪个月 GMV 更高？高多少？",
+      "category": "result_dependent",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.order_date"
+          ],
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "过滤华东，按月分组"
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.order_date"
+          ],
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "过滤华南，按月分组"
+        },
+        {
+          "seq": 3,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [],
+          "scope": "trade",
+          "dependsOn": [
+            1,
+            2
+          ],
+          "derive": "逐月比较两个子结果，输出更高方与差值"
+        }
+      ],
+      "dependsOn": [
+        3
+      ],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c04",
+      "question": "客单价最高的三个区域，它们的订单总数是多少？",
+      "category": "result_dependent",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.region"
+          ],
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.order_count",
+          "dimensions": [
+            "dim.region"
+          ],
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 3,
+          "intent": "QUERY",
+          "assetRef": "metric.order_count",
+          "dimensions": [
+            "dim.region"
+          ],
+          "scope": "trade",
+          "dependsOn": [
+            1,
+            2
+          ],
+          "derive": "seq1/seq2 得客单价排序取前三区域，再取其订单总数"
+        }
+      ],
+      "dependsOn": [
+        3
+      ],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c05",
+      "question": "有多少高价值客户？这些客户贡献了多少 GMV？",
+      "category": "result_dependent",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "BOOLEAN_RULE",
+          "assetRef": "metric.high_value_customer",
+          "scope": "customer",
+          "dependsOn": [],
+          "derive": "按已发布 Rule 判定，禁止内联阈值"
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": [
+            1
+          ],
+          "derive": "以 seq1 判定通过的客户集合作为过滤条件（该集合须以授权+脱敏后的形式传入）"
+        }
+      ],
+      "dependsOn": [
+        2
+      ],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "customer",
+        "trade"
+      ]
+    },
+    {
+      "id": "c06",
+      "question": "GMV 排名前二的渠道，它们的订单数是多少？",
+      "category": "result_dependent",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.channel"
+          ],
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.order_count",
+          "dimensions": [
+            "dim.channel"
+          ],
+          "scope": "trade",
+          "dependsOn": [
+            1
+          ],
+          "derive": "取 seq1 前二渠道，作为 seq2 的过滤条件"
+        }
+      ],
+      "dependsOn": [
+        2
+      ],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c07",
+      "question": "华东本月和上月的 GMV 各是多少？环比变化多少？",
+      "category": "result_dependent",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "华东，本月窗口"
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "华东，上月窗口"
+        },
+        {
+          "seq": 3,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": [
+            1,
+            2
+          ],
+          "derive": "环比 = (seq1 - seq2) / seq2"
+        }
+      ],
+      "dependsOn": [
+        3
+      ],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c08",
+      "question": "卖得最好的商品属于哪个品类？该品类下各商品贡献了多少 GMV？",
+      "category": "result_dependent",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "LOOKUP",
+          "assetRef": "concept.product",
+          "scope": "product",
+          "dependsOn": [],
+          "derive": "按销量取第一的商品及其品类"
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.product_category"
+          ],
+          "scope": "product",
+          "dependsOn": [
+            1
+          ],
+          "derive": "以 seq1 的品类作为过滤条件"
+        }
+      ],
+      "dependsOn": [
+        2
+      ],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "product",
+        "product"
+      ]
+    },
+    {
+      "id": "c09",
+      "question": "同时看各区域的 GMV 和各渠道的订单数。",
+      "category": "parallel_independent",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.region"
+          ],
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.order_count",
+          "dimensions": [
+            "dim.channel"
+          ],
+          "scope": "trade",
+          "dependsOn": []
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c10",
+      "question": "上个月的 GMV 和下单客户数分别是多少？",
+      "category": "parallel_independent",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.distinct_customers",
+          "scope": "trade",
+          "dependsOn": []
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c11",
+      "question": "各品类的 GMV 分布，以及各渠道的退货金额。",
+      "category": "parallel_independent",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.product_category"
+          ],
+          "scope": "product",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.refund_amount",
+          "dimensions": [
+            "dim.channel"
+          ],
+          "scope": "trade",
+          "dependsOn": []
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "product",
+        "trade"
+      ]
+    },
+    {
+      "id": "c12",
+      "question": "今年和去年的 GMV 分别是多少？",
+      "category": "parallel_independent",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "今年窗口（两个独立子查询，不合并；若 M2 的 YOY_MOM 构造器可用则优先走内置模式，见 note）"
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "去年窗口"
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade"
+      ],
+      "note": "M2 实现同环比构造器后，此类应优先走内置 YOY_MOM 模式而非拆分；拆分仅作为模式不可用时的对照"
+    },
+    {
+      "id": "c13",
+      "question": "各区域的订单数和客单价。",
+      "category": "parallel_independent",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.order_count",
+          "dimensions": [
+            "dim.region"
+          ],
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.avg_order_value",
+          "dimensions": [
+            "dim.region"
+          ],
+          "scope": "trade",
+          "dependsOn": []
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c14",
+      "question": "华东的 GMV 和客户等级分布。",
+      "category": "parallel_independent",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "过滤华东"
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.distinct_customers",
+          "dimensions": [
+            "dim.customer_tier"
+          ],
+          "scope": "customer",
+          "dependsOn": []
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "customer"
+      ]
+    },
+    {
+      "id": "c15",
+      "question": "各区域 GMV 和各渠道 GMV 都看一下，渠道数据缺失也没关系。",
+      "category": "failure_single",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.region"
+          ],
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.channel"
+          ],
+          "scope": "trade",
+          "dependsOn": [],
+          "failureInjection": 2
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "one",
+      "scopePerSubIntent": [
+        "trade",
+        "trade"
+      ],
+      "note": "seq2 失败时 seq1 正常返回，失败可解释，不合并、不共享中间结果"
+    },
+    {
+      "id": "c16",
+      "question": "上个月订单数和高价值客户数，客户判定查不出就先给订单数。",
+      "category": "failure_single",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.order_count",
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "BOOLEAN_RULE",
+          "assetRef": "metric.high_value_customer",
+          "scope": "customer",
+          "dependsOn": [],
+          "failureInjection": 2
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "one",
+      "scopePerSubIntent": [
+        "trade",
+        "customer"
+      ]
+    },
+    {
+      "id": "c17",
+      "question": "华东和华南各自的 GMV，华南查不到就只给华东。",
+      "category": "failure_single",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "过滤华东"
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "过滤华南",
+          "failureInjection": 2
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "one",
+      "scopePerSubIntent": [
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c18",
+      "question": "各品类 GMV 和对应客单价，客单价允许缺。",
+      "category": "failure_single",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.product_category"
+          ],
+          "scope": "product",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.avg_order_value",
+          "dimensions": [
+            "dim.product_category"
+          ],
+          "scope": "product",
+          "dependsOn": [],
+          "failureInjection": 2
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "one",
+      "scopePerSubIntent": [
+        "product",
+        "product"
+      ]
+    },
+    {
+      "id": "c19",
+      "question": "本月 GMV 和本月下单客户数，客户数那部分可能查不了。",
+      "category": "failure_single",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.distinct_customers",
+          "scope": "trade",
+          "dependsOn": [],
+          "failureInjection": 2
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "one",
+      "scopePerSubIntent": [
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c20",
+      "question": "交易域的 GMV 和客户域的客户数一起看。",
+      "category": "cross_scope",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.distinct_customers",
+          "scope": "customer",
+          "dependsOn": []
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "customer"
+      ],
+      "note": "跨域组合须独立走域组合策略判定，任一子查询被拒不得以合并 SQL 绕过"
+    },
+    {
+      "id": "c21",
+      "question": "交易域 GMV，加上客户域的高价值客户判定。",
+      "category": "cross_scope",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "BOOLEAN_RULE",
+          "assetRef": "metric.high_value_customer",
+          "scope": "customer",
+          "dependsOn": []
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "customer"
+      ]
+    },
+    {
+      "id": "c22",
+      "question": "各渠道的 GMV，以及客户域按等级的客户数分布。",
+      "category": "cross_scope",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.channel"
+          ],
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.distinct_customers",
+          "dimensions": [
+            "dim.customer_tier"
+          ],
+          "scope": "customer",
+          "dependsOn": []
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "customer"
+      ]
+    },
+    {
+      "id": "c23",
+      "question": "各品类的 GMV 和整体的订单数。",
+      "category": "cross_scope",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.product_category"
+          ],
+          "scope": "product",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.order_count",
+          "scope": "trade",
+          "dependsOn": []
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "product",
+        "trade"
+      ]
+    },
+    {
+      "id": "c24",
+      "question": "看看客户邮箱是否存在（不用给值），以及本月订单数。",
+      "category": "cross_scope",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "LOOKUP",
+          "assetRef": "property.customer.email",
+          "scope": "customer",
+          "dependsOn": [],
+          "derive": "PII 存在性查询，返回不可用/可用，不泄露值与存在性差异"
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.order_count",
+          "scope": "trade",
+          "dependsOn": []
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "customer",
+        "trade"
+      ],
+      "note": "存在性敏感字段进入复合意图时逐子查询独立做存在性保护与累计计数"
+    },
+    {
+      "id": "c25",
+      "question": "近 7 天和近 30 天的 GMV 对比。",
+      "category": "composite_time",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "相对时间：近 7 天，记录 time_expression_raw"
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "相对时间：近 30 天，记录 time_expression_raw"
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c26",
+      "question": "上季度各区域 GMV，以及本季度至今的各区域 GMV。",
+      "category": "composite_time",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.region"
+          ],
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "上季度窗口"
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.region"
+          ],
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "本季度至今窗口"
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c27",
+      "question": "销售额和成交额分别是多少？",
+      "category": "composite_time",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "口径变体候选之一，先澄清再编译"
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "口径变体候选之二，先澄清再编译"
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade"
+      ],
+      "note": "两个提及指向同族口径变体时必须先出澄清四要素，不得静默选一个口径执行"
+    },
+    {
+      "id": "c28",
+      "question": "上个月的 GMV、订单数、客单价一起看。",
+      "category": "composite_time",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.order_count",
+          "scope": "trade",
+          "dependsOn": []
+        },
+        {
+          "seq": 3,
+          "intent": "QUERY",
+          "assetRef": "metric.avg_order_value",
+          "scope": "trade",
+          "dependsOn": []
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c29",
+      "question": "各渠道上月的 GMV 和去年同期的 GMV。",
+      "category": "composite_time",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.channel"
+          ],
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "上月窗口"
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "dimensions": [
+            "dim.channel"
+          ],
+          "scope": "trade",
+          "dependsOn": [],
+          "derive": "去年同期窗口"
+        }
+      ],
+      "dependsOn": [],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "trade",
+        "trade"
+      ]
+    },
+    {
+      "id": "c30",
+      "question": "高价值客户的订单数是多少？这些客户贡献了多少 GMV？",
+      "category": "composite_time",
+      "expectedSubIntents": [
+        {
+          "seq": 1,
+          "intent": "BOOLEAN_RULE",
+          "assetRef": "metric.high_value_customer",
+          "scope": "customer",
+          "dependsOn": []
+        },
+        {
+          "seq": 2,
+          "intent": "QUERY",
+          "assetRef": "metric.order_count",
+          "scope": "trade",
+          "dependsOn": [
+            1
+          ],
+          "derive": "以 seq1 客户集合过滤"
+        },
+        {
+          "seq": 3,
+          "intent": "QUERY",
+          "assetRef": "metric.gmv",
+          "scope": "trade",
+          "dependsOn": [
+            1
+          ],
+          "derive": "以 seq1 客户集合过滤，与 seq2 平行独立"
+        }
+      ],
+      "dependsOn": [
+        2,
+        3
+      ],
+      "failurePlan": "none",
+      "scopePerSubIntent": [
+        "customer",
+        "trade",
+        "trade"
+      ]
+    }
+  ],
+  "calibration": {
+    "manifestId": "2026.11.07-first-r3",
+    "mappedRefs": 2,
+    "verifiedRefs": 65,
+    "unmappedRefs": []
+  }
+}

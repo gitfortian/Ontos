@@ -31,6 +31,13 @@ public final class ManifestStructureValidator {
     private static final Set<String> RULE_SCOPES = Set.of("domain", "tenant", "global");
     private static final Set<String> RULE_STATUSES = Set.of("draft", "reviewing", "published", "retired");
     private static final Set<String> ENTRY_MODES = Set.of("manual_only", "recommend_or_confirm", "auto_if_confident");
+    /** 判定表达式允许的比较算子（封闭枚举，禁止内联脚本）。 */
+    private static final Set<String> EXPRESSION_OPERATORS = Set.of("EQ", "NEQ", "GT", "GTE", "LT", "LTE", "IN");
+    /** 信息项值类型封闭词表。 */
+    private static final Set<String> VALUE_TYPES = Set.of("string", "integer", "decimal", "boolean", "date", "timestamp");
+    /** 分析模式封闭枚举（与编译器 AnalysisMode 对应，小写形态）。 */
+    private static final Set<String> ANALYSIS_MODES = Set.of(
+            "query", "lookup", "lookup_batch", "funnel", "yoy_mom", "attribution", "retention", "discovery");
 
     public List<Violation> validate(ManifestPayload payload) {
         List<Violation> violations = new ArrayList<>();
@@ -124,6 +131,8 @@ public final class ManifestStructureValidator {
             }
             if (blank(property.getValueType())) {
                 violations.add(new Violation(at, "缺少 valueType"));
+            } else if (!VALUE_TYPES.contains(property.getValueType())) {
+                violations.add(new Violation(at, "valueType 不在封闭词表内: " + property.getValueType()));
             }
             if (property.getSensitivity() == null) {
                 violations.add(new Violation(at, "缺少 sensitivity"));
@@ -208,6 +217,13 @@ public final class ManifestStructureValidator {
             } else if (!metricIds.contains(expression.get("metricId"))) {
                 violations.add(new Violation(at, "expression.metricId 引用不存在的指标: " + expression.get("metricId")));
             }
+            Object operator = expression == null ? null : expression.get("operator");
+            if (operator == null || !EXPRESSION_OPERATORS.contains(String.valueOf(operator))) {
+                violations.add(new Violation(at, "expression.operator 不在封闭枚举内: " + operator));
+            }
+            if (expression == null || !expression.containsKey("threshold")) {
+                violations.add(new Violation(at, "expression.threshold 必填"));
+            }
         }
     }
 
@@ -241,6 +257,11 @@ public final class ManifestStructureValidator {
             for (String assetId : orEmpty(scenario.getSemanticScope())) {
                 if (!assetIds.contains(assetId)) {
                     violations.add(new Violation(at, "semanticScope 引用不存在的资产: " + assetId));
+                }
+            }
+            for (String mode : orEmpty(scenario.getAllowedAnalysisModes())) {
+                if (!ANALYSIS_MODES.contains(mode)) {
+                    violations.add(new Violation(at, "allowedAnalysisModes 不在封闭枚举内: " + mode));
                 }
             }
         }
