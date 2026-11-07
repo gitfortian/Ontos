@@ -190,7 +190,7 @@ node docs/00-governance/check-docs.mjs
 | 智能问数系统完整可落地方案 | 方案 | 已冻结 | v1.4 | [`02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md`](02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md) |
 | Ontos 开发计划 · 阶段性功能拆解 | 计划 | 评审中 | v1 | [`03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md`](03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md) |
 | M0 · 工程基线与阶段零硬判据 实施规格 | 计划 | 已冻结 | v1.0 | [`03-plans/stages/M0/M0-工程基线与阶段零硬判据-实施规格-v1.md`](03-plans/stages/M0/M0-工程基线与阶段零硬判据-实施规格-v1.md) |
-| M1 · 本体与发布链路 实施规格 | 计划 | 草稿 | v0.3 | [`03-plans/stages/M1/M1-本体与发布链路-实施规格-v1.md`](03-plans/stages/M1/M1-本体与发布链路-实施规格-v1.md) |
+| M1 · 本体与发布链路 实施规格 | 计划 | 已冻结 | v1.0 | [`03-plans/stages/M1/M1-本体与发布链路-实施规格-v1.md`](03-plans/stages/M1/M1-本体与发布链路-实施规格-v1.md) |
 | ontology · 业务化命名 规格 | 规格 | 已冻结 | v1 | [`04-specs/ontology-业务化命名-规格-v1.md`](04-specs/ontology-业务化命名-规格-v1.md) |
 | M0 验收报告 | 验证 | 已冻结 | v2 | [`06-verification/checklists/M0-验收报告-v2.md`](06-verification/checklists/M0-验收报告-v2.md) |
 | M0 基线自检归档输出 | 验证 | 已归档 | — | [`06-verification/checklists/M0-基线自检-2026-11-07.txt`](06-verification/checklists/M0-基线自检-2026-11-07.txt) |
