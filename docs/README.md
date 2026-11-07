@@ -203,6 +203,7 @@ node docs/00-governance/check-docs.mjs
 | PoC-03 · AgentScope 准入报告 | 验证 | 草稿 | v1 | [`06-verification/poc/PoC-03-AgentScope准入.md`](06-verification/poc/PoC-03-AgentScope准入.md) |
 | PoC-04 · 编译器 SQL 输出报告 | 验证 | 草稿 | v1 | [`06-verification/poc/PoC-04-编译器SQL输出.md`](06-verification/poc/PoC-04-编译器SQL输出.md) |
 | M0 PoC 总览 | 验证 | 草稿 | v1 | [`06-verification/poc/M0-PoC总览-v1.md`](06-verification/poc/M0-PoC总览-v1.md) |
+| T5.5 · CopilotKit Headless 接入验证 | 验证 | 草稿 | v1 | [`06-verification/poc/T5.5-CopilotKit接入验证-v1.md`](06-verification/poc/T5.5-CopilotKit接入验证-v1.md) |
 | PoC-07 · 跨轮差分与存在性保护报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-07-跨轮差分与存在性保护.md`](06-verification/poc/PoC-07-跨轮差分与存在性保护.md) |
 | PoC-10 · 前端直连 AG-UI SSE（协议 + 界面） | 验证 | 草稿 | v1 | [`06-verification/poc/PoC-10-协议探针.md`](06-verification/poc/PoC-10-协议探针.md) |
 | M0 硬阻断结论 | 验证 | 已冻结 | v2 | [`06-verification/poc/M0-硬阻断结论-v2.md`](06-verification/poc/M0-硬阻断结论-v2.md) |

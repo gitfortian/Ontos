@@ -1,0 +1,44 @@
+{
+  "generatedAt": "2026-11-07T05:34:26.529Z",
+  "scope": "T5.5：CopilotKit 1.85.0 Headless 通过 agents__unsafe_dev_only 注入 HttpAgent 直连 Java AG-UI SSE",
+  "page": "http://127.0.0.1:5173/probe/copilotkit",
+  "versions": {
+    "copilotkit": "1.85.0",
+    "agUiClient": "1.0.2"
+  },
+  "pageLoadError": null,
+  "mounted": true,
+  "sent": true,
+  "messageCount": 2,
+  "answerLength": 370,
+  "answer": "{\"scenario_id\": null, \"terminal\": \"query\", \"sub_intents\": [{\"sub_intent_id\": \"s1\", \"analysis_mode\": \"query\", \"metric_id\": \"metric.gmv\", \"dimensions\": [\"dim.region\"], \"filters\": [], \"time_expression_raw\": \"今年\", \"variant_hint\": null, \"confidence\": 0.95}], \"needs_discovery\": false, \"discovery\": null, \"clarification\": null, \"out_of_capability\": false, \"reason_code\": null}",
+  "uiError": null,
+  "badge": "空闲",
+  "requestsAfterSend": [
+    "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600&family=Spline+Sans+Mono:wght@600&display=swap",
+    "https://cdn.copilotkit.ai/notifications/v1.json?framework=react&sdkVersion=1.85.0",
+    "https://cdn.copilotkit.ai/inspector-hud/v1.json",
+    "http://127.0.0.1:5173/agent/run/ontos",
+    "https://fonts.gstatic.com/s/plusjakartasans/v12/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yw.woff2",
+    "https://fonts.gstatic.com/s/plusjakartasans/v12/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yw.woff2"
+  ],
+  "network": {
+    "total": 87,
+    "copilotkitRuntimeHits": [],
+    "aguiHits": [
+      "http://127.0.0.1:5173/agent/run/ontos"
+    ],
+    "nodeRuntimeHits": [],
+    "errors": [
+      {
+        "status": "console",
+        "url": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      }
+    ]
+  },
+  "verdict": {
+    "mounted": true,
+    "noNodeRuntime": true,
+    "gotAnswer": true
+  }
+}
