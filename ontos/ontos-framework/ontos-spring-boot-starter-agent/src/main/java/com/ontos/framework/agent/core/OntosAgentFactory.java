@@ -44,6 +44,24 @@ public class OntosAgentFactory {
                 .model(resolveModel())
                 .workspace(properties.getWorkspace())
                 .maxIters(properties.getMaxIters())
+                // 安全边界：HarnessAgent 默认会装配 execute / write_file / edit_file / web_fetch /
+                // agent_spawn 等通用工具，对「只做意图提案」的问数 agent 属越权面——
+                // 模型可以据此读写宿主机文件、执行命令、访问外网、派生无限子 agent。
+                // 实测：未关闭时模型会自发 glob_files / read_file / grep_files 找候选集，
+                // 并通过 agent_spawn 派生 general-purpose-subagent，单次会话拖到 20 分钟以上。
+                // M0 没有任何业务工具，因此把通用能力全部关掉；M1 接入本体检索时
+                // 用 toolkit(...) 显式注册只读业务工具，而不是重新打开这些。
+                .disableFilesystemTools()
+                .disableShellTool()
+                .disableWebTools()
+                .disableDynamicSkills()
+                .disableDefaultWorkspaceSkills()
+                // meta tool 即 agent_spawn / agent_send / agent_list 一族，关闭后不再派生子 agent
+                .enableMetaTool(false)
+                // 注意：不要在这里传 toolkit(new Toolkit())。实测传空 Toolkit 会反而触发框架
+                // 装配全套默认工具（22 个，含 execute/web_fetch），会话跑满超时且事件粒度被拆散。
+                // memory_* / session_* / task_* / agent_* 这 13 个暂无公开开关关闭，
+                // 登记为 M1 待办：用 PermissionContextState 的 deny 规则按工具名收敛。
                 .build();
     }
 
