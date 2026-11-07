@@ -169,6 +169,41 @@ class ManifestStructureValidatorTest {
     }
 
     @Test
+    void shouldAcceptBooleanRuleMetricWhenRulePublished() {
+        ManifestPayload payload = validPayload();
+        SemanticManifest.Metric booleanMetric = new SemanticManifest.Metric();
+        booleanMetric.setId("metric.high_value_customer");
+        booleanMetric.setName("高价值客户");
+        booleanMetric.setSummary("按判定标准认定的重点客户");
+        booleanMetric.setAliases(List.of("大客户"));
+        booleanMetric.setRuleId("rule.high_value_customer");
+        booleanMetric.setAllowedModes(List.of("LOOKUP"));
+        var metrics = new java.util.ArrayList<>(payload.getSemantic().getMetrics());
+        metrics.add(booleanMetric);
+        payload.getSemantic().setMetrics(metrics);
+        assertTrue(validator.validate(payload).isEmpty(),
+                () -> "布尔判定指标应合法: " + validator.validate(payload));
+    }
+
+    @Test
+    void shouldRejectBooleanRuleMetricReferencingUnpublishedRule() {
+        ManifestPayload payload = validPayload();
+        payload.getRules().get(0).setStatus("draft");
+        SemanticManifest.Metric booleanMetric = new SemanticManifest.Metric();
+        booleanMetric.setId("metric.high_value_customer");
+        booleanMetric.setName("高价值客户");
+        booleanMetric.setSummary("按判定标准认定的重点客户");
+        booleanMetric.setAliases(List.of("大客户"));
+        booleanMetric.setRuleId("rule.high_value_customer");
+        booleanMetric.setAllowedModes(List.of("LOOKUP"));
+        var metrics = new java.util.ArrayList<>(payload.getSemantic().getMetrics());
+        metrics.add(booleanMetric);
+        payload.getSemantic().setMetrics(metrics);
+        assertTrue(validator.validate(payload).stream()
+                .anyMatch(v -> v.message().contains("未发布的判定标准")));
+    }
+
+    @Test
     void shouldRejectNullPayload() {
         assertTrue(validator.validate(null).size() == 1);
     }

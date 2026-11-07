@@ -50,6 +50,8 @@ public class SemanticManifest {
         private String summary;
         /** 常见叫法（同义词 / 口语 / 缩写），进检索词库；业务化规格要求至少 1 条。 */
         private List<String> aliases = List.of();
+        /** 布尔判定指标：引用已发布的 Rule，此时无物理列与聚合（二选一，结构校验器把关）。 */
+        private String ruleId;
         private String table;
         private String column;
         private Aggregation aggregation;

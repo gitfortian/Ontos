@@ -38,7 +38,11 @@ public final class ManifestStructureValidator {
             violations.add(new Violation("payload", "payload 缺失"));
             return violations;
         }
-        validateSemantic(payload.getSemantic(), violations);
+        Set<String> publishedRuleIds = orEmpty(payload.getRules()).stream()
+                .filter(rule -> "published".equals(rule.getStatus()))
+                .map(ManifestPayload.Rule::getId)
+                .collect(java.util.stream.Collectors.toSet());
+        validateSemantic(payload.getSemantic(), publishedRuleIds, violations);
         validateOntology(payload.getOntology(), violations);
         validateRules(payload, violations);
         validateScenarios(payload, violations);
@@ -47,7 +51,8 @@ public final class ManifestStructureValidator {
         return violations;
     }
 
-    private void validateSemantic(SemanticManifest semantic, List<Violation> violations) {
+    private void validateSemantic(SemanticManifest semantic, Set<String> publishedRuleIds,
+                                  List<Violation> violations) {
         if (semantic == null) {
             violations.add(new Violation("semantic", "缺少 semantic 段"));
             return;
@@ -60,10 +65,19 @@ public final class ManifestStructureValidator {
             String at = "metric." + metric.getId();
             requireId(metric.getId(), at, violations);
             requireBusinessFields(metric.getName(), metric.getSummary(), metric.getAliases(), at, violations);
-            requirePhysicalName(metric.getTable(), at + ".table", violations);
-            requirePhysicalName(metric.getColumn(), at + ".column", violations);
-            if (metric.getAggregation() == null) {
-                violations.add(new Violation(at, "缺少 aggregation"));
+            if (blank(metric.getRuleId())) {
+                // 常规指标：物理映射 + 聚合必填
+                requirePhysicalName(metric.getTable(), at + ".table", violations);
+                requirePhysicalName(metric.getColumn(), at + ".column", violations);
+                if (metric.getAggregation() == null) {
+                    violations.add(new Violation(at, "缺少 aggregation"));
+                }
+            } else {
+                // 布尔判定指标：引用已发布 Rule，无物理列与聚合；允许的维度走 Rule 判定输出
+                if (!publishedRuleIds.contains(metric.getRuleId())) {
+                    violations.add(new Violation(at,
+                            "ruleId 引用不存在或未发布的判定标准: " + metric.getRuleId()));
+                }
             }
             if (orEmpty(metric.getAllowedModes()).isEmpty()) {
                 violations.add(new Violation(at, "allowedModes 不能为空"));
