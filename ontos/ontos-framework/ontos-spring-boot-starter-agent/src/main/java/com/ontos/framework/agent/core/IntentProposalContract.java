@@ -207,9 +207,20 @@ public final class IntentProposalContract {
 
     private void checkCandidateIds(Map<String, Object> parsed, String terminal, List<Violation> violations) {
         Set<String> allowed = candidateIds.get();
-        if (allowed.isEmpty() || !"query".equals(terminal) && !"composite".equals(terminal)) {
+        if (allowed.isEmpty()) {
             return;
         }
+        if ("query".equals(terminal) || "composite".equals(terminal)) {
+            checkSubIntentIds(parsed, allowed, violations);
+        }
+        if ("discovery".equals(terminal) && parsed.get("discovery") instanceof Map<?, ?> discovery) {
+            checkWhitelistedIds(discovery.get("metrics"), "metric_id", allowed, violations);
+            checkWhitelistedIds(discovery.get("dimensions"), "dimension_id", allowed, violations);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void checkSubIntentIds(Map<String, Object> parsed, Set<String> allowed, List<Violation> violations) {
         Object raw = parsed.get("sub_intents");
         if (!(raw instanceof List<?> subIntents)) {
             return;
@@ -218,20 +229,40 @@ public final class IntentProposalContract {
             if (!(item instanceof Map<?, ?> subIntent)) {
                 continue;
             }
-            String metricId = stringField((Map<String, Object>) subIntent, "metric_id");
-            if (metricId != null && !allowed.contains(metricId)) {
-                violations.add(new Violation("ID_NOT_IN_CANDIDATES",
-                        "metric_id \"" + metricId + "\" 不在候选集内，视为不存在；请改用候选集内的 ID 或输出 out_of_capability=true。"));
-            }
-            Object dimensions = subIntent.get("dimensions");
-            if (dimensions instanceof List<?> dimensionIds) {
-                for (Object dimensionId : dimensionIds) {
-                    if (dimensionId instanceof String id && !allowed.contains(id)) {
-                        violations.add(new Violation("ID_NOT_IN_CANDIDATES",
-                                "dimension \"" + id + "\" 不在候选集内，视为不存在。"));
+            Map<String, Object> box = (Map<String, Object>) subIntent;
+            checkWhitelistedId(stringField(box, "metric_id"), "metric_id", allowed, violations);
+            checkWhitelistedIds(box.get("dimensions"), null, allowed, violations);
+            // 硬性边界 2：filters 的字段同样是候选集维度，不得引用白名单之外的 ID
+            if (box.get("filters") instanceof List<?> filters) {
+                for (Object filter : filters) {
+                    if (filter instanceof Map<?, ?> filterBox) {
+                        checkWhitelistedId(stringField((Map<String, Object>) filterBox, "field_id"),
+                                "filters[].field_id", allowed, violations);
                     }
                 }
             }
+        }
+    }
+
+    /** 列表元素两种形态都支持：字符串 ID（dimensions）或对象（discovery.metrics 的 {"metric_id":...}）。 */
+    private void checkWhitelistedIds(Object ids, String label, Set<String> allowed, List<Violation> violations) {
+        if (!(ids instanceof List<?> idList)) {
+            return;
+        }
+        for (Object element : idList) {
+            if (element instanceof Map<?, ?> box && label != null) {
+                checkWhitelistedId(stringField((Map<String, Object>) box, label), label, allowed, violations);
+            } else if (element instanceof String s) {
+                checkWhitelistedId(s, label, allowed, violations);
+            }
+        }
+    }
+
+    private void checkWhitelistedId(String id, String label, Set<String> allowed, List<Violation> violations) {
+        if (id != null && !allowed.contains(id)) {
+            String field = label == null ? "dimension" : label;
+            violations.add(new Violation("ID_NOT_IN_CANDIDATES",
+                    field + " \"" + id + "\" 不在候选集内，视为不存在；请改用候选集内的 ID 或输出 out_of_capability=true。"));
         }
     }
 

@@ -138,6 +138,40 @@ class IntentProposalContractTest {
     }
 
     @Test
+    void shouldRejectFilterFieldOutsideCandidateWhitelist() {
+        IntentProposalContract strict = new IntentProposalContract(() -> Set.of("metric.gmv", "dim.region"));
+        String withFilter = QUERY_PROPOSAL.replace("\"filters\":[]",
+                "\"filters\":[{\"field_id\":\"dim.channel\",\"operator\":\"in\",\"values\":[\"线上\"]}]");
+        ValidationResult result = strict.validate(withFilter);
+        assertFalse(result.valid());
+        assertTrue(result.violations().stream().anyMatch(v ->
+                "ID_NOT_IN_CANDIDATES".equals(v.code()) && v.detail().contains("filters")));
+    }
+
+    @Test
+    void shouldAcceptFilterFieldInsideCandidateWhitelist() {
+        IntentProposalContract strict = new IntentProposalContract(() -> Set.of("metric.gmv", "dim.region", "dim.channel"));
+        String withFilter = QUERY_PROPOSAL.replace("\"filters\":[]",
+                "\"filters\":[{\"field_id\":\"dim.channel\",\"operator\":\"in\",\"values\":[\"线上\"]}]");
+        assertTrue(strict.validate(withFilter).valid());
+    }
+
+    @Test
+    void shouldRejectDiscoveryIdsOutsideCandidateWhitelist() {
+        IntentProposalContract strict = new IntentProposalContract(() -> Set.of("metric.gmv"));
+        String discovery = """
+                {"scenario_id":null,"terminal":"discovery","sub_intents":[],"needs_discovery":true,
+                "discovery":{"metrics":[{"metric_id":"metric.gmv","name":"GMV","analysis_modes":["QUERY"]},
+                {"metric_id":"metric.unknown","name":"未知"}],"dimensions":[],"analysis_modes":["query"]},
+                "clarification":null,"out_of_capability":false,"reason_code":null}
+                """;
+        ValidationResult result = strict.validate(discovery);
+        assertFalse(result.valid());
+        assertTrue(result.violations().stream().anyMatch(v ->
+                "ID_NOT_IN_CANDIDATES".equals(v.code()) && v.detail().contains("metric.unknown")));
+    }
+
+    @Test
     void shouldSkipSemanticCheckWhenNoCandidates() {
         ValidationResult result = contract.validate(QUERY_PROPOSAL);
         assertTrue(result.valid());

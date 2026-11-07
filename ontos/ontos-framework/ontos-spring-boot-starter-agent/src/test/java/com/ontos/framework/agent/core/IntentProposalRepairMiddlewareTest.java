@@ -135,4 +135,17 @@ class IntentProposalRepairMiddlewareTest {
                 && IntentProposalRepairMiddleware.REPAIR_EVENT.equals(custom.getName())).count() == 2);
     }
 
+    @Test
+    void shouldSkipValidationForTextlessRounds() {
+        // 工具调用等中间态没有文本增量：不是提案轮，不烧修复次数
+        Function<ReasoningInput, Flux<AgentEvent>> next = ignored -> Flux.just(
+                new TextBlockStartEvent("reply-0", "reply-0-0"),
+                new TextBlockEndEvent("reply-0", "reply-0-0"));
+
+        List<AgentEvent> events = middleware().onReasoning(agent, null, input(), next).collectList().block();
+
+        assertTrue(events.stream().noneMatch(event -> event instanceof CustomEvent));
+        assertTrue(events.stream().noneMatch(event -> event instanceof TextBlockDeltaEvent));
+    }
+
 }

@@ -67,7 +67,7 @@ public class IntentProposalRepairMiddleware implements MiddlewareBase {
         });
     }
 
-    /** 单轮透传 + 流末判定；不合法时在 defer 里递归开启修复轮。 */
+    /** 单轮透传 + 流末判定；不合法时在 defer 里递归开启修复轮。无文本增量的轮次（如工具调用）不校验。 */
     private Flux<AgentEvent> reasoningRound(ReasoningInput input,
                                             java.util.function.Function<ReasoningInput, Flux<AgentEvent>> next,
                                             AtomicInteger attempts) {
@@ -79,7 +79,13 @@ public class IntentProposalRepairMiddleware implements MiddlewareBase {
                     }
                     return Flux.just(event);
                 })
-                .concatWith(Flux.defer(() -> verdict(input, next, attempts, text.toString())));
+                .concatWith(Flux.defer(() -> {
+                    if (text.isEmpty()) {
+                        // 本轮没有任何文本增量：工具调用等中间态，不是提案轮，跳过契约校验
+                        return Flux.empty();
+                    }
+                    return verdict(input, next, attempts, text.toString());
+                }));
     }
 
     private Flux<AgentEvent> verdict(ReasoningInput input,
