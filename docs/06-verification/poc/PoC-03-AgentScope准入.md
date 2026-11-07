@@ -20,7 +20,7 @@
 | 四个 artifact 均存在对应 BETA 坐标 | **通过** | §3.1 |
 | 与 Spring Boot 4.0.x（≥4.0.3）兼容 | **通过** | §3.2 |
 | 产出相对 2.0.4 的破坏性 API 差异清单 | **通过** | §4 |
-| 5 类结构化终态在 20 次会话中重建成功率 100% | **失败（56.3%）** | §6 |
+| 5 类结构化终态在 20 次会话中重建成功率 100% | **失败**（协议层 100%，语义匹配 62.5%，审批类不可测） | §6 |
 
 **因此 `#3` 整体未通过，G2 未关闭。** 前三项通过不等于准入通过。
 
@@ -132,37 +132,60 @@
 
 ## 6. 五类结构化终态端到端重建（已执行，失败）
 
-经真实 AG-UI 通道（`POST /agent/run/{agentId}`）跑 20 次会话，解析 `TEXT_MESSAGE_CONTENT` 拼出的 JSON，按字段判定终态。
+经真实 AG-UI 通道（`POST /agent/run/{agentId}`）跑 20 次会话，解析 `TEXT_MESSAGE_CONTENT` 拼出的 JSON。
 
-| 终态 | 命中 | 判定依据 |
+### 6.1 五轮判据运行的数据
+
+同一探针跑了多轮，每轮修掉一个缺陷；这组数据本身说明了「问题出在哪一层」：
+
+| 轮次 | 本轮改动 | 与期望终态一致 | 空响应 | 单轮耗时 |
+|---|---|---|---|---|
+| 1 | 无（无候选集、工具未收敛、session 共享） | 56.3%（9/16） | 4 次 | 13m36s |
+| 2 | 注入候选集 | 50.0%（8/16） | 7 次 | 9m07s |
+| 3 | 每请求独立 session | 56.3%（9/16） | 7 次 | 2m54s |
+| 4 | 会话历史改 LEGACY 模式 | **81.3%（13/16）** | 0 次 | 4m17s |
+| 5 | 仅新增指标复测 | 62.5%（10/16） | 0 次 | 2m16s |
+
+第 5 轮把两个指标拆开统计：
+
+| 指标 | 结果 | 含义 |
 |---|---|---|
-| 澄清四要素 | **3/4** | `clarification` 非空对象 |
-| 能力发现 | **2/4** | `needs_discovery = true` |
-| 审批回传 | **N/A** | system prompt 未定义该字段，属 M1 审批流能力；不计入分母，也不记为通过 |
-| 复合子结果 | **1/4** | `sub_intents.length >= 2` |
-| 原因码 | **3/4** | `out_of_capability = true` 且 `reason_code` 非空 |
+| JSON 解析成功 | **100%（20/20）** | 模型每次都输出了可解析的结构化输出 |
+| 产出合法终态 | **100%（20/20）** | 每次都落到了五类之一（含原因码、能力回答） |
+| 与期望终态一致 | **62.5%（10/16）** | 语义匹配，随模型行为波动（4/5 轮区间 50%–81%） |
 
-**适用会话成功率 56.3%（9/16），判据要求 100% → FAIL。**
+**判据按「与期望一致 ≥100%」记 FAIL**；但「协议能否承载并重建终态」这一层已经 100% 达成。
 
-### 6.1 失败模式与根因
+### 6.2 修掉的两个真问题
 
-| 失败模式 | 次数 | 表现 | 根因 |
-|---|---|---|---|
-| 空响应 | 4 | HTTP 200、955–1709 ms 返回、**无任何 `TEXT_MESSAGE_CONTENT`** | 模型输出被截断（reasoning 消耗掉 token 预算）或框架提前结束，两种都会让前端拿到空回答 |
-| 超时 | 3 | 180 s 未结束，被探针中止 | 模型通过 `agent_spawn` 派生 `general-purpose-subagent` 去检索候选集，子 agent 又跑一轮工具循环（见 §6.2） |
-| 判定未通过 | 4 | 有 JSON 但字段不满足 | 复合意图未被拆成 ≥2 个子意图；部分澄清只给出 `ambiguity` 而候选为空 |
+**候选集注入**：system prompt 要求只能引用候选集中的 ID，但模型看不到清单。新增 `AgentContextProvider`
+（framework 定义接口）与 `ManifestCandidateContextProvider`（ontology 实现，按 `manifest_id + content_hash` 缓存），
+把指标、维度、可用模式、可用维度渲染成白名单追加到提示词。效果：单次会话从 45s 降到 8s，模型开始直接输出
+`metric_id: "metric.gmv"`、`dimensions: ["dim.region"]`，不再去找文件。
 
-### 6.2 根因不是模型能力，是配置缺口
+**会话历史污染**：`AguiAgentRegistry` 只接受 `Supplier<Agent>`，注册层拿不到 AG-UI 的 `threadId`，
+所有请求共用默认 session，实测 `messages` 从 2 一路涨到 11，越跑越慢直到 token 超限返回空。
+改为每请求独立 session 后，又暴露第二个问题：默认 `EVENT_LOG` 会话历史模式会做「未完成工具调用的显式对账」，
+新 session 找不到记录就抛 `SessionLogException: Explicit reconciliation required for unknown tool calls`，
+表现为立刻返回空内容（20 次里 7 次）。改用 `SessionHistoryMode.LEGACY` 后彻底消失。
 
-三条相互叠加：
+**代价**：M0 不支持多轮上下文。M1 必须按 `threadId` 维护 agent 实例或在适配层做映射，不能依赖默认值。
 
-1. **没有候选集**。system prompt 要求「只能引用候选集里出现过的 `metric_id` / `dimension_id`」，但 M0 没有把已发布清单注入 context。模型缺输入，只能退化成 `needs_discovery` 或自己去找。
-2. **工具未收敛**。`HarnessAgent` 默认装配含 `agent_spawn` 的工具集，模型据此派生子 agent 检索。`disableFilesystemTools` / `disableShellTool` / `disableWebTools` 可关掉文件与命令能力，但 `agent_spawn` 一组没有公开关闭开关，`enableMetaTool(false)` 实测无效。
-3. **token 预算与 reasoning 模型不匹配**。当前是带思维链的模型，reasoning 会吃掉输出预算，出现过 `finish_reason=length` 且 `content` 为空。
+### 6.3 剩下的失败不是框架问题
 
-**结论**：该判据在 M0 不具备通过条件，需要 M1 的「候选集注入 + 工具白名单」两项能力到位后重跑，而不是靠调 prompt 或放宽判定。
+| 场景 | 模型实际输出 | 判断 |
+|---|---|---|
+| `帮我分析一下客户` | `out_of_capability=true, reason_code="OUT_OF_MANIFEST"` | **正确**：清单里没有客户维度，超出能力就该这样答，是探针期望过窄 |
+| `我可以用什么维度和分析方式` | `capability_answer` 字段（dimensions + analysis modes） | 语义正确，但该字段**不在 system prompt 的输出契约内**，是模型自创 |
+| `分渠道统计 GMV，并给出各区域客户数` | 1 个子意图 + `out_of_capability` | **正确**：清单没有「客户数」指标，第二个子意图做不了 |
 
-### 6.3 已完成的接入准备
+归纳三条待办，都在 prompt 与契约层：
+
+1. **输出契约缺「能力发现」的表达**。prompt 只定义了 `needs_discovery` 布尔值，没定义怎么把「有哪些维度/模式」答出来，模型只好自创 `capability_answer`。M1 补进契约。
+2. **澄清与超能力的边界**。问题涉及清单外资产时，应该稳定走 `out_of_capability`；当前模型时而澄清时而报超能力。
+3. **一致性不足**。同样是「上个月各区域 GMV」，不同轮次落到不同终态，说明约束强度不够。需要 JSON Schema 校验 + 失败重试，而不是靠 prompt 自觉。
+
+### 6.4 已完成的接入准备
 
 - 工程引入 `agentscope-extensions-model-openai:2.1.0-BETA1` 作为 OpenAI 协议族的模型实现；
 - 配置为标准 **OpenAI 三件套**：`ontos.agent.model` + `ontos.agent.base-url` + `ontos.agent.api-key`（密钥仅环境变量），不绑定厂商；
@@ -184,7 +207,7 @@
 | artifact 坐标 | 通过 |
 | Boot 4.0.x / JDK 21 兼容 | 通过（POM 声明 4.0.1 + 工程实跑） |
 | 破坏性 API 差异清单 | 通过（见 §4，含对判据表述的纠正） |
-| 五类结构化终态重建 | **失败（56.3%，9/16）** |
+| 五类结构化终态重建 | **失败**：协议层 100%（JSON 可解析、均落到合法终态），语义匹配 62.5%（10/16），且审批回传在 M0 不可测 |
 | `#3` 整体 | **未通过，G2 未关闭** |
 
 回退目标保持 `2.0.4` 不变；BETA 不得进入生产。

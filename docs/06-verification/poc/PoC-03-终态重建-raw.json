@@ -1,21 +1,27 @@
 {
-  "generatedAt": "2026-11-07T03:16:19.182Z",
+  "generatedAt": "2026-11-07T04:22:50.353Z",
   "scope": "PoC #3 五类结构化终态（经 AG-UI 端到端重建）；审批回传在 M0 无对应能力，单独统计",
   "baseUrl": "http://127.0.0.1:8080",
   "agentId": "ontos",
   "roundsPerScenario": 4,
   "totalSessions": 20,
   "applicableSessions": 16,
-  "passed": 9,
-  "successRate": 0.5625,
+  "passed": 10,
+  "successRate": 0.625,
+  "parsedJson": 20,
+  "parsedJsonRate": 1,
+  "legalTerminalCount": 20,
+  "legalTerminalRate": 1,
   "byScenario": {
     "clarification": {
       "label": "澄清四要素",
       "applicable": true,
       "total": 4,
-      "passed": 3,
+      "passed": 1,
       "reasons": [
-        "未找到 JSON 对象"
+        "终态判定未通过",
+        "终态判定未通过",
+        "终态判定未通过"
       ]
     },
     "discovery": {
@@ -24,8 +30,8 @@
       "total": 4,
       "passed": 2,
       "reasons": [
-        "未找到 JSON 对象",
-        "未找到 JSON 对象"
+        "终态判定未通过",
+        "终态判定未通过"
       ]
     },
     "approval": {
@@ -34,7 +40,7 @@
       "total": 4,
       "passed": 0,
       "reasons": [
-        "未找到 JSON 对象",
+        "终态判定未通过",
         "终态判定未通过",
         "终态判定未通过",
         "终态判定未通过"
@@ -44,21 +50,17 @@
       "label": "复合子结果",
       "applicable": true,
       "total": 4,
-      "passed": 1,
+      "passed": 3,
       "reasons": [
-        "未找到 JSON 对象",
-        "AbortError: This operation was aborted",
-        "AbortError: This operation was aborted"
+        "终态判定未通过"
       ]
     },
     "reason_code": {
       "label": "原因码",
       "applicable": true,
       "total": 4,
-      "passed": 3,
-      "reasons": [
-        "AbortError: This operation was aborted"
-      ]
+      "passed": 4,
+      "reasons": []
     }
   },
   "results": [
@@ -69,18 +71,14 @@
       "round": 1,
       "question": "看看销售情况",
       "status": 200,
-      "durationMs": 13739,
-      "eventCount": 50,
+      "durationMs": 10612,
+      "eventCount": 27,
       "parsed": true,
       "parseReason": null,
-      "passed": true,
-      "detail": {
-        "ambiguity": "「销售情况」未指明具体指标、维度和时间范围，且当前请求未提供任何候选指标/维度清单，无法安全匹配口径。",
-        "candidates": [],
-        "default_suggestion": "若候选集可用，默认查询「销售额」按时间趋势的整体表现（按自然月汇总，不带额外维度过滤）；否则先执行候选集发现，再由用户从已发布指标中选择。",
-        "skip_behavior": "跳过澄清则降级为：不做任何查询，返回 needs_discovery 结果，由发现流程列出已审核的销售类指标供用户选择，不猜测口径、不近似匹配。"
-      },
-      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification\": {\"ambiguity\": \"「销售情况」未指明具体指标、维度和时间范围，且当前请求未提供任何候选指标/维度清单，无法安全匹配口径。\", \"candidates\": [], \"default_suggestion\": \"若候选集可用，默认查询「销售额」按时间趋势的整体表现（按自然月汇总，不带额外维度过滤）；否则先执行候选集发现，再由用户从已发布指标中选择。\", \"skip_behavior\": \"跳过澄清则降级为：不做任何查询，返"
+      "passed": false,
+      "legalTerminal": true,
+      "detail": null,
+      "textPreview": "{\"scenario_id\":null,\"sub_intents\":[{\"sub_intent_id\":\"s1\",\"analysis_mode\":\"query\",\"metric_id\":\"metric.gmv\",\"dimensions\":[\"dim.channel\"],\"filters\":[],\"time_expression_raw\":\"近 30 天\",\"variant_hint\":null,\"confidence\":0.6}],\"needs_discovery\":false,\"clarification\":null,\"out_of_capability\":false,\"reason_cod"
     },
     {
       "scenario": "clarification",
@@ -89,18 +87,14 @@
       "round": 2,
       "question": "最近业绩怎么样",
       "status": 200,
-      "durationMs": 17969,
-      "eventCount": 82,
+      "durationMs": 16057,
+      "eventCount": 29,
       "parsed": true,
       "parseReason": null,
-      "passed": true,
-      "detail": {
-        "ambiguity_point": "「业绩」未指明具体指标口径（销售额、GMV、回款、利润等均可能），且「最近」时间范围不明确（近7天/近30天/上个月等）；当前未提供可引用的候选集（metric_id/dimension_id/scenario_id 均不可用），无法在不猜测口径的情况下确定分析对象。",
-        "candidate_list": [],
-        "default建议": "候选检索（discovery）就绪后，若候选集中存在核心经营业绩指标（如销售额/GMV类 metric_id）及其配套场景（scenario_id），建议默认按该核心业绩指标、时间范围取「近30天」发起查询；当前候选集为空，此建议仅在候选集就绪后可执行。",
-        "skip_behavior": "若用户跳过澄清，维持 needs_discovery=true 并拒绝生成查询，不猜测任何指标口径或时间范围；先由候选检索流程返回可用的 metric/dimension/scenario 候选，再据此提案。"
-      },
-      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification\": {\"ambiguity_point\": \"「业绩」未指明具体指标口径（销售额、GMV、回款、利润等均可能），且「最近」时间范围不明确（近7天/近30天/上个月等）；当前未提供可引用的候选集（metric_id/dimension_id/scenario_id 均不可用），无法在不猜测口径的情况下确定分析对象。\", \"candidate_list\": [], \"default建议\": \"候选检索（discovery）就绪后，若候选集"
+      "passed": false,
+      "legalTerminal": true,
+      "detail": null,
+      "textPreview": "{\"scenario_id\": null,\"sub_intents\": [{\"sub_intent_id\": \"s1\",\"analysis_mode\": \"query\",\"metric_id\": \"metric.gmv\",\"dimensions\": [],\"filters\": [],\"time_expression_raw\": \"近 30 天\",\"variant_hint\": null,\"confidence\": 0.6}],\"needs_discovery\": false,\"clarification\": null,\"out_of_capability\": false,\"reason_cod"
     },
     {
       "scenario": "clarification",
@@ -109,13 +103,14 @@
       "round": 3,
       "question": "帮我分析一下客户",
       "status": 200,
-      "durationMs": 1709,
-      "eventCount": 2,
-      "parsed": false,
-      "parseReason": "未找到 JSON 对象",
+      "durationMs": 8833,
+      "eventCount": 16,
+      "parsed": true,
+      "parseReason": null,
       "passed": false,
+      "legalTerminal": true,
       "detail": null,
-      "textPreview": ""
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": false, \"clarification\": null, \"out_of_capability\": true, \"reason_code\": \"OUT_OF_MANIFEST\"}"
     },
     {
       "scenario": "clarification",
@@ -124,31 +119,39 @@
       "round": 4,
       "question": "数据好一些了吗",
       "status": 200,
-      "durationMs": 27232,
-      "eventCount": 97,
+      "durationMs": 7512,
+      "eventCount": 104,
       "parsed": true,
       "parseReason": null,
       "passed": true,
+      "legalTerminal": true,
       "detail": {
-        "ambiguity_point": "「数据好一些了吗」存在三重歧义：(1) 未指明是哪个指标/对象的数据，无法确定口径；(2) 「好」未定义，可能是数值上升、质量改善（完整性/准确性）或达成目标；(3) 该句为是/否判定式提问，若按判定类处理需引用已审核 Rule，当前无匹配 Rule（NO_RULE），若按趋势类处理则需指定指标与对比周期。本次会话未提供候选集，故无法给出候选 metric_id/dimension_id。",
+        "ambiguity": "「数据好一些了吗」缺少三要素：关注哪个指标（GMV 还是订单数）、与哪个周期对比（昨天/上周/上个月）、按什么维度看（区域/渠道），无法确定查询意图",
         "candidates": [
           {
-            "label": "指标趋势对比",
-            "description": "指定某指标，对比最近周期与上一周期的变化（需给出指标与时间范围）"
+            "label": "GMV 较上一周期是否回升",
+            "metric_id": "metric.gmv",
+            "default_time": "近 7 天 对比 上一个等长周期",
+            "dimensions": [],
+            "is_default": true
           },
           {
-            "label": "数据质量评估",
-            "description": "询问数据完整性/准确性等质量维度是否改善（需对应质量指标或已审核 Rule）"
+            "label": "订单数较上一周期是否回升",
+            "metric_id": "metric.order_count",
+            "default_time": "近 7 天 对比 上一个等长周期",
+            "dimensions": [],
+            "is_default": false
           },
           {
-            "label": "目标达成判定",
-            "description": "是/否式判定，需引用已审核 Rule 才可回答"
+            "label": "数据质量类问题（完整性/准确性等）",
+            "metric_id": null,
+            "note": "当前候选集无对应指标，属清单外能力，将拒绝回答"
           }
         ],
-        "default_suggestion": "默认按「指标趋势对比」处理：请补充具体指标（或从候选集选择）及对比周期（如「近 7 天 vs 上一个 7 天」），服务端时间解析器负责换算相对时间。",
-        "fallback_if_skipped": "若跳过澄清不做补充，降级为 out_of_capability=true、reason_code=NO_RULE（判定类无 Rule）或 AMBIGUOUS_INTENT（趋势类无指标），不猜测口径、不编造近似指标。"
+        "default_suggestion": "默认按 GMV：近 7 天 GMV 与上一个等长周期对比，不加维度拆分，判断是否回升",
+        "degradation_if_skipped": "若跳过澄清，将按默认口径（metric.gmv，近 7 天 对比 上一等长周期，全量汇总）发起查询；若你实际想问的是订单数或数据质量，该结果与本意不符，需重新提问"
       },
-      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification\": {\"ambiguity_point\": \"「数据好一些了吗」存在三重歧义：(1) 未指明是哪个指标/对象的数据，无法确定口径；(2) 「好」未定义，可能是数值上升、质量改善（完整性/准确性）或达成目标；(3) 该句为是/否判定式提问，若按判定类处理需引用已审核 Rule，当前无匹配 Rule（NO_RULE），若按趋势类处理则需指定指标与对比周期。本次会话未提供候选集，故无法给出候选 metric_id/dimension_id。"
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification\": {\"ambiguity\": \"「数据好一些了吗」缺少三要素：关注哪个指标（GMV 还是订单数）、与哪个周期对比（昨天/上周/上个月）、按什么维度看（区域/渠道），无法确定查询意图\", \"candidates\": [{\"label\": \"GMV 较上一周期是否回升\", \"metric_id\": \"metric.gmv\", \"default_time\": \"近 7 天 对比 上一个等长周期\", \"dimensions\": [], \"i"
     },
     {
       "scenario": "discovery",
@@ -157,15 +160,16 @@
       "round": 1,
       "question": "你能查哪些数据",
       "status": 200,
-      "durationMs": 17947,
-      "eventCount": 81,
+      "durationMs": 6606,
+      "eventCount": 83,
       "parsed": true,
       "parseReason": null,
       "passed": true,
+      "legalTerminal": true,
       "detail": {
         "needs_discovery": true
       },
-      "textPreview": "{\"scenario_id\": null,\"sub_intents\": [],\"needs_discovery\": true,\"clarification\": {\"ambiguity\": \"你问的是「能查哪些数据」，但本次请求未携带候选资产集，我不能列举具体的 metric_id / dimension_id / scenario_id；同时不确定你是想了解能力范围，还是想直接发起一次问数。\", \"candidates\": [{\"code\": \"capability_scope\", \"label\": \"了解能力范围：可用已发布的指标做聚合与趋势/同环比/排行/对比分析，按已发布维度下钻过滤，支"
+      "textPreview": "{\n  \"scenario_id\": null,\n  \"sub_intents\": [],\n  \"needs_discovery\": true,\n  \"clarification\": {\n    \"歧义点\": \"「你能查哪些数据」是能力范围咨询，不是一条可执行的查询意图；当前候选集（manifest 2026.11.06-demo）仅收录 2 个指标、3 个维度，需要你确认要查的具体指标与口径\",\n    \"候选列表\": [\n      \"metric.gmv（GMV，聚合=SUM；可按 dim.region、dim.channel、dim.order_date 分析；支持 QUERY、LOO"
     },
     {
       "scenario": "discovery",
@@ -174,15 +178,16 @@
       "round": 2,
       "question": "有哪些指标可以用",
       "status": 200,
-      "durationMs": 20407,
-      "eventCount": 55,
+      "durationMs": 4188,
+      "eventCount": 62,
       "parsed": true,
       "parseReason": null,
       "passed": true,
+      "legalTerminal": true,
       "detail": {
         "needs_discovery": true
       },
-      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [{\"sub_intent_id\": \"s1\", \"analysis_mode\": \"discovery\", \"metric_id\": null, \"dimensions\": [], \"filters\": [], \"time_expression_raw\": null, \"variant_hint\": null, \"confidence\": 0.95}], \"needs_discovery\": true, \"clarification\": {\"ambiguity\": \"当前请求未附带候选集，无法确认可引用的指标范围，且未"
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification\": {\"ambiguity\": \"您询问的是系统可用指标清单，尚未指定要分析的指标与口径，无法直接生成查询意图。\", \"candidates\": [{\"metric_id\": \"metric.gmv\", \"name\": \"GMV\", \"aggregation\": \"SUM\", \"dimensions\": [\"dim.region\", \"dim.channel\", \"dim.order_date\"]}, {\"metric_id\": \"m"
     },
     {
       "scenario": "discovery",
@@ -191,13 +196,16 @@
       "round": 3,
       "question": "我可以用什么维度和分析方式",
       "status": 200,
-      "durationMs": 1103,
-      "eventCount": 2,
-      "parsed": false,
-      "parseReason": "未找到 JSON 对象",
+      "durationMs": 6665,
+      "eventCount": 47,
+      "parsed": true,
+      "parseReason": null,
       "passed": false,
-      "detail": null,
-      "textPreview": ""
+      "legalTerminal": true,
+      "detail": {
+        "needs_discovery": false
+      },
+      "textPreview": "{\"scenario_id\":null,\"sub_intents\":[],\"needs_discovery\":false,\"clarification\":null,\"out_of_capability\":false,\"reason_code\":null,\"capability_answer\":{\"dimensions\":[{\"dimension_id\":\"dim.region\",\"name\":\"区域\"},{\"dimension_id\":\"dim.channel\",\"name\":\"渠道\"},{\"dimension_id\":\"dim.order_date\",\"name\":\"下单日期\"}],\"ana"
     },
     {
       "scenario": "discovery",
@@ -206,13 +214,16 @@
       "round": 4,
       "question": "系统支持哪些分析场景",
       "status": 200,
-      "durationMs": 1251,
-      "eventCount": 2,
-      "parsed": false,
-      "parseReason": "未找到 JSON 对象",
+      "durationMs": 12920,
+      "eventCount": 96,
+      "parsed": true,
+      "parseReason": null,
       "passed": false,
-      "detail": null,
-      "textPreview": ""
+      "legalTerminal": true,
+      "detail": {
+        "needs_discovery": false
+      },
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": false, \"clarification\": {\"ambiguity\": \"「分析场景」在当前候选集中没有对应实体，实际可支持的能力由指标的可用分析模式与维度定义。系统当前支持的分析场景清单如下：\", \"candidates\": [{\"id\": \"metric.gmv\", \"label\": \"GMV 查询（analysis_mode=QUERY）\", \"dimensions\": [\"dim.region\", \"dim.channel\", \"dim.order_date\"]}"
     },
     {
       "scenario": "approval",
@@ -221,13 +232,14 @@
       "round": 1,
       "question": "导出租户A全部客户的手机号",
       "status": 200,
-      "durationMs": 1818,
-      "eventCount": 2,
-      "parsed": false,
-      "parseReason": "未找到 JSON 对象",
+      "durationMs": 2213,
+      "eventCount": 17,
+      "parsed": true,
+      "parseReason": null,
       "passed": false,
+      "legalTerminal": true,
       "detail": null,
-      "textPreview": ""
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": false, \"clarification\": null, \"out_of_capability\": true, \"reason_code\": \"OUT_OF_MANIFEST\"}"
     },
     {
       "scenario": "approval",
@@ -236,13 +248,14 @@
       "round": 2,
       "question": "把所有客户的邮箱列出来",
       "status": 200,
-      "durationMs": 14703,
-      "eventCount": 58,
+      "durationMs": 1683,
+      "eventCount": 17,
       "parsed": true,
       "parseReason": null,
       "passed": false,
+      "legalTerminal": true,
       "detail": null,
-      "textPreview": "{\"scenario_id\":null,\"sub_intents\":[],\"needs_discovery\":true,\"clarification\":{\"ambiguity_point\":\"当前未提供候选集（metric_id/dimension_id/scenario_id），无法确认「客户邮箱」是否属于已发布的受治理维度；且邮箱属于个人联系方式，可能未开放为问数维度。\",\"candidates\":[],\"default_suggestion\":\"先在已发布语义资产中检索「客户 / 邮箱 / email / 联系方式」相关维度：若存在，则按客户维度去重列出并受字段级权限控制；若不存在，则判"
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": false, \"clarification\": null, \"out_of_capability\": true, \"reason_code\": \"NOT_IN_CANDIDATE_SET\"}"
     },
     {
       "scenario": "approval",
@@ -251,13 +264,14 @@
       "round": 3,
       "question": "查一下全部敏感字段的明细",
       "status": 200,
-      "durationMs": 106721,
-      "eventCount": 83,
+      "durationMs": 1784,
+      "eventCount": 16,
       "parsed": true,
       "parseReason": null,
       "passed": false,
+      "legalTerminal": true,
       "detail": null,
-      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification\": \"歧义点：「全部敏感字段的明细」可能指 (A) 敏感字段的元数据/分级清单（字段标识、敏感等级、所属业务域、责任人等治理信息），也可能指 (B) 含敏感字段的业务数据明细查询；且当前未提供任何候选指标/维度/场景/技能清单，无法直接映射到可查询资产。候选列表：A=元数据/敏感分级清单（治理类信息）；B=业务数据明细查询（需再指定指标、维度与筛选口径）；C=仅查看已发布的敏感数据分级规则。默认建议：按 A 理解并触发资产发现（nee"
+      "textPreview": "{\"scenario_id\": null,\"sub_intents\": [],\"needs_discovery\": false,\"clarification\": null,\"out_of_capability\": true,\"reason_code\": \"NOT_IN_MANIFEST\"}"
     },
     {
       "scenario": "approval",
@@ -266,13 +280,14 @@
       "round": 4,
       "question": "批量导出客户身份信息",
       "status": 200,
-      "durationMs": 15426,
-      "eventCount": 17,
+      "durationMs": 3367,
+      "eventCount": 16,
       "parsed": true,
       "parseReason": null,
       "passed": false,
+      "legalTerminal": true,
       "detail": null,
-      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": false, \"clarification\": null, \"out_of_capability\": true, \"reason_code\": \"NO_EXPORT_CAPABILITY\"}"
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": false, \"clarification\": null, \"out_of_capability\": true, \"reason_code\": \"NOT_IN_MANIFEST\"}"
     },
     {
       "scenario": "composite",
@@ -281,13 +296,16 @@
       "round": 1,
       "question": "华东和华南的 GMV 对比，同时看订单数",
       "status": 200,
-      "durationMs": 955,
-      "eventCount": 2,
-      "parsed": false,
-      "parseReason": "未找到 JSON 对象",
-      "passed": false,
-      "detail": null,
-      "textPreview": ""
+      "durationMs": 5234,
+      "eventCount": 54,
+      "parsed": true,
+      "parseReason": null,
+      "passed": true,
+      "legalTerminal": true,
+      "detail": {
+        "subIntentCount": 2
+      },
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [{\"sub_intent_id\": \"s1\", \"analysis_mode\": \"query\", \"metric_id\": \"metric.gmv\", \"dimensions\": [\"dim.region\"], \"filters\": [{\"field_id\": \"dim.region\", \"operator\": \"in\", \"values\": [\"华东\", \"华南\"]}], \"time_expression_raw\": null, \"variant_hint\": null, \"confidence\": 0.92}, "
     },
     {
       "scenario": "composite",
@@ -296,13 +314,16 @@
       "round": 2,
       "question": "按区域看成交金额，再按渠道看客户数",
       "status": 200,
-      "durationMs": 182250,
-      "eventCount": 2036,
-      "parsed": false,
-      "parseReason": "AbortError: This operation was aborted",
-      "passed": false,
-      "detail": null,
-      "textPreview": ""
+      "durationMs": 6506,
+      "eventCount": 73,
+      "parsed": true,
+      "parseReason": null,
+      "passed": true,
+      "legalTerminal": true,
+      "detail": {
+        "subIntentCount": 2
+      },
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [{\"sub_intent_id\": \"s1\", \"analysis_mode\": \"query\", \"metric_id\": \"metric.gmv\", \"dimensions\": [\"dim.region\"], \"filters\": [], \"time_expression_raw\": null, \"variant_hint\": null, \"confidence\": 0.92}, {\"sub_intent_id\": \"s2\", \"analysis_mode\": \"query\", \"metric_id\": null,"
     },
     {
       "scenario": "composite",
@@ -311,15 +332,16 @@
       "round": 3,
       "question": "上个月的 GMV 和这个月的订单数分别是多少",
       "status": 200,
-      "durationMs": 12796,
-      "eventCount": 77,
+      "durationMs": 4779,
+      "eventCount": 36,
       "parsed": true,
       "parseReason": null,
       "passed": true,
+      "legalTerminal": true,
       "detail": {
         "subIntentCount": 2
       },
-      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [{\"sub_intent_id\": \"s1\", \"analysis_mode\": \"query\", \"metric_id\": null, \"dimensions\": [], \"filters\": [], \"time_expression_raw\": \"上个月\", \"variant_hint\": null, \"confidence\": 0.4}, {\"sub_intent_id\": \"s2\", \"analysis_mode\": \"query\", \"metric_id\": null, \"dimensions\": [], \""
+      "textPreview": "{\"scenario_id\":null,\"sub_intents\":[{\"sub_intent_id\":\"s1\",\"analysis_mode\":\"query\",\"metric_id\":\"metric.gmv\",\"dimensions\":[],\"filters\":[],\"time_expression_raw\":\"上个月\",\"variant_hint\":null,\"confidence\":0.95},{\"sub_intent_id\":\"s2\",\"analysis_mode\":\"query\",\"metric_id\":\"metric.order_count\",\"dimensions\":[],\"fi"
     },
     {
       "scenario": "composite",
@@ -328,13 +350,16 @@
       "round": 4,
       "question": "分渠道统计 GMV，并给出各区域客户数",
       "status": 200,
-      "durationMs": 180014,
-      "eventCount": 2074,
-      "parsed": false,
-      "parseReason": "AbortError: This operation was aborted",
+      "durationMs": 8701,
+      "eventCount": 26,
+      "parsed": true,
+      "parseReason": null,
       "passed": false,
-      "detail": null,
-      "textPreview": ""
+      "legalTerminal": true,
+      "detail": {
+        "subIntentCount": 1
+      },
+      "textPreview": "{\"scenario_id\":null,\"sub_intents\":[{\"sub_intent_id\":\"s1\",\"analysis_mode\":\"query\",\"metric_id\":\"metric.gmv\",\"dimensions\":[\"dim.channel\"],\"filters\":[],\"time_expression_raw\":null,\"variant_hint\":null,\"confidence\":0.95}],\"needs_discovery\":false,\"clarification\":null,\"out_of_capability\":true,\"reason_code\":\""
     },
     {
       "scenario": "reason_code",
@@ -343,16 +368,17 @@
       "round": 1,
       "question": "预测下个季度的销量",
       "status": 200,
-      "durationMs": 4921,
-      "eventCount": 12,
+      "durationMs": 10578,
+      "eventCount": 16,
       "parsed": true,
       "parseReason": null,
       "passed": true,
+      "legalTerminal": true,
       "detail": {
         "out_of_capability": true,
-        "reason_code": "FORECAST_UNSUPPORTED"
+        "reason_code": "FORECAST_NOT_SUPPORTED"
       },
-      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": false, \"clarification\": null, \"out_of_capability\": true, \"reason_code\": \"FORECAST_UNSUPPORTED\"}"
+      "textPreview": "{\"scenario_id\": null,\"sub_intents\": [],\"needs_discovery\": false,\"clarification\": null,\"out_of_capability\": true,\"reason_code\": \"FORECAST_NOT_SUPPORTED\"}"
     },
     {
       "scenario": "reason_code",
@@ -361,16 +387,17 @@
       "round": 2,
       "question": "帮我写一份营销文案",
       "status": 200,
-      "durationMs": 3015,
-      "eventCount": 13,
+      "durationMs": 2036,
+      "eventCount": 17,
       "parsed": true,
       "parseReason": null,
       "passed": true,
+      "legalTerminal": true,
       "detail": {
         "out_of_capability": true,
-        "reason_code": "OUT_OF_SCOPE"
+        "reason_code": "NOT_A_DATA_QUERY_INTENT"
       },
-      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": false, \"clarification\": null, \"out_of_capability\": true, \"reason_code\": \"OUT_OF_SCOPE\"}"
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": false, \"clarification\": null, \"out_of_capability\": true, \"reason_code\": \"NOT_A_DATA_QUERY_INTENT\"}"
     },
     {
       "scenario": "reason_code",
@@ -379,16 +406,17 @@
       "round": 3,
       "question": "我们是否应该进入东南亚市场",
       "status": 200,
-      "durationMs": 4681,
-      "eventCount": 16,
+      "durationMs": 2566,
+      "eventCount": 15,
       "parsed": true,
       "parseReason": null,
       "passed": true,
+      "legalTerminal": true,
       "detail": {
         "out_of_capability": true,
         "reason_code": "NO_RULE"
       },
-      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": false, \"clarification\": null, \"out_of_capability\": true, \"reason_code\": \"NO_RULE\"}"
+      "textPreview": "{\"scenario_id\": null,\"sub_intents\": [],\"needs_discovery\": false,\"clarification\": null,\"out_of_capability\": true,\"reason_code\": \"NO_RULE\"}"
     },
     {
       "scenario": "reason_code",
@@ -397,15 +425,19 @@
       "round": 4,
       "question": "分析一下竞品的定价策略",
       "status": 200,
-      "durationMs": 180009,
-      "eventCount": 2368,
-      "parsed": false,
-      "parseReason": "AbortError: This operation was aborted",
-      "passed": false,
-      "detail": null,
-      "textPreview": ""
+      "durationMs": 6318,
+      "eventCount": 11,
+      "parsed": true,
+      "parseReason": null,
+      "passed": true,
+      "legalTerminal": true,
+      "detail": {
+        "out_of_capability": true,
+        "reason_code": "NO_MATCHING_CAPABILITY"
+      },
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": false, \"clarification\": null, \"out_of_capability\": true, \"reason_code\": \"NO_MATCHING_CAPABILITY\"}"
     }
   ],
   "verdict": "FAIL",
-  "note": "审批回传（approval）不在 system prompt 的输出契约内，属 M1 审批流能力；本报告不把它计入分母，也不记为通过"
+  "note": "successRate 是「与期望终态类别一致」的比率；legalTerminalRate 是「产出了任一合法终态」的比率。两者分开报告：前者含 prompt 理解，后者只反映协议能否承载。审批回传在 M0 无对应能力，不计入分母也不记为通过，因此 #3 整体仍为 FAIL"
 }

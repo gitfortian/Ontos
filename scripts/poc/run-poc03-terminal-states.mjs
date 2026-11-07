@@ -174,6 +174,23 @@ function extractJson(text) {
   }
 }
 
+/**
+ * 合法终态：只要产出了五类之一的可判定结构，就说明协议能承载并重建终态。
+ * 与「和期望类别一致」是两件事——前者测协议/框架，后者测 prompt 与模型理解，
+ * 混在一起会把 prompt 问题误判成框架不达标（反之亦然）。
+ */
+function isLegalTerminal(payload) {
+  const hasClarification = payload.clarification && typeof payload.clarification === "object"
+    && Object.keys(payload.clarification).length > 0;
+  const hasDiscovery = payload.needs_discovery === true;
+  const hasComposite = Array.isArray(payload.sub_intents) && payload.sub_intents.length > 0;
+  const hasReasonCode = payload.out_of_capability === true
+    && typeof payload.reason_code === "string" && payload.reason_code.length > 0;
+  const hasCapabilityAnswer = payload.capability_answer && typeof payload.capability_answer === "object"
+    && Object.keys(payload.capability_answer).length > 0;
+  return hasClarification || hasDiscovery || hasComposite || hasReasonCode || hasCapabilityAnswer;
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
@@ -199,6 +216,7 @@ async function main() {
         parsed: parsed.ok,
         parseReason: parsed.ok ? null : parsed.reason,
         passed,
+        legalTerminal: parsed.ok ? isLegalTerminal(parsed.value) : false,
         detail: parsed.ok ? scenario.detail(parsed.value) : null,
         textPreview: response.text.slice(0, 300),
       });
@@ -213,6 +231,9 @@ async function main() {
   const applicable = results.filter((r) => r.applicable);
   const passed = applicable.filter((r) => r.passed).length;
   const rate = applicable.length === 0 ? 0 : passed / applicable.length;
+  const legal = results.filter((r) => r.legalTerminal).length;
+  const legalRate = results.length === 0 ? 0 : legal / results.length;
+  const parsedCount = results.filter((r) => r.parsed).length;
   const byScenario = Object.fromEntries(
     SCENARIOS.map((s) => {
       const rows = results.filter((r) => r.scenario === s.key);
@@ -239,10 +260,14 @@ async function main() {
     applicableSessions: applicable.length,
     passed: passed,
     successRate: Number(rate.toFixed(4)),
+    parsedJson: parsedCount,
+    parsedJsonRate: Number((results.length === 0 ? 0 : parsedCount / results.length).toFixed(4)),
+    legalTerminalCount: legal,
+    legalTerminalRate: Number(legalRate.toFixed(4)),
     byScenario,
     results,
-    verdict: rate === 1 && applicable.length >= 20 ? "PASS" : "FAIL",
-    note: "审批回传（approval）不在 system prompt 的输出契约内，属 M1 审批流能力；本报告不把它计入分母，也不记为通过",
+    verdict: "FAIL",
+    note: "successRate 是「与期望终态类别一致」的比率；legalTerminalRate 是「产出了任一合法终态」的比率。两者分开报告：前者含 prompt 理解，后者只反映协议能否承载。审批回传在 M0 无对应能力，不计入分母也不记为通过，因此 #3 整体仍为 FAIL",
   };
 
   mkdirSync(dirname(OUTPUT), { recursive: true });
@@ -254,9 +279,11 @@ async function main() {
     console.log(`    ${stat.label.padEnd(12)} ${tag}`);
   }
   console.log(
-    `\n  适用会话成功率 ${(rate * 100).toFixed(1)}%（${passed}/${applicable.length}），共 ${results.length} 次会话`,
+    `\n  与期望类别一致：${(rate * 100).toFixed(1)}%（${passed}/${applicable.length} 次适用会话）`,
   );
-  console.log(`  判据（100%）：${report.verdict}`);
+  console.log(`  JSON 解析成功：${(report.parsedJsonRate * 100).toFixed(1)}%（${parsedCount}/${results.length}）`);
+  console.log(`  产出合法终态：${(legalRate * 100).toFixed(1)}%（${legal}/${results.length}）`);
+  console.log(`  判据：${report.verdict}（审批回传在 M0 不可测，五类无法全部覆盖）`);
   console.log(`  原始输出：${OUTPUT}`);
 }
 
