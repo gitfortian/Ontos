@@ -52,7 +52,7 @@ public class OntosAgentFactory {
     }
 
     public Agent create() {
-        return HarnessAgent.builder()
+        HarnessAgent.Builder builder = HarnessAgent.builder()
                 .name("ontos")
                 .agentId("ontos")
                 .sysPrompt(buildSystemPrompt())
@@ -83,12 +83,29 @@ public class OntosAgentFactory {
                 .disableDynamicSkills()
                 .disableDefaultWorkspaceSkills()
                 // meta tool 即 agent_spawn / agent_send / agent_list 一族，关闭后不再派生子 agent
-                .enableMetaTool(false)
-                // 注意：不要在这里传 toolkit(new Toolkit())。实测传空 Toolkit 会反而触发框架
-                // 装配全套默认工具（22 个，含 execute/web_fetch），会话跑满超时且事件粒度被拆散。
-                // memory_* / session_* / task_* / agent_* 这 13 个暂无公开开关关闭，
-                // 登记为 M1 待办：用 PermissionContextState 的 deny 规则按工具名收敛。
-                .build();
+                .enableMetaTool(false);
+        // 输出契约校验（M1/T1.0，G2 修复项）：不合法的意图提案触发修复轮，超限 fail-closed；
+        // 基于现役 middleware 扩展点（legacy hook 已标记删除，PoC-03 §5 的 API 漂移登记项）
+        if (properties.isOutputValidation()) {
+            builder.middleware(new IntentProposalRepairMiddleware(buildContract(), properties));
+        }
+        // 注意：不要在这里传 toolkit(new Toolkit())。实测传空 Toolkit 会反而触发框架
+        // 装配全套默认工具（22 个，含 execute/web_fetch），会话跑满超时且事件粒度被拆散。
+        // memory_* / session_* / task_* / agent_* 这 13 个暂无公开开关关闭，
+        // 登记为 M1 待办：用 PermissionContextState 的 deny 规则按工具名收敛。
+        return builder.build();
+    }
+
+    /** 候选集 ID 白名单：聚合全部 Provider 的资产 ID，供输出契约做语义校验（硬性边界 2）。 */
+    private IntentProposalContract buildContract() {
+        List<AgentContextProvider> providers = this.contextProviders;
+        return new IntentProposalContract(() -> {
+            java.util.Set<String> ids = new java.util.HashSet<>();
+            for (AgentContextProvider provider : providers) {
+                ids.addAll(provider.candidateAssetIds());
+            }
+            return java.util.Set.copyOf(ids);
+        });
     }
 
     /** 系统提示词 + 候选集。候选集为空时保持提示词原样，不追加空段落。 */

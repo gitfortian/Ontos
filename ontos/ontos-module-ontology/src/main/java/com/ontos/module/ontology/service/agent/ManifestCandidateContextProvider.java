@@ -34,6 +34,22 @@ public class ManifestCandidateContextProvider implements AgentContextProvider {
     }
 
     @Override
+    public java.util.Set<String> candidateAssetIds() {
+        PublishedManifest manifest = manifestService.getActiveManifestOrNull();
+        if (manifest == null || manifest.getSemantic() == null) {
+            return java.util.Set.of();
+        }
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        if (manifest.getSemantic().getMetrics() != null) {
+            manifest.getSemantic().getMetrics().forEach(metric -> ids.add(metric.getId()));
+        }
+        if (manifest.getSemantic().getDimensions() != null) {
+            manifest.getSemantic().getDimensions().forEach(dimension -> ids.add(dimension.getId()));
+        }
+        return java.util.Set.copyOf(ids);
+    }
+
+    @Override
     public String candidateContext() {
         PublishedManifest manifest = manifestService.getActiveManifestOrNull();
         if (manifest == null || manifest.getSemantic() == null) {

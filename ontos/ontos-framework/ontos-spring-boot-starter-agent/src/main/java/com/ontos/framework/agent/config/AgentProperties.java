@@ -34,4 +34,10 @@ public class AgentProperties {
     private String systemPrompt = "classpath:prompts/system.md";
     private int maxIters = 12;
 
+    /** 输出契约校验开关（G2 修复项，ADR-0006）：关闭仅限本地排障，生产必须保持 true。 */
+    private boolean outputValidation = true;
+
+    /** 输出未过契约时的最大静默修复次数；超限改写为确定性拒答（fail-closed）。 */
+    private int outputMaxRepairs = 2;
+
 }
