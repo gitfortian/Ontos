@@ -1,4 +1,4 @@
--- 首发交易域表结构（M1/T2.3，对照 ADR-0004 资产下限）。
+-- 首发交易域表结构（M1/T2.3，对照 ADR-0004 资产下限）。当前生效清单：2026.11.08-first（scripts/publish.mjs 发布）。
 -- 每表强制：tenant_id 列 + ENABLE/FORCE ROW LEVEL SECURITY + 只读账号授权（v1.4 §4.1）。
 -- 在 Query DS（ontos_queryds）手工执行；sales_order 保留为 PoC 夹具（demo 清单退役后仍可用）。
 -- 身份上下文与应用同款：set_config('ontos.tenant_id', ?, true)。

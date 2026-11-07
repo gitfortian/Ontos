@@ -1,4 +1,6 @@
--- 本地/沙箱演示清单（payload v2）。不要在生产执行；生产清单由 Git → CI → 发布流水线生成。
+-- 本地/沙箱演示清单（payload v2）。【已退役为 PoC 夹具（M1/T3.4）】：首发清单发布后，
+-- 本清单与 sales_order 表仅用于 PoC 探针（PoC-01/02）与本地调试；生产清单由发布流水线生成
+-- （scripts/publish.mjs → ontos-assets/）。
 -- 哈希按 PostgreSQL jsonb 的文本表示计算，与 ManifestService 读取 payload::text 后计算的 SHA-256 一致。
 -- v2 变更：资产补齐业务化必填字段（summary/aliases，业务化命名规格）；新增 rule / copyTemplate /
 --          timeExpressionPattern / scenario 段；manifest_id 升版（清单不可变，禁止原地覆盖旧版本）。

@@ -1,0 +1,139 @@
+{
+  "poc": "#2 发布快照可复现",
+  "task": "M0/T2.2",
+  "level": "系统级（真实 jar + HTTP + System DB 清单加载）",
+  "executedAt": "2026-11-07T13:39:47.449Z",
+  "environment": {
+    "java": "java version \"21.0.12\" 2026-07-21 LTS",
+    "os": "win32 x64",
+    "database": "PostgreSQL 18.6-5 @ 127.0.0.1:5432",
+    "serverPort": 18080,
+    "profile": "local",
+    "manifestId": "2026.11.08-first"
+  },
+  "dsl": {
+    "manifestId": "2026.11.08-first",
+    "mode": "QUERY",
+    "metricId": "metric.gmv",
+    "dimensions": [
+      "dim.region",
+      "dim.channel"
+    ],
+    "filters": [
+      {
+        "fieldId": "dim.channel",
+        "operator": "IN",
+        "values": [
+          "线上",
+          "线下"
+        ]
+      }
+    ],
+    "timeRange": {
+      "field": "dim.order_date",
+      "from": "2026-01-01T00:00:00Z",
+      "to": "2026-12-31T23:59:59Z"
+    },
+    "limit": 50
+  },
+  "restarts": 2,
+  "processes": 3,
+  "repeatPerProcess": 100,
+  "totalCompiles": 300,
+  "runs": [
+    {
+      "run": 1,
+      "pid": 9964,
+      "startedAt": "2026-11-07T13:39:07.563Z",
+      "health": "UP",
+      "compiles": 100,
+      "distinctDigests": 1,
+      "digest": "59220a2114af9d28498024f9d12eaad3ab05114ace05518fcfb1bcfd6b3679cf",
+      "inRunIdentical": true,
+      "payload": {
+        "manifestId": "2026.11.08-first",
+        "contentHash": "8c617ba37a7f5ff2ff390254e0caf1edf52d3486e801f2638e01e026458082a0",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.region",
+          "dim.channel"
+        ],
+        "dialect": "postgresql",
+        "sql": "select sum(\"amount\") as \"value\", \"region\" as \"dim.region\", \"channel\" as \"dim.channel\" from \"orders\" where (\"channel\" in (?, ?) and \"order_date\" >= cast(? as timestamp) and \"order_date\" <= cast(? as timestamp)) group by \"region\", \"channel\" fetch next ? rows only",
+        "bindValues": [
+          "线上",
+          "线下",
+          "2026-01-01T00:00:00.000Z",
+          "2026-12-31T23:59:59.000Z",
+          50
+        ],
+        "appliedLimit": 50
+      }
+    },
+    {
+      "run": 2,
+      "pid": 73400,
+      "startedAt": "2026-11-07T13:39:21.482Z",
+      "health": "UP",
+      "compiles": 100,
+      "distinctDigests": 1,
+      "digest": "59220a2114af9d28498024f9d12eaad3ab05114ace05518fcfb1bcfd6b3679cf",
+      "inRunIdentical": true,
+      "payload": {
+        "manifestId": "2026.11.08-first",
+        "contentHash": "8c617ba37a7f5ff2ff390254e0caf1edf52d3486e801f2638e01e026458082a0",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.region",
+          "dim.channel"
+        ],
+        "dialect": "postgresql",
+        "sql": "select sum(\"amount\") as \"value\", \"region\" as \"dim.region\", \"channel\" as \"dim.channel\" from \"orders\" where (\"channel\" in (?, ?) and \"order_date\" >= cast(? as timestamp) and \"order_date\" <= cast(? as timestamp)) group by \"region\", \"channel\" fetch next ? rows only",
+        "bindValues": [
+          "线上",
+          "线下",
+          "2026-01-01T00:00:00.000Z",
+          "2026-12-31T23:59:59.000Z",
+          50
+        ],
+        "appliedLimit": 50
+      }
+    },
+    {
+      "run": 3,
+      "pid": 19508,
+      "startedAt": "2026-11-07T13:39:35.105Z",
+      "health": "UP",
+      "compiles": 100,
+      "distinctDigests": 1,
+      "digest": "59220a2114af9d28498024f9d12eaad3ab05114ace05518fcfb1bcfd6b3679cf",
+      "inRunIdentical": true,
+      "payload": {
+        "manifestId": "2026.11.08-first",
+        "contentHash": "8c617ba37a7f5ff2ff390254e0caf1edf52d3486e801f2638e01e026458082a0",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.region",
+          "dim.channel"
+        ],
+        "dialect": "postgresql",
+        "sql": "select sum(\"amount\") as \"value\", \"region\" as \"dim.region\", \"channel\" as \"dim.channel\" from \"orders\" where (\"channel\" in (?, ?) and \"order_date\" >= cast(? as timestamp) and \"order_date\" <= cast(? as timestamp)) group by \"region\", \"channel\" fetch next ? rows only",
+        "bindValues": [
+          "线上",
+          "线下",
+          "2026-01-01T00:00:00.000Z",
+          "2026-12-31T23:59:59.000Z",
+          50
+        ],
+        "appliedLimit": 50
+      }
+    }
+  ],
+  "comparison": {
+    "inRunIdentical": true,
+    "crossRestartIdentical": true,
+    "distinctDigestsAcrossRuns": 1,
+    "agreementRate": "100.00%"
+  },
+  "verdict": "PASS"
+}

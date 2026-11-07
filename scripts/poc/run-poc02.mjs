@@ -7,7 +7,7 @@
  * 本探针不做单元级模拟：直接启动真实 jar，走 HTTP `/api/v1/query/compile`，
  * 每次重启都是一个全新的 JVM 进程 + 全新 Spring 上下文 + 从 System DB 重新加载的发布清单。
  *
- * 运行：node scripts/poc/run-poc02.mjs [--no-build]
+ * 运行：node scripts/poc/run-poc02.mjs [--no-build] [--manifest-id 2026.11.08-first]
  * 产物：docs/06-verification/poc/PoC-02-raw.json
  */
 import { spawn, spawnSync } from "node:child_process";
@@ -24,7 +24,10 @@ const PORT = 18080;
 const BASE = `http://127.0.0.1:${PORT}`;
 const REPEAT_PER_RUN = 100;
 const RESTARTS = 2; // 首次启动 + 2 次重启 = 3 个独立进程
-const MANIFEST_ID = "2026.11.06-demo";
+const MANIFEST_ID = (() => {
+  const i = process.argv.indexOf("--manifest-id");
+  return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : "2026.11.06-demo";
+})(); // T3.5：默认历史值；首发清单回归传 --manifest-id 2026.11.08-first
 
 /** 固定 DSL：含两个维度、IN 过滤、时间窗与 limit，覆盖 SQL 与全部绑定值路径。 */
 const DSL = {
