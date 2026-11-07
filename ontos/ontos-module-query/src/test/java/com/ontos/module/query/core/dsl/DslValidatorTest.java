@@ -10,7 +10,9 @@ import com.ontos.module.query.core.TestFixtures;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -42,6 +44,17 @@ class DslValidatorTest {
         QueryDsl dsl = TestFixtures.query();
         dsl.setMode(QueryDsl.AnalysisMode.DISCOVERY);
         assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+    }
+
+    @Test
+    void shouldRejectNonQueryModeEvenWhenWhitelisted() {
+        // 夹具清单声明了 LOOKUP / YOY_MOM：白名单放行不够，未实现的模式必须 fail-closed（PoC-04）
+        for (QueryDsl.AnalysisMode mode : List.of(QueryDsl.AnalysisMode.LOOKUP, QueryDsl.AnalysisMode.YOY_MOM)) {
+            QueryDsl dsl = TestFixtures.query();
+            dsl.setMode(mode);
+            ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+            assertEquals(ANALYSIS_MODE_NOT_IMPLEMENTED.getCode(), ex.getCode());
+        }
     }
 
     @Test

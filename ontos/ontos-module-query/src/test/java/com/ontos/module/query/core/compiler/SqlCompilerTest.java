@@ -4,13 +4,16 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.query.core.TestFixtures;
 import com.ontos.module.query.core.dsl.QueryDsl;
 import org.junit.jupiter.api.Test;
 
+import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SqlCompilerTest {
@@ -89,5 +92,14 @@ class SqlCompilerTest {
         assertFalse(sql.contains("2026-01-01"), "时间值不得内联: " + sql);
         assertEquals(2, compiled.getBindValues().stream()
                 .filter(java.sql.Timestamp.class::isInstance).count());
+    }
+
+    @Test
+    void shouldRejectNonQueryModeDefensively() {
+        // 纵深防御：即使绕过校验器，编译器也绝不把非 QUERY 模式静默编译成聚合 SQL（PoC-04）
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setMode(QueryDsl.AnalysisMode.LOOKUP);
+        ServiceException ex = assertThrows(ServiceException.class, () -> compiler.compile(dsl, TestFixtures.manifest()));
+        assertEquals(ANALYSIS_MODE_NOT_IMPLEMENTED.getCode(), ex.getCode());
     }
 }

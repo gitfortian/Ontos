@@ -22,6 +22,7 @@ import org.jooq.impl.DSL;
 import org.springframework.stereotype.Component;
 
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
+import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
 
 /**
@@ -38,6 +39,12 @@ public class SqlCompiler {
     private final DSLContext dsl = DSL.using(SQLDialect.POSTGRES);
 
     public CompiledQuery compile(QueryDsl queryDsl, PublishedManifest manifest) {
+        // 纵深防御（PoC-04 缺陷修复）：即使调用方绕过校验器，编译器也绝不把
+        // 非 QUERY 模式静默编译成聚合 SQL——只拒绝，不实现（能力归 M2）。
+        QueryDsl.AnalysisMode mode = queryDsl.getMode() == null ? QueryDsl.AnalysisMode.QUERY : queryDsl.getMode();
+        if (mode != QueryDsl.AnalysisMode.QUERY) {
+            throw exception(ANALYSIS_MODE_NOT_IMPLEMENTED, mode.name());
+        }
         SemanticManifest semantic = manifest.getSemantic();
         SemanticManifest.Metric metric = semantic.requireMetric(queryDsl.getMetricId());
         List<String> dimensionIds = queryDsl.getDimensions() == null ? List.of() : queryDsl.getDimensions();

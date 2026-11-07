@@ -12,6 +12,7 @@ import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exc
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.invalidParamException;
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.ASSET_MODE_NOT_ALLOWED;
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.DIMENSION_NOT_ALLOWED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.CROSS_TABLE_UNSUPPORTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
 
@@ -43,6 +44,11 @@ public class DslValidator {
         QueryDsl.AnalysisMode mode = dsl.getMode() == null ? QueryDsl.AnalysisMode.QUERY : dsl.getMode();
         if (!metric.getAllowedModes().contains(mode.name())) {
             throw exception(ASSET_MODE_NOT_ALLOWED, mode.name());
+        }
+        // fail-closed（PoC-04 缺陷修复）：M2 前只有 QUERY 有确定性构造器，
+        // 清单声明了其他 allowed_modes 也必须拒绝，防止非 QUERY 模式静默编译成聚合 SQL。
+        if (mode != QueryDsl.AnalysisMode.QUERY) {
+            throw exception(ANALYSIS_MODE_NOT_IMPLEMENTED, mode.name());
         }
 
         List<String> dimensions = dsl.getDimensions() == null ? List.of() : dsl.getDimensions();
