@@ -1,0 +1,343 @@
+{
+  "generatedAt": "2026-11-07T01:48:36.851Z",
+  "scope": "T3.1 准入的可执行部分（坐标 / JDK / Boot / 破坏性 API 差异）；不含五类终态重建",
+  "targetVersion": "2.1.0-BETA1",
+  "baselineVersion": "2.0.4",
+  "java": "D:\\tianxy\\soft\\jdk-21.0.12",
+  "artifacts": [
+    {
+      "key": "core",
+      "artifact": "agentscope-core",
+      "required": true,
+      "target": {
+        "version": "2.1.0-BETA1",
+        "jar": true,
+        "pom": true,
+        "classes": 514,
+        "classFileMajor": 61
+      },
+      "baseline": {
+        "version": "2.0.4",
+        "jar": true,
+        "classes": 446
+      }
+    },
+    {
+      "key": "harness",
+      "artifact": "agentscope-harness",
+      "required": true,
+      "target": {
+        "version": "2.1.0-BETA1",
+        "jar": true,
+        "pom": true,
+        "classes": 429,
+        "classFileMajor": 61
+      },
+      "baseline": {
+        "version": "2.0.4",
+        "jar": true,
+        "classes": 393
+      }
+    },
+    {
+      "key": "spring-boot-starter",
+      "artifact": "agentscope-spring-boot-starter",
+      "required": true,
+      "target": {
+        "version": "2.1.0-BETA1",
+        "jar": true,
+        "pom": true,
+        "classes": 4,
+        "classFileMajor": 61
+      },
+      "baseline": {
+        "version": "2.0.4",
+        "jar": true,
+        "classes": 4
+      }
+    },
+    {
+      "key": "agui-starter",
+      "artifact": "agentscope-agui-spring-boot-starter",
+      "required": true,
+      "target": {
+        "version": "2.1.0-BETA1",
+        "jar": true,
+        "pom": true,
+        "classes": 18,
+        "classFileMajor": 61
+      },
+      "baseline": {
+        "version": "2.0.4",
+        "jar": true,
+        "classes": 18
+      }
+    },
+    {
+      "key": "agui-ext",
+      "artifact": "agentscope-extensions-agui",
+      "required": false,
+      "target": {
+        "version": "2.1.0-BETA1",
+        "jar": true,
+        "pom": true,
+        "classes": 107,
+        "classFileMajor": 61
+      },
+      "baseline": {
+        "version": "2.0.4",
+        "jar": true,
+        "classes": 107
+      }
+    }
+  ],
+  "jdk": {
+    "maxClassFileMajor": 61,
+    "javaVersion": 17,
+    "runsOnJdk21": true
+  },
+  "bootAlignment": {
+    "parent": null,
+    "springDependencies": [
+      {
+        "group": "org.springframework.boot",
+        "artifact": "spring-boot-autoconfigure",
+        "version": "4.0.1"
+      },
+      {
+        "group": "org.springframework.boot",
+        "artifact": "spring-boot-configuration-processor",
+        "version": "4.0.1"
+      }
+    ],
+    "declaresSpringBoot4": true
+  },
+  "apiDiff": [
+    {
+      "artifact": "agentscope-core",
+      "removedClassCount": 1,
+      "removedClasses": [
+        "io.agentscope.core.middleware.TaskReminderMiddleware$1"
+      ],
+      "removedPublicTopLevelClasses": [],
+      "addedClassCount": 69,
+      "addedTopLevelClasses": [
+        "io.agentscope.core.middleware.TaskContextProjection",
+        "io.agentscope.core.middleware.ModelRequestPreparer",
+        "io.agentscope.core.message.ToolExecutionDetails",
+        "io.agentscope.core.agent.ExecutionIdentity",
+        "io.agentscope.core.agent.accumulator.ServerToolResultAccumulator",
+        "io.agentscope.core.state.EvidenceBinding",
+        "io.agentscope.core.state.TaskRequirement",
+        "io.agentscope.core.state.TaskVerification",
+        "io.agentscope.core.observation.ActionObservationException",
+        "io.agentscope.core.observation.ActionObserver",
+        "io.agentscope.core.observation.ActionObservations",
+        "io.agentscope.core.observation.ActionObservation",
+        "io.agentscope.core.tool.builtin.RequirementTools",
+        "io.agentscope.core.session.SessionHeader",
+        "io.agentscope.core.session.SessionModels",
+        "io.agentscope.core.session.AtomicSessionStorage",
+        "io.agentscope.core.session.InMemorySessionLogStore",
+        "io.agentscope.core.session.SessionStateAccess",
+        "io.agentscope.core.session.SessionInteractions",
+        "io.agentscope.core.session.SessionEventCodecRegistry",
+        "io.agentscope.core.session.SessionKey",
+        "io.agentscope.core.session.SessionViews",
+        "io.agentscope.core.session.SessionInbox",
+        "io.agentscope.core.session.SessionExecution",
+        "io.agentscope.core.session.SessionRecovery",
+        "io.agentscope.core.session.SessionLogException",
+        "io.agentscope.core.session.JournalSessionLog",
+        "io.agentscope.core.session.SessionLogStore",
+        "io.agentscope.core.session.SessionModelPolicy",
+        "io.agentscope.core.session.SessionLog",
+        "io.agentscope.core.session.SessionTurns",
+        "io.agentscope.core.session.SessionMigration",
+        "io.agentscope.core.session.SessionTranscriptExport",
+        "io.agentscope.core.session.SessionRecorder",
+        "io.agentscope.core.session.SessionEvent",
+        "io.agentscope.core.session.SessionLogExporter",
+        "io.agentscope.core.session.SessionEventTypes",
+        "io.agentscope.core.session.SessionProjection",
+        "io.agentscope.core.session.SessionHistoryMode",
+        "io.agentscope.core.session.SessionExportSink"
+      ],
+      "classesWithRemovedPublicMethods": 1,
+      "removedPublicMethods": [
+        {
+          "class": "io.agentscope.core.state.TaskContextState",
+          "methods": [
+            "public java.util.List<io.agentscope.core.state.Task> getTasks()",
+            "public java.util.List<io.agentscope.core.state.Task> tasksMutable()"
+          ]
+        }
+      ]
+    },
+    {
+      "artifact": "agentscope-harness",
+      "removedClassCount": 16,
+      "removedClasses": [
+        "io.agentscope.harness.agent.middleware.TranscriptMiddleware",
+        "io.agentscope.harness.agent.memory.session.SessionEntry$ToolUseEntry",
+        "io.agentscope.harness.agent.memory.session.SessionTranscriptWriter",
+        "io.agentscope.harness.agent.memory.session.SessionEntry$MessageEntry",
+        "io.agentscope.harness.agent.memory.session.SessionEntry$ToolResultEntry",
+        "io.agentscope.harness.agent.memory.session.SessionTree",
+        "io.agentscope.harness.agent.memory.session.SessionEntry$CompactionEntry",
+        "io.agentscope.harness.agent.memory.session.SessionTranscriptWriter$TruncatedOutput",
+        "io.agentscope.harness.agent.memory.session.SessionEntry$SummaryEntry",
+        "io.agentscope.harness.agent.memory.session.SessionEntry",
+        "io.agentscope.harness.agent.memory.session.SessionTranscriptWriter$TruncatedMap",
+        "io.agentscope.harness.agent.transcript.FilesystemTranscriptStore",
+        "io.agentscope.harness.agent.transcript.TranscriptStore",
+        "io.agentscope.harness.agent.transcript.ObjectStoreTranscriptStore",
+        "io.agentscope.harness.agent.transcript.TranscriptStore$SegmentInfo",
+        "io.agentscope.harness.agent.transcript.TranscriptRef"
+      ],
+      "removedPublicTopLevelClasses": [
+        "io.agentscope.harness.agent.middleware.TranscriptMiddleware",
+        "io.agentscope.harness.agent.memory.session.SessionTranscriptWriter",
+        "io.agentscope.harness.agent.memory.session.SessionTree",
+        "io.agentscope.harness.agent.memory.session.SessionEntry",
+        "io.agentscope.harness.agent.transcript.FilesystemTranscriptStore",
+        "io.agentscope.harness.agent.transcript.TranscriptStore",
+        "io.agentscope.harness.agent.transcript.ObjectStoreTranscriptStore",
+        "io.agentscope.harness.agent.transcript.TranscriptRef"
+      ],
+      "addedClassCount": 52,
+      "addedTopLevelClasses": [
+        "io.agentscope.harness.agent.middleware.ContextConventionsMiddleware",
+        "io.agentscope.harness.agent.context.ContextPolicy",
+        "io.agentscope.harness.agent.context.WorkspaceContextMaterials",
+        "io.agentscope.harness.agent.context.ContextModelCalls",
+        "io.agentscope.harness.agent.context.ContextSource",
+        "io.agentscope.harness.agent.context.ContextSources",
+        "io.agentscope.harness.agent.context.ContextSourceOptions",
+        "io.agentscope.harness.agent.context.ContextManifest",
+        "io.agentscope.harness.agent.context.ContextItem",
+        "io.agentscope.harness.agent.context.ContextBlock",
+        "io.agentscope.harness.agent.context.ContextSelectionPolicy",
+        "io.agentscope.harness.agent.context.TaskContextOptions",
+        "io.agentscope.harness.agent.context.ContextRequest",
+        "io.agentscope.harness.agent.context.HarnessContextBuilder",
+        "io.agentscope.harness.agent.context.ContextRenderer",
+        "io.agentscope.harness.agent.context.ContextTokenEstimator",
+        "io.agentscope.harness.agent.context.SourceFailurePolicy",
+        "io.agentscope.harness.agent.context.ContextBudgetExceededException",
+        "io.agentscope.harness.agent.memory.compaction.ConversationCompactionStrategy",
+        "io.agentscope.harness.agent.verification.ShellExitCodeVerifier",
+        "io.agentscope.harness.agent.verification.StoredVerification",
+        "io.agentscope.harness.agent.verification.DeterministicVerifier",
+        "io.agentscope.harness.agent.verification.JsonResultSchemaVerifier",
+        "io.agentscope.harness.agent.verification.VerificationService",
+        "io.agentscope.harness.agent.observation.StoredActionObservation",
+        "io.agentscope.harness.agent.observation.StateStoreActionObserver",
+        "io.agentscope.harness.agent.tool.KeywordMatcher",
+        "io.agentscope.harness.agent.session.StoreSessionStorage",
+        "io.agentscope.harness.agent.session.SessionAnswer",
+        "io.agentscope.harness.agent.session.WorkspaceSessionLogStore",
+        "io.agentscope.harness.agent.session.AgentSession",
+        "io.agentscope.harness.agent.session.SqliteSessionStorage",
+        "io.agentscope.harness.agent.session.LocalSessionStorage"
+      ],
+      "classesWithRemovedPublicMethods": 7,
+      "removedPublicMethods": [
+        {
+          "class": "io.agentscope.harness.agent.middleware.MemoryMaintenanceMiddleware",
+          "methods": [
+            "public io.agentscope.harness.agent.middleware.MemoryMaintenanceMiddleware(io.agentscope.harness.agent.workspace.WorkspaceManager, io.agentscope.harness.agent.memory.MemoryConsolidator, int, int, java.time.Duration)",
+            "public io.agentscope.harness.agent.middleware.MemoryMaintenanceMiddleware(io.agentscope.harness.agent.workspace.WorkspaceManager, io.agentscope.harness.agent.memory.MemoryConsolidator, int, int, java.time.Duration, io.agentscope.harness.agent.IsolationScope)",
+            "public io.agentscope.harness.agent.middleware.MemoryMaintenanceMiddleware(io.agentscope.harness.agent.workspace.WorkspaceManager, io.agentscope.harness.agent.memory.MemoryConsolidator, int, int, java.time.Duration, io.agentscope.harness.agent.IsolationScope, io.agentscope.harness.agent.coordination.PeriodicGate)"
+          ]
+        },
+        {
+          "class": "io.agentscope.harness.agent.memory.MemoryFlushManager",
+          "methods": [
+            "public java.lang.String resolveOffloadPath(io.agentscope.core.agent.RuntimeContext, java.lang.String, java.lang.String)",
+            "public void offloadMessages(io.agentscope.core.agent.RuntimeContext, java.util.List<io.agentscope.core.message.Msg>, java.lang.String, java.lang.String)"
+          ]
+        },
+        {
+          "class": "io.agentscope.harness.agent.memory.compaction.CompactionConfig",
+          "methods": [
+            "public boolean isOffloadBeforeCompact()"
+          ]
+        },
+        {
+          "class": "io.agentscope.harness.agent.memory.MemoryConfig",
+          "methods": [
+            "public static final int DEFAULT_SESSION_RETENTION_DAYS",
+            "public int sessionRetentionDays()"
+          ]
+        },
+        {
+          "class": "io.agentscope.harness.agent.workspace.WorkspaceConstants",
+          "methods": [
+            "public static final java.lang.String SESSIONS_STORE",
+            "public static final java.lang.String SESSION_CONTEXT_EXT",
+            "public static final java.lang.String SESSION_LOG_EXT"
+          ]
+        },
+        {
+          "class": "io.agentscope.harness.agent.workspace.WorkspaceManager",
+          "methods": [
+            "public java.nio.file.Path resolveSessionContextFile(io.agentscope.core.agent.RuntimeContext, java.lang.String, java.lang.String)",
+            "public java.nio.file.Path resolveSessionLogFile(io.agentscope.core.agent.RuntimeContext, java.lang.String, java.lang.String)",
+            "public void updateSessionIndex(io.agentscope.core.agent.RuntimeContext, java.lang.String, java.lang.String, java.lang.String)",
+            "public java.util.List<java.lang.String> listSessionLogFiles(io.agentscope.core.agent.RuntimeContext)"
+          ]
+        },
+        {
+          "class": "io.agentscope.harness.agent.tool.ShellExecuteTool",
+          "methods": [
+            "public java.lang.String execute(io.agentscope.core.agent.RuntimeContext, java.lang.String, java.lang.String, java.lang.Integer)"
+          ]
+        }
+      ]
+    },
+    {
+      "artifact": "agentscope-spring-boot-starter",
+      "removedClassCount": 0,
+      "removedClasses": [],
+      "removedPublicTopLevelClasses": [],
+      "addedClassCount": 0,
+      "addedTopLevelClasses": [],
+      "classesWithRemovedPublicMethods": 0,
+      "removedPublicMethods": []
+    },
+    {
+      "artifact": "agentscope-agui-spring-boot-starter",
+      "removedClassCount": 0,
+      "removedClasses": [],
+      "removedPublicTopLevelClasses": [],
+      "addedClassCount": 0,
+      "addedTopLevelClasses": [],
+      "classesWithRemovedPublicMethods": 0,
+      "removedPublicMethods": []
+    },
+    {
+      "artifact": "agentscope-extensions-agui",
+      "removedClassCount": 0,
+      "removedClasses": [],
+      "removedPublicTopLevelClasses": [],
+      "addedClassCount": 0,
+      "addedTopLevelClasses": [],
+      "classesWithRemovedPublicMethods": 0,
+      "removedPublicMethods": []
+    }
+  ],
+  "skillToolkitCheck": {
+    "baselineCount": 18,
+    "targetCount": 18,
+    "removed": [],
+    "added": [],
+    "identical": true
+  },
+  "summary": {
+    "artifactsAllPresent": true,
+    "runsOnJdk21": true,
+    "breakingChangeSignals": 16,
+    "skillToolkitApiUnchanged": true
+  }
+}
