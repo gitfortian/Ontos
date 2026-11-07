@@ -27,6 +27,15 @@
       <groupId>io.agentscope</groupId>
       <artifactId>agentscope-agui-spring-boot-starter</artifactId>
     </dependency>
+    <!--
+      模型 provider（OpenAI 协议族）。该 artifact 通过 ServiceLoader 注册 openai / deepseek /
+      kimi / glm / minimax 五个 provider，覆盖国内主流 OpenAI 兼容云厂商；
+      不引入则 ModelRegistry 无法解析任何模型前缀，AG-UI 调用必然失败。
+    -->
+    <dependency>
+      <groupId>io.agentscope</groupId>
+      <artifactId>agentscope-extensions-model-openai</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-autoconfigure</artifactId>
