@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.framework.common.util.json.JsonUtils;
 import com.ontos.module.ontology.core.ManifestPayload;
+import com.ontos.module.ontology.core.ManifestStructureValidator;
 import com.ontos.module.ontology.core.OntologyGraph;
 import com.ontos.module.ontology.core.OntologyPublishValidator;
 import com.ontos.module.ontology.core.PublishedManifest;
@@ -30,6 +31,7 @@ public class ManifestServiceImpl implements ManifestService, ApplicationRunner {
     private final PublishedSnapshotRepository snapshotRepository;
     private final ManifestProperties properties;
     private final OntologyPublishValidator publishValidator = new OntologyPublishValidator();
+    private final ManifestStructureValidator structureValidator = new ManifestStructureValidator();
     private final AtomicReference<PublishedManifest> active = new AtomicReference<>();
 
     public ManifestServiceImpl(PublishedSnapshotRepository snapshotRepository, ManifestProperties properties) {
@@ -105,6 +107,11 @@ public class ManifestServiceImpl implements ManifestService, ApplicationRunner {
         if (payload == null || payload.getSemantic() == null || payload.getOntology() == null) {
             throw exception(ONTOLOGY_INVALID, "payload 缺少 semantic 或 ontology");
         }
+        // 结构校验（T2.1）：业务化必填字段 / 物理名格式（ADR-0007）/ 引用完整性；与图语义校验互补
+        var structureViolations = structureValidator.validate(payload);
+        if (!structureViolations.isEmpty()) {
+            throw exception(ONTOLOGY_INVALID, structureViolations.toString());
+        }
         var violations = publishValidator.validate(payload.getOntology());
         if (!violations.isEmpty()) {
             throw exception(ONTOLOGY_INVALID, violations.toString());
@@ -123,6 +130,10 @@ public class ManifestServiceImpl implements ManifestService, ApplicationRunner {
         manifest.setSemantic(payload.getSemantic());
         manifest.setOntology(payload.getOntology());
         manifest.setOntologyGraph(new OntologyGraph(payload.getOntology()));
+        manifest.setRules(payload.getRules());
+        manifest.setCopyTemplates(payload.getCopyTemplates());
+        manifest.setTimeExpressionPatterns(payload.getTimeExpressionPatterns());
+        manifest.setScenarios(payload.getScenarios());
         manifest.setCreatedAt(snapshot.getCreatedAt());
         return manifest;
     }

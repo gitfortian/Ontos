@@ -46,6 +46,10 @@ public class SemanticManifest {
     public static class Metric {
         private String id;
         private String name;
+        /** 一句话业务说明（业务化命名规格必填字段）。 */
+        private String summary;
+        /** 常见叫法（同义词 / 口语 / 缩写），进检索词库；业务化规格要求至少 1 条。 */
+        private List<String> aliases = List.of();
         private String table;
         private String column;
         private Aggregation aggregation;
@@ -58,6 +62,10 @@ public class SemanticManifest {
     public static class Dimension {
         private String id;
         private String name;
+        /** 一句话业务说明（业务化命名规格必填字段）。 */
+        private String summary;
+        /** 常见叫法，进检索词库；业务化规格要求至少 1 条。 */
+        private List<String> aliases = List.of();
         private String table;
         private String column;
         private boolean sensitive;
