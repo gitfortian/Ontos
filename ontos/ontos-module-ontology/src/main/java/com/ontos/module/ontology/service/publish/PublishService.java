@@ -23,6 +23,9 @@ public interface PublishService {
      */
     PublishReportVO publish(PublishRequest request);
 
+    /** 发布历史（管理端展示，含 dry-run 预检记录）。 */
+    java.util.List<Map<String, Object>> listPublishRecords(int limit);
+
     /**
      * 发布请求体。payload 为原始 JSON 树（Map 形态）：发布服务先做「未知字段检测」
      * （提交树 vs 类型化回装树键差分，拼写错误的字段不再被静默丢弃），

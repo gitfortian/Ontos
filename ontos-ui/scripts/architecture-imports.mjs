@@ -46,6 +46,9 @@ export function checkArchitectureImports(relativePath, content, root) {
   const publicPageEntries = new Set([
     resolve(app, "ask/page"),
     resolve(app, "ontology/manifests/page"),
+    resolve(app, "ontology/assets/page"),
+    resolve(app, "ontology/diff/page"),
+    resolve(app, "ontology/records/page"),
     resolve(app, "approvals/page"),
     resolve(app, "audit/page"),
   ]);

@@ -97,4 +97,17 @@ public class PublishedSnapshotRepository {
                         "publishedBy", publishedBy));
     }
 
+    /** 发布历史查询（管理端展示，最新在前）。 */
+    public List<Map<String, Object>> selectPublishRecords(int limit) {
+        return jdbcTemplate.queryForList(
+                """
+                SELECT manifest_id, content_hash, dry_run, source_ref, published_by,
+                       published_at::text AS published_at
+                FROM publish_record
+                ORDER BY published_at DESC
+                LIMIT :limit
+                """,
+                Map.of("limit", limit));
+    }
+
 }

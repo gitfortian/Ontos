@@ -144,4 +144,9 @@ public class PublishServiceImpl implements PublishService {
         return list == null ? 0 : list.size();
     }
 
+    @Override
+    public List<Map<String, Object>> listPublishRecords(int limit) {
+        return repository.selectPublishRecords(Math.max(1, Math.min(limit, 200)));
+    }
+
 }

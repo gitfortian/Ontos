@@ -47,6 +47,13 @@ public class OntologyPublishController {
         return success(publishService.publish(request));
     }
 
+    @GetMapping("/publish-records")
+    @Operation(summary = "发布历史（含 dry-run 预检记录，最新在前）")
+    public CommonResult<List<Map<String, Object>>> publishRecords(
+            @RequestParam(value = "limit", required = false, defaultValue = "50") Integer limit) {
+        return success(publishService.listPublishRecords(limit));
+    }
+
     @GetMapping("/assets")
     @Operation(summary = "浏览已发布资产（按类型分组，默认当前生效清单）")
     public CommonResult<Map<String, Object>> assets(
