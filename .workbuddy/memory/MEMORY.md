@@ -43,3 +43,10 @@
 - 环境注入了 `SERVER__PORT=51719`（hooks 代理占用），会顶掉 `application.yml` 的 8080；`java -jar` 启动必须显式 `--server.port=8080`。
 - 批量删除（>50 文件/次）被环境删除保护拦截（`SAFE_DELETE_BULK_CONFIRM_REQUIRED`）；清 `node_modules`/vite 缓存要分批或用 pnpm 自己处理，不要用 `rm -rf` 硬来。
 - 视觉复核：本机有 playwright 浏览器缓存，仓库没装 playwright，可用 `D:/tianxy/code/semantica/explorer/node_modules/playwright-core` + `executablePath` 截图；chromium 要 `--no-proxy-server`，且 Git Bash 会把以 `/` 开头的参数当路径转换。
+
+## M0 状态（2026-11-07）
+- **M0 已通过验收**：G1–G8 关闭（《M0 验收报告 v1》冻结于 `06-verification/checklists/`）；G2（#3 终态 68.8%）为负责人签字的有条件关闭，修复项（服务端校验+重试）登记 M1 首批，未达 100% 则重开。
+- 已冻结决策：ADR-0002（差分规则修订：精确差分即时转审批）、ADR-0003（fail-closed 判据清单）、ADR-0004（首发业务域=交易域，7 关系一条不减）、ADR-0005（评测门槛=§7 初值一字不改）。
+- 前端主路线已定：CopilotKit 协议可行但入口 `unsafe_dev_only` 非生产级 → **走退路 `@ag-ui/client` + 自研渲染**，CopilotKit 列观察项待 M1 复查。
+- 非 QUERY 分析模式已 fail-closed（`1_002_000_006`），构造器实现归 M2；Golden 集 / 复合题集 30 题 / 提及样本 300 条均已冻结待回填。
+- 下一步：M1 前补 §11 剩余 8 项 ADR → 《M1 实施规格》。真实敏感数据测试以 M4 复验登记为边界。
