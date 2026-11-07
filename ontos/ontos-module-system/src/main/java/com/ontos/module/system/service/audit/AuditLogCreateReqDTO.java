@@ -1,0 +1,27 @@
+package com.ontos.module.system.service.audit;
+
+import lombok.Data;
+
+/**
+ * 审计写入 DTO。调用方（query 模块）负责填充，system 模块不反向依赖 query 类型。
+ */
+@Data
+public class AuditLogCreateReqDTO {
+
+    private String requestId;
+    private String parentRequestId;
+    private String subIntentId;
+    private String tenantId;
+    private String userId;
+    private String sessionId;
+    private Integer turnIndex;
+    private String manifestId;
+    private String action;
+    private String metricId;
+    private String dslJson;
+    private String sqlText;
+    private Integer rowCount;
+    private String reasonCode;
+    private String traceId;
+
+}

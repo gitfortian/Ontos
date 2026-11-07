@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.0.9</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.ontos</groupId>
+  <artifactId>ontos</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>ontos</name>
+  <description>Ontology-driven deterministic query service</description>
+
+  <modules>
+    <module>ontos-framework</module>
+    <module>ontos-module-ontology</module>
+    <module>ontos-module-query</module>
+    <module>ontos-module-system</module>
+    <module>ontos-server</module>
+  </modules>
+
+  <properties>
+    <java.version>21</java.version>
+    <!-- 阶段零冻结：AgentScope 2.1.0-BETA1；starter 编译基线为 Spring Boot 4.0.x（见 docs/技术选型 v1.1 §1.2） -->
+    <agentscope.version>2.1.0-BETA1</agentscope.version>
+    <jooq.version>3.21.9</jooq.version>
+    <jgrapht.version>1.5.3</jgrapht.version>
+    <archunit.version>1.5.1</archunit.version>
+    <hutool.version>5.8.48</hutool.version>
+    <swagger-annotations.version>2.2.55</swagger-annotations.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- 内部模块 -->
+      <dependency>
+        <groupId>com.ontos</groupId>
+        <artifactId>ontos-common</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.ontos</groupId>
+        <artifactId>ontos-spring-boot-starter-web</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.ontos</groupId>
+        <artifactId>ontos-spring-boot-starter-jdbc</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.ontos</groupId>
+        <artifactId>ontos-spring-boot-starter-agent</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.ontos</groupId>
+        <artifactId>ontos-module-ontology</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.ontos</groupId>
+        <artifactId>ontos-module-query</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.ontos</groupId>
+        <artifactId>ontos-module-system</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <!-- 三方版本统一在此收敛 -->
+      <dependency>
+        <groupId>io.agentscope</groupId>
+        <artifactId>agentscope-harness</artifactId>
+        <version>${agentscope.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.agentscope</groupId>
+        <artifactId>agentscope-spring-boot-starter</artifactId>
+        <version>${agentscope.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.agentscope</groupId>
+        <artifactId>agentscope-agui-spring-boot-starter</artifactId>
+        <version>${agentscope.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.agentscope</groupId>
+        <artifactId>agentscope-extensions-model-dashscope</artifactId>
+        <version>${agentscope.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.agentscope</groupId>
+        <artifactId>agentscope-extensions-model-openai</artifactId>
+        <version>${agentscope.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jooq</groupId>
+        <artifactId>jooq</artifactId>
+        <version>${jooq.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jgrapht</groupId>
+        <artifactId>jgrapht-core</artifactId>
+        <version>${jgrapht.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>cn.hutool</groupId>
+        <artifactId>hutool-core</artifactId>
+        <version>${hutool.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.swagger.core.v3</groupId>
+        <artifactId>swagger-annotations-jakarta</artifactId>
+        <version>${swagger-annotations.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit-junit5</artifactId>
+        <version>${archunit.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-maven-plugin</artifactId>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+</project>

@@ -1,0 +1,78 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: ontos
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+
+ontos:
+  datasource:
+    system:
+      jdbc-url: ${ONTOS_SYSTEM_DB_URL:jdbc:postgresql://localhost:5432/ontos}
+      username: ${ONTOS_SYSTEM_DB_USER:postgres}
+      password: ${ONTOS_SYSTEM_DB_PASSWORD:123456}
+      maximum-pool-size: 12
+      minimum-idle: 2
+      pool-name: ontos-system
+      connection-timeout: 5000
+    query:
+      jdbc-url: ${ONTOS_QUERY_DB_URL:jdbc:postgresql://localhost:5432/ontos_queryds}
+      username: ${ONTOS_QUERY_DB_USER:ontos_query_ro}
+      password: ${ONTOS_QUERY_DB_PASSWORD:ontos_query_ro}
+      maximum-pool-size: 16
+      minimum-idle: 2
+      pool-name: ontos-query
+      read-only: true
+      connection-timeout: 5000
+  agent:
+    enabled: ${ONTOS_AGENT_ENABLED:true}
+    model: ${ONTOS_AGENT_MODEL:dashscope:qwen-plus}
+    workspace: ${ONTOS_AGENT_WORKSPACE:.agentscope/workspace}
+    system-prompt: classpath:prompts/system.md
+    max-iters: 12
+  query:
+    max-rows: 500
+    statement-timeout: PT15S
+    max-batch-size: 50
+  manifest:
+    startup-load: true
+  policy:
+    # 生产必须保持 false；默认 fail-closed
+    dev-allow-all: false
+  web:
+    security:
+      # 生产必须保持 false；身份由认证网关注入
+      dev-headers: false
+    cors:
+      allowed-origins:
+        - http://localhost:5173
+
+agentscope:
+  agui:
+    path-prefix: /agent
+    default-agent-id: ontos
+    run-timeout: PT5M
+    emit-tool-call-args: true
+    emit-token-usage: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+logging:
+  level:
+    com.ontos: INFO
+    org.jooq: WARN

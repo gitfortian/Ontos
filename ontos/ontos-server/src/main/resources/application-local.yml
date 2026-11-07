@@ -1,0 +1,15 @@
+# 仅限本地开发：放开 demo 身份与策略，禁止用于任何共享环境。
+ontos:
+  policy:
+    dev-allow-all: true
+  web:
+    security:
+      dev-headers: true
+    cors:
+      allowed-origins:
+        - http://localhost:5173
+        - http://127.0.0.1:5173
+
+logging:
+  level:
+    com.ontos: DEBUG
