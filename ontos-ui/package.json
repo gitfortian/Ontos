@@ -1,0 +1,35 @@
+{
+  "name": "ontos-ui-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "vite --config apps/web/vite.config.ts --host 127.0.0.1",
+    "build": "vite build --config apps/web/vite.config.ts",
+    "preview": "vite preview --config apps/web/vite.config.ts",
+    "architecture:check": "node scripts/check-architecture.mjs && node --test scripts/architecture-imports.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "node --experimental-strip-types --test apps/web/service/http/response.test.mjs apps/web/service/query/dsl.test.mjs apps/web/app/layout/navigation-path.test.mjs",
+    "lint": "oxlint apps packages scripts --deny-warnings",
+    "lint:fix": "oxlint apps packages scripts --fix",
+    "format": "oxfmt apps packages scripts",
+    "format:check": "oxfmt --check apps packages scripts",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm architecture:check && pnpm contract:check",
+    "contract:check": "pnpm test:unit && node scripts/verify-design-tokens.mjs && node scripts/verify-primary-color-tokens.mjs"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "oxfmt": "0.68.0",
+    "oxlint": "1.83.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.9.0",
+    "vite": "^6.0.0"
+  },
+  "packageManager": "pnpm@11.5.1"
+}
