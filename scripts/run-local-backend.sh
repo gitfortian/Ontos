@@ -4,7 +4,10 @@
 # 为什么需要这个脚本：
 #   1. 凭据只放本地文件，不进 application.yml、不进仓库；
 #   2. 环境里注入了 SERVER__PORT=51719，会顶掉 application.yml 的 8080，
-#      命令行 --server.port 优先级更高，用它压回去。
+#      命令行 --server.port 优先级更高，用它压回去；
+#   3. 必须 --spring.profiles.active=local：M0 审计硬化后 application.yml 的
+#      数据库凭据默认值为空（fail-closed），开发凭据只在 application-local.yml。
+#      漏掉这个参数会以空密码连库，Flyway 初始化直接失败。
 #
 # 用法：scripts/run-local-backend.sh [端口]
 set -euo pipefail
@@ -42,4 +45,4 @@ else
   echo "  参考 .env.example 创建"
 fi
 
-exec java -jar "$JAR" --server.port="$PORT"
+exec java -jar "$JAR" --server.port="$PORT" --spring.profiles.active=local
