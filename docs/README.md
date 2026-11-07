@@ -191,9 +191,13 @@ node docs/00-governance/check-docs.mjs
 | Ontos 开发计划 · 阶段性功能拆解 | 计划 | 评审中 | v1 | [`03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md`](03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md) |
 | M0 · 工程基线与阶段零硬判据 实施规格 | 计划 | 已冻结 | v1.0 | [`03-plans/stages/M0/M0-工程基线与阶段零硬判据-实施规格-v1.md`](03-plans/stages/M0/M0-工程基线与阶段零硬判据-实施规格-v1.md) |
 | 首份进度快照 | 进度 | 已记录 | — | [`05-progress/2026/2026-11-06.md`](05-progress/2026/2026-11-06.md) |
+| 进度快照（W5 归位） | 进度 | 已记录 | — | [`05-progress/2026/2026-11-07.md`](05-progress/2026/2026-11-07.md) |
 | 零号冒烟集 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/零号冒烟集-v1.md`](06-verification/evaluation/零号冒烟集-v1.md) |
 | ADR-0001 · 前端组件栈归位范围 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0001-前端组件栈归位范围.md`](01-decisions/ADR-0001-前端组件栈归位范围.md) |
 | PoC-01 · RLS 最终边界报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-01-RLS最终边界.md`](06-verification/poc/PoC-01-RLS最终边界.md) |
+| PoC-02 · 发布快照可复现报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-02-发布快照可复现.md`](06-verification/poc/PoC-02-发布快照可复现.md) |
+| PoC-07 · 跨轮差分与存在性保护报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-07-跨轮差分与存在性保护.md`](06-verification/poc/PoC-07-跨轮差分与存在性保护.md) |
+| M0 硬阻断结论 | 验证 | 已冻结 | v1 | [`06-verification/poc/M0-硬阻断结论-v1.md`](06-verification/poc/M0-硬阻断结论-v1.md) |
 | 前端工程规范 | 规范 | 已冻结 | 迁移版 | [`../ontos-ui/FRONTEND_RULES.md`](../ontos-ui/FRONTEND_RULES.md) |
 | 前端工具链 | 规范 | 已冻结 | 迁移版 | [`../ontos-ui/docs/tooling.md`](../ontos-ui/docs/tooling.md) |
 | 工程约定 | 规范 | 生效中 | — | [`../AGENTS.md`](../AGENTS.md) |
