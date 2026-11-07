@@ -3,6 +3,7 @@ package com.ontos.module.ontology.service.manifest;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.framework.common.util.json.JsonUtils;
 import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.core.OntologyGraph;
@@ -43,10 +44,22 @@ public class ManifestServiceImpl implements ManifestService, ApplicationRunner {
         }
         try {
             loadActiveManifest();
-        } catch (Exception ex) {
-            // 启动不因清单缺失而失败；业务入口会 fail-closed（见 validateManifest）
-            log.error("[run][发布清单加载失败，业务接口将 fail-closed]", ex);
+        } catch (ServiceException ex) {
+            if (isIntegrityViolation(ex)) {
+                // 哈希不匹配 / 清单结构非法属于完整性违规：带病清单绝不允许静默上线，
+                // 副本直接拒绝启动（技术选型 §1.2.1「加载失败的副本 fail-closed 拒绝服务」）。
+                throw new IllegalStateException(
+                        "发布清单完整性校验失败，拒绝启动: " + ex.getMessage(), ex);
+            }
+            // 可用性缺失（清单尚未发布 / 数据库暂不可达）：保持启动，业务入口 fail-closed
+            //（见 validateManifest），本地无库开发与空库首启不因此被阻塞。
+            log.error("[run][发布清单暂不可用，业务接口将 fail-closed: {}]", ex.getMessage());
         }
+    }
+
+    private static boolean isIntegrityViolation(ServiceException ex) {
+        Integer code = ex.getCode();
+        return MANIFEST_HASH_MISMATCH.getCode().equals(code) || ONTOLOGY_INVALID.getCode().equals(code);
     }
 
     @Override

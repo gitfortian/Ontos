@@ -1,5 +1,13 @@
 # 仅限本地开发：放开 demo 身份与策略，禁止用于任何共享环境。
+# 本地弱口令只允许出现在本文件（local profile）；非 local 环境凭据必须经环境变量显式提供。
 ontos:
+  datasource:
+    system:
+      username: postgres
+      password: 123456
+    query:
+      username: ontos_query_ro
+      password: ontos_query_ro
   policy:
     dev-allow-all: true
   web:

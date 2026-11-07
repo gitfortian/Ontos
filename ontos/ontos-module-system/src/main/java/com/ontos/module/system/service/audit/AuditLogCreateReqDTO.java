@@ -23,5 +23,7 @@ public class AuditLogCreateReqDTO {
     private Integer rowCount;
     private String reasonCode;
     private String traceId;
+    /** 请求是否来自开发模拟身份（dev-headers 回退）；生产恒为 false。 */
+    private Boolean devMode;
 
 }

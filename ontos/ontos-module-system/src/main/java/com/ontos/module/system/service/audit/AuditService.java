@@ -17,11 +17,12 @@ public class AuditService {
     private static final String INSERT_SQL = """
             INSERT INTO audit_log (
                 request_id, parent_request_id, sub_intent_id, tenant_id, user_id, session_id,
-                turn_index, manifest_id, action, metric_id, dsl, sql_text, row_count, reason_code, trace_id
+                turn_index, manifest_id, action, metric_id, dsl, sql_text, row_count, reason_code, trace_id,
+                dev_mode
             ) VALUES (
                 :requestId, :parentRequestId, :subIntentId, :tenantId, :userId, :sessionId,
                 :turnIndex, :manifestId, :action, :metricId, cast(:dsl as jsonb), :sqlText,
-                :rowCount, :reasonCode, :traceId
+                :rowCount, :reasonCode, :traceId, :devMode
             )
             """;
 
@@ -48,6 +49,7 @@ public class AuditService {
         params.put("rowCount", createReqDTO.getRowCount());
         params.put("reasonCode", createReqDTO.getReasonCode());
         params.put("traceId", createReqDTO.getTraceId());
+        params.put("devMode", Boolean.TRUE.equals(createReqDTO.getDevMode()));
         jdbcTemplate.update(INSERT_SQL, params);
     }
 

@@ -67,14 +67,17 @@ public class QueryExecutor {
                         result.setManifestId(compiled.getManifestId());
                         result.setContentHash(compiled.getContentHash());
                         result.setElapsedMs((System.nanoTime() - start) / 1_000_000);
+                        // 只在完整读完后提交；任何失败路径都回滚，不提交半程事务
+                        connection.commit();
                         return result;
                     }
-                } finally {
-                    connection.commit();
                 }
-            } catch (SQLException ex) {
-                connection.rollback();
-                throw translate(ex);
+            } catch (SQLException | RuntimeException ex) {
+                rollbackQuietly(connection);
+                if (ex instanceof SQLException sqlException) {
+                    throw translate(sqlException);
+                }
+                throw ex;
             }
         } catch (SQLException ex) {
             log.error("[execute][获取查询连接失败]", ex);
@@ -82,12 +85,30 @@ public class QueryExecutor {
         }
     }
 
+    private static void rollbackQuietly(Connection connection) {
+        try {
+            connection.rollback();
+        } catch (SQLException suppressed) {
+            log.warn("[rollbackQuietly][回滚失败，交由连接池回收处理]", suppressed);
+        }
+    }
+
+    /** 只读断言：只接受 select/with 开头，且全文（剥离引号标识符后）不得出现任何数据修改/DDL 关键字。 */
     private static void assertReadOnly(String sql) {
         String normalized = sql == null ? "" : sql.strip().toLowerCase(Locale.ROOT);
         if (!normalized.startsWith("select") && !normalized.startsWith("with")) {
             throw exception(QUERY_NOT_READ_ONLY);
         }
+        // WITH 可携带数据修改 CTE（PostgreSQL 特性），单靠前缀不够；剥离 "..." 标识符后扫描关键字，
+        // 防止列名/表名误伤。绑定值不进 SQL 文本，无需处理字面量。
+        String withoutQuoted = normalized.replaceAll("\"[^\"]*\"", "\"?\"");
+        if (FORBIDDEN_KEYWORDS.matcher(withoutQuoted).find()) {
+            throw exception(QUERY_NOT_READ_ONLY);
+        }
     }
+
+    private static final java.util.regex.Pattern FORBIDDEN_KEYWORDS = java.util.regex.Pattern.compile(
+            "\\b(insert|update|delete|merge|truncate|grant|revoke|alter|drop|create|copy|call|do|set|reset|lock|vacuum|analyze|reindex|cluster|comment|listen|notify)\\b");
 
     private static void setRlsContext(Connection connection, RequestContext context) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(SET_RLS_CONTEXT)) {

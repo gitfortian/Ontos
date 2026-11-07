@@ -77,6 +77,7 @@ public class QueryServiceImpl implements QueryService {
         audit.setSqlText(compiled.getSql());
         audit.setRowCount(rowCount);
         audit.setTraceId(context.traceId());
+        audit.setDevMode(context.devMode());
         return audit;
     }
 

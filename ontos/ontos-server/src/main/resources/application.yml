@@ -17,16 +17,17 @@ ontos:
   datasource:
     system:
       jdbc-url: ${ONTOS_SYSTEM_DB_URL:jdbc:postgresql://localhost:5432/ontos}
-      username: ${ONTOS_SYSTEM_DB_USER:postgres}
-      password: ${ONTOS_SYSTEM_DB_PASSWORD:123456}
+      # 凭据不给默认值：非 local 环境必须显式提供（缺失或使用已知弱口令会被 DevModeGuard 拒绝启动）
+      username: ${ONTOS_SYSTEM_DB_USER:}
+      password: ${ONTOS_SYSTEM_DB_PASSWORD:}
       maximum-pool-size: 12
       minimum-idle: 2
       pool-name: ontos-system
       connection-timeout: 5000
     query:
       jdbc-url: ${ONTOS_QUERY_DB_URL:jdbc:postgresql://localhost:5432/ontos_queryds}
-      username: ${ONTOS_QUERY_DB_USER:ontos_query_ro}
-      password: ${ONTOS_QUERY_DB_PASSWORD:ontos_query_ro}
+      username: ${ONTOS_QUERY_DB_USER:}
+      password: ${ONTOS_QUERY_DB_PASSWORD:}
       maximum-pool-size: 16
       minimum-idle: 2
       pool-name: ontos-query
