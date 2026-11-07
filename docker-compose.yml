@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: ontos-postgres
+    environment:
+      POSTGRES_USER: ontos_admin
+      POSTGRES_PASSWORD: ontos_admin
+      POSTGRES_DB: ontos_system
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      - ontos-pgdata:/var/lib/postgresql
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./ontos/ontos-server/src/main/resources/db/queryds:/sql/queryds:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ontos_admin -d ontos_system"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  ontos-pgdata:
