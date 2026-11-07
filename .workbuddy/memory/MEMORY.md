@@ -27,6 +27,9 @@
 - 分层：`00-governance` 治理模板/检查脚本、`01-decisions` ADR、`02-solutions` 方案、`03-plans` 计划、`04-specs` 规格、`05-progress` 进度、`06-verification` 验证、`07-references` 参考、`99-archive` 归档；层级上限 3 层，每个一级目录有 README.md。
 - 起稿用 `docs/00-governance/templates/` 七类模板；统一头块 8 字段；**已冻结文档不得原地改**（升版本 + 归档旧版 + 更新总索引）；进度 append-only。
 - SSOT：技术栈版本/锁定项只在 `02-solutions`，阶段编号 M0–M8 只在 `03-plans/roadmap`；其它文档只引用不复制。相对链接必须可解析。
+- **冻结方案正文的修订用 ADR 承载，不改正文**：`ADR-0002` 即 §4.8.2 跨轮差分规则的生效解释（精确差分即时转审批 + 三处约束），技术选型下次升版时并入。
+- **归档路径**：`99-archive` 镜像分类、**去掉编号前缀**（`06-verification/poc/x.md` → `99-archive/verification/x.md`）。因为 `check-docs.mjs` 禁止一级目录下有 `\d{2}-` 子目录，照搬原结构会同时违反层级与编号两条规则。
+- 维护进度与状态时同步 `docs/05-progress/<年>/` 与 `.workbuddy/memory/`；进度 append-only，修正用「更正」条目。
 - 提交前跑 `node docs/00-governance/check-docs.mjs`。
 - 存量文档已归位：技术选型与架构方案在 `docs/02-solutions/architecture/`，大计划在 `docs/03-plans/roadmap/`，全仓引用已同步。
 
