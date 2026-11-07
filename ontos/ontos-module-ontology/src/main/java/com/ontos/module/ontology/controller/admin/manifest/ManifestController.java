@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,9 +25,12 @@ import static com.ontos.module.ontology.enums.ErrorCodeConstants.MANIFEST_NOT_FO
 public class ManifestController {
 
     private final ManifestService manifestService;
+    private final com.ontos.module.ontology.service.publish.PublishGuard publishGuard;
 
-    public ManifestController(ManifestService manifestService) {
+    public ManifestController(ManifestService manifestService,
+                              com.ontos.module.ontology.service.publish.PublishGuard publishGuard) {
         this.manifestService = manifestService;
+        this.publishGuard = publishGuard;
     }
 
     @GetMapping("/current")
@@ -37,6 +41,15 @@ public class ManifestController {
             throw exception(MANIFEST_NOT_FOUND);
         }
         return success(buildRespVO(manifest));
+    }
+
+    @PostMapping("/{manifestId}/activate")
+    @Operation(summary = "激活指定清单（发布后激活 / 回滚共用，M1/T3.3）")
+    @Parameter(name = "manifestId", description = "清单 ID", required = true)
+    public CommonResult<ManifestRespVO> activate(@PathVariable("manifestId") String manifestId) {
+        // 策略闸门与发布同口径：M4 前非 local profile 整体 403（fail-closed）
+        publishGuard.requirePublishAllowed("ontology.activate");
+        return success(buildRespVO(manifestService.activate(manifestId)));
     }
 
     @GetMapping("/{manifestId}")

@@ -30,4 +30,13 @@ public interface ManifestService {
      */
     void loadActiveManifest();
 
+    /**
+     * 激活指定清单为生效清单（发布后激活 / 回滚共用，M1/T3.3）。
+     * 走完整装配校验（哈希 + 结构 + 图语义），任何校验失败即激活失败（fail-closed）。
+     *
+     * @param manifestId 已发布的清单 ID
+     * @return 激活后的生效清单
+     */
+    PublishedManifest activate(String manifestId);
+
 }

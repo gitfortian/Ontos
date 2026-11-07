@@ -99,6 +99,17 @@ public class ManifestServiceImpl implements ManifestService, ApplicationRunner {
                 manifest.getContentHash());
     }
 
+    @Override
+    public PublishedManifest activate(String manifestId) {
+        // 走 getManifest → assemble：哈希、结构、图语义全量校验后才会成为生效清单（fail-closed）
+        PublishedManifest manifest = getManifest(manifestId)
+                .orElseThrow(() -> exception(MANIFEST_NOT_FOUND, manifestId));
+        active.set(manifest);
+        log.info("[activate][manifestId({}) contentHash({})]", manifest.getManifestId(),
+                manifest.getContentHash());
+        return manifest;
+    }
+
     private PublishedManifest assemble(PublishedSnapshotDO snapshot) {
         if (!snapshot.getContentHash().equalsIgnoreCase(PublishedManifest.sha256(snapshot.getPayload()))) {
             throw exception(MANIFEST_HASH_MISMATCH, snapshot.getManifestId());
