@@ -57,7 +57,30 @@ class PublishServiceImplTest {
     }
 
     private PublishRequest request(boolean dryRun) {
-        return new PublishRequest("manifest-test", "git-ref", dryRun, validPayload());
+        return new PublishRequest("manifest-test", "git-ref", dryRun, asMap(validPayload()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> asMap(ManifestPayload payload) {
+        return com.ontos.framework.common.util.json.JsonUtils.parseObject(
+                com.ontos.framework.common.util.json.JsonUtils.toJsonString(payload), Map.class);
+    }
+
+    @Test
+    void shouldRejectUnknownFieldsInsteadOfDropping() {
+        // 未知字段策略：拼写错误的字段不再被 Jackson 静默丢弃，发布显式拒绝（T3 收口项）
+        Map<String, Object> raw = asMap(validPayload());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> metrics =
+                (List<Map<String, Object>>) ((Map<String, Object>) raw.get("semantic")).get("metrics");
+        metrics.get(0).put("alies", "typo"); // metrics 是数组：错别字键进第一个指标对象
+        when(repository.selectByManifestId("manifest-test")).thenReturn(Optional.empty());
+        when(guard.currentPublisher()).thenReturn("tester");
+
+        PublishReportVO report = service.publish(new PublishRequest("manifest-test", "git-ref", true, raw));
+
+        assertFalse(report.valid());
+        assertTrue(report.violations().stream().anyMatch(v -> v.contains("alies") && v.contains("未知字段")));
     }
 
     @Test
@@ -77,7 +100,7 @@ class PublishServiceImplTest {
         payload.getSemantic().getMetrics().get(0).setAliases(List.of()); // 业务化必填缺失
         when(repository.selectByManifestId("manifest-test")).thenReturn(Optional.empty());
 
-        PublishReportVO report = service.publish(new PublishRequest("manifest-test", null, true, payload));
+        PublishReportVO report = service.publish(new PublishRequest("manifest-test", null, true, asMap(payload)));
 
         assertFalse(report.valid());
         assertTrue(report.violations().stream().anyMatch(v -> v.contains("aliases")));
@@ -92,7 +115,7 @@ class PublishServiceImplTest {
         when(guard.currentPublisher()).thenReturn("tester");
 
         ServiceException ex = assertThrows(ServiceException.class,
-                () -> service.publish(new PublishRequest("manifest-test", "git-ref", false, payload)));
+                () -> service.publish(new PublishRequest("manifest-test", "git-ref", false, asMap(payload))));
 
         assertTrue(ex.getMessage().contains("ADR-0007"));
         verify(repository, never()).insertSnapshot(anyString(), anyString(), anyString());

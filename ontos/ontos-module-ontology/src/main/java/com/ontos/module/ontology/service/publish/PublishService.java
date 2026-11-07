@@ -23,8 +23,12 @@ public interface PublishService {
      */
     PublishReportVO publish(PublishRequest request);
 
-    /** 发布请求体。 */
-    record PublishRequest(String manifestId, String sourceRef, boolean dryRun, ManifestPayload payload) {
+    /**
+     * 发布请求体。payload 为原始 JSON 树（Map 形态）：发布服务先做「未知字段检测」
+     * （提交树 vs 类型化回装树键差分，拼写错误的字段不再被静默丢弃），
+     * 再转换为类型化载荷走校验与发布。
+     */
+    record PublishRequest(String manifestId, String sourceRef, boolean dryRun, Map<String, Object> payload) {
     }
 
     /** 预检/发布结果。 */
