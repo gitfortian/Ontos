@@ -34,14 +34,11 @@ ontos:
       connection-timeout: 5000
   agent:
     enabled: ${ONTOS_AGENT_ENABLED:true}
-    # provider:model-id。内置 openai / deepseek / kimi / glm / minimax 五个 OpenAI 协议 provider：
-    #   openai:gpt-4o-mini      → OPENAI_API_KEY + OPENAI_BASE_URL（可指向任意兼容端点）
-    #   deepseek:deepseek-chat  → DEEPSEEK_API_KEY
-    #   kimi:moonshot-v1-32k    → KIMI_API_KEY / MOONSHOT_API_KEY
-    #   glm:glm-4-flash         → GLM_API_KEY / ZAI_API_KEY / ZHIPUAI_API_KEY
-    #   minimax:abab6.5s-chat   → MINIMAX_API_KEY
-    # 凭据只走环境变量；缺失时确定性链路照常启动，AG-UI 调用会失败。
-    model: ${ONTOS_AGENT_MODEL:openai:gpt-4o-mini}
+    # 标准 OpenAI 三件套：模型名 + 兼容端点 + 密钥。不绑定厂商，换端点即换供应商。
+    # 凭据只走环境变量；缺失时确定性链路照常启动，AG-UI 调用会给出明确错误。
+    model: ${ONTOS_AGENT_MODEL:gpt-4o-mini}
+    base-url: ${ONTOS_AGENT_BASE_URL:${OPENAI_BASE_URL:https://api.openai.com/v1}}
+    api-key: ${ONTOS_AGENT_API_KEY:${OPENAI_API_KEY:}}
     workspace: ${ONTOS_AGENT_WORKSPACE:.agentscope/workspace}
     system-prompt: classpath:prompts/system.md
     max-iters: 12

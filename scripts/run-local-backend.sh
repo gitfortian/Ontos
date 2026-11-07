@@ -26,10 +26,13 @@ if [ -f "$ENV_FILE" ]; then
   . "$ENV_FILE"
   set +a
   # 清掉空值，避免把「未填写」当成空字符串的 key 传给 provider
-  for name in DEEPSEEK_API_KEY OPENAI_API_KEY OPENAI_BASE_URL KIMI_API_KEY MOONSHOT_API_KEY \
-              GLM_API_KEY ZAI_API_KEY ZHIPUAI_API_KEY MINIMAX_API_KEY ONTOS_AGENT_MODEL; do
+  for name in ONTOS_AGENT_MODEL ONTOS_AGENT_BASE_URL ONTOS_AGENT_API_KEY \
+              OPENAI_API_KEY OPENAI_BASE_URL; do
     if [ -n "${!name:-}" ]; then
-      echo "  已注入 $name"
+      case "$name" in
+        *API_KEY*) echo "  已注入 $name（值不打印）" ;;
+        *) echo "  已注入 $name=${!name}" ;;
+      esac
     else
       unset "$name" 2>/dev/null || true
     fi
