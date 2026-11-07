@@ -117,6 +117,7 @@
 | `RUN_STARTED.input` 脱敏 | 服务端明文回显，前端脱敏未实现 |
 | T3.2 整体 | **部分通过** |
 | T3.5 界面重建 | **部分通过**：4/6 类事件完整重建（STATE / HITL 需 M1） |
+| 流式时序（补充判据） | **通过**：delta 无批量、渲染 29 次无跳变，打字机效果成立 |
 | CopilotKit 主路线 | **未验证**（T5.5）；纯浏览器直连与退路已实证 |
 | G3 | **未关闭**（缺 CopilotKit 结论） |
 
@@ -176,10 +177,74 @@ CORS 里这是两个不同的源，AG-UI 请求直接被 403。前端把 403 显
   必须在 T5.5 实测，M0 不做结论。
 - **退路可用**：`@ag-ui/client` + 自研 shadcn 渲染层已在本次复验中实证（当前实现即是该形态）。
 
-## 8. 证据路径
+## 8. 流式时序验证（补充判据）
+
+### 8.1 为什么补这一项
+
+`#10` 原判据只要求「六类事件在界面完整重建」，**没有约束相邻 `TEXT_MESSAGE_CONTENT` 的到达与渲染节奏**。
+这留下一个盲区：后端逐条 SSE、前端却一次性刷出全部文本（常见于代理缓冲、`response.text()`
+一次性读、或前端做了批量节流），事件数量与内容都对得上，判据仍会通过，但用户看到的是「压缩批量返回」，
+没有打字机效果。
+
+本次按实测补上这一项，分两层测量：**网络层**（delta 到达间隔）与**渲染层**（DOM 文本长度变化间隔）。
+
+### 8.2 网络层
+
+同一请求（`POST /agent/run/ontos`，经 vite 代理），在页面内用 `fetch` + `ReadableStream` 逐帧记录时间戳：
+
+| 项 | 结果 |
+|---|---|
+| 网络 chunk | 34 个 |
+| `TEXT_MESSAGE_CONTENT` 事件 | 29 个，共 385 字符 |
+| delta 到达间隔 | min 18 ms / **p50 70 ms** / p90 81 ms / max 209 ms |
+| **同毫秒批量**（间隔 ≤1 ms 视为一批） | **最大 1 个/批，0 批** |
+
+结论：delta 是逐条到达的，不存在后端攒批或代理缓冲。
+
+### 8.3 渲染层（真实组件路径）
+
+点击「发送」走真实组件（`agui-panel` → `streamAgui` → `setEvents` → `pre`），
+用 16 ms 定时器采样 `pre` 文本长度：
+
+| 项 | 结果 |
+|---|---|
+| `pre` 内容更新次数 | **29 次**（与 delta 数量一致） |
+| 每次增量 | min 5 / **p50 14** / p90 21 / max 24 字符 |
+| 更新间隔 | min 46 ms / **p50 49 ms** / p90 66 ms / max 143 ms |
+| **大跳变**（单次 >40 字符） | **0 次** |
+
+结论：**打字机效果成立**——每约 50 ms 追加约 14 个字符，没有批量跳变。
+
+前 8 次采样（`t` 为相对发送时刻的毫秒）：
+
+```json
+[{"t":7923,"len":2},{"t":7969,"len":15},{"t":8034,"len":20},{"t":8081,"len":33},
+ {"t":8224,"len":57},{"t":8273,"len":74},{"t":8322,"len":80},{"t":8385,"len":97}]
+```
+
+### 8.4 这条链路为什么能流式（四层都不能断）
+
+| 层 | 当前实现 | 断掉会怎样 |
+|---|---|---|
+| 模型 → 后端 | OpenAI 协议 `stream=true`，逐 delta 返回 | 一次性返回完整 JSON，前端只能等 |
+| 后端 → HTTP | AgentScope 的 `AguiRestController` 用 `SseEmitter` 逐事件下发 | 若改用普通 `ResponseBody` 聚合返回，前面全白做 |
+| HTTP → 浏览器 | vite 代理 `/agent` 透传，未开压缩；**生产 nginx 必须关 `proxy_buffering`** | nginx 默认 `proxy_buffering on`，会把 SSE 攒成几批 |
+| 浏览器 → DOM | `reader.read()` 每 chunk 立即 `onEvent`，`setEvents` 直接追加，**无节流** | 加 `debounce`/`useDeferredValue`/虚拟列表窗口化，会把 29 次渲染压成几次 |
+
+### 8.5 若后续出现「批量返回」，按此顺序排查
+
+1. **先看网络层**：`curl -N` 直连后端，若 chunk 间隔为 0 且一次到齐 → 后端没 flush（不是前端问题）。
+2. **再看代理**：直连后端正常、经代理异常 → 查 `proxy_buffering`（nginx）/ `compress`（中间件）。
+3. **再看前端**：网络层正常但 DOM 只更新几次 → 查是否用了 `response.text()`、是否给了节流/批处理。
+4. **最后看 React**：即便每 50 ms 一次 `setState`，React 18 的自动批处理也只合并同一宏任务内的更新，
+   不会跨 50 ms 合并——所以「React 批处理导致批量」这个常见猜测在实测中不成立。
+
+## 9. 证据路径
 
 - `scripts/poc/run-poc10-protocol.mjs` — 协议探针（可重复执行）
 - [`PoC-10-协议探针-raw.json`](PoC-10-协议探针-raw.json) — 20 次会话与幂等重放的原始事件统计
 - `ontos-ui/apps/web/service/agui/index.ts` — 端点路径修正处
 - `ontos-ui/apps/web/app/ask/agui-panel.tsx` — 六类事件渲染实现（状态徽章 / 工具调用 / 自定义 / 状态 / 原始流）
 - [`PoC-10-界面复验-raw.json`](PoC-10-界面复验-raw.json) — 20 次界面会话的逐条结果
+- [`PoC-10-流式时序-raw.json`](PoC-10-流式时序-raw.json) — 网络层 chunk 与 delta 的逐帧时间戳
+- [`PoC-10-流式渲染-raw.json`](PoC-10-流式渲染-raw.json) — 渲染层 DOM 文本长度的变化节奏

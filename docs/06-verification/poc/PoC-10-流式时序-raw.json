@@ -1,0 +1,129 @@
+{
+  "generatedAt": "2026-11-07T05:01:59.444Z",
+  "layer": "network",
+  "question": "今年各区域的GMV是多少，按渠道拆分",
+  "transport": "fetch + ReadableStream via http://127.0.0.1:5173/agent/run/ontos",
+  "status": 200,
+  "totalMs": 7934,
+  "chunks": {
+    "count": 31,
+    "gaps": {
+      "count": 30,
+      "min": 15,
+      "p50": 64,
+      "p90": 580,
+      "max": 4638,
+      "mean": 261
+    }
+  },
+  "deltas": {
+    "count": 27,
+    "totalChars": 370,
+    "gaps": {
+      "count": 26,
+      "min": 45,
+      "p50": 64,
+      "p90": 86,
+      "max": 935,
+      "mean": 99
+    },
+    "maxSameTickBatch": 1,
+    "burstCount": 0
+  },
+  "samples": {
+    "first": [
+      {
+        "kind": "delta",
+        "t": 4766,
+        "total": 10
+      },
+      {
+        "kind": "delta",
+        "t": 4825,
+        "total": 15
+      },
+      {
+        "kind": "delta",
+        "t": 4875,
+        "total": 22
+      },
+      {
+        "kind": "delta",
+        "t": 4951,
+        "total": 39
+      },
+      {
+        "kind": "delta",
+        "t": 5005,
+        "total": 53
+      },
+      {
+        "kind": "delta",
+        "t": 5084,
+        "total": 69
+      },
+      {
+        "kind": "delta",
+        "t": 5133,
+        "total": 77
+      },
+      {
+        "kind": "delta",
+        "t": 5215,
+        "total": 94
+      },
+      {
+        "kind": "delta",
+        "t": 5261,
+        "total": 106
+      },
+      {
+        "kind": "delta",
+        "t": 5328,
+        "total": 119
+      },
+      {
+        "kind": "delta",
+        "t": 5384,
+        "total": 132
+      },
+      {
+        "kind": "delta",
+        "t": 5459,
+        "total": 150
+      }
+    ],
+    "last": [
+      {
+        "kind": "delta",
+        "t": 6126,
+        "total": 287
+      },
+      {
+        "kind": "delta",
+        "t": 6208,
+        "total": 302
+      },
+      {
+        "kind": "delta",
+        "t": 6269,
+        "total": 322
+      },
+      {
+        "kind": "delta",
+        "t": 6332,
+        "total": 341
+      },
+      {
+        "kind": "delta",
+        "t": 6396,
+        "total": 357
+      },
+      {
+        "kind": "delta",
+        "t": 7331,
+        "total": 370
+      }
+    ]
+  }
+}
