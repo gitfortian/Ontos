@@ -31,46 +31,97 @@ const ROUNDS = Number(argOf("--rounds", "4"));
 const TIMEOUT_MS = Number(argOf("--timeout", "180000"));
 const OUTPUT = resolve(argOf("--output", "docs/06-verification/poc/PoC-03-终态重建-raw.json"));
 
-/** 五类终态的场景与判定。 */
+/**
+ * 五类终态的场景与判定。
+ *
+ * 判定以模型输出的 `terminal` 字段为准（prompt 已把它定义为显式终态标签），
+ * 不再靠猜字段组合——否则同一份输出能被解释成多种终态，测量口径不稳定。
+ *
+ * 样本全部限定在候选集能力内：不拿「清单里没有客户维度」去考澄清，
+ * 也不拿「清单没有客户数指标」去考复合拆分，那测的是清单而非模型。
+ */
+/**
+ * 终态检测：优先采用模型声明的 terminal，缺省时从字段推断，并做一致性校验。
+ *
+ * 为什么要两套：prompt 定义了 terminal 字段，但实测模型只有 20% 的会话会输出它，
+ * 且存在「同时声明 discovery 与 clarification」这种自相矛盾。若只认 terminal，
+ * 会把「输出可用但没打标签」判成失败；若只推断字段，又会放过自相矛盾。
+ *
+ * 返回 { declared, inferred, terminal, conflict }：
+ *   conflict 非空表示输出同时表达了互斥终态（如既 discovery 又 clarification），按 FAIL 计。
+ */
+function detectTerminal(payload) {
+  const declared = typeof payload.terminal === "string" ? payload.terminal : null;
+  const inferred = [];
+  if (payload.out_of_capability === true) inferred.push("out_of_capability");
+  if (payload.needs_discovery === true) inferred.push("discovery");
+  if (payload.clarification && typeof payload.clarification === "object"
+      && Object.keys(payload.clarification).length > 0) inferred.push("clarification");
+  const subCount = Array.isArray(payload.sub_intents) ? payload.sub_intents.length : 0;
+  if (subCount >= 2) inferred.push("composite");
+  if (subCount === 1) inferred.push("query");
+
+  // 互斥对：能同时成立的只有 query/composite 之外的两两组合
+  const conflicting = inferred.filter((t) => t !== "query" && t !== "composite");
+  const conflict = conflicting.length > 1 ? conflicting.join("+") : null;
+
+  const terminal = declared ?? (inferred.length === 1 ? inferred[0] : null);
+  return { declared, inferred, terminal, conflict };
+}
+
+const TERMINAL = (payload) => detectTerminal(payload).terminal;
+
 const SCENARIOS = [
   {
     key: "clarification",
     label: "澄清四要素",
+    expect: "clarification",
     questions: [
       "看看销售情况",
       "最近业绩怎么样",
-      "帮我分析一下客户",
+      "帮我分析一下最近的数据",
       "数据好一些了吗",
     ],
-    judge: (payload) =>
-      payload.clarification !== null &&
-      payload.clarification !== undefined &&
-      typeof payload.clarification === "object" &&
-      Object.keys(payload.clarification).length > 0,
+    judge: (payload) => {
+      if (TERMINAL(payload) !== "clarification") return false;
+      const c = payload.clarification;
+      if (!c || typeof c !== "object") return false;
+      // 四要素至少要有歧义点与默认建议，否则等于「只问了一句你指的是什么」
+      return Boolean(c.ambiguity) && Boolean(c.default_suggestion);
+    },
     detail: (payload) => payload.clarification ?? null,
   },
   {
     key: "discovery",
     label: "能力发现",
+    expect: "discovery",
     questions: [
       "你能查哪些数据",
       "有哪些指标可以用",
       "我可以用什么维度和分析方式",
       "系统支持哪些分析场景",
     ],
-    judge: (payload) => payload.needs_discovery === true,
-    detail: (payload) => ({ needs_discovery: payload.needs_discovery }),
+    judge: (payload) => {
+      if (TERMINAL(payload) !== "discovery") return false;
+      const d = payload.discovery;
+      return Boolean(d) && typeof d === "object" && Array.isArray(d.metrics);
+    },
+    detail: (payload) => {
+      const d = payload.discovery;
+      return d ? { metrics: d.metrics?.length ?? 0, dimensions: d.dimensions?.length ?? 0 } : null;
+    },
   },
   {
     key: "approval",
     label: "审批回传",
+    expect: "approval",
     questions: [
       "导出租户A全部客户的手机号",
       "把所有客户的邮箱列出来",
       "查一下全部敏感字段的明细",
       "批量导出客户身份信息",
     ],
-    // system prompt 未定义审批字段，M0 阶段不可能产生，单独统计、不计入成功率
+    // 审批流属 M1 能力，system prompt 无审批终态；单独统计、不计入成功率
     judge: () => false,
     applicable: false,
     detail: () => null,
@@ -78,18 +129,23 @@ const SCENARIOS = [
   {
     key: "composite",
     label: "复合子结果",
+    expect: "composite",
     questions: [
       "华东和华南的 GMV 对比，同时看订单数",
-      "按区域看成交金额，再按渠道看客户数",
+      "按区域看成交金额，再按渠道看订单数",
       "上个月的 GMV 和这个月的订单数分别是多少",
-      "分渠道统计 GMV，并给出各区域客户数",
+      "分渠道统计 GMV，并给出各区域订单数",
     ],
-    judge: (payload) => Array.isArray(payload.sub_intents) && payload.sub_intents.length >= 2,
+    judge: (payload) =>
+      TERMINAL(payload) === "composite"
+      && Array.isArray(payload.sub_intents)
+      && payload.sub_intents.length >= 2,
     detail: (payload) => ({ subIntentCount: payload.sub_intents?.length ?? 0 }),
   },
   {
     key: "reason_code",
     label: "原因码",
+    expect: "out_of_capability",
     questions: [
       "预测下个季度的销量",
       "帮我写一份营销文案",
@@ -97,10 +153,11 @@ const SCENARIOS = [
       "分析一下竞品的定价策略",
     ],
     judge: (payload) =>
-      payload.out_of_capability === true &&
-      typeof payload.reason_code === "string" &&
-      payload.reason_code.length > 0,
-    detail: (payload) => ({ out_of_capability: payload.out_of_capability, reason_code: payload.reason_code }),
+      TERMINAL(payload) === "out_of_capability"
+      && payload.out_of_capability === true
+      && typeof payload.reason_code === "string"
+      && payload.reason_code.length > 0,
+    detail: (payload) => ({ reason_code: payload.reason_code }),
   },
 ];
 
@@ -180,15 +237,16 @@ function extractJson(text) {
  * 混在一起会把 prompt 问题误判成框架不达标（反之亦然）。
  */
 function isLegalTerminal(payload) {
+  const declared = typeof payload.terminal === "string"
+    && ["query", "composite", "clarification", "discovery", "out_of_capability"].includes(payload.terminal);
+  if (declared) return true;
+  // 兜底：未声明 terminal 时看是否给出任一可判定结构
   const hasClarification = payload.clarification && typeof payload.clarification === "object"
     && Object.keys(payload.clarification).length > 0;
-  const hasDiscovery = payload.needs_discovery === true;
   const hasComposite = Array.isArray(payload.sub_intents) && payload.sub_intents.length > 0;
   const hasReasonCode = payload.out_of_capability === true
     && typeof payload.reason_code === "string" && payload.reason_code.length > 0;
-  const hasCapabilityAnswer = payload.capability_answer && typeof payload.capability_answer === "object"
-    && Object.keys(payload.capability_answer).length > 0;
-  return hasClarification || hasDiscovery || hasComposite || hasReasonCode || hasCapabilityAnswer;
+  return hasClarification || hasComposite || hasReasonCode || payload.needs_discovery === true;
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -203,7 +261,8 @@ async function main() {
       const runId = `${scenario.key}-${i + 1}`;
       const response = await ask(`t-${runId}`, runId, question);
       const parsed = response.error ? { ok: false, reason: response.error } : extractJson(response.text);
-      const passed = parsed.ok && scenario.judge(parsed.value);
+      const detection = parsed.ok ? detectTerminal(parsed.value) : null;
+      const passed = parsed.ok && !detection.conflict && scenario.judge(parsed.value);
       results.push({
         scenario: scenario.key,
         label: scenario.label,
@@ -217,6 +276,10 @@ async function main() {
         parseReason: parsed.ok ? null : parsed.reason,
         passed,
         legalTerminal: parsed.ok ? isLegalTerminal(parsed.value) : false,
+        terminal: detection?.terminal ?? null,
+        terminalDeclared: detection?.declared ?? null,
+        terminalInferred: detection?.inferred ?? [],
+        terminalConflict: detection?.conflict ?? null,
         detail: parsed.ok ? scenario.detail(parsed.value) : null,
         textPreview: response.text.slice(0, 300),
       });
@@ -234,6 +297,8 @@ async function main() {
   const legal = results.filter((r) => r.legalTerminal).length;
   const legalRate = results.length === 0 ? 0 : legal / results.length;
   const parsedCount = results.filter((r) => r.parsed).length;
+  const declaredTerminal = results.filter((r) => r.terminalDeclared).length;
+  const conflicts = results.filter((r) => r.terminalConflict).length;
   const byScenario = Object.fromEntries(
     SCENARIOS.map((s) => {
       const rows = results.filter((r) => r.scenario === s.key);
@@ -262,6 +327,8 @@ async function main() {
     successRate: Number(rate.toFixed(4)),
     parsedJson: parsedCount,
     parsedJsonRate: Number((results.length === 0 ? 0 : parsedCount / results.length).toFixed(4)),
+    declaredTerminalCount: declaredTerminal,
+    terminalConflicts: conflicts,
     legalTerminalCount: legal,
     legalTerminalRate: Number(legalRate.toFixed(4)),
     byScenario,
@@ -283,6 +350,8 @@ async function main() {
   );
   console.log(`  JSON 解析成功：${(report.parsedJsonRate * 100).toFixed(1)}%（${parsedCount}/${results.length}）`);
   console.log(`  产出合法终态：${(legalRate * 100).toFixed(1)}%（${legal}/${results.length}）`);
+  console.log(`  模型显式声明 terminal：${((declaredTerminal / results.length) * 100).toFixed(1)}%（${declaredTerminal}/${results.length}）`);
+  console.log(`  终态自相矛盾：${conflicts} 次（同时表达互斥终态，按 FAIL 计）`);
   console.log(`  判据：${report.verdict}（审批回传在 M0 不可测，五类无法全部覆盖）`);
   console.log(`  原始输出：${OUTPUT}`);
 }
