@@ -190,9 +190,13 @@ node docs/00-governance/check-docs.mjs
 | 智能问数系统完整可落地方案 | 方案 | 已冻结 | v1.4 | [`02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md`](02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md) |
 | Ontos 开发计划 · 阶段性功能拆解 | 计划 | 评审中 | v1 | [`03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md`](03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md) |
 | M0 · 工程基线与阶段零硬判据 实施规格 | 计划 | 已冻结 | v1.0 | [`03-plans/stages/M0/M0-工程基线与阶段零硬判据-实施规格-v1.md`](03-plans/stages/M0/M0-工程基线与阶段零硬判据-实施规格-v1.md) |
+| M0 验收报告 | 验证 | 已冻结 | v1 | [`06-verification/checklists/M0-验收报告-v1.md`](06-verification/checklists/M0-验收报告-v1.md) |
 | 首份进度快照 | 进度 | 已记录 | — | [`05-progress/2026/2026-11-06.md`](05-progress/2026/2026-11-06.md) |
 | 进度快照（W5 归位） | 进度 | 已记录 | — | [`05-progress/2026/2026-11-07.md`](05-progress/2026/2026-11-07.md) |
 | 零号冒烟集 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/零号冒烟集-v1.md`](06-verification/evaluation/零号冒烟集-v1.md) |
+| 编译器 Golden 集 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/编译器Golden集-v1.json`](06-verification/evaluation/编译器Golden集-v1.json) |
+| 复合意图题集（PoC #8） | 验证 | 已冻结 | v1 | [`06-verification/evaluation/复合意图题集-v1.json`](06-verification/evaluation/复合意图题集-v1.json) |
+| 中文提及样本集（PoC #5） | 验证 | 已冻结 | v1 | [`06-verification/evaluation/中文提及样本集-v1.json`](06-verification/evaluation/中文提及样本集-v1.json) |
 | ADR-0001 · 前端组件栈归位范围 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0001-前端组件栈归位范围.md`](01-decisions/ADR-0001-前端组件栈归位范围.md) |
 | ADR-0002 · 跨轮差分规则修订 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0002-跨轮差分规则修订.md`](01-decisions/ADR-0002-跨轮差分规则修订.md) |
 | ADR-0003 · fail-closed 判据清单 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0003-fail-closed判据清单.md`](01-decisions/ADR-0003-fail-closed判据清单.md) |
@@ -200,12 +204,12 @@ node docs/00-governance/check-docs.mjs
 | ADR-0005 · 评测门槛与 PoC 执行责任 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0005-评测门槛与PoC执行责任.md`](01-decisions/ADR-0005-评测门槛与PoC执行责任.md) |
 | PoC-01 · RLS 最终边界报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-01-RLS最终边界.md`](06-verification/poc/PoC-01-RLS最终边界.md) |
 | PoC-02 · 发布快照可复现报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-02-发布快照可复现.md`](06-verification/poc/PoC-02-发布快照可复现.md) |
-| PoC-03 · AgentScope 准入报告 | 验证 | 草稿 | v1 | [`06-verification/poc/PoC-03-AgentScope准入.md`](06-verification/poc/PoC-03-AgentScope准入.md) |
-| PoC-04 · 编译器 SQL 输出报告 | 验证 | 草稿 | v1 | [`06-verification/poc/PoC-04-编译器SQL输出.md`](06-verification/poc/PoC-04-编译器SQL输出.md) |
-| M0 PoC 总览 | 验证 | 草稿 | v1 | [`06-verification/poc/M0-PoC总览-v1.md`](06-verification/poc/M0-PoC总览-v1.md) |
-| T5.5 · CopilotKit Headless 接入验证 | 验证 | 草稿 | v1 | [`06-verification/poc/T5.5-CopilotKit接入验证-v1.md`](06-verification/poc/T5.5-CopilotKit接入验证-v1.md) |
+| PoC-03 · AgentScope 准入报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-03-AgentScope准入.md`](06-verification/poc/PoC-03-AgentScope准入.md) |
+| PoC-04 · 编译器 SQL 输出报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-04-编译器SQL输出.md`](06-verification/poc/PoC-04-编译器SQL输出.md) |
+| M0 PoC 总览 | 验证 | 已冻结 | v1 | [`06-verification/poc/M0-PoC总览-v1.md`](06-verification/poc/M0-PoC总览-v1.md) |
+| T5.5 · CopilotKit Headless 接入验证 | 验证 | 已冻结 | v1 | [`06-verification/poc/T5.5-CopilotKit接入验证-v1.md`](06-verification/poc/T5.5-CopilotKit接入验证-v1.md) |
 | PoC-07 · 跨轮差分与存在性保护报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-07-跨轮差分与存在性保护.md`](06-verification/poc/PoC-07-跨轮差分与存在性保护.md) |
-| PoC-10 · 前端直连 AG-UI SSE（协议 + 界面） | 验证 | 草稿 | v1 | [`06-verification/poc/PoC-10-协议探针.md`](06-verification/poc/PoC-10-协议探针.md) |
+| PoC-10 · 前端直连 AG-UI SSE（协议 + 界面） | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-10-协议探针.md`](06-verification/poc/PoC-10-协议探针.md) |
 | M0 硬阻断结论 | 验证 | 已冻结 | v2 | [`06-verification/poc/M0-硬阻断结论-v2.md`](06-verification/poc/M0-硬阻断结论-v2.md) |
 | 前端工程规范 | 规范 | 已冻结 | 迁移版 | [`../ontos-ui/FRONTEND_RULES.md`](../ontos-ui/FRONTEND_RULES.md) |
 | 前端工具链 | 规范 | 已冻结 | 迁移版 | [`../ontos-ui/docs/tooling.md`](../ontos-ui/docs/tooling.md) |
