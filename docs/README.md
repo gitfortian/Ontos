@@ -195,6 +195,7 @@ node docs/00-governance/check-docs.mjs
 | 零号冒烟集 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/零号冒烟集-v1.md`](06-verification/evaluation/零号冒烟集-v1.md) |
 | ADR-0001 · 前端组件栈归位范围 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0001-前端组件栈归位范围.md`](01-decisions/ADR-0001-前端组件栈归位范围.md) |
 | ADR-0002 · 跨轮差分规则修订 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0002-跨轮差分规则修订.md`](01-decisions/ADR-0002-跨轮差分规则修订.md) |
+| ADR-0003 · fail-closed 判据清单 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0003-fail-closed判据清单.md`](01-decisions/ADR-0003-fail-closed判据清单.md) |
 | PoC-01 · RLS 最终边界报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-01-RLS最终边界.md`](06-verification/poc/PoC-01-RLS最终边界.md) |
 | PoC-02 · 发布快照可复现报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-02-发布快照可复现.md`](06-verification/poc/PoC-02-发布快照可复现.md) |
 | PoC-03 · AgentScope 准入报告 | 验证 | 草稿 | v1 | [`06-verification/poc/PoC-03-AgentScope准入.md`](06-verification/poc/PoC-03-AgentScope准入.md) |
