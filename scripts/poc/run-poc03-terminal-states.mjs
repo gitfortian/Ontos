@@ -165,7 +165,10 @@ async function ask(threadId, runId, question) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const startedAt = Date.now();
-  let text = "";
+  // 修复轮契约（ADR-0006 / T1.0）：每次 run 的最后一条完整 JSON 才是权威提案。
+  // 因此按消息块分组拼接，不再全量拼接——否则坏轮 + 好轮会拼成非法 JSON。
+  const messageTexts = new Map(); // messageId -> 拼接文本
+  let repairEvents = 0;
   let eventCount = 0;
   let status = 0;
   let error = null;
@@ -188,7 +191,7 @@ async function ask(threadId, runId, question) {
     status = response.status;
     if (!response.ok || !response.body) {
       error = `HTTP ${status}`;
-      return { status, text, eventCount, error, durationMs: Date.now() - startedAt };
+      return { status, messageTexts: [], repairEvents, eventCount, error, durationMs: Date.now() - startedAt };
     }
     const decoder = new TextDecoder();
     let buffer = "";
@@ -202,7 +205,14 @@ async function ask(threadId, runId, question) {
           try {
             const event = JSON.parse(line.slice(5).trim());
             eventCount++;
-            if (event.type === "TEXT_MESSAGE_CONTENT") text += event.delta ?? "";
+            if (event.type === "TEXT_MESSAGE_CONTENT") {
+              const id = event.messageId ?? event.replyId ?? "unknown";
+              messageTexts.set(id, (messageTexts.get(id) ?? "") + (event.delta ?? ""));
+            }
+            if (event.type === "CUSTOM"
+                && (event.name === "intent_repair" || event.name === "intent_repair_exhausted")) {
+              repairEvents++;
+            }
           } catch {
             /* 忽略非 JSON 行 */
           }
@@ -214,7 +224,24 @@ async function ask(threadId, runId, question) {
   } finally {
     clearTimeout(timer);
   }
-  return { status, text, eventCount, error, durationMs: Date.now() - startedAt };
+  return { status, messageTexts: [...messageTexts.values()], repairEvents, eventCount, error, durationMs: Date.now() - startedAt };
+}
+
+/**
+ * 权威提案：最后一条能解析为 JSON 的消息块（修复轮契约）。
+ * 返回 { proposal, proposalIndex, parseFailures, raw }——proposal 为 null 表示全部不可解析。
+ */
+function authoritativeProposal(messageTexts) {
+  let last = { proposal: null, proposalIndex: -1, parseFailures: [] };
+  messageTexts.forEach((text, index) => {
+    const parsed = extractJson(text);
+    if (parsed.ok) {
+      last = { proposal: parsed.value, proposalIndex: index, parseFailures: last.parseFailures, raw: text };
+    } else {
+      last.parseFailures.push({ index, reason: parsed.reason, preview: text.slice(0, 160) });
+    }
+  });
+  return last;
 }
 
 /** 从模型输出里提取 JSON（可能被 ``` 包裹或带前后缀说明）。 */
@@ -260,7 +287,12 @@ async function main() {
       const question = scenario.questions[i % scenario.questions.length];
       const runId = `${scenario.key}-${i + 1}`;
       const response = await ask(`t-${runId}`, runId, question);
-      const parsed = response.error ? { ok: false, reason: response.error } : extractJson(response.text);
+      const authority = response.error
+        ? { proposal: null, proposalIndex: -1, parseFailures: [], raw: "" }
+        : authoritativeProposal(response.messageTexts);
+      const parsed = authority.proposal
+        ? { ok: true, value: authority.proposal }
+        : { ok: false, reason: response.error ?? authority.parseFailures.at(-1)?.reason ?? "无可用 JSON" };
       const detection = parsed.ok ? detectTerminal(parsed.value) : null;
       const passed = parsed.ok && !detection.conflict && scenario.judge(parsed.value);
       results.push({
@@ -272,6 +304,10 @@ async function main() {
         status: response.status,
         durationMs: response.durationMs,
         eventCount: response.eventCount,
+        messageBlocks: response.messageTexts.length,
+        repairEvents: response.repairEvents,
+        authoritativeIndex: authority.proposalIndex,
+        parseFailures: authority.parseFailures,
         parsed: parsed.ok,
         parseReason: parsed.ok ? null : parsed.reason,
         passed,
@@ -281,10 +317,11 @@ async function main() {
         terminalInferred: detection?.inferred ?? [],
         terminalConflict: detection?.conflict ?? null,
         detail: parsed.ok ? scenario.detail(parsed.value) : null,
-        textPreview: response.text.slice(0, 300),
+        textPreview: (authority.raw ?? "").slice(0, 300),
       });
       console.log(
         `  [${scenario.key} ${i + 1}/${ROUNDS}] ${passed ? "PASS" : "FAIL"} ${response.durationMs}ms` +
+          (response.repairEvents ? ` [修复轮 ${response.repairEvents}]` : "") +
           (parsed.ok ? "" : ` (${parsed.reason})`),
       );
       await sleep(300);
@@ -299,6 +336,8 @@ async function main() {
   const parsedCount = results.filter((r) => r.parsed).length;
   const declaredTerminal = results.filter((r) => r.terminalDeclared).length;
   const conflicts = results.filter((r) => r.terminalConflict).length;
+  const repairRounds = results.reduce((sum, r) => sum + (r.repairEvents ?? 0), 0);
+  const sessionsWithRepair = results.filter((r) => (r.repairEvents ?? 0) > 0).length;
   const byScenario = Object.fromEntries(
     SCENARIOS.map((s) => {
       const rows = results.filter((r) => r.scenario === s.key);
@@ -329,6 +368,8 @@ async function main() {
     parsedJsonRate: Number((results.length === 0 ? 0 : parsedCount / results.length).toFixed(4)),
     declaredTerminalCount: declaredTerminal,
     terminalConflicts: conflicts,
+    contractRepairRounds: repairRounds,
+    sessionsWithRepair,
     legalTerminalCount: legal,
     legalTerminalRate: Number(legalRate.toFixed(4)),
     byScenario,

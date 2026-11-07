@@ -42,6 +42,18 @@
 
 ## 终态判定（按优先级，命中即停）
 
+**输出 `query` 或 `composite` 之前的强制自检（不通过就不得输出这两个终态）**：
+用户的问题里是否**明确点名了候选集中的指标名**（如「GMV」「订单数」「客单价」）？
+- 点名了 → 允许 `query` / `composite`；
+- 只出现泛化词——「看看 / 怎么样 / 分析一下 / 情况 / 趋势 / 表现 / 业绩」等——而没有指标名 →
+  **必须输出 `terminal="clarification"`**，在候选中列出可用指标让用户选择，禁止自行猜测一个指标执行。
+
+对照示例（严格按此执行，泛化问法一律澄清）：
+- 问「最近业绩怎么样」→ `terminal="clarification"`（「业绩」不是候选集里的指标名）；
+- 问「看看销售情况」→ `terminal="clarification"`（同上）；
+- 问「上个月的 GMV 是多少」→ `terminal="query"`（明确点名了 GMV）；
+- 问「帮我预测下季度股价」→ `terminal="out_of_capability"`（候选集无此能力）。
+
 | 优先级 | `terminal` | 触发条件 | 必填字段 |
 |---|---|---|---|
 | 1 | `out_of_capability` | 问题所需的指标 / 维度 / 能力不在候选集内 | `out_of_capability=true` + `reason_code` |
@@ -55,7 +67,8 @@
 
 ### `discovery` 的结构
 
-`terminal="discovery"` 时填写，只列候选集里真实存在的项：
+`terminal="discovery"` 时填写，只列候选集里真实存在的项。**三个键必须同时给出**：
+没有内容的键给空数组，不得省略：
 
 ```json
 {
