@@ -178,3 +178,11 @@ Demo 清单在首发清单发布后退役为 PoC 夹具。
 - M1：实现请求状态机与状态迁移审计。
 - M2：实现时间解析器并带版本号。
 - Scenario 启用前，逐条核对 2.1 的三个触发条件，缺一不启用。
+
+---
+
+## 更正记录（2026-11-07，追加）
+
+- 决策 2.2 中「请求级状态机，**7 态**」为笔误：其下状态表实列 **8 态**
+  （RECEIVED / CLARIFYING / PROPOSED / APPROVAL_PENDING / EXECUTED / REJECTED / EXPIRED / FAILED）。
+  以状态表为准，M1 实现按 8 态落地；原「7 态」表述不再被引用。

@@ -1,0 +1,7 @@
+
+基线自检报告
+  [PASS] 后端 mvn package（含测试） — 31.7s
+  [PASS] 前端 pnpm check — 23.1s
+  [PASS] docs 治理检查 — 0.4s
+  [PASS] 可执行 jar 启动探活 — 应用已启动（health=UP，无数据库模式）
+结果：PASS（4 PASS / 0 FAIL / 0 SKIP，跳过不算通过）

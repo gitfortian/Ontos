@@ -138,11 +138,12 @@ node scripts/verify-baseline.mjs          # 上面四项 + jar 启动探活，�
 
 统一响应为 `CommonResult<T>`（`code=0` 成功），分页为 `PageResult<T>`。
 
-## 当前状态（骨架阶段）
+## 当前状态（M0 已通过，进入 M1）
 
 已落地：多模块骨架、yudao 风格通用层、双数据源、发布清单加载与哈希校验、
-DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、Flyway 迁移、AG-UI 注册、前端四页与 SSE 客户端、架构守护测试。
+DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、Flyway 迁移、AG-UI 注册、前端四页与 SSE 客户端、架构守护测试、
+阶段零 PoC 全链验收与 M0 闸门关闭（见 `docs/06-verification/checklists/M0-验收报告-v2.md`）、阶段零决策 ADR-0002~0006、版本事实台账。
 
 待补齐（阶段一及以后）：策略快照落库（`PolicyService` 目前默认 fail-closed，仅 local 放行）、
 跨表 Join 路径规划、会话状态与多轮消歧、8 种分析模式的编译实现、模型扩展 profile 实跑验证、
-生产身份网关联调、清单 CI 发布流水线。参见 `docs/02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md` 的阶段划分。
+生产身份网关联调、清单 CI 发布流水线、冒烟集 gold 与评测脚本（T1.4 登记）。参见 `docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md` 与 `docs/02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md`。
