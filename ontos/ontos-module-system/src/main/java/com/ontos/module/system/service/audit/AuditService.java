@@ -18,11 +18,11 @@ public class AuditService {
             INSERT INTO audit_log (
                 request_id, parent_request_id, sub_intent_id, tenant_id, user_id, session_id,
                 turn_index, manifest_id, action, metric_id, dsl, sql_text, row_count, reason_code, trace_id,
-                dev_mode
+                dev_mode, from_state, to_state, state_reason
             ) VALUES (
                 :requestId, :parentRequestId, :subIntentId, :tenantId, :userId, :sessionId,
                 :turnIndex, :manifestId, :action, :metricId, cast(:dsl as jsonb), :sqlText,
-                :rowCount, :reasonCode, :traceId, :devMode
+                :rowCount, :reasonCode, :traceId, :devMode, :fromState, :toState, :stateReason
             )
             """;
 
@@ -50,6 +50,9 @@ public class AuditService {
         params.put("reasonCode", createReqDTO.getReasonCode());
         params.put("traceId", createReqDTO.getTraceId());
         params.put("devMode", Boolean.TRUE.equals(createReqDTO.getDevMode()));
+        params.put("fromState", createReqDTO.getFromState());
+        params.put("toState", createReqDTO.getToState());
+        params.put("stateReason", createReqDTO.getStateReason());
         jdbcTemplate.update(INSERT_SQL, params);
     }
 

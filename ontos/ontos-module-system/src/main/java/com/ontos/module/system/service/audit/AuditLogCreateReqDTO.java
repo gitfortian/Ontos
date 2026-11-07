@@ -23,6 +23,10 @@ public class AuditLogCreateReqDTO {
     private Integer rowCount;
     private String reasonCode;
     private String traceId;
+    /** 状态迁移起点/终点与触发原因（action=STATE_TRANSITION 行，M1/T6.3）。 */
+    private String fromState;
+    private String toState;
+    private String stateReason;
     /** 请求是否来自开发模拟身份（dev-headers 回退）；生产恒为 false。 */
     private Boolean devMode;
 

@@ -1,5 +1,6 @@
 package com.ontos.module.query.service;
 
+import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.framework.common.util.json.JsonUtils;
 import com.ontos.framework.web.core.context.RequestContext;
 import com.ontos.framework.web.core.context.RequestContextHolder;
@@ -14,10 +15,13 @@ import com.ontos.module.query.core.executor.QueryResult;
 import com.ontos.module.system.service.audit.AuditLogCreateReqDTO;
 import com.ontos.module.system.service.audit.AuditService;
 import com.ontos.module.system.service.policy.PolicyService;
+import com.ontos.module.system.service.request.RequestStateService;
+import com.ontos.module.system.service.request.RequestStatus;
 import org.springframework.stereotype.Service;
 
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.MANIFEST_MISMATCH;
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
+import static com.ontos.module.query.enums.ErrorCodeConstants.REQUEST_ALREADY_EXECUTED;
 
 @Service
 public class QueryServiceImpl implements QueryService {
@@ -28,26 +32,32 @@ public class QueryServiceImpl implements QueryService {
     private final SqlCompiler sqlCompiler;
     private final QueryExecutor queryExecutor;
     private final AuditService auditService;
+    private final RequestStateService requestStateService;
 
     public QueryServiceImpl(ManifestService manifestService,
                             DslValidator dslValidator,
                             PolicyService policyService,
                             SqlCompiler sqlCompiler,
                             QueryExecutor queryExecutor,
-                            AuditService auditService) {
+                            AuditService auditService,
+                            RequestStateService requestStateService) {
         this.manifestService = manifestService;
         this.dslValidator = dslValidator;
         this.policyService = policyService;
         this.sqlCompiler = sqlCompiler;
         this.queryExecutor = queryExecutor;
         this.auditService = auditService;
+        this.requestStateService = requestStateService;
     }
 
     @Override
     public CompiledQuery compile(QueryDsl queryDsl) {
         RequestContext context = RequestContextHolder.require();
+        String requestId = context.traceId();
+        requestStateService.initialize(context, requestId);
         PublishedManifest manifest = prepare(queryDsl, context);
         CompiledQuery compiled = sqlCompiler.compile(queryDsl, manifest);
+        requestStateService.transition(context, requestId, RequestStatus.PROPOSED, "编译完成（dry-plan）");
         auditService.record(buildAudit(context, "COMPILE", queryDsl, compiled, null));
         return compiled;
     }
@@ -55,11 +65,39 @@ public class QueryServiceImpl implements QueryService {
     @Override
     public QueryResult execute(QueryDsl queryDsl) {
         RequestContext context = RequestContextHolder.require();
-        PublishedManifest manifest = prepare(queryDsl, context);
-        CompiledQuery compiled = sqlCompiler.compile(queryDsl, manifest);
-        QueryResult result = queryExecutor.execute(compiled, context);
-        auditService.record(buildAudit(context, "EXECUTE", queryDsl, compiled, result.getRowCount()));
-        return result;
+        String requestId = context.traceId();
+        // 幂等（ADR-0004 2.2）：同 request_id 已执行 → 不重新执行（返回原状态以错误码明示；
+        // 原结果回放依赖 M2 结果缓存落地后接通）
+        if (requestStateService.findState(requestId).orElse(null) == RequestStatus.EXECUTED) {
+            throw exception(REQUEST_ALREADY_EXECUTED, requestId);
+        }
+        requestStateService.initialize(context, requestId);
+        try {
+            PublishedManifest manifest = prepare(queryDsl, context);
+            CompiledQuery compiled = sqlCompiler.compile(queryDsl, manifest);
+            requestStateService.transition(context, requestId, RequestStatus.PROPOSED, "编译完成");
+            QueryResult result = queryExecutor.execute(compiled, context);
+            requestStateService.transition(context, requestId, RequestStatus.EXECUTED, "执行完成");
+            requestStateService.recordRowCount(requestId, result.getRowCount());
+            auditService.record(buildAudit(context, "EXECUTE", queryDsl, compiled, result.getRowCount()));
+            return result;
+        } catch (ServiceException ex) {
+            // fail-closed 类拒绝（清单/策略/DSL 校验）：REJECTED 是合法终态
+            requestStateService.transition(context, requestId, RequestStatus.REJECTED,
+                    truncate(ex.getMessage()));
+            throw ex;
+        } catch (RuntimeException ex) {
+            requestStateService.transition(context, requestId, RequestStatus.FAILED,
+                    truncate(String.valueOf(ex)));
+            throw ex;
+        }
+    }
+
+    private static String truncate(String text) {
+        if (text == null) {
+            return "unknown";
+        }
+        return text.length() <= 200 ? text : text.substring(0, 200);
     }
 
     private static AuditLogCreateReqDTO buildAudit(RequestContext context, String action, QueryDsl queryDsl,
