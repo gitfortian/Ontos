@@ -1,0 +1,1 @@
+{"database": "ontos_queryds@127.0.0.1:5432", "role": "ontos_query_ro", "repeatPerCase": 100, "forceRowLevelSecurity": true, "baselineRowsWithoutGuc": 0, "cases": 5, "totalChecks": 500, "violations": 0, "elapsedMs": 432, "conclusion": "PASS", "capturedAt": "2026-11-06T22:41+08:00", "probe": "scripts/poc/Poc01Rls.java", "driver": "postgresql-42.7.14"}
