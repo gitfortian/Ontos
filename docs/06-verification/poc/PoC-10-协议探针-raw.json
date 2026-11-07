@@ -1,0 +1,491 @@
+{
+  "generatedAt": "2026-11-07T02:31:10.446Z",
+  "scope": "PoC #10 协议层（事件可达性 / 幂等 / RUN_STARTED.input 脱敏）；不含界面复验与业务终态",
+  "baseUrl": "http://127.0.0.1:8080",
+  "agentId": "ontos",
+  "requestedSessions": 20,
+  "completedSessions": 19,
+  "eventFamilies": {
+    "RUN": {
+      "label": "RUN_STARTED / RUN_FINISHED",
+      "sessionsWithFamily": 19,
+      "total": 19
+    },
+    "TEXT_MESSAGE": {
+      "label": "TEXT_MESSAGE_START/CONTENT/END",
+      "sessionsWithFamily": 19,
+      "total": 19
+    },
+    "TOOL_CALL": {
+      "label": "TOOL_CALL_START/ARGS/END",
+      "sessionsWithFamily": 14,
+      "total": 19
+    },
+    "CUSTOM": {
+      "label": "CUSTOM",
+      "sessionsWithFamily": 19,
+      "total": 19
+    },
+    "HITL": {
+      "label": "中断/审批回传",
+      "sessionsWithFamily": 0,
+      "total": 19
+    },
+    "STATE": {
+      "label": "STATE_SNAPSHOT / STATE_DELTA",
+      "sessionsWithFamily": 0,
+      "total": 19
+    }
+  },
+  "sessions": [
+    {
+      "threadId": "t-1",
+      "runId": "r-1",
+      "status": 200,
+      "eventCount": 17,
+      "durationMs": 5310,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 14,
+        "TOOL_CALL": 0,
+        "CUSTOM": 1,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build"
+      ],
+      "textPreview": "我是 Ontos 问数系统的意图提案器：将你的自然语言问题解析为结构化的指标查询意图（匹配指标、维度、筛选和相对时间），不生成 SQL。",
+      "error": null
+    },
+    {
+      "threadId": "t-2",
+      "runId": "r-2",
+      "status": 200,
+      "eventCount": 0,
+      "durationMs": 120022,
+      "families": {},
+      "customNames": [],
+      "textPreview": "",
+      "error": "AbortError: This operation was aborted"
+    },
+    {
+      "threadId": "t-3",
+      "runId": "r-3",
+      "status": 200,
+      "eventCount": 202,
+      "durationMs": 46831,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 117,
+        "TOOL_CALL": 72,
+        "CUSTOM": 11,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build",
+        "action_observation"
+      ],
+      "textPreview": "{\"scenario_id\": null,\"sub_intents\": [],\"needs_discovery\": true,\"clarification\": ",
+      "error": null
+    },
+    {
+      "threadId": "t-4",
+      "runId": "r-4",
+      "status": 200,
+      "eventCount": 233,
+      "durationMs": 61703,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 74,
+        "TOOL_CALL": 138,
+        "CUSTOM": 19,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build",
+        "action_observation"
+      ],
+      "textPreview": "{\"scenario_id\":null,\"sub_intents\":[],\"needs_discovery\":true,\"clarification\":{\"am",
+      "error": null
+    },
+    {
+      "threadId": "t-5",
+      "runId": "r-5",
+      "status": 200,
+      "eventCount": 176,
+      "durationMs": 66974,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 68,
+        "TOOL_CALL": 87,
+        "CUSTOM": 19,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build",
+        "action_observation"
+      ],
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification",
+      "error": null
+    },
+    {
+      "threadId": "t-6",
+      "runId": "r-6",
+      "status": 200,
+      "eventCount": 69,
+      "durationMs": 20788,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 66,
+        "TOOL_CALL": 0,
+        "CUSTOM": 1,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build"
+      ],
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification",
+      "error": null
+    },
+    {
+      "threadId": "t-7",
+      "runId": "r-7",
+      "status": 200,
+      "eventCount": 220,
+      "durationMs": 95624,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 16,
+        "TOOL_CALL": 173,
+        "CUSTOM": 29,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build",
+        "action_observation"
+      ],
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [{\"sub_intent_id\": \"s1\", \"analysis_mode\": \"",
+      "error": null
+    },
+    {
+      "threadId": "t-8",
+      "runId": "r-8",
+      "status": 200,
+      "eventCount": 216,
+      "durationMs": 45306,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 86,
+        "TOOL_CALL": 106,
+        "CUSTOM": 22,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build",
+        "action_observation"
+      ],
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification",
+      "error": null
+    },
+    {
+      "threadId": "t-9",
+      "runId": "r-9",
+      "status": 200,
+      "eventCount": 196,
+      "durationMs": 41993,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 83,
+        "TOOL_CALL": 92,
+        "CUSTOM": 19,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build",
+        "action_observation"
+      ],
+      "textPreview": "{\"scenario_id\":null,\"sub_intents\":[],\"needs_discovery\":true,\"clarification\":{\"am",
+      "error": null
+    },
+    {
+      "threadId": "t-10",
+      "runId": "r-10",
+      "status": 200,
+      "eventCount": 157,
+      "durationMs": 48302,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 100,
+        "TOOL_CALL": 44,
+        "CUSTOM": 11,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build",
+        "action_observation"
+      ],
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification",
+      "error": null
+    },
+    {
+      "threadId": "t-11",
+      "runId": "r-11",
+      "status": 200,
+      "eventCount": 25,
+      "durationMs": 4030,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 22,
+        "TOOL_CALL": 0,
+        "CUSTOM": 1,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build"
+      ],
+      "textPreview": "我是 Ontos 问数系统的意图提案器：把你用自然语言提出的取数需求解析为结构化的意图（指标、维度、筛选、时间等），供后续查询规划使用，不直接生成 SQL。",
+      "error": null
+    },
+    {
+      "threadId": "t-12",
+      "runId": "r-12",
+      "status": 200,
+      "eventCount": 187,
+      "durationMs": 45281,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 64,
+        "TOOL_CALL": 105,
+        "CUSTOM": 16,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build",
+        "action_observation"
+      ],
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification",
+      "error": null
+    },
+    {
+      "threadId": "t-13",
+      "runId": "r-13",
+      "status": 200,
+      "eventCount": 179,
+      "durationMs": 35018,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 75,
+        "TOOL_CALL": 86,
+        "CUSTOM": 16,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build",
+        "action_observation"
+      ],
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification",
+      "error": null
+    },
+    {
+      "threadId": "t-14",
+      "runId": "r-14",
+      "status": 200,
+      "eventCount": 96,
+      "durationMs": 45419,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 11,
+        "TOOL_CALL": 67,
+        "CUSTOM": 16,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build",
+        "action_observation"
+      ],
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification",
+      "error": null
+    },
+    {
+      "threadId": "t-15",
+      "runId": "r-15",
+      "status": 200,
+      "eventCount": 288,
+      "durationMs": 82183,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 68,
+        "TOOL_CALL": 183,
+        "CUSTOM": 35,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build",
+        "action_observation"
+      ],
+      "textPreview": "{\"scenario_id\":null,\"sub_intents\":[],\"needs_discovery\":true,\"clarification\":{\"am",
+      "error": null
+    },
+    {
+      "threadId": "t-16",
+      "runId": "r-16",
+      "status": 200,
+      "eventCount": 27,
+      "durationMs": 7331,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 24,
+        "TOOL_CALL": 0,
+        "CUSTOM": 1,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build"
+      ],
+      "textPreview": "我是 Ontos 问数系统的意图提案器：只负责把你的自然语言提问做语义匹配并提取指标、维度、筛选和时间等参数（输出结构化意图 JSON），不生成 SQL、不执行",
+      "error": null
+    },
+    {
+      "threadId": "t-17",
+      "runId": "r-17",
+      "status": 200,
+      "eventCount": 121,
+      "durationMs": 45419,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 50,
+        "TOOL_CALL": 58,
+        "CUSTOM": 11,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build",
+        "action_observation"
+      ],
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification",
+      "error": null
+    },
+    {
+      "threadId": "t-18",
+      "runId": "r-18",
+      "status": 200,
+      "eventCount": 139,
+      "durationMs": 41495,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 58,
+        "TOOL_CALL": 68,
+        "CUSTOM": 11,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build",
+        "action_observation"
+      ],
+      "textPreview": "{\"scenario_id\":null,\"sub_intents\":[],\"needs_discovery\":true,\"clarification\":{\"am",
+      "error": null
+    },
+    {
+      "threadId": "t-19",
+      "runId": "r-19",
+      "status": 200,
+      "eventCount": 179,
+      "durationMs": 34976,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 99,
+        "TOOL_CALL": 64,
+        "CUSTOM": 14,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build",
+        "action_observation"
+      ],
+      "textPreview": "{\"scenario_id\": null, \"sub_intents\": [], \"needs_discovery\": true, \"clarification",
+      "error": null
+    },
+    {
+      "threadId": "t-20",
+      "runId": "r-20",
+      "status": 200,
+      "eventCount": 72,
+      "durationMs": 22796,
+      "families": {
+        "RUN": 2,
+        "TEXT_MESSAGE": 69,
+        "TOOL_CALL": 0,
+        "CUSTOM": 1,
+        "HITL": 0,
+        "STATE": 0
+      },
+      "customNames": [
+        "context_build"
+      ],
+      "textPreview": "{\"scenario_id\": null,\"sub_intents\": [],\"needs_discovery\": true,\"clarification\": ",
+      "error": null
+    }
+  ],
+  "idempotency": {
+    "runs": [
+      {
+        "attempt": 1,
+        "status": 200,
+        "eventCount": 62,
+        "durationMs": 14718,
+        "textLength": 304,
+        "textPreview": "{\"scenario_id\":null,\"sub_intents\":[{\"sub_intent_id\":\"s1\",\"analysis_mode\":\"query\"",
+        "error": null
+      },
+      {
+        "attempt": 2,
+        "status": 200,
+        "eventCount": 15,
+        "durationMs": 9365,
+        "textLength": 304,
+        "textPreview": "{\"scenario_id\":null,\"sub_intents\":[{\"sub_intent_id\":\"s1\",\"analysis_mode\":\"query\"",
+        "error": null
+      },
+      {
+        "attempt": 3,
+        "status": 200,
+        "eventCount": 16,
+        "durationMs": 8615,
+        "textLength": 304,
+        "textPreview": "{\"scenario_id\":null,\"sub_intents\":[{\"sub_intent_id\":\"s1\",\"analysis_mode\":\"query\"",
+        "error": null
+      }
+    ],
+    "sameResult": true
+  },
+  "redaction": {
+    "sessionsWithInputEcho": 19,
+    "totalChecked": 19,
+    "leaked": true,
+    "note": "RUN_STARTED.input 回显请求体，是否泄露取决于前端是否把它写入日志/错误上报"
+  },
+  "verdict": {
+    "eventsReachable": 4,
+    "eventsTotal": 6,
+    "idempotent": true,
+    "redactionRequired": true
+  }
+}
