@@ -1,5 +1,6 @@
 package com.ontos.module.query.controller.admin.vo;
 
+import java.time.Instant;
 import java.util.List;
 
 import com.ontos.module.query.core.dsl.QueryDsl;
@@ -46,7 +47,10 @@ public class QueryPlanRespVO {
     @Schema(description = "BLOCKED 原因")
     private String blockReason;
 
-    @Schema(description = "dry-run 是否已完成真实数据库零行校验")
+    @Schema(description = "dry-run 是否已完成真实数据库执行校验")
     private Boolean verified;
+
+    @Schema(description = "编译产物生成时间（回放端点返回；其余端点为空）")
+    private Instant compiledAt;
 
 }

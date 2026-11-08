@@ -1,5 +1,6 @@
 package com.ontos.module.query.service;
 
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
@@ -19,16 +20,21 @@ import com.ontos.module.query.core.executor.DryRunOutcome;
 import com.ontos.module.query.core.executor.QueryExecutor;
 import com.ontos.module.query.core.executor.QueryPlan;
 import com.ontos.module.query.core.executor.QueryResult;
+import com.ontos.module.query.core.time.TimeExpressionParser;
 import com.ontos.module.query.core.time.TimeWindowResolver;
+import com.ontos.module.query.dal.dataobject.QueryArtifactDO;
+import com.ontos.module.query.dal.mysql.QueryArtifactRepository;
 import com.ontos.module.system.service.audit.AuditLogCreateReqDTO;
 import com.ontos.module.system.service.audit.AuditService;
 import com.ontos.module.system.service.policy.PolicyService;
 import com.ontos.module.system.service.request.RequestStateService;
 import com.ontos.module.system.service.request.RequestStatus;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.type.TypeReference;
 
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.MANIFEST_MISMATCH;
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
+import static com.ontos.module.query.enums.ErrorCodeConstants.ARTIFACT_NOT_FOUND;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_NOT_UNIQUE;
 import static com.ontos.module.query.enums.ErrorCodeConstants.PLAN_COST_BLOCKED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.REQUEST_ALREADY_EXECUTED;
@@ -48,6 +54,7 @@ public class QueryServiceImpl implements QueryService {
     private final RequestStateService requestStateService;
     private final TimeWindowResolver timeWindowResolver;
     private final JoinPathResolver joinPathResolver;
+    private final QueryArtifactRepository queryArtifactRepository;
 
     public QueryServiceImpl(ManifestService manifestService,
                             DslValidator dslValidator,
@@ -57,7 +64,8 @@ public class QueryServiceImpl implements QueryService {
                             AuditService auditService,
                             RequestStateService requestStateService,
                             TimeWindowResolver timeWindowResolver,
-                            JoinPathResolver joinPathResolver) {
+                            JoinPathResolver joinPathResolver,
+                            QueryArtifactRepository queryArtifactRepository) {
         this.manifestService = manifestService;
         this.dslValidator = dslValidator;
         this.policyService = policyService;
@@ -67,6 +75,7 @@ public class QueryServiceImpl implements QueryService {
         this.requestStateService = requestStateService;
         this.timeWindowResolver = timeWindowResolver;
         this.joinPathResolver = joinPathResolver;
+        this.queryArtifactRepository = queryArtifactRepository;
     }
 
     @Override
@@ -77,6 +86,8 @@ public class QueryServiceImpl implements QueryService {
         try {
             PublishedManifest manifest = prepare(queryDsl, context);
             CompiledQuery compiled = sqlCompiler.compile(queryDsl, manifest);
+            // T4.5：编译产物先落库再推进状态，保证回放端点能取到「最近一次」产物
+            persistArtifact(context, compiled, null);
             requestStateService.transition(context, requestId, RequestStatus.PROPOSED, "编译完成（dry-plan）");
             auditService.record(buildAudit(context, "COMPILE", queryDsl, compiled, null));
             return compiled;
@@ -105,6 +116,7 @@ public class QueryServiceImpl implements QueryService {
         try {
             PublishedManifest manifest = prepare(queryDsl, context);
             CompiledQuery compiled = sqlCompiler.compile(queryDsl, manifest);
+            persistArtifact(context, compiled, null);
             requestStateService.transition(context, requestId, RequestStatus.PROPOSED, "编译完成");
             QueryResult result = queryExecutor.execute(compiled, context);
             assembleLookupRows(queryDsl, manifest, compiled, result);
@@ -138,6 +150,7 @@ public class QueryServiceImpl implements QueryService {
         CompiledQuery compiled = sqlCompiler.compile(queryDsl, manifest);
         QueryPlan plan = queryExecutor.explain(compiled, context);
         plan.setCompiled(compiled);
+        persistArtifact(context, compiled, plan);
         recordPlanAudit(context, "DRY_PLAN", queryDsl, compiled, plan, null);
         return plan;
     }
@@ -156,12 +169,16 @@ public class QueryServiceImpl implements QueryService {
         QueryPlan plan = queryExecutor.explain(compiled, context);
         plan.setCompiled(compiled);
         if (QueryPlan.BLOCKED.equals(plan.getStatus())) {
+            // 被拦的计划同样要能回放「当时为什么被拦」，所以先落库再拒绝
+            persistArtifact(context, compiled, plan);
             recordPlanAudit(context, "DRY_RUN", queryDsl, compiled, plan, null);
             throw exception(PLAN_COST_BLOCKED, plan.getBlockReason());
         }
         QueryResult result = queryExecutor.executeDryRun(compiled, context);
         assembleLookupRows(queryDsl, manifest, compiled, result);
         plan.setVerified(true);
+        // 校验完成后再落库：verified=true 是回放端点要还原的状态，不能提前写死 false
+        persistArtifact(context, compiled, plan);
         recordPlanAudit(context, "DRY_RUN", queryDsl, compiled, plan, result.getRowCount());
         return new DryRunOutcome(plan, result);
     }
@@ -172,6 +189,101 @@ public class QueryServiceImpl implements QueryService {
         AuditLogCreateReqDTO audit = buildAudit(context, action, queryDsl, compiled, rowCount);
         audit.setReasonCode(plan.getStatus());
         auditService.record(audit);
+    }
+
+    /**
+     * 按 request_id 回放最近一次编译产物（M2 规格 §3.2、E3）。
+     *
+     * <p>查询同时按租户与用户收敛：request_id 允许客户端用 X-Request-Id 指定，只按 ID 取会让
+     * 别人用同一个 ID 读到本不属于他的 SQL 与绑定值。回放动作本身也进审计
+     * （action=PLAN_REPLAY）：request_id 记被回放的目标、trace_id 记发起者，
+     * 保证「谁看过哪次编译产物」可追溯。
+     */
+    @Override
+    public QueryPlan replayPlan(String requestId) {
+        RequestContext context = RequestContextHolder.require();
+        QueryArtifactDO artifact = queryArtifactRepository
+                .selectByRequest(context.tenantId(), context.userId(), requestId)
+                .orElseThrow(() -> exception(ARTIFACT_NOT_FOUND, requestId));
+        QueryPlan plan = new QueryPlan();
+        plan.setCompiled(toCompiled(artifact));
+        plan.setPlanJson(artifact.getPlanJson());
+        // null 表示这次请求只做过编译（没有 EXPLAIN），前端据此区分「未估算」与「估算为 OK」
+        plan.setStatus(artifact.getPlanStatus());
+        if (artifact.getEstimatedCost() != null) {
+            plan.setEstimatedCost(artifact.getEstimatedCost());
+        }
+        if (artifact.getEstimatedRows() != null) {
+            plan.setEstimatedRows(artifact.getEstimatedRows());
+        }
+        plan.setVerified(artifact.isVerified());
+        auditReplay(context, artifact);
+        return plan;
+    }
+
+    /**
+     * 编译产物落库（T4.5）：同一 (tenant, user, request_id) 覆盖为最近一次。
+     * 绑定值可能含标识类值，落库前不做二次加工，访问侧按租户 + 用户收敛。
+     */
+    private void persistArtifact(RequestContext context, CompiledQuery compiled, QueryPlan plan) {
+        QueryArtifactDO artifact = new QueryArtifactDO();
+        artifact.setTenantId(context.tenantId());
+        artifact.setUserId(context.userId());
+        artifact.setRequestId(context.traceId());
+        artifact.setSessionId(context.sessionId());
+        artifact.setManifestId(compiled.getManifestId());
+        artifact.setContentHash(compiled.getContentHash());
+        artifact.setMode(compiled.getMode());
+        artifact.setMetricId(compiled.getMetricId());
+        artifact.setEntityId(compiled.getEntityId());
+        artifact.setSqlText(compiled.getSql());
+        artifact.setBindValues(JsonUtils.toJsonString(
+                compiled.getBindValues() == null ? List.of() : compiled.getBindValues()));
+        artifact.setJoins(JsonUtils.toJsonString(
+                compiled.getJoins() == null ? List.of() : compiled.getJoins()));
+        artifact.setAppliedLimit(compiled.getAppliedLimit());
+        if (plan != null) {
+            artifact.setPlanStatus(plan.getStatus());
+            artifact.setEstimatedCost(plan.getEstimatedCost());
+            artifact.setEstimatedRows(plan.getEstimatedRows());
+            artifact.setPlanJson(plan.getPlanJson());
+            artifact.setVerified(plan.isVerified());
+        }
+        queryArtifactRepository.upsert(artifact);
+    }
+
+    private void auditReplay(RequestContext context, QueryArtifactDO artifact) {
+        AuditLogCreateReqDTO audit = new AuditLogCreateReqDTO();
+        audit.setRequestId(artifact.getRequestId());
+        audit.setTenantId(context.tenantId());
+        audit.setUserId(context.userId());
+        audit.setSessionId(context.sessionId());
+        audit.setTurnIndex(context.turnIndex());
+        audit.setManifestId(artifact.getManifestId());
+        audit.setAction("PLAN_REPLAY");
+        audit.setMetricId(artifact.getMetricId());
+        audit.setSqlText(artifact.getSqlText());
+        audit.setTraceId(context.traceId());
+        audit.setDevMode(context.devMode());
+        auditService.record(audit);
+    }
+
+    /** 从持久化产物回装编译产物；只还原回放需要的字段（SQL / 绑定值 / 路径 / 版本锚点）。 */
+    private static CompiledQuery toCompiled(QueryArtifactDO artifact) {
+        CompiledQuery compiled = new CompiledQuery();
+        compiled.setManifestId(artifact.getManifestId());
+        compiled.setContentHash(artifact.getContentHash());
+        compiled.setMode(artifact.getMode());
+        compiled.setMetricId(artifact.getMetricId());
+        compiled.setEntityId(artifact.getEntityId());
+        compiled.setSql(artifact.getSqlText());
+        compiled.setBindValues(JsonUtils.parseObject(artifact.getBindValues(),
+                new TypeReference<List<Object>>() { }));
+        compiled.setJoins(JsonUtils.parseObject(artifact.getJoins(),
+                new TypeReference<List<QueryDsl.ResolvedJoin>>() { }));
+        compiled.setAppliedLimit(artifact.getAppliedLimit() == null ? 0 : artifact.getAppliedLimit());
+        compiled.setCompiledAt(artifact.getUpdatedAt().atZone(ZoneId.of(TimeExpressionParser.ZONE)).toInstant());
+        return compiled;
     }
 
     private static String truncate(String text) {

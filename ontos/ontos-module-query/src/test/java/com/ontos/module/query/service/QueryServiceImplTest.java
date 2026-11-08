@@ -2,10 +2,12 @@ package com.ontos.module.query.service;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import com.ontos.framework.common.exception.ServiceException;
@@ -26,6 +28,8 @@ import com.ontos.module.query.core.executor.QueryExecutor;
 import com.ontos.module.query.core.executor.QueryPlan;
 import com.ontos.module.query.core.executor.QueryResult;
 import com.ontos.module.query.core.time.TimeWindowResolver;
+import com.ontos.module.query.dal.dataobject.QueryArtifactDO;
+import com.ontos.module.query.dal.mysql.QueryArtifactRepository;
 import com.ontos.module.system.service.audit.AuditLogCreateReqDTO;
 import com.ontos.module.system.service.audit.AuditService;
 import com.ontos.module.system.service.policy.PolicyService;
@@ -37,9 +41,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import static com.ontos.module.query.core.dsl.QueryDsl.TimeRange.SOURCE_EXPRESSION;
+import static com.ontos.module.query.enums.ErrorCodeConstants.ARTIFACT_NOT_FOUND;
 import static com.ontos.module.query.enums.ErrorCodeConstants.PLAN_COST_BLOCKED;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -60,6 +66,7 @@ class QueryServiceImplTest {
     private final QueryExecutor queryExecutor = mock(QueryExecutor.class);
     private final AuditService auditService = mock(AuditService.class);
     private final RequestStateService requestStateService = mock(RequestStateService.class);
+    private final QueryArtifactRepository queryArtifactRepository = mock(QueryArtifactRepository.class);
 
     @BeforeEach
     void setUp() {
@@ -75,7 +82,7 @@ class QueryServiceImplTest {
     private QueryServiceImpl service(TimeWindowResolver resolver) {
         return new QueryServiceImpl(manifestService, new DslValidator(TestFixtures.queryProperties()),
                 policyService, sqlCompiler, queryExecutor, auditService, requestStateService, resolver,
-                new JoinPathResolver(() -> Set.of()));
+                new JoinPathResolver(() -> Set.of()), queryArtifactRepository);
     }
 
     private static PublishedManifest manifestWithPatterns() {
@@ -326,6 +333,12 @@ class QueryServiceImplTest {
         assertEquals("DRY_RUN", captor.getValue().getAction());
         assertEquals(QueryPlan.OK, captor.getValue().getReasonCode());
         assertEquals(1, captor.getValue().getRowCount(), "dry-run 审计必须记录真实行数");
+
+        // 深度审核回归：verified 必须在执行成功后落库，否则回放端点永远显示「未校验」
+        ArgumentCaptor<QueryArtifactDO> artifactCaptor = ArgumentCaptor.forClass(QueryArtifactDO.class);
+        verify(queryArtifactRepository).upsert(artifactCaptor.capture());
+        assertTrue(artifactCaptor.getValue().isVerified(), "dry-run 产物必须带 verified=true");
+        assertEquals(QueryPlan.OK, artifactCaptor.getValue().getPlanStatus());
     }
 
     @Test
@@ -339,6 +352,71 @@ class QueryServiceImplTest {
                 () -> service(new TimeWindowResolver()).compile(dsl));
 
         verify(requestStateService).transition(any(), eq("trace-1"), eq(RequestStatus.REJECTED), any());
+    }
+
+    @Test
+    void shouldPersistCompiledArtifactForReplay() {
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
+
+        service(new TimeWindowResolver()).compile(TestFixtures.query());
+
+        ArgumentCaptor<QueryArtifactDO> captor = ArgumentCaptor.forClass(QueryArtifactDO.class);
+        verify(queryArtifactRepository).upsert(captor.capture());
+        QueryArtifactDO artifact = captor.getValue();
+        assertEquals("tenant-1", artifact.getTenantId());
+        assertEquals("user-1", artifact.getUserId());
+        assertEquals("trace-1", artifact.getRequestId());
+        assertEquals("manifest-001", artifact.getManifestId());
+        assertEquals("select sum(amount) from public.fact_order", artifact.getSqlText());
+        assertTrue(artifact.getBindValues().startsWith("["), "绑定值必须以 JSON 数组落库");
+        assertNull(artifact.getPlanStatus(), "无 EXPLAIN 的编译不写计划状态");
+    }
+
+    @Test
+    void shouldReplayArtifactWithinTenantAndUser() {
+        QueryArtifactDO artifact = new QueryArtifactDO();
+        artifact.setRequestId("req-9");
+        artifact.setManifestId("manifest-001");
+        artifact.setContentHash("hash-1");
+        artifact.setMode("QUERY");
+        artifact.setMetricId(TestFixtures.METRIC_ID);
+        artifact.setSqlText("select 1");
+        artifact.setBindValues("[\"2026-10-09T16:00:00.000Z\", 500]");
+        artifact.setJoins("[]");
+        artifact.setAppliedLimit(500);
+        artifact.setPlanStatus(QueryPlan.OK);
+        artifact.setEstimatedCost(8.21);
+        artifact.setEstimatedRows(3L);
+        artifact.setPlanJson("[{\"Plan\":{}}]");
+        artifact.setUpdatedAt(LocalDateTime.of(2026, 11, 8, 21, 0));
+        when(queryArtifactRepository.selectByRequest("tenant-1", "user-1", "req-9"))
+                .thenReturn(Optional.of(artifact));
+
+        QueryPlan plan = service(new TimeWindowResolver()).replayPlan("req-9");
+
+        assertEquals("select 1", plan.getCompiled().getSql());
+        assertEquals(List.of("2026-10-09T16:00:00.000Z", 500), plan.getCompiled().getBindValues());
+        assertEquals(500, plan.getCompiled().getAppliedLimit());
+        assertEquals(8.21, plan.getEstimatedCost());
+        assertEquals(3L, plan.getEstimatedRows());
+        assertEquals(QueryPlan.OK, plan.getStatus());
+        ArgumentCaptor<AuditLogCreateReqDTO> captor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);
+        verify(auditService).record(captor.capture());
+        assertEquals("PLAN_REPLAY", captor.getValue().getAction());
+        assertEquals("req-9", captor.getValue().getRequestId(), "审计记被回放的目标请求");
+        assertEquals("trace-1", captor.getValue().getTraceId(), "trace 记发起者");
+    }
+
+    @Test
+    void shouldRejectReplayWhenArtifactMissing() {
+        when(queryArtifactRepository.selectByRequest(any(), any(), any())).thenReturn(Optional.empty());
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).replayPlan("req-missing"));
+
+        assertEquals(ARTIFACT_NOT_FOUND.getCode(), ex.getCode());
+        verify(auditService, never()).record(any());
     }
 
 }

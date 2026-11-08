@@ -33,4 +33,10 @@ public interface QueryService {
      */
     DryRunOutcome dryRun(QueryDsl queryDsl);
 
+    /**
+     * 按 request_id 回放最近一次编译产物（SQL + 绑定值 + Join 路径 + 计划）；
+     * 只在本租户 + 本用户范围内可查，查不到按 ARTIFACT_NOT_FOUND 拒绝。
+     */
+    QueryPlan replayPlan(String requestId);
+
 }

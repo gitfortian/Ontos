@@ -16,6 +16,8 @@ import com.ontos.module.query.core.executor.QueryResult;
 import com.ontos.module.query.service.QueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import tools.jackson.databind.JsonNode;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -88,6 +90,12 @@ public class QueryController {
         return success(toDryRunVO(queryService.dryRun(dslCodec.decode(body))));
     }
 
+    @GetMapping("/plan/{requestId}")
+    @Operation(summary = "按 request_id 回放最近一次编译产物（SQL / 绑定值 / 路径 / 计划）")
+    public CommonResult<QueryPlanRespVO> replayPlan(@PathVariable String requestId) {
+        return success(toPlanVO(queryService.replayPlan(requestId)));
+    }
+
     private static QueryPlanRespVO toPlanVO(QueryPlan plan) {
         QueryPlanRespVO vo = new QueryPlanRespVO();
         fillPlan(vo, plan);
@@ -122,6 +130,7 @@ public class QueryController {
         vo.setStatus(plan.getStatus());
         vo.setBlockReason(plan.getBlockReason());
         vo.setVerified(plan.isVerified());
+        vo.setCompiledAt(compiled.getCompiledAt());
     }
 
     private static List<QueryExecuteRespVO.LookupRowVO> toLookupRowVOs(List<QueryResult.LookupRow> rows) {
