@@ -39,4 +39,11 @@ public interface QueryService {
      */
     QueryPlan replayPlan(String requestId);
 
+    /**
+     * 复合意图执行（M2 只支持无依赖子集）：逐子独立校验 → 编译 → 授权 → 执行 → 审计，
+     * 子间不合并 SQL、不共享中间结果。任一子失败整单拒绝（fail-closed，不返回部分结果）；
+     * 结果依赖类子意图（dependsOn 非空）直接拒绝转澄清，全链路归 M6。
+     */
+    CompositeOutcome executeComposite(QueryDsl queryDsl);
+
 }

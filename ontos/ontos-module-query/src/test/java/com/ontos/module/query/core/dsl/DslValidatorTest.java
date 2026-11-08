@@ -429,4 +429,78 @@ class DslValidatorTest {
                 QueryDsl.Operator.IN, List.of("华东", "华南"))));
         assertDoesNotThrow(() -> validator.validate(dsl, manifest));
     }
+
+    // ---- 复合意图容器校验（M2/W4/T4.3）----
+
+    private static QueryDsl compositeDsl(QueryDsl.SubIntent... subs) {
+        QueryDsl dsl = new QueryDsl();
+        dsl.setManifestId("manifest-001");
+        dsl.setMode(QueryDsl.AnalysisMode.QUERY);
+        dsl.setSubIntents(List.of(subs));
+        return dsl;
+    }
+
+    private static QueryDsl.SubIntent sub(String id, String metricId) {
+        QueryDsl.SubIntent sub = new QueryDsl.SubIntent();
+        sub.setSubIntentId(id);
+        sub.setMetricId(metricId);
+        sub.setTimeExpressionRaw("近 30 天");
+        return sub;
+    }
+
+    @Test
+    void shouldAcceptValidComposite() {
+        QueryDsl dsl = compositeDsl(sub("s1", TestFixtures.METRIC_ID), sub("s2", TestFixtures.METRIC_ID));
+        assertDoesNotThrow(() -> validator.validateComposite(dsl, manifest));
+    }
+
+    @Test
+    void shouldRejectCompositeWithTopLevelMetric() {
+        QueryDsl dsl = compositeDsl(sub("s1", TestFixtures.METRIC_ID));
+        dsl.setMetricId(TestFixtures.METRIC_ID);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> validator.validateComposite(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("顶层 metricId"));
+    }
+
+    @Test
+    void shouldRejectCompositeWithTopLevelDimensions() {
+        QueryDsl dsl = compositeDsl(sub("s1", TestFixtures.METRIC_ID));
+        dsl.setDimensions(List.of(TestFixtures.DIMENSION_ID));
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> validator.validateComposite(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldRejectCompositeWithoutSubIntents() {
+        QueryDsl dsl = new QueryDsl();
+        dsl.setManifestId("manifest-001");
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> validator.validateComposite(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldRejectResultDependentSubIntent() {
+        QueryDsl.SubIntent dependent = sub("s2", TestFixtures.METRIC_ID);
+        dependent.setDependsOn(List.of("s1"));
+        QueryDsl dsl = compositeDsl(sub("s1", TestFixtures.METRIC_ID), dependent);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> validator.validateComposite(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("结果依赖"));
+    }
+
+    @Test
+    void shouldRejectNonQuerySubIntent() {
+        QueryDsl.SubIntent lookupSub = sub("s1", TestFixtures.METRIC_ID);
+        lookupSub.setMode(QueryDsl.AnalysisMode.LOOKUP);
+        QueryDsl dsl = compositeDsl(lookupSub);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> validator.validateComposite(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("仅支持 QUERY"));
+    }
 }

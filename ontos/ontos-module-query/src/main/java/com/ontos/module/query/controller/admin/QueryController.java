@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.ontos.framework.common.pojo.CommonResult;
 import com.ontos.module.query.controller.admin.vo.QueryCompileRespVO;
+import com.ontos.module.query.controller.admin.vo.QueryCompositeRespVO;
 import com.ontos.module.query.controller.admin.vo.QueryDryRunRespVO;
 import com.ontos.module.query.controller.admin.vo.QueryExecuteRespVO;
 import com.ontos.module.query.controller.admin.vo.QueryPlanRespVO;
@@ -13,6 +14,7 @@ import com.ontos.module.query.core.dsl.QueryDsl;
 import com.ontos.module.query.core.executor.DryRunOutcome;
 import com.ontos.module.query.core.executor.QueryPlan;
 import com.ontos.module.query.core.executor.QueryResult;
+import com.ontos.module.query.service.CompositeOutcome;
 import com.ontos.module.query.service.QueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -94,6 +96,33 @@ public class QueryController {
     @Operation(summary = "按 request_id 回放最近一次编译产物（SQL / 绑定值 / 路径 / 计划）")
     public CommonResult<QueryPlanRespVO> replayPlan(@PathVariable String requestId) {
         return success(toPlanVO(queryService.replayPlan(requestId)));
+    }
+
+    @PostMapping("/composite/execute")
+    @Operation(summary = "复合意图执行：无依赖子集逐子独立编译/授权/审计，失败整单拒绝")
+    public CommonResult<QueryCompositeRespVO> executeComposite(@RequestBody JsonNode body) {
+        return success(toCompositeVO(queryService.executeComposite(dslCodec.decode(body))));
+    }
+
+    private static QueryCompositeRespVO toCompositeVO(CompositeOutcome outcome) {
+        QueryCompositeRespVO vo = new QueryCompositeRespVO();
+        vo.setRequestId(outcome.requestId());
+        vo.setTotalRowCount(outcome.totalRowCount());
+        vo.setResults(outcome.results().stream().map(sub -> {
+            QueryCompositeRespVO.SubResultVO subVO = new QueryCompositeRespVO.SubResultVO();
+            QueryResult result = sub.result();
+            subVO.setSubIntentId(sub.subIntentId());
+            subVO.setManifestId(result.getManifestId());
+            subVO.setContentHash(result.getContentHash());
+            subVO.setColumns(result.getColumns());
+            subVO.setRows(result.getRows());
+            subVO.setRowCount(result.getRowCount());
+            subVO.setTruncated(result.isTruncated());
+            subVO.setElapsedMs(result.getElapsedMs());
+            subVO.setLookupRows(toLookupRowVOs(result.getLookupRows()));
+            return subVO;
+        }).toList());
+        return vo;
     }
 
     private static QueryPlanRespVO toPlanVO(QueryPlan plan) {

@@ -42,7 +42,7 @@ public class DslCodec {
     private static final Set<String> COHORT_WINDOW = Set.of("timeExpressionRaw");
     private static final Set<String> SUB_INTENT = Set.of(
             "subIntentId", "metricId", "mode", "dimensions", "filters",
-            "timeExpressionRaw", "dependsOn");
+            "timeExpressionRaw", "timeRange", "dependsOn");
 
     /** 把请求体严格解码为类型化 DSL；任何未知字段/结构错误都在进入编译链路前拒绝。 */
     public QueryDsl decode(JsonNode body) {
@@ -73,6 +73,9 @@ public class DslCodec {
                 checkKeys(sub, SUB_INTENT, "subIntents[]");
                 if (sub.containsKey("filters")) {
                     checkList(sub.get("filters"), FILTER, "subIntents[].filters");
+                }
+                if (sub.containsKey("timeRange")) {
+                    checkObject(sub.get("timeRange"), TIME_RANGE, "subIntents[].timeRange");
                 }
             }
         }

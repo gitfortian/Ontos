@@ -1,6 +1,7 @@
 package com.ontos.module.query.service;
 
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -29,16 +30,20 @@ import com.ontos.module.system.service.audit.AuditService;
 import com.ontos.module.system.service.policy.PolicyService;
 import com.ontos.module.system.service.request.RequestStateService;
 import com.ontos.module.system.service.request.RequestStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;
 
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.MANIFEST_MISMATCH;
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ARTIFACT_NOT_FOUND;
+import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_NOT_UNIQUE;
 import static com.ontos.module.query.enums.ErrorCodeConstants.PLAN_COST_BLOCKED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.REQUEST_ALREADY_EXECUTED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.REQUEST_TERMINAL;
 
+@Slf4j
 @Service
 public class QueryServiceImpl implements QueryService {
 
@@ -82,23 +87,21 @@ public class QueryServiceImpl implements QueryService {
     public CompiledQuery compile(QueryDsl queryDsl) {
         RequestContext context = RequestContextHolder.require();
         String requestId = context.traceId();
-        requestStateService.initialize(context, requestId);
+        beginRequest(context, requestId);
         try {
             PublishedManifest manifest = prepare(queryDsl, context);
             CompiledQuery compiled = sqlCompiler.compile(queryDsl, manifest);
             // T4.5：编译产物先落库再推进状态，保证回放端点能取到「最近一次」产物
-            persistArtifact(context, compiled, null);
+            persistArtifact(context, context.traceId(), compiled, null);
             requestStateService.transition(context, requestId, RequestStatus.PROPOSED, "编译完成（dry-plan）");
             auditService.record(buildAudit(context, "COMPILE", queryDsl, compiled, null));
             return compiled;
         } catch (ServiceException ex) {
             // 与 execute 对齐：fail-closed 拒绝也是合法终态，不能让 compile 分支停在初始态
-            requestStateService.transition(context, requestId, RequestStatus.REJECTED,
-                    truncate(ex.getMessage()));
+            safeTransition(context, requestId, RequestStatus.REJECTED, truncate(ex.getMessage()));
             throw ex;
         } catch (RuntimeException ex) {
-            requestStateService.transition(context, requestId, RequestStatus.FAILED,
-                    truncate(String.valueOf(ex)));
+            safeTransition(context, requestId, RequestStatus.FAILED, truncate(String.valueOf(ex)));
             throw ex;
         }
     }
@@ -107,16 +110,12 @@ public class QueryServiceImpl implements QueryService {
     public QueryResult execute(QueryDsl queryDsl) {
         RequestContext context = RequestContextHolder.require();
         String requestId = context.traceId();
-        // 幂等（ADR-0004 2.2）：同 request_id 已执行 → 不重新执行（返回原状态以错误码明示；
-        // 原结果回放依赖 M2 结果缓存落地后接通）
-        if (requestStateService.findState(requestId).orElse(null) == RequestStatus.EXECUTED) {
-            throw exception(REQUEST_ALREADY_EXECUTED, requestId);
-        }
-        requestStateService.initialize(context, requestId);
+        // 幂等（ADR-0004 2.2）：request_id 是幂等键，已处于终态一律不接受重放
+        beginRequest(context, requestId);
         try {
             PublishedManifest manifest = prepare(queryDsl, context);
             CompiledQuery compiled = sqlCompiler.compile(queryDsl, manifest);
-            persistArtifact(context, compiled, null);
+            persistArtifact(context, context.traceId(), compiled, null);
             requestStateService.transition(context, requestId, RequestStatus.PROPOSED, "编译完成");
             QueryResult result = queryExecutor.execute(compiled, context);
             assembleLookupRows(queryDsl, manifest, compiled, result);
@@ -126,14 +125,153 @@ public class QueryServiceImpl implements QueryService {
             return result;
         } catch (ServiceException ex) {
             // fail-closed 类拒绝（清单/策略/DSL 校验）：REJECTED 是合法终态
-            requestStateService.transition(context, requestId, RequestStatus.REJECTED,
-                    truncate(ex.getMessage()));
+            safeTransition(context, requestId, RequestStatus.REJECTED, truncate(ex.getMessage()));
             throw ex;
         } catch (RuntimeException ex) {
-            requestStateService.transition(context, requestId, RequestStatus.FAILED,
-                    truncate(String.valueOf(ex)));
+            safeTransition(context, requestId, RequestStatus.FAILED, truncate(String.valueOf(ex)));
             throw ex;
         }
+    }
+
+    /**
+     * 复合意图执行（M2/W4/T4.3，无依赖子集）。
+     *
+     * <p>容器本身不产生 SQL：逐子意图独立走「时间换算 → 路径规划 → 结构校验 → 策略授权 →
+     * 编译」，全部通过后才执行，每子一份编译产物、一份审计行（带 parent_request_id +
+     * sub_intent_id），结果各自隔离返回，不合并 SQL、不共享中间结果。
+     *
+     * <p>先校验编译、后统一执行（两阶段）：任何一个子意图结构/授权不合格时，
+     * 不会出现「前面的子已经查过库、后面的子才被拒」的部分执行；失败仍是整单拒绝
+     * （AGENTS.md §4.2 不返回部分结果），「部分失败可解释」归 M6。
+     * 拒绝时先写一条 SUB_INTENT_REJECTED 审计，把失败定位钉在具体子意图上。
+     */
+    @Override
+    public CompositeOutcome executeComposite(QueryDsl queryDsl) {
+        RequestContext context = RequestContextHolder.require();
+        String parentRequestId = context.traceId();
+        beginRequest(context, parentRequestId);
+        try {
+            checkManifestHeader(queryDsl, context);
+            PublishedManifest manifest = manifestService.validateManifest(queryDsl.getManifestId());
+            dslValidator.validateComposite(queryDsl, manifest);
+            requestStateService.transition(context, parentRequestId, RequestStatus.PROPOSED,
+                    "复合意图结构校验通过");
+
+            // 阶段一：逐子校验 + 编译 + 落产物（此时还没有任何业务查询发生）
+            List<PreparedSub> prepared = new ArrayList<>();
+            for (QueryDsl.SubIntent sub : queryDsl.getSubIntents()) {
+                QueryDsl child = toChildDsl(queryDsl, sub);
+                try {
+                    prepareWith(child, context, manifest);
+                    CompiledQuery compiled = sqlCompiler.compile(child, manifest);
+                    persistArtifact(context, childRequestId(parentRequestId, sub.getSubIntentId()),
+                            compiled, null);
+                    prepared.add(new PreparedSub(sub, child, compiled));
+                } catch (ServiceException ex) {
+                    auditSubIntent(context, parentRequestId, sub, child, null, null, ex.getCode());
+                    throw ex;
+                }
+            }
+
+            // 阶段二：统一执行（全部子意图已确认可编译、已授权）
+            List<CompositeOutcome.SubResult> results = new ArrayList<>();
+            int totalRowCount = 0;
+            for (PreparedSub item : prepared) {
+                try {
+                    QueryResult result = queryExecutor.execute(item.compiled(), context);
+                    assembleLookupRows(item.child(), manifest, item.compiled(), result);
+                    totalRowCount += result.getRowCount();
+                    results.add(new CompositeOutcome.SubResult(item.sub().getSubIntentId(), result));
+                    auditSubIntent(context, parentRequestId, item.sub(), item.child(),
+                            item.compiled(), result.getRowCount(), null);
+                } catch (ServiceException ex) {
+                    auditSubIntent(context, parentRequestId, item.sub(), item.child(),
+                            item.compiled(), null, ex.getCode());
+                    throw ex;
+                }
+            }
+            requestStateService.transition(context, parentRequestId, RequestStatus.EXECUTED,
+                    "复合意图执行完成");
+            requestStateService.recordRowCount(parentRequestId, totalRowCount);
+            auditComposite(context, queryDsl, manifest, totalRowCount);
+            return new CompositeOutcome(parentRequestId, totalRowCount, results);
+        } catch (ServiceException ex) {
+            safeTransition(context, parentRequestId, RequestStatus.REJECTED, truncate(ex.getMessage()));
+            throw ex;
+        } catch (RuntimeException ex) {
+            safeTransition(context, parentRequestId, RequestStatus.FAILED, truncate(String.valueOf(ex)));
+            throw ex;
+        }
+    }
+
+    /** 阶段一产物：子意图 + 其子 DSL + 编译产物；阶段二只做「执行 + 审计」，不再校验。 */
+    private record PreparedSub(QueryDsl.SubIntent sub, QueryDsl child, CompiledQuery compiled) {
+    }
+
+    /** 子请求 ID 独立可寻址（产物表与审计都按它落），冒号在路径段内是合法字符，回放不必转义。 */
+    private static String childRequestId(String parentRequestId, String subIntentId) {
+        return parentRequestId + ":" + subIntentId;
+    }
+
+    /** 容器 → 子 DSL：只搬运子意图自有的字段，容器级参数已在 validateComposite 阶段拒绝。 */
+    private static QueryDsl toChildDsl(QueryDsl parent, QueryDsl.SubIntent sub) {
+        QueryDsl child = new QueryDsl();
+        child.setManifestId(parent.getManifestId());
+        child.setScenarioId(parent.getScenarioId());
+        child.setMode(sub.getMode() == null ? QueryDsl.AnalysisMode.QUERY : sub.getMode());
+        child.setMetricId(sub.getMetricId());
+        child.setDimensions(sub.getDimensions() == null ? new ArrayList<>() : sub.getDimensions());
+        child.setFilters(sub.getFilters() == null ? new ArrayList<>() : sub.getFilters());
+        child.setTimeExpressionRaw(sub.getTimeExpressionRaw());
+        // 时间维度随子意图走：解析器据此把「近 N 天」换算成 from/to 并回填 source=EXPRESSION
+        child.setTimeRange(sub.getTimeRange());
+        child.setVariantHint(parent.getVariantHint());
+        return child;
+    }
+
+    private void auditSubIntent(RequestContext context, String parentRequestId, QueryDsl.SubIntent sub,
+                                QueryDsl childDsl, CompiledQuery compiled, Integer rowCount,
+                                Integer errorCode) {
+        AuditLogCreateReqDTO audit = new AuditLogCreateReqDTO();
+        audit.setRequestId(childRequestId(parentRequestId, sub.getSubIntentId()));
+        audit.setParentRequestId(parentRequestId);
+        audit.setSubIntentId(sub.getSubIntentId());
+        audit.setTenantId(context.tenantId());
+        audit.setUserId(context.userId());
+        audit.setSessionId(context.sessionId());
+        audit.setTurnIndex(context.turnIndex());
+        audit.setManifestId(childDsl.getManifestId());
+        audit.setAction(compiled == null ? "SUB_INTENT_REJECTED" : "EXECUTE");
+        audit.setMetricId(childDsl.getMetricId());
+        audit.setDslJson(JsonUtils.toJsonString(childDsl));
+        if (compiled != null) {
+            audit.setSqlText(compiled.getSql());
+            audit.setRowCount(rowCount);
+        }
+        if (errorCode != null) {
+            audit.setReasonCode(String.valueOf(errorCode));
+        }
+        audit.setTraceId(context.traceId());
+        audit.setDevMode(context.devMode());
+        auditService.record(audit);
+    }
+
+    /** 父级汇总审计：只记容器与总量，逐子的 SQL 与行数在各自子请求行里。 */
+    private void auditComposite(RequestContext context, QueryDsl dsl, PublishedManifest manifest,
+                                int totalRowCount) {
+        AuditLogCreateReqDTO audit = new AuditLogCreateReqDTO();
+        audit.setRequestId(context.traceId());
+        audit.setTenantId(context.tenantId());
+        audit.setUserId(context.userId());
+        audit.setSessionId(context.sessionId());
+        audit.setTurnIndex(context.turnIndex());
+        audit.setManifestId(manifest.getManifestId());
+        audit.setAction("COMPOSITE_EXECUTE");
+        audit.setDslJson(JsonUtils.toJsonString(dsl));
+        audit.setRowCount(totalRowCount);
+        audit.setTraceId(context.traceId());
+        audit.setDevMode(context.devMode());
+        auditService.record(audit);
     }
 
     /**
@@ -150,7 +288,7 @@ public class QueryServiceImpl implements QueryService {
         CompiledQuery compiled = sqlCompiler.compile(queryDsl, manifest);
         QueryPlan plan = queryExecutor.explain(compiled, context);
         plan.setCompiled(compiled);
-        persistArtifact(context, compiled, plan);
+        persistArtifact(context, context.traceId(), compiled, plan);
         recordPlanAudit(context, "DRY_PLAN", queryDsl, compiled, plan, null);
         return plan;
     }
@@ -170,7 +308,7 @@ public class QueryServiceImpl implements QueryService {
         plan.setCompiled(compiled);
         if (QueryPlan.BLOCKED.equals(plan.getStatus())) {
             // 被拦的计划同样要能回放「当时为什么被拦」，所以先落库再拒绝
-            persistArtifact(context, compiled, plan);
+            persistArtifact(context, context.traceId(), compiled, plan);
             recordPlanAudit(context, "DRY_RUN", queryDsl, compiled, plan, null);
             throw exception(PLAN_COST_BLOCKED, plan.getBlockReason());
         }
@@ -178,7 +316,7 @@ public class QueryServiceImpl implements QueryService {
         assembleLookupRows(queryDsl, manifest, compiled, result);
         plan.setVerified(true);
         // 校验完成后再落库：verified=true 是回放端点要还原的状态，不能提前写死 false
-        persistArtifact(context, compiled, plan);
+        persistArtifact(context, context.traceId(), compiled, plan);
         recordPlanAudit(context, "DRY_RUN", queryDsl, compiled, plan, result.getRowCount());
         return new DryRunOutcome(plan, result);
     }
@@ -225,11 +363,12 @@ public class QueryServiceImpl implements QueryService {
      * 编译产物落库（T4.5）：同一 (tenant, user, request_id) 覆盖为最近一次。
      * 绑定值可能含标识类值，落库前不做二次加工，访问侧按租户 + 用户收敛。
      */
-    private void persistArtifact(RequestContext context, CompiledQuery compiled, QueryPlan plan) {
+    private void persistArtifact(RequestContext context, String requestId,
+                                 CompiledQuery compiled, QueryPlan plan) {
         QueryArtifactDO artifact = new QueryArtifactDO();
         artifact.setTenantId(context.tenantId());
         artifact.setUserId(context.userId());
-        artifact.setRequestId(context.traceId());
+        artifact.setRequestId(requestId);
         artifact.setSessionId(context.sessionId());
         artifact.setManifestId(compiled.getManifestId());
         artifact.setContentHash(compiled.getContentHash());
@@ -293,6 +432,34 @@ public class QueryServiceImpl implements QueryService {
         return text.length() <= 200 ? text : text.substring(0, 200);
     }
 
+    /**
+     * 请求入口：request_id 是幂等键（ADR-0004 2.2）。已处于终态的请求一律不接受再次驱动——
+     * 否则后续 transition 会抛 IllegalStateException（非业务错误，客户端只会看到 500）。
+     */
+    private void beginRequest(RequestContext context, String requestId) {
+        RequestStatus current = requestStateService.findState(requestId).orElse(null);
+        if (current == RequestStatus.EXECUTED) {
+            throw exception(REQUEST_ALREADY_EXECUTED, requestId);
+        }
+        if (current != null && current.isTerminal()) {
+            throw exception(REQUEST_TERMINAL, current.name(), requestId);
+        }
+        requestStateService.initialize(context, requestId);
+    }
+
+    /**
+     * 失败路径的状态推进：请求已是终态（或该迁移本就非法）时不再迁移，只记 WARN。
+     * 否则「记录失败」这一步会自己抛 IllegalStateException，把真正的失败原因盖掉。
+     */
+    private void safeTransition(RequestContext context, String requestId, RequestStatus target, String reason) {
+        RequestStatus current = requestStateService.findState(requestId).orElse(RequestStatus.RECEIVED);
+        if (current.isTerminal() || !current.canTransitionTo(target)) {
+            log.warn("[safeTransition][跳过非法迁移] {} {} -> {}", requestId, current, target);
+            return;
+        }
+        requestStateService.transition(context, requestId, target, reason);
+    }
+
     private static AuditLogCreateReqDTO buildAudit(RequestContext context, String action, QueryDsl queryDsl,
                                                    CompiledQuery compiled, Integer rowCount) {
         AuditLogCreateReqDTO audit = new AuditLogCreateReqDTO();
@@ -316,10 +483,27 @@ public class QueryServiceImpl implements QueryService {
      * 校验清单一致性、DSL 结构与授权。任何一步失败都在触达数据库前终止。
      */
     private PublishedManifest prepare(QueryDsl queryDsl, RequestContext context) {
+        if (queryDsl.getSubIntents() != null && !queryDsl.getSubIntents().isEmpty()) {
+            // 复合请求本身没有指标，走单请求链路只会在 requireMetric(null) 上给出含糊错误
+            throw exception(DSL_INVALID, "复合意图请使用 /api/v1/query/composite/execute");
+        }
+        checkManifestHeader(queryDsl, context);
+        PublishedManifest manifest = manifestService.validateManifest(queryDsl.getManifestId());
+        return prepareWith(queryDsl, context, manifest);
+    }
+
+    private static void checkManifestHeader(QueryDsl queryDsl, RequestContext context) {
         if (context.manifestId() != null && !context.manifestId().equals(queryDsl.getManifestId())) {
             throw exception(MANIFEST_MISMATCH, queryDsl.getManifestId());
         }
-        PublishedManifest manifest = manifestService.validateManifest(queryDsl.getManifestId());
+    }
+
+    /**
+     * 单个 DSL 的解析与授权（清单已加载）：时间换算 → 路径规划 → 结构校验 → 策略。
+     * 复合意图逐子复用同一份清单，避免每个子意图都重新加载清单。
+     */
+    private PublishedManifest prepareWith(QueryDsl queryDsl, RequestContext context,
+                                          PublishedManifest manifest) {
         if (!isLookup(queryDsl)) {
             // M2/T2.3 接线：相对时间先由服务端解析器换算，再进入结构与授权校验。
             // 解析结果（含 patternId / parserVersion）写入 DSL，随 buildAudit 的 dsl_json 进审计。

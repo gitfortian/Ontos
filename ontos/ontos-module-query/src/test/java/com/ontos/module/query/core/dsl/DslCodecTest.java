@@ -111,4 +111,26 @@ class DslCodecTest {
                 + "\"operator\":\"EQ\",\"values\":[{\"x\":1}]}]}", DSL_INVALID.getCode());
     }
 
+    @Test
+    void shouldDecodeSubIntentTimeRange() {
+        // 子意图必须能带时间维度：否则相对时间解析拿不到 field，复合请求整体不可用
+        QueryDsl dsl = codec.decode(json("""
+                {"manifestId":"manifest-001","mode":"QUERY","subIntents":[
+                  {"subIntentId":"s1","metricId":"gmv","dimensions":["region"],
+                   "timeExpressionRaw":"近 30 天","timeRange":{"field":"order_date"}}]}
+                """));
+
+        assertEquals("order_date", dsl.getSubIntents().get(0).getTimeRange().getField());
+        assertEquals("近 30 天", dsl.getSubIntents().get(0).getTimeExpressionRaw());
+    }
+
+    @Test
+    void shouldRejectClientSuppliedSourceInsideSubIntentTimeRange() {
+        // source 是服务端回填字段，客户端提交一律拒绝（与顶层 timeRange 同一条边界）
+        assertRejected("{\"manifestId\":\"manifest-001\",\"mode\":\"QUERY\",\"subIntents\":["
+                + "{\"subIntentId\":\"s1\",\"metricId\":\"gmv\",\"timeRange\":"
+                + "{\"field\":\"order_date\",\"source\":\"EXPRESSION\"}}]}",
+                DSL_UNKNOWN_FIELD.getCode());
+    }
+
 }

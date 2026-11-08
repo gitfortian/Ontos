@@ -39,5 +39,6 @@ public interface ErrorCodeConstants {
     ErrorCode PLAN_COST_BLOCKED = new ErrorCode(1_002_000_029, "执行计划估算成本超阈值，已阻断 dry-run: {}");
     ErrorCode PLAN_UNAVAILABLE = new ErrorCode(1_002_000_030, "EXPLAIN 未返回可解析的执行计划: {}");
     ErrorCode ARTIFACT_NOT_FOUND = new ErrorCode(1_002_000_031, "该请求没有可回放的编译产物（或不属于当前租户/用户）: {}");
+    ErrorCode REQUEST_TERMINAL = new ErrorCode(1_002_000_032, "请求已处于终态（{}），请使用新的 request_id 重试: {}");
 
 }

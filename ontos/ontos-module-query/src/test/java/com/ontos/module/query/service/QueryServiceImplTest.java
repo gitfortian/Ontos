@@ -41,8 +41,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import static com.ontos.module.query.core.dsl.QueryDsl.TimeRange.SOURCE_EXPRESSION;
+import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ARTIFACT_NOT_FOUND;
+import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
 import static com.ontos.module.query.enums.ErrorCodeConstants.PLAN_COST_BLOCKED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.REQUEST_ALREADY_EXECUTED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.REQUEST_TERMINAL;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -50,8 +54,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -417,6 +423,128 @@ class QueryServiceImplTest {
 
         assertEquals(ARTIFACT_NOT_FOUND.getCode(), ex.getCode());
         verify(auditService, never()).record(any());
+    }
+
+    // ---- 复合意图逐子编译（M2/W4/T4.3）----
+
+    private static QueryDsl compositeDsl(int subCount) {
+        QueryDsl dsl = new QueryDsl();
+        dsl.setManifestId("manifest-001");
+        dsl.setMode(QueryDsl.AnalysisMode.QUERY);
+        List<QueryDsl.SubIntent> subs = new ArrayList<>();
+        for (int i = 1; i <= subCount; i++) {
+            QueryDsl.SubIntent sub = new QueryDsl.SubIntent();
+            sub.setSubIntentId("s" + i);
+            sub.setMetricId(TestFixtures.METRIC_ID);
+            sub.setDimensions(List.of(TestFixtures.DIMENSION_ID));
+            subs.add(sub);
+        }
+        dsl.setSubIntents(subs);
+        return dsl;
+    }
+
+    private static QueryResult rows(int count) {
+        QueryResult result = new QueryResult();
+        result.setManifestId("manifest-001");
+        result.setContentHash("hash-1");
+        result.setColumns(List.of("value"));
+        result.setRows(List.of(Map.of("value", count)));
+        result.setRowCount(count);
+        return result;
+    }
+
+    @Test
+    void shouldCompileAndExecuteEachSubIntentIndependently() {
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
+        when(queryExecutor.execute(any(), any())).thenReturn(rows(2), rows(3));
+
+        CompositeOutcome outcome = service(new TimeWindowResolver()).executeComposite(compositeDsl(2));
+
+        assertEquals("trace-1", outcome.requestId());
+        assertEquals(5, outcome.totalRowCount());
+        assertEquals(List.of("s1", "s2"),
+                outcome.results().stream().map(CompositeOutcome.SubResult::subIntentId).toList());
+        // 逐子独立编译 + 独立执行，不合并 SQL
+        verify(sqlCompiler, times(2)).compile(any(), any());
+        verify(queryExecutor, times(2)).execute(any(), any());
+
+        ArgumentCaptor<AuditLogCreateReqDTO> captor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);
+        verify(auditService, times(3)).record(captor.capture());
+        List<AuditLogCreateReqDTO> audits = captor.getAllValues();
+        assertEquals("EXECUTE", audits.get(0).getAction());
+        assertEquals("trace-1:s1", audits.get(0).getRequestId());
+        assertEquals("trace-1", audits.get(0).getParentRequestId());
+        assertEquals("s1", audits.get(0).getSubIntentId());
+        assertEquals(2, audits.get(0).getRowCount());
+        assertEquals("trace-1:s2", audits.get(1).getRequestId());
+        assertEquals("COMPOSITE_EXECUTE", audits.get(2).getAction());
+        assertEquals(5, audits.get(2).getRowCount(), "父级审计记总量");
+
+        verify(requestStateService).transition(any(), eq("trace-1"), eq(RequestStatus.EXECUTED), any());
+        verify(requestStateService).recordRowCount("trace-1", 5);
+
+        ArgumentCaptor<QueryArtifactDO> artifactCaptor = ArgumentCaptor.forClass(QueryArtifactDO.class);
+        verify(queryArtifactRepository, times(2)).upsert(artifactCaptor.capture());
+        assertEquals(List.of("trace-1:s1", "trace-1:s2"),
+                artifactCaptor.getAllValues().stream().map(QueryArtifactDO::getRequestId).toList(),
+                "子请求 ID 独立可寻址，回放端点按它取");
+    }
+
+    @Test
+    void shouldRejectWholeCompositeWhenOneSubFails() {
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
+        when(queryExecutor.execute(any(), any())).thenReturn(rows(1));
+        doThrow(exception(ARTIFACT_NOT_FOUND, "denied")).when(policyService).check(any(), any());
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).executeComposite(compositeDsl(2)));
+
+        assertEquals(ARTIFACT_NOT_FOUND.getCode(), ex.getCode());
+        verify(requestStateService).transition(any(), eq("trace-1"), eq(RequestStatus.REJECTED), any());
+        // 两阶段：校验阶段就失败，不能有任何子意图真的查过库
+        verify(queryExecutor, never()).execute(any(), any());
+        // 失败也要把定位钉在具体子意图上
+        ArgumentCaptor<AuditLogCreateReqDTO> captor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);
+        verify(auditService).record(captor.capture());
+        assertEquals("SUB_INTENT_REJECTED", captor.getValue().getAction());
+        assertEquals("s1", captor.getValue().getSubIntentId());
+        assertEquals(String.valueOf(ARTIFACT_NOT_FOUND.getCode()), captor.getValue().getReasonCode());
+    }
+
+    @Test
+    void shouldRejectCompositeOnSingleRequestChannel() {
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).compile(compositeDsl(1)));
+
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("composite"));
+    }
+
+    @Test
+    void shouldRejectReplayOfTerminalRequestId() {
+        // 深度审核回归：终态 request_id 重放会让后续 transition 抛 IllegalStateException → 500
+        when(requestStateService.findState("trace-1")).thenReturn(Optional.of(RequestStatus.REJECTED));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).executeComposite(compositeDsl(1)));
+
+        assertEquals(REQUEST_TERMINAL.getCode(), ex.getCode());
+        verify(requestStateService, never()).initialize(any(), any());
+    }
+
+    @Test
+    void shouldRejectReplayOfExecutedRequestId() {
+        when(requestStateService.findState("trace-1")).thenReturn(Optional.of(RequestStatus.EXECUTED));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).execute(TestFixtures.query()));
+
+        assertEquals(REQUEST_ALREADY_EXECUTED.getCode(), ex.getCode());
+        verify(requestStateService, never()).initialize(any(), any());
     }
 
 }

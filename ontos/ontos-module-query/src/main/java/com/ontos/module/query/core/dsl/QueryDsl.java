@@ -88,6 +88,12 @@ public class QueryDsl {
         private List<String> dimensions = new ArrayList<>();
         private List<Filter> filters = new ArrayList<>();
         private String timeExpressionRaw;
+        /**
+         * 子意图自己的时间维度（只承载 {@code field}）：相对时间由服务端解析器换算后回填 from/to。
+         * 子意图没有 explicitRange，M2 表达不了「子意图内的绝对日期」——这是有意的窄口，
+         * 避免复合请求绕过「绝对日期只走 explicitRange」的唯一放行路径。
+         */
+        private TimeRange timeRange;
         /** M2 仅支持无依赖子集；非空即拒绝并转澄清（全链路归 M6）。 */
         private List<String> dependsOn = new ArrayList<>();
     }

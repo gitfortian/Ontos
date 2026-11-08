@@ -587,7 +587,56 @@ public class DslValidator {
             if (sub.getDependsOn() != null && !sub.getDependsOn().isEmpty()) {
                 throw exception(DSL_INVALID, "M2 不支持结果依赖子意图，转澄清（全链路归 M6）");
             }
+            QueryDsl.AnalysisMode subMode = sub.getMode() == null
+                    ? QueryDsl.AnalysisMode.QUERY : sub.getMode();
+            if (subMode != QueryDsl.AnalysisMode.QUERY) {
+                // 子意图 DSL 只有 metric/dimensions/filters/timeExpressionRaw，
+                // 表达不了 lookup 的实体与标识，也表达不了 yoy_mom 的周期参数。
+                throw exception(DSL_INVALID, "M2 复合意图仅支持 QUERY 子意图: " + sub.getSubIntentId());
+            }
         }
+    }
+
+    /**
+     * 复合意图容器校验（M2/W4/T4.3，无依赖子集）。
+     *
+     * <p>复合请求本身只是容器：不携带指标、维度、过滤与时间窗，全部下放到子意图。
+     * 允许混写会让「这个过滤条件作用于整体还是某个子意图」变成隐含约定，
+     * 因此一律拒绝，由调用方把参数挪到具体 subIntent 上。
+     */
+    public void validateComposite(QueryDsl dsl, PublishedManifest manifest) {
+        if (dsl == null) {
+            throw invalidParamException("查询 DSL 不能为空");
+        }
+        if (dsl.getSubIntents() == null || dsl.getSubIntents().isEmpty()) {
+            throw exception(DSL_INVALID, "复合意图缺少 subIntents");
+        }
+        QueryDsl.AnalysisMode mode = dsl.getMode() == null ? QueryDsl.AnalysisMode.QUERY : dsl.getMode();
+        if (mode != QueryDsl.AnalysisMode.QUERY) {
+            throw exception(DSL_INVALID, "复合意图只支持 QUERY 容器模式: " + mode);
+        }
+        if (!isBlank(dsl.getMetricId())) {
+            throw exception(DSL_INVALID, "复合意图不允许同时指定顶层 metricId");
+        }
+        if (dsl.getDimensions() != null && !dsl.getDimensions().isEmpty()) {
+            throw exception(DSL_INVALID, "复合意图不允许顶层 dimensions，请下放到 subIntents");
+        }
+        if (dsl.getFilters() != null && !dsl.getFilters().isEmpty()) {
+            throw exception(DSL_INVALID, "复合意图不允许顶层 filters，请下放到 subIntents");
+        }
+        if (dsl.getTimeRange() != null || dsl.getExplicitRange() != null
+                || !isBlank(dsl.getTimeExpressionRaw())) {
+            throw exception(DSL_INVALID, "复合意图不允许顶层时间窗，请下放到 subIntents");
+        }
+        if (dsl.getAnalysisParams() != null) {
+            throw exception(DSL_INVALID, "复合意图不接受 analysisParams");
+        }
+        if (!isBlank(dsl.getEntityId()) || dsl.getIdentity() != null
+                || (dsl.getIdentities() != null && !dsl.getIdentities().isEmpty())
+                || (dsl.getAttributes() != null && !dsl.getAttributes().isEmpty())) {
+            throw exception(DSL_INVALID, "复合意图不接受 lookup 字段");
+        }
+        validateSubIntents(dsl, manifest.getSemantic());
     }
 
     private static boolean isBlank(String text) {
