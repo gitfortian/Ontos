@@ -1,9 +1,11 @@
 package com.ontos.module.query.service;
 
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.framework.common.util.json.JsonUtils;
@@ -12,6 +14,7 @@ import com.ontos.framework.web.core.context.RequestContextHolder;
 import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.service.manifest.ManifestService;
+import com.ontos.module.query.core.cache.QueryCacheKey;
 import com.ontos.module.query.core.compiler.CompiledQuery;
 import com.ontos.module.query.core.compiler.JoinPathResolver;
 import com.ontos.module.query.core.compiler.SqlCompiler;
@@ -25,6 +28,7 @@ import com.ontos.module.query.core.time.TimeExpressionParser;
 import com.ontos.module.query.core.time.TimeWindowResolver;
 import com.ontos.module.query.dal.dataobject.QueryArtifactDO;
 import com.ontos.module.query.dal.mysql.QueryArtifactRepository;
+import com.ontos.module.query.service.cache.QueryCacheService;
 import com.ontos.module.system.service.audit.AuditLogCreateReqDTO;
 import com.ontos.module.system.service.audit.AuditService;
 import com.ontos.module.system.service.policy.PolicyService;
@@ -60,6 +64,7 @@ public class QueryServiceImpl implements QueryService {
     private final TimeWindowResolver timeWindowResolver;
     private final JoinPathResolver joinPathResolver;
     private final QueryArtifactRepository queryArtifactRepository;
+    private final QueryCacheService queryCacheService;
 
     public QueryServiceImpl(ManifestService manifestService,
                             DslValidator dslValidator,
@@ -70,7 +75,8 @@ public class QueryServiceImpl implements QueryService {
                             RequestStateService requestStateService,
                             TimeWindowResolver timeWindowResolver,
                             JoinPathResolver joinPathResolver,
-                            QueryArtifactRepository queryArtifactRepository) {
+                            QueryArtifactRepository queryArtifactRepository,
+                            QueryCacheService queryCacheService) {
         this.manifestService = manifestService;
         this.dslValidator = dslValidator;
         this.policyService = policyService;
@@ -81,6 +87,7 @@ public class QueryServiceImpl implements QueryService {
         this.timeWindowResolver = timeWindowResolver;
         this.joinPathResolver = joinPathResolver;
         this.queryArtifactRepository = queryArtifactRepository;
+        this.queryCacheService = queryCacheService;
     }
 
     @Override
@@ -114,6 +121,20 @@ public class QueryServiceImpl implements QueryService {
         beginRequest(context, requestId);
         try {
             PublishedManifest manifest = prepare(queryDsl, context);
+            // T4.4：命中即跳过编译与执行；但 prepare 一定先跑——授权与校验不能因为缓存被跳过
+            String cacheKey = cacheKeyOf(context, manifest, queryDsl);
+            if (cacheKey != null) {
+                Optional<QueryResult> cached = queryCacheService.get(cacheKey);
+                if (cached.isPresent()) {
+                    QueryResult hit = cached.get();
+                    requestStateService.transition(context, requestId, RequestStatus.PROPOSED, "缓存命中");
+                    requestStateService.transition(context, requestId, RequestStatus.EXECUTED,
+                            "执行完成（缓存命中）");
+                    requestStateService.recordRowCount(requestId, hit.getRowCount());
+                    auditCacheHit(context, queryDsl, manifest, hit);
+                    return hit;
+                }
+            }
             CompiledQuery compiled = sqlCompiler.compile(queryDsl, manifest);
             persistArtifact(context, context.traceId(), compiled, null);
             requestStateService.transition(context, requestId, RequestStatus.PROPOSED, "编译完成");
@@ -121,7 +142,17 @@ public class QueryServiceImpl implements QueryService {
             assembleLookupRows(queryDsl, manifest, compiled, result);
             requestStateService.transition(context, requestId, RequestStatus.EXECUTED, "执行完成");
             requestStateService.recordRowCount(requestId, result.getRowCount());
-            auditService.record(buildAudit(context, "EXECUTE", queryDsl, compiled, result.getRowCount()));
+            AuditLogCreateReqDTO audit = buildAudit(context, "EXECUTE", queryDsl, compiled,
+                    result.getRowCount());
+            if (cacheKey != null) {
+                audit.setReasonCode("CACHE_MISS");
+            }
+            auditService.record(audit);
+            if (cacheKey != null) {
+                // 回写放在响应之前、但失败只降级 WARN（ADR-0008 决策 3）
+                queryCacheService.put(cacheKey, manifest.getManifestId(), manifest.getContentHash(),
+                        String.valueOf(queryDsl.getMode()), result);
+            }
             return result;
         } catch (ServiceException ex) {
             // fail-closed 类拒绝（清单/策略/DSL 校验）：REJECTED 是合法终态
@@ -423,6 +454,39 @@ public class QueryServiceImpl implements QueryService {
         compiled.setAppliedLimit(artifact.getAppliedLimit() == null ? 0 : artifact.getAppliedLimit());
         compiled.setCompiledAt(artifact.getUpdatedAt().atZone(ZoneId.of(TimeExpressionParser.ZONE)).toInstant());
         return compiled;
+    }
+
+    /**
+     * 缓存键；缓存关闭时返回 null，调用方据此完全跳过缓存分支。
+     * 时间基准日取 Asia/Shanghai 的今天：跨日即换键，避免「近 7 天」复用昨日结果。
+     */
+    private String cacheKeyOf(RequestContext context, PublishedManifest manifest, QueryDsl queryDsl) {
+        if (!queryCacheService.isEnabled()) {
+            return null;
+        }
+        int appliedLimit = queryDsl.getLimit() == null ? 0 : queryDsl.getLimit();
+        return QueryCacheKey.of(context, manifest, queryDsl, appliedLimit,
+                LocalDate.now(ZoneId.of(TimeExpressionParser.ZONE)));
+    }
+
+    /** 缓存命中审计：没有新编译产物，因此不写 sql_text；reasonCode 标 CACHE_HIT 便于统计命中率。 */
+    private void auditCacheHit(RequestContext context, QueryDsl queryDsl, PublishedManifest manifest,
+                               QueryResult result) {
+        AuditLogCreateReqDTO audit = new AuditLogCreateReqDTO();
+        audit.setRequestId(context.traceId());
+        audit.setTenantId(context.tenantId());
+        audit.setUserId(context.userId());
+        audit.setSessionId(context.sessionId());
+        audit.setTurnIndex(context.turnIndex());
+        audit.setManifestId(manifest.getManifestId());
+        audit.setAction("EXECUTE");
+        audit.setMetricId(queryDsl.getMetricId());
+        audit.setDslJson(JsonUtils.toJsonString(queryDsl));
+        audit.setRowCount(result.getRowCount());
+        audit.setReasonCode("CACHE_HIT");
+        audit.setTraceId(context.traceId());
+        audit.setDevMode(context.devMode());
+        auditService.record(audit);
     }
 
     private static String truncate(String text) {

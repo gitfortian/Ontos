@@ -26,5 +26,9 @@ public class QueryProperties {
     private Duration dryRunTimeout = Duration.ofSeconds(5);
     /** dry-run 的返回行数上限，必须比正式执行更紧（M2/W4/T4.2）。 */
     private int dryRunMaxRows = 50;
+    /** 结果缓存开关（ADR-0008 回退方案：出现任何正确性疑问先关缓存）。 */
+    private boolean cacheEnabled = true;
+    /** 缓存键保留期：超过该期限未命中的键在启动时就地回收。 */
+    private Duration cacheRetention = Duration.ofDays(7);
 
 }

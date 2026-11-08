@@ -54,6 +54,9 @@ ontos:
     # dry-run 调试通道的资源闸门：必须比正式执行更紧（M2/W4/T4.2）
     dry-run-timeout: PT5S
     dry-run-max-rows: 50
+    # 结果缓存（ADR-0008）：任何正确性疑问先置 false 关闭
+    cache-enabled: true
+    cache-retention: P7D
   manifest:
     startup-load: true
   policy:

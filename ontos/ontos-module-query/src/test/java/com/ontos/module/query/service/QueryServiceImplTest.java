@@ -30,6 +30,7 @@ import com.ontos.module.query.core.executor.QueryResult;
 import com.ontos.module.query.core.time.TimeWindowResolver;
 import com.ontos.module.query.dal.dataobject.QueryArtifactDO;
 import com.ontos.module.query.dal.mysql.QueryArtifactRepository;
+import com.ontos.module.query.service.cache.QueryCacheService;
 import com.ontos.module.system.service.audit.AuditLogCreateReqDTO;
 import com.ontos.module.system.service.audit.AuditService;
 import com.ontos.module.system.service.policy.PolicyService;
@@ -73,6 +74,7 @@ class QueryServiceImplTest {
     private final AuditService auditService = mock(AuditService.class);
     private final RequestStateService requestStateService = mock(RequestStateService.class);
     private final QueryArtifactRepository queryArtifactRepository = mock(QueryArtifactRepository.class);
+    private final QueryCacheService queryCacheService = mock(QueryCacheService.class);
 
     @BeforeEach
     void setUp() {
@@ -88,7 +90,7 @@ class QueryServiceImplTest {
     private QueryServiceImpl service(TimeWindowResolver resolver) {
         return new QueryServiceImpl(manifestService, new DslValidator(TestFixtures.queryProperties()),
                 policyService, sqlCompiler, queryExecutor, auditService, requestStateService, resolver,
-                new JoinPathResolver(() -> Set.of()), queryArtifactRepository);
+                new JoinPathResolver(() -> Set.of()), queryArtifactRepository, queryCacheService);
     }
 
     private static PublishedManifest manifestWithPatterns() {
@@ -545,6 +547,63 @@ class QueryServiceImplTest {
 
         assertEquals(REQUEST_ALREADY_EXECUTED.getCode(), ex.getCode());
         verify(requestStateService, never()).initialize(any(), any());
+    }
+
+    // ---- 结果缓存（M2/W4/T4.4）----
+
+    @Test
+    void shouldCompileAndStoreOnCacheMiss() {
+        when(queryCacheService.isEnabled()).thenReturn(true);
+        when(queryCacheService.get(any())).thenReturn(Optional.empty());
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
+        when(queryExecutor.execute(any(), any())).thenReturn(rows(2));
+
+        service(new TimeWindowResolver()).execute(TestFixtures.query());
+
+        verify(queryExecutor).execute(any(), any());
+        verify(queryCacheService).put(any(), eq("manifest-001"),
+                eq(TestFixtures.manifest().getContentHash()), eq("QUERY"), any());
+        ArgumentCaptor<AuditLogCreateReqDTO> captor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);
+        verify(auditService).record(captor.capture());
+        assertEquals("CACHE_MISS", captor.getValue().getReasonCode());
+    }
+
+    @Test
+    void shouldReturnCachedResultWithoutCompilingOrExecuting() {
+        when(queryCacheService.isEnabled()).thenReturn(true);
+        QueryResult cached = rows(3);
+        cached.setCached(true);
+        when(queryCacheService.get(any())).thenReturn(Optional.of(cached));
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
+
+        QueryResult result = service(new TimeWindowResolver()).execute(TestFixtures.query());
+
+        assertTrue(result.isCached());
+        assertEquals(3, result.getRowCount());
+        // 命中后不得再编译或查库
+        verify(sqlCompiler, never()).compile(any(), any());
+        verify(queryExecutor, never()).execute(any(), any());
+        verify(requestStateService).transition(any(), eq("trace-1"), eq(RequestStatus.EXECUTED), any());
+        ArgumentCaptor<AuditLogCreateReqDTO> captor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);
+        verify(auditService).record(captor.capture());
+        assertEquals("CACHE_HIT", captor.getValue().getReasonCode());
+    }
+
+    @Test
+    void shouldBypassCacheEntirelyWhenDisabled() {
+        when(queryCacheService.isEnabled()).thenReturn(false);
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
+        when(queryExecutor.execute(any(), any())).thenReturn(rows(1));
+
+        service(new TimeWindowResolver()).execute(TestFixtures.query());
+
+        verify(queryCacheService, never()).get(any());
+        verify(queryCacheService, never()).put(any(), any(), any(), any(), any());
+        ArgumentCaptor<AuditLogCreateReqDTO> captor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);
+        verify(auditService).record(captor.capture());
+        assertNull(captor.getValue().getReasonCode(), "关闭缓存时不应打 CACHE_* 标记");
     }
 
 }

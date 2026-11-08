@@ -1,5 +1,6 @@
 package com.ontos.module.ontology.service.manifest;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -33,10 +34,17 @@ public class ManifestServiceImpl implements ManifestService, ApplicationRunner {
     private final OntologyPublishValidator publishValidator = new OntologyPublishValidator();
     private final ManifestStructureValidator structureValidator = new ManifestStructureValidator();
     private final AtomicReference<PublishedManifest> active = new AtomicReference<>();
+    /**
+     * 激活后的外部副作用（M2/W4/T4.4 缓存失效）。用「端口 + 实现方在 query 模块」而不是反向依赖：
+     * ontology 不得依赖 ontos-module-query（ArchUnit 守护方向）。允许为空——单模块测试没有监听者。
+     */
+    private final List<ManifestActivationListener> activationListeners;
 
-    public ManifestServiceImpl(PublishedSnapshotRepository snapshotRepository, ManifestProperties properties) {
+    public ManifestServiceImpl(PublishedSnapshotRepository snapshotRepository, ManifestProperties properties,
+                               List<ManifestActivationListener> activationListeners) {
         this.snapshotRepository = snapshotRepository;
         this.properties = properties;
+        this.activationListeners = activationListeners;
     }
 
     @Override
@@ -107,7 +115,19 @@ public class ManifestServiceImpl implements ManifestService, ApplicationRunner {
         active.set(manifest);
         log.info("[activate][manifestId({}) contentHash({})]", manifest.getManifestId(),
                 manifest.getContentHash());
+        notifyActivated(manifest.getManifestId());
         return manifest;
+    }
+
+    /** 激活后的副作用：逐个通知监听者，任何失败只降级 WARN，不回滚激活。 */
+    private void notifyActivated(String manifestId) {
+        for (ManifestActivationListener listener : activationListeners) {
+            try {
+                listener.afterManifestActivated(manifestId);
+            } catch (RuntimeException ex) {
+                log.warn("[notifyActivated][激活后置动作失败，降级继续: {}]", ex.getMessage());
+            }
+        }
     }
 
     private PublishedManifest assemble(PublishedSnapshotDO snapshot) {

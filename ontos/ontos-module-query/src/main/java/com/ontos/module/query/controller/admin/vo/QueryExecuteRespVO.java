@@ -31,6 +31,9 @@ public class QueryExecuteRespVO {
     @Schema(description = "执行耗时（毫秒）")
     private Long elapsedMs;
 
+    @Schema(description = "是否来自结果缓存（true 表示未重新编译执行）")
+    private Boolean cached;
+
     @Schema(description = "lookup 逐行可用性（按请求顺序；不可用行不区分不存在/无权限）")
     private List<LookupRowVO> lookupRows;
 

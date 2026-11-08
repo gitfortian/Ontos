@@ -17,6 +17,8 @@ public class QueryResult {
     private long elapsedMs;
     /** W3/T3.2：lookup / lookup_batch 逐行可用性，按请求顺序对齐；非 lookup 模式为 null。 */
     private List<LookupRow> lookupRows;
+    /** W4/T4.4：本次结果是否来自 query_cache（命中即未重新编译执行）。 */
+    private boolean cached;
 
     /**
      * 逐行存在性保护（v1.4 §8.2）：不可用行不区分「不存在」与「无权限」，

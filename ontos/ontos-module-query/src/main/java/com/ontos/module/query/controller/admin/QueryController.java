@@ -76,6 +76,7 @@ public class QueryController {
         vo.setRowCount(result.getRowCount());
         vo.setTruncated(result.isTruncated());
         vo.setElapsedMs(result.getElapsedMs());
+        vo.setCached(result.isCached());
         vo.setLookupRows(toLookupRowVOs(result.getLookupRows()));
         return success(vo);
     }
