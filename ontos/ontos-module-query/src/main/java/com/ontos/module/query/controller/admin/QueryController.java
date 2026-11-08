@@ -54,6 +54,7 @@ public class QueryController {
         vo.setManifestId(compiled.getManifestId());
         vo.setContentHash(compiled.getContentHash());
         vo.setMetricId(compiled.getMetricId());
+        vo.setMode(compiled.getMode());
         vo.setDimensions(compiled.getDimensions());
         vo.setJoins(compiled.getJoins());
         vo.setDialect(compiled.getDialect());
@@ -155,8 +156,11 @@ public class QueryController {
         vo.setAppliedLimit(compiled.getAppliedLimit());
         vo.setJoins(compiled.getJoins());
         vo.setPlanJson(plan.getPlanJson());
-        vo.setEstimatedCost(plan.getEstimatedCost());
-        vo.setEstimatedRows(plan.getEstimatedRows());
+        // 只编译没做过 EXPLAIN 的产物：cost / rows 在 QueryPlan 里是基本类型默认 0，
+        // 直接透出会显示「未估算成本 · 成本 0」这种自相矛盾的组合，按「无值」返回。
+        boolean explained = plan.getPlanJson() != null;
+        vo.setEstimatedCost(explained ? plan.getEstimatedCost() : null);
+        vo.setEstimatedRows(explained ? plan.getEstimatedRows() : null);
         vo.setStatus(plan.getStatus());
         vo.setBlockReason(plan.getBlockReason());
         vo.setVerified(plan.isVerified());

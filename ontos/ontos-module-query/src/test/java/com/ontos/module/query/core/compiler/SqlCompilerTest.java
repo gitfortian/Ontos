@@ -1,5 +1,6 @@
 package com.ontos.module.query.core.compiler;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -145,5 +146,38 @@ class SqlCompilerTest {
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> compiler.compile(dsl, TestFixtures.manifest()));
         assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldBindTimeWindowAsShanghaiWallClock() {
+        // 深度审核 D56：QUERY 的时间窗原先用 Timestamp.from（JVM 默认时区墙钟），
+        // 与 funnel/yoy_mom 的上海墙钟口径不一致——换部署时区会整体偏移 8 小时。
+        Instant from = Instant.parse("2026-03-01T00:00:00Z");
+        Instant to = Instant.parse("2026-03-31T16:00:00Z");
+        QueryDsl dsl = TestFixtures.query();
+        QueryDsl.TimeRange range = new QueryDsl.TimeRange();
+        range.setField(TestFixtures.TIME_DIMENSION_ID);
+        range.setFrom(from);
+        range.setTo(to);
+        range.setSource(QueryDsl.TimeRange.SOURCE_EXPRESSION);
+        dsl.setTimeRange(range);
+        dsl.setTimeExpressionRaw("近 30 天");
+        dsl.setTimePatternId("tep.last_n_days");
+        dsl.setTimeParserVersion("time-parser-1.0");
+
+        // 必须把默认时区切到非上海，否则「用 JVM 默认时区」的旧实现也能碰巧通过。
+        // 断言也在 UTC 下做：Timestamp.toLocalDateTime() 取的就是默认时区的墙钟。
+        java.util.TimeZone original = java.util.TimeZone.getDefault();
+        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"));
+        try {
+            CompiledQuery compiled = compiler.compile(dsl, TestFixtures.manifest());
+            Timestamp boundFrom = (Timestamp) compiled.getBindValues().get(0);
+            // 绑定值的「墙钟」必须是上海本地时间：JDBC 以 timestamp 类型发送时按墙钟编码，
+            // 服务端再按会话时区（Asia/Shanghai）解释，二者配合才等于原 Instant。
+            assertEquals("2026-03-01T08:00", boundFrom.toLocalDateTime().toString(),
+                    "时间窗必须按上海墙钟绑定，不能依赖 JVM 默认时区");
+        } finally {
+            java.util.TimeZone.setDefault(original);
+        }
     }
 }

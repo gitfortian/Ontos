@@ -256,6 +256,8 @@ public class QueryServiceImpl implements QueryService {
         child.setTimeExpressionRaw(sub.getTimeExpressionRaw());
         // 时间维度随子意图走：解析器据此把「近 N 天」换算成 from/to 并回填 source=EXPRESSION
         child.setTimeRange(sub.getTimeRange());
+        // 容器级 limit 作为每个子意图的默认上限；子意图没有独立 limit 字段，M2 不做过细覆盖
+        child.setLimit(parent.getLimit());
         child.setVariantHint(parent.getVariantHint());
         return child;
     }
@@ -576,6 +578,9 @@ public class QueryServiceImpl implements QueryService {
             // funnel 按事件主体编译、没有 metric，也不做本体路径规划，必须跳过规划器，
             // 否则 requireMetric(null) 会以「语义资产不存在」误拒合法漏斗。
             if (queryDsl.getMode() != QueryDsl.AnalysisMode.FUNNEL) {
+                // R-18：模式授权必须先于路径规划。规则型指标没有物理表，
+                // 先跑规划器会把「模式不支持」误报成 PATH_UNREACHABLE。
+                dslValidator.validateMode(queryDsl, manifest);
                 joinPathResolver.resolve(queryDsl, manifest);
             }
         }

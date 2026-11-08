@@ -18,6 +18,7 @@ import static com.ontos.module.query.enums.ErrorCodeConstants.SENSITIVE_BULK_EXP
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** W3/T3.3a：funnel 入口校验（ADR-0012 的 fail-closed 约束）。 */
 class FunnelValidatorTest {
@@ -92,6 +93,33 @@ class FunnelValidatorTest {
         withTime.setTimeRange(range);
         assertEquals(DSL_INVALID.getCode(), assertThrows(ServiceException.class,
                 () -> validator.validate(withTime, manifest)).getCode());
+    }
+
+    @Test
+    void shouldRejectFiltersInsteadOfSilentlyIgnoringThem() {
+        // 深度审核 D58：步进 CTE 没有接 filters 的位置，静默忽略会让「华东漏斗」返回全国数字
+        QueryDsl dsl = TestFixtures.funnelDsl();
+        QueryDsl.Filter filter = new QueryDsl.Filter();
+        filter.setFieldId(TestFixtures.CUSTOMER_TIER_DIMENSION);
+        filter.setOperator(QueryDsl.Operator.EQ);
+        filter.setValues(List.of("gold"));
+        dsl.setFilters(List.of(filter));
+
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("filters"));
+    }
+
+    @Test
+    void shouldRejectStepsWithDifferentPhysicalMapping() {
+        // 深度审核 D53：编译器以首事件的判定/时间/主体列为整条 CTE 的口径，
+        // 后续步骤映射不同必须拒绝，不能按首事件静默解读
+        manifest.getOntology().getEvents().get(1)
+                .setParticipantProperty(TestFixtures.CUSTOMER_SUBJECT_PROPERTY);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> validator.validate(TestFixtures.funnelDsl(), manifest));
+        assertEquals(FUNNEL_EVENT_MAPPING_MISSING.getCode(), ex.getCode());
     }
 
 }

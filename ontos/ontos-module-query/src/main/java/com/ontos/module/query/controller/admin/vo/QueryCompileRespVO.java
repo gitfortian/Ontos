@@ -19,6 +19,9 @@ public class QueryCompileRespVO {
     @Schema(description = "指标 ID", requiredMode = Schema.RequiredMode.REQUIRED)
     private String metricId;
 
+    @Schema(description = "分析模式", example = "QUERY")
+    private String mode;
+
     @Schema(description = "分组维度 ID 列表")
     private List<String> dimensions;
 

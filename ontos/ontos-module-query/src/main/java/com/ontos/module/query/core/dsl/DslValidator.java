@@ -64,7 +64,7 @@ public class DslValidator {
         if (dsl == null) {
             throw invalidParamException("查询 DSL 不能为空");
         }
-        QueryDsl.AnalysisMode mode = dsl.getMode() == null ? QueryDsl.AnalysisMode.QUERY : dsl.getMode();
+        QueryDsl.AnalysisMode mode = modeOf(dsl);
         // W3/T3.2：lookup 系列以实体为入口，不引用 metric（v1.4 §6.3.1 允许 metrics 为空），
         // 必须在 metric 必填检查之前分流。
         if (mode == QueryDsl.AnalysisMode.LOOKUP || mode == QueryDsl.AnalysisMode.LOOKUP_BATCH) {
@@ -76,26 +76,21 @@ public class DslValidator {
             validateFunnel(dsl, manifest);
             return;
         }
-        if (dsl.getMetricId() == null || dsl.getMetricId().isBlank()) {
-            throw exception(DSL_INVALID, "metricId 不能为空");
-        }
+        rejectLookupOnlyFields(dsl);
         SemanticManifest semantic = manifest.getSemantic();
-        SemanticManifest.Metric metric = semantic.requireMetric(dsl.getMetricId());
+        SemanticManifest.Metric metric = validateMode(dsl, manifest);
 
         validateAnalysisParams(dsl, mode);
         validateSubIntents(dsl, semantic);
 
-        if (!metric.getAllowedModes().contains(mode.name())) {
-            throw exception(ASSET_MODE_NOT_ALLOWED, mode.name());
-        }
-        // fail-closed（PoC-04 缺陷修复）：只有已落地确定性构造的模式才放行。
-        // W3/T3.2 已实现 QUERY / LOOKUP / LOOKUP_BATCH（lookup 在入口分流），
-        // W3/T3.3 实现 YOY_MOM；FUNNEL 因清单缺事件判定条件暂缓（R-12），其余模式一律拒绝。
-        if (mode != QueryDsl.AnalysisMode.QUERY && mode != QueryDsl.AnalysisMode.YOY_MOM) {
-            throw exception(ANALYSIS_MODE_NOT_IMPLEMENTED, mode.name());
-        }
-        if (mode == QueryDsl.AnalysisMode.YOY_MOM && dsl.getTimeRange() == null) {
-            throw exception(DSL_INVALID, "yoy_mom 需要 timeRange 才能确定本期与对比期");
+        if (mode == QueryDsl.AnalysisMode.YOY_MOM) {
+            if (dsl.getTimeRange() == null) {
+                throw exception(DSL_INVALID, "yoy_mom 需要 timeRange 才能确定本期与对比期");
+            }
+            // 时间维度由 period 承担；把它再放进分组会产出「按日展开、月值重复」的错位结果
+            if (dsl.getDimensions() != null && dsl.getDimensions().contains(dsl.getTimeRange().getField())) {
+                throw exception(DSL_INVALID, "yoy_mom 的分组维度不能是时间维度本身（时间口径由 period 承担）");
+            }
         }
 
         List<String> dimensionIds = dsl.getDimensions() == null ? List.of() : dsl.getDimensions();
@@ -135,6 +130,55 @@ public class DslValidator {
         if (sensitive && dimensionIds.isEmpty() && limit > properties.getSensitiveUngroupedLimit()) {
             throw exception(SENSITIVE_BULK_EXPORT_REJECTED,
                     metric.getId() + " 无维度分组且 limit=" + limit);
+        }
+    }
+
+    /**
+     * 指标 + 模式授权的最小前置校验（R-18）。路径规划需要指标背后的物理表，
+     * 规则型指标（无 table）若等到完整校验才拒绝，会先撞上 PATH_UNREACHABLE，
+     * 把「模式不支持」误报成「路径不可达」。lookup / funnel 有独立入口，这里直接放行。
+     */
+    public SemanticManifest.Metric validateMode(QueryDsl dsl, PublishedManifest manifest) {
+        QueryDsl.AnalysisMode mode = modeOf(dsl);
+        if (mode == QueryDsl.AnalysisMode.LOOKUP || mode == QueryDsl.AnalysisMode.LOOKUP_BATCH
+                || mode == QueryDsl.AnalysisMode.FUNNEL) {
+            return null;
+        }
+        if (isBlank(dsl.getMetricId())) {
+            throw exception(DSL_INVALID, "metricId 不能为空");
+        }
+        SemanticManifest.Metric metric = manifest.getSemantic().requireMetric(dsl.getMetricId());
+        if (!metric.getAllowedModes().contains(mode.name())) {
+            throw exception(ASSET_MODE_NOT_ALLOWED, dsl.getMetricId() + " / " + mode.name());
+        }
+        // fail-closed（PoC-04 缺陷修复）：只有已落地确定性构造的模式才放行。
+        // QUERY / YOY_MOM 在本类编译；LOOKUP / LOOKUP_BATCH / FUNNEL 在入口分流；
+        // ATTRIBUTION / RETENTION / DISCOVERY 一律拒绝。
+        if (mode != QueryDsl.AnalysisMode.QUERY && mode != QueryDsl.AnalysisMode.YOY_MOM) {
+            throw exception(ANALYSIS_MODE_NOT_IMPLEMENTED, mode.name());
+        }
+        return metric;
+    }
+
+    private static QueryDsl.AnalysisMode modeOf(QueryDsl dsl) {
+        return dsl.getMode() == null ? QueryDsl.AnalysisMode.QUERY : dsl.getMode();
+    }
+
+    /**
+     * 聚合模式不接受 lookup 专属字段。历史实现是静默忽略——用户（或 LLM）给出的
+     * attributes / identity 会凭空消失，返回一个看似成功的聚合结果，属于「静默丢语义」。
+     */
+    private static void rejectLookupOnlyFields(QueryDsl dsl) {
+        boolean hasLookupField = !isBlank(dsl.getEntityId())
+                || dsl.getIdentity() != null
+                || (dsl.getIdentities() != null && !dsl.getIdentities().isEmpty())
+                || (dsl.getAttributes() != null && !dsl.getAttributes().isEmpty())
+                || !isBlank(dsl.getIdentityPropertyId())
+                || !isBlank(dsl.getBooleanMetricId());
+        if (hasLookupField) {
+            throw exception(DSL_INVALID,
+                    "QUERY / YOY_MOM 不接受 lookup 字段（entityId / attributes / identity / identities /"
+                            + " identityPropertyId / booleanMetricId）");
         }
     }
 
@@ -209,9 +253,15 @@ public class DslValidator {
         if (dsl.getSubIntents() != null && !dsl.getSubIntents().isEmpty()) {
             throw exception(DSL_INVALID, "funnel 不接受 subIntents");
         }
-        if (dsl.getIdentity() != null
+        if (dsl.getFilters() != null && !dsl.getFilters().isEmpty()) {
+            // 编译器的步进 CTE 没有接 filters 的位置；静默忽略会让「华东漏斗」返回全国数字。
+            // M2 未给 funnel 过滤定档，按 fail-closed 明确拒绝，不用「看起来成功」糊过去。
+            throw exception(DSL_INVALID, "funnel 暂不支持 filters（M2 未定档，拒绝而非静默忽略）");
+        }
+        if (!isBlank(dsl.getEntityId()) || dsl.getIdentity() != null
                 || (dsl.getIdentities() != null && !dsl.getIdentities().isEmpty())
-                || (dsl.getAttributes() != null && !dsl.getAttributes().isEmpty())) {
+                || (dsl.getAttributes() != null && !dsl.getAttributes().isEmpty())
+                || !isBlank(dsl.getIdentityPropertyId()) || !isBlank(dsl.getBooleanMetricId())) {
             throw exception(DSL_INVALID, "funnel 不接受 lookup 字段");
         }
         QueryDsl.AnalysisParams params = dsl.getAnalysisParams();
@@ -228,6 +278,10 @@ public class DslValidator {
             throw exception(DSL_INVALID, "subjectPropertyId 未发布: " + params.getSubjectPropertyId());
         }
         String subjectTable = tableOf(subject.getColumn());
+        // 编译器以「首个步骤事件」的物理映射为整条 CTE 的判定列/时间列/主体列。
+        // 若后续事件映射到别的属性或表，编译结果会静默按首事件解读后续步骤——
+        // 那是「看起来成功、数字全错」，必须在入口拒绝，而不是留给 SQL 去猜。
+        OntologySnapshot.EventDef baseline = null;
         for (String step : params.getSteps()) {
             List<OntologySnapshot.EventDef> matched = ontology.getEvents().stream()
                     .filter(event -> step.equals(event.getEventType()))
@@ -243,6 +297,12 @@ public class DslValidator {
             if (!subject.getConceptId().equals(event.getParticipantClass())) {
                 throw exception(FUNNEL_EVENT_MAPPING_MISSING,
                         "participantClass 与主体不一致: " + event.getId());
+            }
+            if (baseline == null) {
+                baseline = event;
+            } else if (!samePhysicalMapping(baseline, event)) {
+                throw exception(FUNNEL_EVENT_MAPPING_MISSING,
+                        "步骤事件物理映射不一致（判定列/时间列/主体列必须相同）: " + event.getId());
             }
         }
 
@@ -457,10 +517,12 @@ public class DslValidator {
             throw exception(RULE_NOT_PUBLISHED, rule.getId() + " status=" + rule.getStatus());
         }
         Map<String, Object> expression = rule.getExpression();
-        String metricId = expression == null ? null : (String) expression.get("metricId");
+        Object rawMetricId = expression == null ? null : expression.get("metricId");
         String operator = expression == null ? null : String.valueOf(expression.get("operator"));
         Object threshold = expression == null ? null : expression.get("threshold");
-        if (isBlank(metricId) || operator == null || !RULE_OPERATORS.contains(operator) || threshold == null) {
+        // 按类型判断而不是强转：清单规则表达式未被发布校验覆盖，误配不能变成 500
+        if (!(rawMetricId instanceof String metricId) || metricId.isBlank()
+                || operator == null || !RULE_OPERATORS.contains(operator) || threshold == null) {
             throw exception(RULE_EXPRESSION_INVALID, rule.getId());
         }
         manifest.getSemantic().requireMetric(metricId);
@@ -511,6 +573,13 @@ public class DslValidator {
         }
     }
 
+    private static boolean samePhysicalMapping(OntologySnapshot.EventDef left,
+                                               OntologySnapshot.EventDef right) {
+        return Objects.equals(left.getEventTypeProperty(), right.getEventTypeProperty())
+                && Objects.equals(left.getTimeProperty(), right.getTimeProperty())
+                && Objects.equals(left.getParticipantProperty(), right.getParticipantProperty());
+    }
+
     /** "table.column" / "schema.table.column" → 表限定名；裸列名返回 null。 */
     private static String tableOf(String column) {
         if (column == null) {
@@ -523,13 +592,18 @@ public class DslValidator {
     /** funnel / yoy_mom 的 analysis_params 契约（analysis-mode 规格 v1）。W3 构造器据此实现。 */
     private void validateAnalysisParams(QueryDsl dsl, QueryDsl.AnalysisMode mode) {
         QueryDsl.AnalysisParams params = dsl.getAnalysisParams();
-        if (params == null) {
-            return;
-        }
         boolean funnel = mode == QueryDsl.AnalysisMode.FUNNEL;
         boolean yoyMom = mode == QueryDsl.AnalysisMode.YOY_MOM;
         if (!funnel && !yoyMom) {
-            throw exception(DSL_INVALID, "analysisParams 仅允许 funnel / yoy_mom 模式");
+            if (params != null) {
+                throw exception(DSL_INVALID, "analysisParams 仅允许 funnel / yoy_mom 模式");
+            }
+            return;
+        }
+        // yoy_mom 的 period、funnel 的 steps 都是必填；缺整个对象时先前会一路漏到编译器
+        // 触发 NPE（500），这里必须在校验层就按业务错误拒绝。
+        if (params == null) {
+            throw exception(DSL_INVALID, (funnel ? "funnel" : "yoy_mom") + " 缺少 analysisParams");
         }
         if (funnel) {
             List<String> steps = params.getSteps() == null ? List.of() : params.getSteps();
@@ -557,7 +631,8 @@ public class DslValidator {
             }
             return;
         }
-        if (!YOY_MOM_PERIODS.contains(params.getPeriod())) {
+        // Set.of(...).contains(null) 会抛 NPE；必须先判空再查集合
+        if (isBlank(params.getPeriod()) || !YOY_MOM_PERIODS.contains(params.getPeriod())) {
             throw exception(DSL_INVALID, "yoy_mom period 仅允许 MONTH / YEAR");
         }
         if (params.getSteps() != null && !params.getSteps().isEmpty()) {
@@ -631,9 +706,16 @@ public class DslValidator {
         if (dsl.getAnalysisParams() != null) {
             throw exception(DSL_INVALID, "复合意图不接受 analysisParams");
         }
+        // limit 不是查询语义而是资源上限：容器级 limit 作为每个子意图的默认上限，
+        // 不在这里校验就会被子意图的默认值覆盖（等于静默丢弃客户端设置）。
+        if (dsl.getLimit() != null
+                && (dsl.getLimit() < 1 || dsl.getLimit() > properties.getMaxRows())) {
+            throw exception(DSL_INVALID, "复合意图 limit 必须在 [1, " + properties.getMaxRows() + "]");
+        }
         if (!isBlank(dsl.getEntityId()) || dsl.getIdentity() != null
                 || (dsl.getIdentities() != null && !dsl.getIdentities().isEmpty())
-                || (dsl.getAttributes() != null && !dsl.getAttributes().isEmpty())) {
+                || (dsl.getAttributes() != null && !dsl.getAttributes().isEmpty())
+                || !isBlank(dsl.getIdentityPropertyId()) || !isBlank(dsl.getBooleanMetricId())) {
             throw exception(DSL_INVALID, "复合意图不接受 lookup 字段");
         }
         validateSubIntents(dsl, manifest.getSemantic());

@@ -58,6 +58,20 @@ class RuleValidatorTest {
     }
 
     @Test
+    void shouldRejectNonStringMetricIdInRuleExpression() {
+        // 深度审核 D54：清单误配 metricId 为数字时，旧实现强转抛 ClassCastException（500）
+        Map<String, Object> expression = new java.util.HashMap<>();
+        expression.put("metricId", 42);
+        expression.put("operator", "GTE");
+        expression.put("threshold", 50000);
+        manifest.getRules().get(0).setExpression(expression);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> validator.validate(TestFixtures.ruleLookupDsl(), manifest));
+        assertEquals(RULE_EXPRESSION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
     void shouldRejectInvalidExpressionTriple() {
         manifest.getRules().get(0).setExpression(Map.of(
                 "metricId", TestFixtures.RULE_METRIC_ID, "operator", "IN", "threshold", 50000));

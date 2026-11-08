@@ -8,6 +8,8 @@
 
 **当前文档**
 
+- [M2 验收报告 v1](checklists/M2-验收报告-v1.md)（已冻结，E2–E8 满足、E1 按 [ADR-0013](../01-decisions/ADR-0013-Golden不可构造案例处置口径.md) 附条件关闭，M3 放行）
+- [M2 收口后深度审核 v1](checklists/M2-收口后深度审核-v1.md)（已归档：12 项发现全部修复复验，R-18 关闭；M2 判定不变）
 - [M1 验收报告 v2](checklists/M1-验收报告-v2.md)（已冻结，E1–E8 全部满足，M2 编码放行）
   - 历史版本：[v1](../99-archive/checklists/M1-验收报告-v1.md)（已归档；E6/E7 于 v2 收口）
 - [M1 基线自检输出](checklists/M1-基线自检-2026-11-08.txt)（E8 的归档原始输出，4 PASS / 0 FAIL）

@@ -14,6 +14,7 @@ import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.framework.web.core.context.RequestContext;
 import com.ontos.framework.web.core.context.RequestContextHolder;
 import com.ontos.module.ontology.core.ManifestPayload.TimeExpressionPattern;
+import com.ontos.module.ontology.enums.ErrorCodeConstants;
 import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.service.manifest.ManifestService;
@@ -138,7 +139,7 @@ class QueryServiceImplTest {
 
     @Test
     void shouldProtectBatchLookupRowExistenceAndMaskSensitiveValues() {
-        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.lookupManifest());
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.ruleManifest());
         when(requestStateService.findState(any())).thenReturn(java.util.Optional.empty());
 
         CompiledQuery compiled = new CompiledQuery();
@@ -184,7 +185,7 @@ class QueryServiceImplTest {
 
     @Test
     void shouldRejectSingleLookupWhenIdentityHitsMultipleRows() {
-        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.lookupManifest());
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.ruleManifest());
         when(requestStateService.findState(any())).thenReturn(java.util.Optional.empty());
 
         CompiledQuery compiled = new CompiledQuery();
@@ -516,6 +517,22 @@ class QueryServiceImplTest {
     }
 
     @Test
+    void shouldPropagateCompositeLimitToEachSubIntent() {
+        // 深度审核 D60：容器级 limit 原先被子意图默认值覆盖（静默丢弃客户端设置）
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
+        when(queryExecutor.execute(any(), any())).thenReturn(rows(1));
+
+        QueryDsl dsl = compositeDsl(1);
+        dsl.setLimit(20);
+        service(new TimeWindowResolver()).executeComposite(dsl);
+
+        ArgumentCaptor<QueryDsl> captor = ArgumentCaptor.forClass(QueryDsl.class);
+        verify(sqlCompiler).compile(captor.capture(), any());
+        assertEquals(20, captor.getValue().getLimit(), "容器 limit 必须下放到子意图");
+    }
+
+    @Test
     void shouldRejectCompositeOnSingleRequestChannel() {
         when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
 
@@ -604,6 +621,21 @@ class QueryServiceImplTest {
         ArgumentCaptor<AuditLogCreateReqDTO> captor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);
         verify(auditService).record(captor.capture());
         assertNull(captor.getValue().getReasonCode(), "关闭缓存时不应打 CACHE_* 标记");
+    }
+
+    @Test
+    void shouldRejectUnsupportedModeBeforePathPlanning() {
+        // 深度审核 R-18：规则型指标没有物理表，模式授权必须先于路径规划，
+        // 否则会先撞上 PATH_UNREACHABLE，把「模式不支持」误报成「路径不可达」。
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.ruleManifest());
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setMetricId(TestFixtures.BOOLEAN_METRIC_ID);
+        dsl.setDimensions(List.of());
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).compile(dsl));
+
+        assertEquals(ErrorCodeConstants.ASSET_MODE_NOT_ALLOWED.getCode(), ex.getCode());
     }
 
 }

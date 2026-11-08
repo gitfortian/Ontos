@@ -93,16 +93,7 @@ public class SqlCompiler {
         select.addFrom(DSL.table(tableName(metric.getTable())));
 
         List<Condition> conditions = new ArrayList<>();
-        for (QueryDsl.ResolvedJoin join : joins) {
-            // 纵深防御：JoinPathResolver 保证每条边都有待引入的表；
-            // 缺失时整单拒绝，绝不把未展开的关系退化成 WHERE 等值条件（那会静默改变结果）。
-            if (join.getTable() == null) {
-                throw exception(DSL_INVALID, "解析后的 Join 缺少待引入表: " + join.getRelationId());
-            }
-            Condition on = DSL.field(columnName(join.getLeftColumn()))
-                    .eq(DSL.field(columnName(join.getRightColumn())));
-            select.addJoin(DSL.table(tableName(join.getTable())), on);
-        }
+        addJoins(select, joins);
         if (queryDsl.getFilters() != null) {
             for (QueryDsl.Filter filter : queryDsl.getFilters()) {
                 SemanticManifest.Dimension dimension = semantic.requireDimension(filter.getFieldId());
@@ -131,6 +122,19 @@ public class SqlCompiler {
         compiled.setAppliedLimit(limit);
         compiled.setCompiledAt(Instant.now());
         return compiled;
+    }
+
+    private static void addJoins(SelectQuery<Record> select, List<QueryDsl.ResolvedJoin> joins) {
+        for (QueryDsl.ResolvedJoin join : joins == null ? List.<QueryDsl.ResolvedJoin>of() : joins) {
+            // 纵深防御：JoinPathResolver 保证每条边都有待引入的表；
+            // 缺失时整单拒绝，绝不把未展开的关系退化成 WHERE 等值条件（那会静默改变结果）。
+            if (join.getTable() == null) {
+                throw exception(DSL_INVALID, "解析后的 Join 缺少待引入表: " + join.getRelationId());
+            }
+            Condition on = DSL.field(columnName(join.getLeftColumn()))
+                    .eq(DSL.field(columnName(join.getRightColumn())));
+            select.addJoin(DSL.table(tableName(join.getTable())), on);
+        }
     }
 
     /**
@@ -238,10 +242,12 @@ public class SqlCompiler {
             throw exception(RULE_NOT_PUBLISHED, rule.getId());
         }
         Map<String, Object> expression = rule.getExpression();
-        String metricId = expression == null ? null : (String) expression.get("metricId");
+        Object rawMetricId = expression == null ? null : expression.get("metricId");
         String operator = expression == null ? null : String.valueOf(expression.get("operator"));
-        if (expression == null || metricId == null || operator == null
-                || expression.get("threshold") == null) {
+        // 清单由服务端发布，但规则表达式结构未被发布校验覆盖——这里按类型判断，
+        // 避免 Admin 误配（metricId 写成数字）在查询期变成 ClassCastException（500）。
+        if (!(rawMetricId instanceof String metricId) || metricId.isBlank()
+                || operator == null || expression.get("threshold") == null) {
             throw exception(RULE_EXPRESSION_INVALID, rule.getId());
         }
         SemanticManifest.Metric metric = manifest.getSemantic().requireMetric(metricId);
@@ -316,6 +322,17 @@ public class SqlCompiler {
         OntologySnapshot ontology = manifest.getOntology();
         SemanticManifest semantic = manifest.getSemantic();
         QueryDsl.AnalysisParams params = queryDsl.getAnalysisParams();
+        // 纵深防御：校验器已保证 steps/cohortWindow 完整，编译器不依赖调用顺序
+        if (params == null || params.getSteps() == null || params.getSteps().size() < 2) {
+            throw exception(DSL_INVALID, "funnel 缺少合法 steps");
+        }
+        if (queryDsl.getFilters() != null && !queryDsl.getFilters().isEmpty()) {
+            throw exception(DSL_INVALID, "funnel 暂不支持 filters（M2 未定档）");
+        }
+        if (params.getCohortWindow() == null || params.getCohortWindow().getFrom() == null
+                || params.getCohortWindow().getTo() == null) {
+            throw exception(FUNNEL_TIME_WINDOW_MISSING, "cohortWindow 未解析");
+        }
         List<String> steps = params.getSteps();
 
         List<OntologySnapshot.EventDef> events = new ArrayList<>();
@@ -325,6 +342,17 @@ public class SqlCompiler {
                     .findFirst()
                     .orElseThrow(() -> exception(FUNNEL_EVENT_NOT_FOUND, step));
             events.add(event);
+        }
+        // 整条 CTE 共用首事件的判定列/时间列/主体列；后续事件映射不同则拒绝，
+        // 不能让 SQL 按首事件解读别的步骤（静默错数）。
+        OntologySnapshot.EventDef first = events.get(0);
+        for (OntologySnapshot.EventDef event : events) {
+            if (!java.util.Objects.equals(first.getEventTypeProperty(), event.getEventTypeProperty())
+                    || !java.util.Objects.equals(first.getTimeProperty(), event.getTimeProperty())
+                    || !java.util.Objects.equals(first.getParticipantProperty(), event.getParticipantProperty())) {
+                throw exception(FUNNEL_EVENT_MAPPING_MISSING,
+                        "步骤事件物理映射不一致: " + event.getId());
+            }
         }
         OntologySnapshot.Property typeProperty =
                 requireEventProperty(ontology, events.get(0).getEventTypeProperty());
@@ -516,17 +544,33 @@ public class SqlCompiler {
         SemanticManifest semantic = manifest.getSemantic();
         SemanticManifest.Metric metric = semantic.requireMetric(queryDsl.getMetricId());
         QueryDsl.AnalysisParams params = queryDsl.getAnalysisParams();
+        // 纵深防御：校验器已要求 analysisParams / period / timeRange，编译器不依赖调用顺序
+        if (params == null || params.getPeriod() == null) {
+            throw exception(DSL_INVALID, "yoy_mom 缺少 analysisParams.period");
+        }
         boolean monthly = "MONTH".equals(params.getPeriod());
         String unit = monthly ? "month" : "year";
         int yoyLag = monthly ? 12 : 1;
 
         QueryDsl.TimeRange range = queryDsl.getTimeRange();
+        if (range == null) {
+            throw exception(DSL_INVALID, "yoy_mom 缺少 timeRange");
+        }
         SemanticManifest.Dimension timeDimension = semantic.requireDimension(range.getField());
         List<String> dimensionIds = queryDsl.getDimensions() == null
                 ? List.of() : queryDsl.getDimensions();
         List<SemanticManifest.Dimension> dimensions = new ArrayList<>();
         for (String dimensionId : dimensionIds) {
             dimensions.add(semantic.requireDimension(dimensionId));
+        }
+        List<QueryDsl.ResolvedJoin> joins = queryDsl.getResolvedJoins() == null
+                ? List.of() : queryDsl.getResolvedJoins();
+        // 过滤条件与跨表维度必须同时进入「聚合」与「维度枚举」两个 CTE：
+        // 只进其中一个会让骨架与聚合口径分叉（多出来的维度值补 null、过滤后的维度值被漏掉）。
+        List<Condition> filters = new ArrayList<>();
+        for (QueryDsl.Filter filter : queryDsl.getFilters() == null
+                ? List.<QueryDsl.Filter>of() : queryDsl.getFilters()) {
+            filters.add(condition(filter, semantic.requireDimension(filter.getFieldId())));
         }
 
         Field<Timestamp> timeField = DSL.field(
@@ -555,7 +599,9 @@ public class SqlCompiler {
         }
         agg.addSelect(aggregate(metric).as("metric_value"));
         agg.addFrom(DSL.table(tableName(metric.getTable())));
+        addJoins(agg, joins);
         agg.addConditions(timeField.ge(DSL.val(windowFrom)), timeField.le(DSL.val(to)));
+        agg.addConditions(filters);
         List<Field<?>> groupBy = new ArrayList<>();
         groupBy.add(bucket);
         groupBy.addAll(rawDimensions);
@@ -576,7 +622,9 @@ public class SqlCompiler {
         }
         if (!dimensions.isEmpty()) {
             dims.addFrom(DSL.table(tableName(metric.getTable())));
+            addJoins(dims, joins);
             dims.addConditions(timeField.ge(DSL.val(windowFrom)), timeField.le(DSL.val(to)));
+            dims.addConditions(filters);
             dims.addGroupBy(rawDimensions);
         }
 
@@ -717,8 +765,10 @@ public class SqlCompiler {
         // field 是资产 ID，与 filters 一致；物理列名只能从已发布语义清单解析，DSL 不得携带
         SemanticManifest.Dimension dimension = semantic.requireDimension(range.getField());
         Field<Timestamp> field = DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()), Timestamp.class);
-        Timestamp from = Timestamp.from(range.getFrom());
-        Timestamp to = Timestamp.from(range.getTo());
+        // 与 funnel / yoy_mom 统一按「上海本地墙钟」绑定：会话时区已固定 Asia/Shanghai，
+        // 用 Timestamp.from（JVM 默认时区墙钟）会让同一时间窗随部署时区漂移 8 小时。
+        Timestamp from = shanghaiTimestamp(range.getFrom());
+        Timestamp to = shanghaiTimestamp(range.getTo());
         return field.ge(from).and(field.le(to));
     }
 

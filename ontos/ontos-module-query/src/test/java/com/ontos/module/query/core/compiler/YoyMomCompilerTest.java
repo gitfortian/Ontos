@@ -3,11 +3,14 @@ package com.ontos.module.query.core.compiler;
 import java.time.Instant;
 import java.util.List;
 
+import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.module.query.core.TestFixtures;
 import com.ontos.module.query.core.dsl.QueryDsl;
 import org.junit.jupiter.api.Test;
 
+import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** W3/T3.3b：yoy_mom 周期骨架 + 窗口函数构造（analysis-mode 规格 v1 §2.3）。 */
@@ -75,6 +78,48 @@ class YoyMomCompilerTest {
         // 骨架 × 维度并集：两个 FROM 源（cross join）
         int fromCount = sql.split("from ", -1).length - 1;
         assertTrue(fromCount >= 3, "应包含 periods / dims / 主查询多个 FROM: " + sql);
+    }
+
+    @Test
+    void shouldJoinCrossTableDimensionAndApplyFiltersToBothCtes() {
+        // 深度审核 D49/D58：YOY_MOM 原先既不展开 resolvedJoins 也不接 filters，
+        // 跨表维度在真实库直接 SQL 报错（缺 FROM 子句），过滤则被静默忽略。
+        QueryDsl.ResolvedJoin join = new QueryDsl.ResolvedJoin();
+        join.setRelationId("r.placesOrder");
+        join.setDirection("reverse");
+        join.setTable("public.dim_customer");
+        join.setLeftColumn("public.dim_customer.id");
+        join.setRightColumn("public.fact_order.customer_id");
+        join.setCardinality("N:1");
+
+        QueryDsl.Filter filter = new QueryDsl.Filter();
+        filter.setFieldId(TestFixtures.DIMENSION_ID);
+        filter.setOperator(QueryDsl.Operator.EQ);
+        filter.setValues(List.of("华东"));
+
+        QueryDsl dsl = yoyMom("MONTH", List.of(TestFixtures.DIMENSION_ID));
+        dsl.setResolvedJoins(List.of(join));
+        dsl.setFilters(List.of(filter));
+        CompiledQuery compiled = compiler.compile(dsl, TestFixtures.manifest());
+        String sql = compiled.getSql().toLowerCase();
+
+        assertTrue(sql.contains("join \"public\".\"dim_customer\""),
+                "跨表维度必须展开为 JOIN: " + sql);
+        assertTrue(sql.contains("region"), "维度列必须进入聚合与维度枚举: " + sql);
+        // 聚合 CTE 与维度枚举 CTE 各绑定一次过滤值，缺一都会让骨架与聚合口径分叉
+        long filterBinds = compiled.getBindValues().stream()
+                .filter("华东"::equals).count();
+        assertEquals(2, filterBinds, "过滤条件必须同时进入 agg 与 dims: " + compiled.getBindValues());
+    }
+
+    @Test
+    void shouldRejectMissingAnalysisParamsInsteadOfThrowingNpe() {
+        QueryDsl dsl = yoyMom("MONTH", List.of());
+        dsl.setAnalysisParams(null);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> compiler.compile(dsl, TestFixtures.manifest()));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
     }
 
 }

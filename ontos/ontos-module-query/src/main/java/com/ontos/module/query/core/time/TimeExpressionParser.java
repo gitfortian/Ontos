@@ -29,6 +29,11 @@ public class TimeExpressionParser {
     public static final String PARSER_VERSION = "time-parser-1.0";
 
     private static final ZoneId ZONE_ID = ZoneId.of(ZONE);
+    /**
+     * 「近 N 天/月」的 N 上限：超过 100000（≈273 年）已无业务含义，
+     * 也避免极端值参与日期运算导致溢出后的非常规异常。
+     */
+    private static final int MAX_PATTERN_NUMBER = 100_000;
 
     public record ResolvedRange(Instant from, Instant to, String patternId, String version) {
     }
@@ -77,8 +82,15 @@ public class TimeExpressionParser {
             if (!matcher.matches()) {
                 return null;
             }
-            int n = Integer.parseInt(matcher.group(1));
-            if (n <= 0) {
+            int n;
+            try {
+                n = Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException ex) {
+                // 超长数字（如「近 99999999999999999999 天」）不足以让解析器猜口径：
+                // 按未命中处理，由调用方给出 TIME_PARSE_FAILED，而不是让 500 冒到客户端。
+                return null;
+            }
+            if (n <= 0 || n > MAX_PATTERN_NUMBER) {
                 return null;
             }
             return switch (pattern.getGranularity()) {

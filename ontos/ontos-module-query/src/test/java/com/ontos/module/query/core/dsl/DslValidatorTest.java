@@ -368,6 +368,91 @@ class DslValidatorTest {
         assertEquals(DSL_INVALID.getCode(), ex.getCode());
     }
 
+    // ---------- M2 收口后深度审核回归（D49–D59）----------
+
+    private QueryDsl yoyMomDsl(QueryDsl.AnalysisParams params, List<String> dimensions) {
+        manifest.getSemantic().getMetrics().get(0)
+                .setAllowedModes(List.of("QUERY", "FUNNEL", "YOY_MOM"));
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setMode(QueryDsl.AnalysisMode.YOY_MOM);
+        dsl.setDimensions(dimensions);
+        dsl.setAnalysisParams(params);
+        dsl.setTimeExpressionRaw("今年");
+        QueryDsl.TimeRange range = new QueryDsl.TimeRange();
+        range.setField(TestFixtures.TIME_DIMENSION_ID);
+        range.setFrom(Instant.parse("2026-01-01T00:00:00Z"));
+        range.setTo(Instant.parse("2026-12-31T16:00:00Z"));
+        range.setSource(QueryDsl.TimeRange.SOURCE_EXPRESSION);
+        dsl.setTimeRange(range);
+        dsl.setTimePatternId("tep.this_year");
+        dsl.setTimeParserVersion("time-parser-1.0");
+        return dsl;
+    }
+
+    @Test
+    void shouldRejectYoyMomWithoutAnalysisParams() {
+        // 深度审核 D50：原先一路漏到编译器触发 NPE（500），必须在校验层拒绝
+        QueryDsl dsl = yoyMomDsl(null, List.of());
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("analysisParams"));
+    }
+
+    @Test
+    void shouldRejectYoyMomWithBlankPeriod() {
+        // Set.of(...).contains(null) 会抛 NPE，必须先判空
+        QueryDsl.AnalysisParams params = new QueryDsl.AnalysisParams();
+        QueryDsl dsl = yoyMomDsl(params, List.of());
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("period"));
+    }
+
+    @Test
+    void shouldRejectYoyMomGroupingByTimeDimension() {
+        // 时间维度由 period 承担；再按日分组会产出「月值重复」的错位结果
+        QueryDsl.AnalysisParams params = new QueryDsl.AnalysisParams();
+        params.setPeriod("MONTH");
+        QueryDsl dsl = yoyMomDsl(params, List.of(TestFixtures.TIME_DIMENSION_ID));
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("时间维度"));
+    }
+
+    @Test
+    void shouldRejectLookupFieldsOnAggregateMode() {
+        // 深度审核 D52：原先静默忽略，用户要的属性凭空消失却返回 code=0
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setEntityId(TestFixtures.CUSTOMER_CONCEPT);
+        dsl.setAttributes(List.of(TestFixtures.CUSTOMER_EMAIL_PROPERTY));
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("lookup"));
+    }
+
+    @Test
+    void shouldRejectLookupFieldsOnCompositeContainer() {
+        QueryDsl dsl = new QueryDsl();
+        dsl.setManifestId("manifest-001");
+        dsl.setIdentityPropertyId(TestFixtures.CUSTOMER_ID_PROPERTY);
+        QueryDsl.SubIntent sub = new QueryDsl.SubIntent();
+        sub.setSubIntentId("s1");
+        sub.setMetricId(TestFixtures.METRIC_ID);
+        dsl.setSubIntents(List.of(sub));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> validator.validateComposite(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldRejectBooleanMetricOnAggregateMode() {
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setBooleanMetricId(TestFixtures.BOOLEAN_METRIC_ID);
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
     // ---------- 深度审核回归：维度授权三条引用路径 + 过滤值数量 ----------
 
     private static QueryDsl.Filter filter(String fieldId, QueryDsl.Operator operator, List<String> values) {

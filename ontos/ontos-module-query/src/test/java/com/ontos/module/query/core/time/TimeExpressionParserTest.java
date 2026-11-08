@@ -102,4 +102,14 @@ class TimeExpressionParserTest {
         assertNull(empty.parse("上个月", today).resolved());
     }
 
+    @Test
+    void shouldTreatOverflowingNumberAsUnmatched() {
+        // 深度审核 D51：Integer.parseInt 超长数字原先抛 NumberFormatException（500）；
+        // 解析器应判定「未命中」，由调用方给出 TIME_PARSE_FAILED 业务错误
+        ParseResult result = parser.parse("近 99999999999999999999 天", today);
+        assertNull(result.resolved());
+        assertTrue(result.failReason().contains("未命中"));
+        assertNull(parser.parse("近 100001 天", today).resolved(), "超过上限同样按未命中处理");
+    }
+
 }
