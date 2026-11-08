@@ -1,0 +1,751 @@
+{
+  "setId": "poc04-golden-v2-gold",
+  "version": "v1",
+  "generatedFrom": "docs/06-verification/evaluation/Golden集-v2-案例设计.json",
+  "manifestId": "2026.11.08-seventh",
+  "criteriaRef": "技术选型 v1.1 §7 #4（逐字比对 100%）",
+  "note": "sqlExpected 由当前实现编译产出、逐条人工审阅后回填；绑定值不固化（相对时间随当日基准变化），可复现性由 check 模式「同次运行编译两次比对」验证。unsupported 项如实登记原因。",
+  "reviewedAt": "2026-11-08T15:22:46.816Z",
+  "total": 30,
+  "supported": 27,
+  "unsupported": 3,
+  "cases": [
+    {
+      "id": "g-q01",
+      "mode": "query",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "QUERY",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.region"
+        ],
+        "timeExpressionRaw": "近 30 天",
+        "timeRange": {
+          "field": "dim.order_date"
+        }
+      },
+      "sqlExpected": "select sum(\"orders\".\"amount\") as \"value\", \"orders\".\"region\" as \"dim.region\" from \"orders\" where (\"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by \"orders\".\"region\" fetch next ? rows only",
+      "bindCount": 3,
+      "joinsExpected": [],
+      "expectShape": "SUM(amount) GROUP BY region LIMIT"
+    },
+    {
+      "id": "g-q02",
+      "mode": "query",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "QUERY",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.region",
+          "dim.channel"
+        ],
+        "timeExpressionRaw": "上个月",
+        "timeRange": {
+          "field": "dim.order_date"
+        }
+      },
+      "sqlExpected": "select sum(\"orders\".\"amount\") as \"value\", \"orders\".\"region\" as \"dim.region\", \"orders\".\"channel\" as \"dim.channel\" from \"orders\" where (\"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by \"orders\".\"region\", \"orders\".\"channel\" fetch next ? rows only",
+      "bindCount": 3,
+      "joinsExpected": [],
+      "expectShape": "SUM GROUP BY region,channel"
+    },
+    {
+      "id": "g-q03",
+      "mode": "query",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "QUERY",
+        "metricId": "metric.order_count",
+        "dimensions": [],
+        "timeExpressionRaw": "今年",
+        "timeRange": {
+          "field": "dim.order_date"
+        }
+      },
+      "sqlExpected": "select count(distinct \"orders\".\"id\") as \"value\" from \"orders\" where (\"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by () fetch next ? rows only",
+      "bindCount": 3,
+      "joinsExpected": [],
+      "expectShape": "COUNT_DISTINCT(id) 无分组"
+    },
+    {
+      "id": "g-q04",
+      "mode": "query",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "QUERY",
+        "metricId": "metric.avg_order_value",
+        "dimensions": [
+          "dim.channel"
+        ],
+        "filters": [
+          {
+            "fieldId": "dim.region",
+            "operator": "EQ",
+            "values": [
+              "华东"
+            ]
+          }
+        ]
+      },
+      "sqlExpected": "select avg(\"orders\".\"amount\") as \"value\", \"orders\".\"channel\" as \"dim.channel\" from \"orders\" where \"orders\".\"region\" = ? group by \"orders\".\"channel\" fetch next ? rows only",
+      "bindCount": 2,
+      "joinsExpected": [],
+      "expectShape": "AVG(amount) WHERE region=?"
+    },
+    {
+      "id": "g-q05",
+      "mode": "query",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "QUERY",
+        "metricId": "metric.refund_amount",
+        "dimensions": [
+          "dim.order_date"
+        ],
+        "timeExpressionRaw": "近 7 天",
+        "timeRange": {
+          "field": "dim.order_date"
+        }
+      },
+      "sqlExpected": "select sum(\"orders\".\"refund_amount\") as \"value\", \"orders\".\"order_date\" as \"dim.order_date\" from \"orders\" where (\"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by \"orders\".\"order_date\" fetch next ? rows only",
+      "bindCount": 3,
+      "joinsExpected": [],
+      "expectShape": "SUM(refund_amount) GROUP BY date"
+    },
+    {
+      "id": "g-q06",
+      "mode": "query",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "QUERY",
+        "metricId": "metric.distinct_customers",
+        "dimensions": [
+          "dim.customer_tier"
+        ],
+        "timeExpressionRaw": "上个月",
+        "timeRange": {
+          "field": "dim.order_date"
+        }
+      },
+      "sqlExpected": "select count(distinct \"orders\".\"customer_id\") as \"value\", \"customer\".\"tier\" as \"dim.customer_tier\" from \"orders\" join \"customer\" on \"customer\".\"id\" = \"orders\".\"customer_id\" where (\"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by \"customer\".\"tier\" fetch next ? rows only",
+      "bindCount": 3,
+      "joinsExpected": [
+        {
+          "cardinality": "N:1",
+          "direction": "reverse",
+          "leftColumn": "customer.id",
+          "relationId": "ontology.Customer.placesOrder",
+          "rightColumn": "orders.customer_id",
+          "table": "customer"
+        }
+      ],
+      "expectShape": "COUNT_DISTINCT(customer_id) GROUP BY tier"
+    },
+    {
+      "id": "g-q07",
+      "mode": "query",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "QUERY",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.region"
+        ],
+        "filters": [
+          {
+            "fieldId": "dim.channel",
+            "operator": "IN",
+            "values": [
+              "线上",
+              "线下"
+            ]
+          }
+        ]
+      },
+      "sqlExpected": "select sum(\"orders\".\"amount\") as \"value\", \"orders\".\"region\" as \"dim.region\" from \"orders\" where \"orders\".\"channel\" in (?, ?) group by \"orders\".\"region\" fetch next ? rows only",
+      "bindCount": 3,
+      "joinsExpected": [],
+      "expectShape": "SUM WHERE channel IN (?,?)"
+    },
+    {
+      "id": "g-q08",
+      "mode": "query",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "QUERY",
+        "metricId": "metric.gmv_created",
+        "dimensions": [
+          "dim.order_date"
+        ],
+        "timeExpressionRaw": "近 30 天",
+        "timeRange": {
+          "field": "dim.order_date"
+        }
+      },
+      "sqlExpected": "select sum(\"orders\".\"amount\") as \"value\", \"orders\".\"order_date\" as \"dim.order_date\" from \"orders\" where (\"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by \"orders\".\"order_date\" fetch next ? rows only",
+      "bindCount": 3,
+      "joinsExpected": [],
+      "expectShape": "下单口径 SUM（独立指标资产）"
+    },
+    {
+      "id": "g-l01",
+      "mode": "lookup",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "LOOKUP",
+        "entityId": "concept.customer",
+        "attributes": [
+          "property.customer.email",
+          "property.customer.tier"
+        ],
+        "identity": {
+          "propertyId": "property.customer.customer_id",
+          "value": "c-1001"
+        }
+      },
+      "sqlExpected": "select \"customer\".\"id\" as \"__identity\", \"customer\".\"email\" as \"property.customer.email\", \"customer\".\"tier\" as \"property.customer.tier\" from \"customer\" where \"customer\".\"id\" = ? fetch next ? rows only",
+      "bindCount": 2,
+      "joinsExpected": [],
+      "expectShape": "SELECT props WHERE id=? LIMIT 1；email 列 mask（displayHints）"
+    },
+    {
+      "id": "g-l02",
+      "mode": "lookup",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "LOOKUP",
+        "entityId": "concept.order",
+        "attributes": [
+          "property.order.order_no",
+          "property.order.order_date",
+          "property.order.amount"
+        ],
+        "identity": {
+          "propertyId": "property.order.order_no",
+          "value": "o-1"
+        }
+      },
+      "sqlExpected": "select \"orders\".\"id\" as \"__identity\", \"orders\".\"id\" as \"property.order.order_no\", \"orders\".\"order_date\" as \"property.order.order_date\", \"orders\".\"amount\" as \"property.order.amount\" from \"orders\" where \"orders\".\"id\" = ? fetch next ? rows only",
+      "bindCount": 2,
+      "joinsExpected": [],
+      "expectShape": "单订单投影"
+    },
+    {
+      "id": "g-l03",
+      "mode": "lookup",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "LOOKUP",
+        "entityId": "concept.product",
+        "attributes": [
+          "property.product.product_id",
+          "property.product.category"
+        ],
+        "identity": {
+          "propertyId": "property.product.product_id",
+          "value": "p-1"
+        }
+      },
+      "sqlExpected": "select \"product\".\"id\" as \"__identity\", \"product\".\"id\" as \"property.product.product_id\", \"product\".\"category\" as \"property.product.category\" from \"product\" where \"product\".\"id\" = ? fetch next ? rows only",
+      "bindCount": 2,
+      "joinsExpected": [],
+      "expectShape": "单商品投影"
+    },
+    {
+      "id": "g-l04",
+      "mode": "lookup",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "LOOKUP",
+        "entityId": "concept.customer",
+        "attributes": [
+          "property.customer.email",
+          "property.customer.tier"
+        ],
+        "identity": {
+          "propertyId": "property.customer.email",
+          "value": "zhang@example.com"
+        }
+      },
+      "sqlExpected": "select \"customer\".\"email\" as \"__identity\", \"customer\".\"email\" as \"property.customer.email\", \"customer\".\"tier\" as \"property.customer.tier\" from \"customer\" where \"customer\".\"email\" = ? fetch next ? rows only",
+      "bindCount": 2,
+      "joinsExpected": [],
+      "expectShape": "PII+存在性敏感：可查不可看值，缺失不泄露存在性差异"
+    },
+    {
+      "id": "g-b01",
+      "mode": "lookup_batch",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "LOOKUP_BATCH",
+        "entityId": "concept.customer",
+        "identityPropertyId": "property.customer.customer_id",
+        "attributes": [
+          "property.customer.email",
+          "property.customer.tier"
+        ],
+        "identities": [
+          "c-1001",
+          "c-1002",
+          "c-1003"
+        ]
+      },
+      "sqlExpected": "select \"customer\".\"id\" as \"__identity\", \"customer\".\"email\" as \"property.customer.email\", \"customer\".\"tier\" as \"property.customer.tier\" from \"customer\" where \"customer\".\"id\" in (?, ?, ?) fetch next ? rows only",
+      "bindCount": 4,
+      "joinsExpected": [],
+      "expectShape": "WHERE id IN (?,?,?)，逐行投影；缺失行标注不存在"
+    },
+    {
+      "id": "g-b02",
+      "mode": "lookup_batch",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "LOOKUP_BATCH",
+        "entityId": "concept.order",
+        "identityPropertyId": "property.order.order_no",
+        "attributes": [
+          "property.order.order_no",
+          "property.order.order_date",
+          "property.order.amount"
+        ],
+        "identities": [
+          "o-1",
+          "o-2",
+          "o-9"
+        ]
+      },
+      "sqlExpected": "select \"orders\".\"id\" as \"__identity\", \"orders\".\"id\" as \"property.order.order_no\", \"orders\".\"order_date\" as \"property.order.order_date\", \"orders\".\"amount\" as \"property.order.amount\" from \"orders\" where \"orders\".\"id\" in (?, ?, ?) fetch next ? rows only",
+      "bindCount": 4,
+      "joinsExpected": [],
+      "expectShape": "o-9 属 other 租户 → RLS 后不可见，行级存在性保护"
+    },
+    {
+      "id": "g-b03",
+      "mode": "lookup_batch",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "LOOKUP_BATCH",
+        "entityId": "concept.product",
+        "identityPropertyId": "property.product.product_id",
+        "attributes": [
+          "property.product.product_id",
+          "property.product.category"
+        ],
+        "identities": [
+          "p-1",
+          "p-2"
+        ]
+      },
+      "sqlExpected": "select \"product\".\"id\" as \"__identity\", \"product\".\"id\" as \"property.product.product_id\", \"product\".\"category\" as \"property.product.category\" from \"product\" where \"product\".\"id\" in (?, ?) fetch next ? rows only",
+      "bindCount": 3,
+      "joinsExpected": [],
+      "expectShape": "商品批量投影"
+    },
+    {
+      "id": "g-b04",
+      "mode": "lookup_batch",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "LOOKUP_BATCH",
+        "entityId": "concept.customer",
+        "identityPropertyId": "property.customer.customer_id",
+        "attributes": [
+          "property.customer.email",
+          "property.customer.tier"
+        ],
+        "identities": [
+          "c-1001"
+        ],
+        "booleanMetricId": "metric.high_value_customer"
+      },
+      "sqlExpected": "select \"customer\".\"id\" as \"__identity\", \"customer\".\"email\" as \"property.customer.email\", \"customer\".\"tier\" as \"property.customer.tier\", \"customer\".\"id\" in (select \"orders\".\"customer_id\" from \"orders\" group by \"orders\".\"customer_id\" having sum(\"orders\".\"amount\") >= ?) as \"metric.high_value_customer\" from \"customer\" where \"customer\".\"id\" in (?) fetch next ? rows only",
+      "bindCount": 3,
+      "joinsExpected": [],
+      "expectShape": "布尔判定列 = Rule 子查询展开（HAVING SUM>=50000）"
+    },
+    {
+      "id": "g-f01",
+      "mode": "funnel",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "FUNNEL",
+        "dimensions": [],
+        "analysisParams": {
+          "steps": [
+            "ORDER_PLACED",
+            "REFUND"
+          ],
+          "stepWindow": "7d",
+          "deduplication": "first_occurrence",
+          "conversionDenominator": "previous_step",
+          "subjectPropertyId": "property.customer.customer_id",
+          "cohortWindow": {
+            "timeExpressionRaw": "近 30 天"
+          }
+        }
+      },
+      "sqlExpected": "with \"cohort\" as (select \"event\".\"customer_id\" as \"subject\", min(\"event\".\"occurred_at\") as \"first_time\" from \"event\" where (\"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= cast(? as timestamp) and \"event\".\"occurred_at\" <= cast(? as timestamp)) group by \"event\".\"customer_id\"), \"step_2\" as (select \"event\".\"customer_id\" as \"subject\", min(\"event\".\"occurred_at\") as \"step_time\" from \"event\" join \"cohort\" on \"cohort\".\"subject\" = \"event\".\"customer_id\" where (\"event\".\"event_type\" = ? and \"event\".\"occurred_at\" > \"cohort\".\"first_time\" and \"event\".\"occurred_at\" <= cast(\"cohort\".\"first_time\" as timestamp) + cast('7 days' as interval)) group by \"event\".\"customer_id\") select \"q\".\"step_1\" as \"step_1\", \"q\".\"step_2\" as \"step_2\", cast(\"q\".\"step_2\" as numeric) / nullif(\"q\".\"step_1\", 0) as \"conversion_2\" from (select count(distinct \"cohort\".\"subject\") as \"step_1\", count(distinct \"step_2\".\"subject\") as \"step_2\" from \"cohort\" left outer join \"step_2\" on \"step_2\".\"subject\" = \"cohort\".\"subject\") as \"q\" fetch next ? rows only",
+      "bindCount": 5,
+      "joinsExpected": [],
+      "expectShape": "步进 CTE s1/s2，每步 count 与转化"
+    },
+    {
+      "id": "g-f02",
+      "mode": "funnel",
+      "kind": "negative",
+      "status": "supported",
+      "title": "步骤数不足（steps < 2）",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "FUNNEL",
+        "dimensions": [],
+        "analysisParams": {
+          "steps": [
+            "ORDER_PLACED"
+          ],
+          "stepWindow": "7d",
+          "deduplication": "first_occurrence",
+          "conversionDenominator": "previous_step",
+          "subjectPropertyId": "property.customer.customer_id",
+          "cohortWindow": {
+            "timeExpressionRaw": "上个月"
+          }
+        }
+      },
+      "expectedErrorCode": 1002000000,
+      "actualErrorCode": 1002000000,
+      "actualErrorMessage": "查询 DSL 校验失败: funnel steps 至少需要 2 步（规格 v1 §1.1）"
+    },
+    {
+      "id": "g-f03",
+      "mode": "funnel",
+      "kind": "negative",
+      "status": "supported",
+      "title": "funnel 重复步骤拒绝",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "FUNNEL",
+        "dimensions": [],
+        "analysisParams": {
+          "steps": [
+            "ORDER_PLACED",
+            "ORDER_PLACED"
+          ],
+          "stepWindow": "7d",
+          "deduplication": "first_occurrence",
+          "conversionDenominator": "previous_step",
+          "subjectPropertyId": "property.customer.customer_id",
+          "cohortWindow": {
+            "timeExpressionRaw": "近 7 天"
+          }
+        }
+      },
+      "expectedErrorCode": 1002000000,
+      "actualErrorCode": 1002000000,
+      "actualErrorMessage": "查询 DSL 校验失败: funnel steps 不可重复"
+    },
+    {
+      "id": "g-f04",
+      "mode": "funnel",
+      "kind": "positive",
+      "status": "unsupported",
+      "reason": "案例与 M2 定档冲突，编译被拒绝（1002000023）：funnel 维度必须属于主体实体: dim.region -> customer",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "FUNNEL",
+        "dimensions": [
+          "dim.region"
+        ],
+        "analysisParams": {
+          "steps": [
+            "ORDER_PLACED",
+            "REFUND"
+          ],
+          "stepWindow": "7d",
+          "deduplication": "first_occurrence",
+          "conversionDenominator": "previous_step",
+          "subjectPropertyId": "property.customer.customer_id",
+          "cohortWindow": {
+            "timeExpressionRaw": "今年"
+          }
+        }
+      }
+    },
+    {
+      "id": "g-y01",
+      "mode": "yoy_mom",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "YOY_MOM",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.region"
+        ],
+        "analysisParams": {
+          "period": "MONTH"
+        },
+        "timeExpressionRaw": "近 365 天",
+        "timeRange": {
+          "field": "dim.order_date"
+        }
+      },
+      "sqlExpected": "select \"w\".\"period\" as \"period\", \"w\".\"dim.region\" as \"dim.region\", \"w\".\"metric_value\" as \"metric_value\", \"w\".\"mom\" as \"mom\", \"w\".\"yoy\" as \"yoy\" from (select \"g\".\"period\" as \"period\", \"g\".\"dim.region\" as \"dim.region\", \"a\".\"metric_value\" as \"metric_value\", (\"a\".\"metric_value\" - lag(\"a\".\"metric_value\", 1) over (partition by \"g\".\"dim.region\" order by \"g\".\"period\")) / nullif(lag(\"a\".\"metric_value\", 1) over (partition by \"g\".\"dim.region\" order by \"g\".\"period\"), 0) as \"mom\", (\"a\".\"metric_value\" - lag(\"a\".\"metric_value\", 12) over (partition by \"g\".\"dim.region\" order by \"g\".\"period\")) / nullif(lag(\"a\".\"metric_value\", 12) over (partition by \"g\".\"dim.region\" order by \"g\".\"period\"), 0) as \"yoy\" from (select \"p\".\"period\" as \"period\", \"d\".\"dim.region\" as \"dim.region\" from (select generate_series(date_trunc('month', cast(? as timestamp)), date_trunc('month', cast(? as timestamp)) - cast('1 month' as interval), cast('1 month' as interval)) as \"period\") as \"p\", (select \"orders\".\"region\" as \"dim.region\" from \"orders\" where (\"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by \"orders\".\"region\") as \"d\") as \"g\" left outer join (select date_trunc('month', \"orders\".\"order_date\") as \"period\", \"orders\".\"region\" as \"dim.region\", sum(\"orders\".\"amount\") as \"metric_value\" from \"orders\" where (\"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by date_trunc('month', \"orders\".\"order_date\"), \"orders\".\"region\") as \"a\" on (\"a\".\"period\" = \"g\".\"period\" and \"a\".\"dim.region\" = \"g\".\"dim.region\")) as \"w\" where \"w\".\"period\" >= date_trunc('month', cast(? as timestamp)) order by \"w\".\"period\", \"w\".\"dim.region\" fetch next ? rows only",
+      "bindCount": 8,
+      "joinsExpected": [],
+      "expectShape": "窗口 lag 同比+环比双列"
+    },
+    {
+      "id": "g-y02",
+      "mode": "yoy_mom",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "YOY_MOM",
+        "metricId": "metric.order_count",
+        "dimensions": [],
+        "analysisParams": {
+          "period": "MONTH"
+        },
+        "timeExpressionRaw": "近 365 天",
+        "timeRange": {
+          "field": "dim.order_date"
+        }
+      },
+      "sqlExpected": "select \"w\".\"period\" as \"period\", \"w\".\"metric_value\" as \"metric_value\", \"w\".\"mom\" as \"mom\", \"w\".\"yoy\" as \"yoy\" from (select \"g\".\"period\" as \"period\", \"a\".\"metric_value\" as \"metric_value\", (\"a\".\"metric_value\" - lag(\"a\".\"metric_value\", 1) over (order by \"g\".\"period\")) / nullif(lag(\"a\".\"metric_value\", 1) over (order by \"g\".\"period\"), 0) as \"mom\", (\"a\".\"metric_value\" - lag(\"a\".\"metric_value\", 12) over (order by \"g\".\"period\")) / nullif(lag(\"a\".\"metric_value\", 12) over (order by \"g\".\"period\"), 0) as \"yoy\" from (select \"p\".\"period\" as \"period\" from (select generate_series(date_trunc('month', cast(? as timestamp)), date_trunc('month', cast(? as timestamp)) - cast('1 month' as interval), cast('1 month' as interval)) as \"period\") as \"p\") as \"g\" left outer join (select date_trunc('month', \"orders\".\"order_date\") as \"period\", count(distinct \"orders\".\"id\") as \"metric_value\" from \"orders\" where (\"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by date_trunc('month', \"orders\".\"order_date\")) as \"a\" on \"a\".\"period\" = \"g\".\"period\") as \"w\" where \"w\".\"period\" >= date_trunc('month', cast(? as timestamp)) order by \"w\".\"period\" fetch next ? rows only",
+      "bindCount": 6,
+      "joinsExpected": [],
+      "expectShape": "总量同环比"
+    },
+    {
+      "id": "g-y03",
+      "mode": "yoy_mom",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "YOY_MOM",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.channel"
+        ],
+        "analysisParams": {
+          "period": "YEAR"
+        },
+        "timeExpressionRaw": "近 365 天",
+        "timeRange": {
+          "field": "dim.order_date"
+        }
+      },
+      "sqlExpected": "select \"w\".\"period\" as \"period\", \"w\".\"dim.channel\" as \"dim.channel\", \"w\".\"metric_value\" as \"metric_value\", \"w\".\"mom\" as \"mom\", \"w\".\"yoy\" as \"yoy\" from (select \"g\".\"period\" as \"period\", \"g\".\"dim.channel\" as \"dim.channel\", \"a\".\"metric_value\" as \"metric_value\", (\"a\".\"metric_value\" - lag(\"a\".\"metric_value\", 1) over (partition by \"g\".\"dim.channel\" order by \"g\".\"period\")) / nullif(lag(\"a\".\"metric_value\", 1) over (partition by \"g\".\"dim.channel\" order by \"g\".\"period\"), 0) as \"mom\", (\"a\".\"metric_value\" - lag(\"a\".\"metric_value\", 1) over (partition by \"g\".\"dim.channel\" order by \"g\".\"period\")) / nullif(lag(\"a\".\"metric_value\", 1) over (partition by \"g\".\"dim.channel\" order by \"g\".\"period\"), 0) as \"yoy\" from (select \"p\".\"period\" as \"period\", \"d\".\"dim.channel\" as \"dim.channel\" from (select generate_series(date_trunc('year', cast(? as timestamp)), date_trunc('year', cast(? as timestamp)) - cast('1 year' as interval), cast('1 year' as interval)) as \"period\") as \"p\", (select \"orders\".\"channel\" as \"dim.channel\" from \"orders\" where (\"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by \"orders\".\"channel\") as \"d\") as \"g\" left outer join (select date_trunc('year', \"orders\".\"order_date\") as \"period\", \"orders\".\"channel\" as \"dim.channel\", sum(\"orders\".\"amount\") as \"metric_value\" from \"orders\" where (\"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by date_trunc('year', \"orders\".\"order_date\"), \"orders\".\"channel\") as \"a\" on (\"a\".\"period\" = \"g\".\"period\" and \"a\".\"dim.channel\" = \"g\".\"dim.channel\")) as \"w\" where \"w\".\"period\" >= date_trunc('year', cast(? as timestamp)) order by \"w\".\"period\", \"w\".\"dim.channel\" fetch next ? rows only",
+      "bindCount": 8,
+      "joinsExpected": [],
+      "expectShape": "年粒度同比"
+    },
+    {
+      "id": "g-y04",
+      "mode": "yoy_mom",
+      "kind": "positive",
+      "status": "supported",
+      "dsl": {
+        "manifestId": "2026.11.08-seventh",
+        "mode": "YOY_MOM",
+        "metricId": "metric.avg_order_value",
+        "dimensions": [
+          "dim.region"
+        ],
+        "analysisParams": {
+          "period": "MONTH"
+        },
+        "timeExpressionRaw": "近 365 天",
+        "timeRange": {
+          "field": "dim.order_date"
+        }
+      },
+      "sqlExpected": "select \"w\".\"period\" as \"period\", \"w\".\"dim.region\" as \"dim.region\", \"w\".\"metric_value\" as \"metric_value\", \"w\".\"mom\" as \"mom\", \"w\".\"yoy\" as \"yoy\" from (select \"g\".\"period\" as \"period\", \"g\".\"dim.region\" as \"dim.region\", \"a\".\"metric_value\" as \"metric_value\", (\"a\".\"metric_value\" - lag(\"a\".\"metric_value\", 1) over (partition by \"g\".\"dim.region\" order by \"g\".\"period\")) / nullif(lag(\"a\".\"metric_value\", 1) over (partition by \"g\".\"dim.region\" order by \"g\".\"period\"), 0) as \"mom\", (\"a\".\"metric_value\" - lag(\"a\".\"metric_value\", 12) over (partition by \"g\".\"dim.region\" order by \"g\".\"period\")) / nullif(lag(\"a\".\"metric_value\", 12) over (partition by \"g\".\"dim.region\" order by \"g\".\"period\"), 0) as \"yoy\" from (select \"p\".\"period\" as \"period\", \"d\".\"dim.region\" as \"dim.region\" from (select generate_series(date_trunc('month', cast(? as timestamp)), date_trunc('month', cast(? as timestamp)) - cast('1 month' as interval), cast('1 month' as interval)) as \"period\") as \"p\", (select \"orders\".\"region\" as \"dim.region\" from \"orders\" where (\"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by \"orders\".\"region\") as \"d\") as \"g\" left outer join (select date_trunc('month', \"orders\".\"order_date\") as \"period\", \"orders\".\"region\" as \"dim.region\", avg(\"orders\".\"amount\") as \"metric_value\" from \"orders\" where (\"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by date_trunc('month', \"orders\".\"order_date\"), \"orders\".\"region\") as \"a\" on (\"a\".\"period\" = \"g\".\"period\" and \"a\".\"dim.region\" = \"g\".\"dim.region\")) as \"w\" where \"w\".\"period\" >= date_trunc('month', cast(? as timestamp)) order by \"w\".\"period\", \"w\".\"dim.region\" fetch next ? rows only",
+      "bindCount": 8,
+      "joinsExpected": [],
+      "expectShape": "客单价同环比"
+    },
+    {
+      "id": "g-n01",
+      "mode": "query",
+      "kind": "negative",
+      "status": "supported",
+      "title": "metric 不在清单",
+      "dsl": {
+        "mode": "QUERY",
+        "metricId": "metric.not_exist",
+        "dimensions": [],
+        "manifestId": "2026.11.08-seventh"
+      },
+      "expectedErrorCode": 1001000003,
+      "actualErrorCode": 1001000003,
+      "actualErrorMessage": "语义资产不存在: metric.not_exist"
+    },
+    {
+      "id": "g-n02",
+      "mode": "query",
+      "kind": "negative",
+      "status": "unsupported",
+      "reason": "当前清单已放开全部维度授权（R-01 修复的副作用），DIMENSION_NOT_ALLOWED 在真实清单上不可构造；该判据由 DslValidatorTest#shouldRejectUnauthorizedDimension 单测覆盖。"
+    },
+    {
+      "id": "g-n03",
+      "mode": "lookup_batch",
+      "kind": "negative",
+      "status": "supported",
+      "title": "批量大小超上限",
+      "dsl": {
+        "mode": "LOOKUP_BATCH",
+        "entityId": "concept.customer",
+        "identityPropertyId": "property.customer.customer_id",
+        "attributes": [
+          "property.customer.tier"
+        ],
+        "identities": [
+          "c-1000",
+          "c-1001",
+          "c-1002",
+          "c-1003",
+          "c-1004",
+          "c-1005",
+          "c-1006",
+          "c-1007",
+          "c-1008",
+          "c-1009",
+          "c-1010",
+          "c-1011",
+          "c-1012",
+          "c-1013",
+          "c-1014",
+          "c-1015",
+          "c-1016",
+          "c-1017",
+          "c-1018",
+          "c-1019",
+          "c-1020",
+          "c-1021",
+          "c-1022",
+          "c-1023",
+          "c-1024",
+          "c-1025",
+          "c-1026",
+          "c-1027",
+          "c-1028",
+          "c-1029",
+          "c-1030",
+          "c-1031",
+          "c-1032",
+          "c-1033",
+          "c-1034",
+          "c-1035",
+          "c-1036",
+          "c-1037",
+          "c-1038",
+          "c-1039",
+          "c-1040",
+          "c-1041",
+          "c-1042",
+          "c-1043",
+          "c-1044",
+          "c-1045",
+          "c-1046",
+          "c-1047",
+          "c-1048",
+          "c-1049",
+          "c-1050"
+        ],
+        "manifestId": "2026.11.08-seventh"
+      },
+      "expectedErrorCode": 1002000019,
+      "actualErrorCode": 1002000019,
+      "actualErrorMessage": "批量 lookup 超过单批上限或 limit 非法: 51 > 50"
+    },
+    {
+      "id": "g-n04",
+      "mode": "query",
+      "kind": "negative",
+      "status": "supported",
+      "title": "绝对日期被拒绝",
+      "dsl": {
+        "mode": "QUERY",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.region"
+        ],
+        "timeRange": {
+          "field": "dim.order_date",
+          "from": "2026-01-01T00:00:00Z",
+          "to": "2026-02-01T00:00:00Z"
+        },
+        "manifestId": "2026.11.08-seventh"
+      },
+      "expectedErrorCode": 1002000009,
+      "actualErrorCode": 1002000009,
+      "actualErrorMessage": "绝对日期被拒绝（LLM 不产出绝对日期）: timeRange 缺少合法来源标记：相对时间请走 timeExpressionRaw，绝对日期仅限 explicitRange"
+    },
+    {
+      "id": "g-n05",
+      "mode": "funnel",
+      "kind": "negative",
+      "status": "unsupported",
+      "reason": "local profile 为 dev-allow-all，授权子图不拒绝任何域；跨域拒绝由策略层单测覆盖，真实策略要等 M4 网关接入。"
+    },
+    {
+      "id": "g-n06",
+      "mode": "query",
+      "kind": "negative",
+      "status": "supported",
+      "title": "未知字段拒绝",
+      "dsl": {
+        "mode": "QUERY",
+        "metricId": "metric.gmv",
+        "dimensions": [],
+        "bogusField": 1,
+        "manifestId": "2026.11.08-seventh"
+      },
+      "expectedErrorCode": 1002000011,
+      "actualErrorCode": 1002000011,
+      "actualErrorMessage": "DSL 存在未知字段（fail-closed）: dsl.bogusField"
+    }
+  ]
+}

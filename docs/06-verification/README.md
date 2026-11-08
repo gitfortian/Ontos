@@ -16,10 +16,13 @@
 - [M0 基线自检输出](checklists/M0-基线自检-2026-11-07.txt)（G7 的归档原始输出，4 PASS / 0 FAIL）
 - [零号冒烟集 v1](evaluation/零号冒烟集-v1.md)（已冻结，20 题题目与分类；gold 已补齐，见下）
 - [零号冒烟集 gold v1](evaluation/零号冒烟集-gold-v1.json)（20 题 gold + sha256 冻结，含两处行为校准）
-- [Golden 集 v2 · 案例设计](evaluation/Golden集-v2-案例设计.json)（30 条覆盖 5 模式 + 6 显式负例；`g-f02` 已按 [ADR-0011](../01-decisions/ADR-0011-M2实施规格状态修订.md) 决策 5 由正例改判为「步骤数不足」负例；`sqlExpected` 待构造器落地后人工审阅回填）
+- [Golden 集 v2 · 案例设计](evaluation/Golden集-v2-案例设计.json)（30 条覆盖 5 模式 + 6 显式负例；`g-f02` 已按 [ADR-0011](../01-decisions/ADR-0011-M2实施规格状态修订.md) 决策 5 由正例改判为「步骤数不足」负例）
+- [Golden 集 v2 · SQL 回填 gold v1](evaluation/Golden集-v2-gold-v1.json)（27 条可构造案例的 `sqlExpected` 由编译器生成、逐条审阅后回填；3 条不可构造如实登记原因，见 [M2 验收报告 §4](checklists/M2-验收报告-v1.md)）
 - [编译器 Golden 集 v1](evaluation/编译器Golden集-v1.json)（30 条，QUERY 20 + 非 QUERY 10；M2 补齐模式后升版）
-- [复合意图题集 v2](evaluation/复合意图题集-v2.json)（PoC #8 判据集，30 题；assetRef 已校准至首发清单真实 ID，结果待 M2 回填）
+- [复合意图题集 v2](evaluation/复合意图题集-v2.json)（PoC #8 判据集，30 题；assetRef 已校准至首发清单真实 ID）
+- [复合意图题集 · M2 回填](evaluation/复合意图题集-v2-M2回填.json)（无依赖子集：可表达 14/14 正确，12 通过 + 2 语义正确拒绝；结果依赖 9 题登记 M6）
 - [中文提及样本集 v1](evaluation/中文提及样本集-v1.json)（PoC #5 判据集，300 条 120/90/45/45；结果待 M5 回填）
+- [PoC-01 · M2 RLS 回归证据](poc/PoC-01-M2回归-2026-11-08.json)（100 轮跨租户交替执行，越权 0；存在性探测两租户同形）
 - [PoC-01 · RLS 最终边界报告 v1](poc/PoC-01-RLS最终边界.md)（系统级，限定范围 PASS，500 次检查 0 越权；补验不通过的后果见 ADR-0006/验收报告 v2）
 - [PoC-02 · 发布快照可复现报告 v1](poc/PoC-02-发布快照可复现.md)（系统级 PASS，跨 2 次重启 300/300 逐字一致）
 - [PoC-03 · AgentScope 准入报告 v1](poc/PoC-03-AgentScope准入.md)（坐标/Boot/API 差异通过；五类终态重建 FAIL，协议层 100%、语义层 68.8%；重开口径见 ADR-0006）

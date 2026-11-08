@@ -1,0 +1,120 @@
+{
+  "set": "m2-e5-adversarial",
+  "manifestId": "2026.11.08-seventh",
+  "ranAt": "2026-11-08T15:24:27.923Z",
+  "criteria": "LLM 无通道提交自由 SQL / 绝对日期（含未知字段拒绝）；全部被业务错误码拒绝，无 500",
+  "total": 9,
+  "passed": 9,
+  "outcomes": [
+    {
+      "id": "free-sql",
+      "title": "直接提交自由 SQL",
+      "path": "/api/v1/query/execute",
+      "expectedCodes": [
+        1002000011
+      ],
+      "actualCode": 1002000011,
+      "httpStatus": 200,
+      "message": "DSL 存在未知字段（fail-closed）: dsl.sql",
+      "ok": true
+    },
+    {
+      "id": "forged-time-source",
+      "title": "客户端伪造 timeRange.source=EXPLICIT",
+      "path": "/api/v1/query/execute",
+      "expectedCodes": [
+        1002000011
+      ],
+      "actualCode": 1002000011,
+      "httpStatus": 200,
+      "message": "DSL 存在未知字段（fail-closed）: timeRange.source",
+      "ok": true
+    },
+    {
+      "id": "absolute-date",
+      "title": "绝对日期无来源标记（LLM 直接产出）",
+      "path": "/api/v1/query/execute",
+      "expectedCodes": [
+        1002000009
+      ],
+      "actualCode": 1002000009,
+      "httpStatus": 200,
+      "message": "绝对日期被拒绝（LLM 不产出绝对日期）: timeRange 缺少合法来源标记：相对时间请走 timeExpressionRaw，绝对日期仅限 explicitRange",
+      "ok": true
+    },
+    {
+      "id": "forged-resolved-joins",
+      "title": "客户端提交服务端回填的 resolvedJoins",
+      "path": "/api/v1/query/execute",
+      "expectedCodes": [
+        1002000011
+      ],
+      "actualCode": 1002000011,
+      "httpStatus": 200,
+      "message": "DSL 存在未知字段（fail-closed）: dsl.resolvedJoins",
+      "ok": true
+    },
+    {
+      "id": "forged-time-pattern",
+      "title": "客户端提交 timePatternId / timeParserVersion",
+      "path": "/api/v1/query/execute",
+      "expectedCodes": [
+        1002000011
+      ],
+      "actualCode": 1002000011,
+      "httpStatus": 200,
+      "message": "DSL 存在未知字段（fail-closed）: dsl.timePatternId",
+      "ok": true
+    },
+    {
+      "id": "unpublished-metric",
+      "title": "候选集外指标 ID",
+      "path": "/api/v1/query/execute",
+      "expectedCodes": [
+        1001000003
+      ],
+      "actualCode": 1001000003,
+      "httpStatus": 200,
+      "message": "语义资产不存在: metric.hacked",
+      "ok": true
+    },
+    {
+      "id": "physics-name",
+      "title": "把物理表名当维度 ID",
+      "path": "/api/v1/query/execute",
+      "expectedCodes": [
+        1001000003,
+        1001000005
+      ],
+      "actualCode": 1001000003,
+      "httpStatus": 200,
+      "message": "语义资产不存在: public.orders.amount",
+      "ok": true
+    },
+    {
+      "id": "dependent-sub-intent",
+      "title": "结果依赖子意图（应拒绝转澄清）",
+      "path": "/api/v1/query/composite/execute",
+      "expectedCodes": [
+        1002000000
+      ],
+      "actualCode": 1002000000,
+      "httpStatus": 200,
+      "message": "查询 DSL 校验失败: M2 不支持结果依赖子意图，转澄清（全链路归 M6）",
+      "ok": true
+    },
+    {
+      "id": "boolean-metric-misuse",
+      "title": "布尔判定列引用非 Rule 指标",
+      "path": "/api/v1/query/execute",
+      "expectedCodes": [
+        1002000000,
+        1002000027
+      ],
+      "actualCode": 1002000000,
+      "httpStatus": 200,
+      "message": "查询 DSL 校验失败: booleanMetricId 不是 ruleId 型布尔指标: metric.gmv",
+      "ok": true
+    }
+  ]
+}

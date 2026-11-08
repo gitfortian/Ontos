@@ -1,0 +1,592 @@
+{
+  "set": "poc08-composite-v2",
+  "m2Depth": "无依赖子集（结果依赖类登记 M6，M2 规格 §1-G）",
+  "manifestId": "2026.11.08-seventh",
+  "generatedAt": "2026-11-08T15:23:18.641Z",
+  "total": 30,
+  "counters": {
+    "deferred_m6": 9,
+    "pass": 12,
+    "expected_reject_grain": 2,
+    "unsupported_partial": 4,
+    "unsupported_dsl": 3
+  },
+  "results": [
+    {
+      "id": "c01",
+      "category": "result_dependent",
+      "subCount": 2,
+      "status": "deferred_m6",
+      "reason": "结果依赖类（dependsOn 非空），按 M2 定档登记 M6"
+    },
+    {
+      "id": "c02",
+      "category": "result_dependent",
+      "subCount": 2,
+      "status": "deferred_m6",
+      "reason": "结果依赖类（dependsOn 非空），按 M2 定档登记 M6"
+    },
+    {
+      "id": "c03",
+      "category": "result_dependent",
+      "subCount": 3,
+      "status": "deferred_m6",
+      "reason": "结果依赖类（dependsOn 非空），按 M2 定档登记 M6"
+    },
+    {
+      "id": "c04",
+      "category": "result_dependent",
+      "subCount": 3,
+      "status": "deferred_m6",
+      "reason": "结果依赖类（dependsOn 非空），按 M2 定档登记 M6"
+    },
+    {
+      "id": "c05",
+      "category": "result_dependent",
+      "subCount": 2,
+      "status": "deferred_m6",
+      "reason": "结果依赖类（dependsOn 非空），按 M2 定档登记 M6"
+    },
+    {
+      "id": "c06",
+      "category": "result_dependent",
+      "subCount": 2,
+      "status": "deferred_m6",
+      "reason": "结果依赖类（dependsOn 非空），按 M2 定档登记 M6"
+    },
+    {
+      "id": "c07",
+      "category": "result_dependent",
+      "subCount": 3,
+      "status": "deferred_m6",
+      "reason": "结果依赖类（dependsOn 非空），按 M2 定档登记 M6"
+    },
+    {
+      "id": "c08",
+      "category": "result_dependent",
+      "subCount": 2,
+      "status": "deferred_m6",
+      "reason": "结果依赖类（dependsOn 非空），按 M2 定档登记 M6"
+    },
+    {
+      "id": "c09",
+      "category": "parallel_independent",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 4,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 2
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 2
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.channel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c10",
+      "category": "parallel_independent",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 2,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.distinct_customers",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c11",
+      "category": "parallel_independent",
+      "subCount": 2,
+      "status": "expected_reject_grain",
+      "reason": "1002000014: 跨表路径存在粒度扩散，违反一行一事实: ontology.Order.containsItem forward 归一化基数=1:N",
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.product_category"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.refund_amount",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.channel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c12",
+      "category": "parallel_independent",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 2,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c13",
+      "category": "parallel_independent",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 4,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 2
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 2
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.avg_order_value",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c14",
+      "category": "parallel_independent",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 4,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 3
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.distinct_customers",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.customer_tier"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c15",
+      "category": "failure_single",
+      "subCount": 2,
+      "status": "unsupported_partial",
+      "reason": "含单子失败注入；M2 是整单拒绝（不返回部分结果），部分失败可解释归 M6"
+    },
+    {
+      "id": "c16",
+      "category": "failure_single",
+      "subCount": 2,
+      "status": "unsupported_dsl",
+      "reason": "子意图 BOOLEAN_RULE 在 SubIntent DSL 里没有对应字段（只有 metric/dimensions/filters/timeExpression）"
+    },
+    {
+      "id": "c17",
+      "category": "failure_single",
+      "subCount": 2,
+      "status": "unsupported_partial",
+      "reason": "含单子失败注入；M2 是整单拒绝（不返回部分结果），部分失败可解释归 M6"
+    },
+    {
+      "id": "c18",
+      "category": "failure_single",
+      "subCount": 2,
+      "status": "unsupported_partial",
+      "reason": "含单子失败注入；M2 是整单拒绝（不返回部分结果），部分失败可解释归 M6"
+    },
+    {
+      "id": "c19",
+      "category": "failure_single",
+      "subCount": 2,
+      "status": "unsupported_partial",
+      "reason": "含单子失败注入；M2 是整单拒绝（不返回部分结果），部分失败可解释归 M6"
+    },
+    {
+      "id": "c20",
+      "category": "cross_scope",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 2,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.distinct_customers",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c21",
+      "category": "cross_scope",
+      "subCount": 2,
+      "status": "unsupported_dsl",
+      "reason": "子意图 BOOLEAN_RULE 在 SubIntent DSL 里没有对应字段（只有 metric/dimensions/filters/timeExpression）"
+    },
+    {
+      "id": "c22",
+      "category": "cross_scope",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 5,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 2
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 3
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.channel"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.distinct_customers",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.customer_tier"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c23",
+      "category": "cross_scope",
+      "subCount": 2,
+      "status": "expected_reject_grain",
+      "reason": "1002000014: 跨表路径存在粒度扩散，违反一行一事实: ontology.Order.containsItem forward 归一化基数=1:N",
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.product_category"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c24",
+      "category": "cross_scope",
+      "subCount": 2,
+      "status": "unsupported_dsl",
+      "reason": "子意图 LOOKUP 在 SubIntent DSL 里没有对应字段（只有 metric/dimensions/filters/timeExpression）"
+    },
+    {
+      "id": "c25",
+      "category": "composite_time",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 2,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c26",
+      "category": "composite_time",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 4,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 2
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 2
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c27",
+      "category": "composite_time",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 2,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c28",
+      "category": "composite_time",
+      "subCount": 3,
+      "status": "pass",
+      "reason": "逐子返回 3 份结果，顺序与请求一致",
+      "totalRowCount": 3,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s3",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s3",
+          "metricId": "metric.avg_order_value",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c29",
+      "category": "composite_time",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 4,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 2
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 2
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.channel"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.channel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c30",
+      "category": "composite_time",
+      "subCount": 3,
+      "status": "deferred_m6",
+      "reason": "结果依赖类（dependsOn 非空），按 M2 定档登记 M6"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+M2 基线自检 — 2026-11-08
+==================================================
+
+[1] mvn -o test（ontos/）
+    结果：BUILD SUCCESS；30 个测试类 / 254 例全绿（Failures 0, Errors 0）
+    说明：含 ArchUnit 架构守护（ArchitectureTest 5 例）与 DevModeGuard（9 例）
+
+[2] ontos-ui: pnpm check
+$ pnpm format:check && pnpm lint && pnpm typecheck && pnpm architecture:check && pnpm contract:check
+$ oxfmt --check apps packages scripts
+$ oxlint apps packages scripts --deny-warnings
+Found 0 warnings and 0 errors.
+$ tsc --noEmit
+$ node scripts/check-architecture.mjs && node --test scripts/architecture-imports.test.mjs
+# pass 8
+$ pnpm test:unit && node scripts/verify-design-tokens.mjs && node scripts/verify-primary-color-tokens.mjs
+
+[3] node docs/00-governance/check-docs.mjs
+docs 治理检查通过：57 份文档，436 条相对链接，9 个一级目录。
+
+[4] ontos-ui: vite build（独立输出目录，规避环境批量删除保护）
+    结果：✓ built in ~52s（仅 chunk >500 kB 警告）
+
+[5] jar 启动探活（--spring.profiles.active=local --server.port=8080）
+    GET /actuator/health -> {"groups":["liveness","readiness"],"status":"UP"}
+    Flyway：V6__query_cache_align.sql 已应用（启动日志无 WARN/ERROR）
+
+[6] 业务基线（PG18，租户 demo，active manifest 2026.11.08-seventh）
+    RLS 探针：100 轮跨租户交替执行，越权 0 次
+    Golden：30 条中 27 条可构造且逐字一致（0 失败）
+    复合意图：可表达子集 14/14 正确（12 通过 + 2 语义正确拒绝）
+    E5 对抗探针：9/9 全部被业务错误码拒绝
