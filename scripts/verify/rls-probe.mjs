@@ -67,12 +67,14 @@ async function post(path, dsl, tenant, requestId) {
   return body;
 }
 
+// 同上：幂等键要求每跑一次都换 ID
+const runId = `r${Date.now()}`;
 const violations = [];
 const observations = { ownerRows: new Set(), foreignRows: new Set(), ownerAvailable: new Set() };
 
 for (let round = 1; round <= ROUNDS; round += 1) {
-  const owner = await post("/api/v1/query/execute", QUERY_DSL, OWNER_TENANT, `rls-${round}-owner`);
-  const foreign = await post("/api/v1/query/execute", QUERY_DSL, FOREIGN_TENANT, `rls-${round}-foreign`);
+  const owner = await post("/api/v1/query/execute", QUERY_DSL, OWNER_TENANT, `rls-${runId}-${round}-owner`);
+  const foreign = await post("/api/v1/query/execute", QUERY_DSL, FOREIGN_TENANT, `rls-${runId}-${round}-foreign`);
 
   if (owner.code !== 0) {
     violations.push({ round, kind: "owner_failed", code: owner.code, msg: owner.msg });
@@ -89,8 +91,8 @@ for (let round = 1; round <= ROUNDS; round += 1) {
 }
 
 // 存在性：有权限租户能查到，其他租户与不存在标识同形（available=false，values 为空）
-const ownerLookup = await post("/api/v1/query/execute", LOOKUP_DSL, OWNER_TENANT, "rls-lookup-owner");
-const foreignLookup = await post("/api/v1/query/execute", LOOKUP_DSL, FOREIGN_TENANT, "rls-lookup-foreign");
+const ownerLookup = await post("/api/v1/query/execute", LOOKUP_DSL, OWNER_TENANT, `rls-${runId}-lookup-owner`);
+const foreignLookup = await post("/api/v1/query/execute", LOOKUP_DSL, FOREIGN_TENANT, `rls-${runId}-lookup-foreign`);
 
 if (ownerLookup.code !== 0 || !ownerLookup.data?.lookupRows?.[0]?.available) {
   violations.push({ kind: "owner_lookup_unavailable", code: ownerLookup.code });

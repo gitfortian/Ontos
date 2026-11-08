@@ -3,7 +3,7 @@
   "scope": "M2 回归：RLS 最终边界（跨租户 / 连接复用 / 存在性）",
   "manifestId": "2026.11.08-seventh",
   "rounds": 100,
-  "ranAt": "2026-11-08T15:23:39.558Z",
+  "ranAt": "2026-11-08T21:33:24.530Z",
   "criteria": "越权成功 0（技术选型 §7 #1）",
   "observations": {
     "ownerRowCounts": [
@@ -16,8 +16,8 @@
       "available": true,
       "identity": "c-1001",
       "values": {
-        "property.customer.email": "z***@example.com",
-        "property.customer.tier": "gold"
+        "property.customer.tier": "gold",
+        "property.customer.email": "z***@example.com"
       }
     },
     "foreignLookup": {

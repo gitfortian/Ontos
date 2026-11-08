@@ -1,7 +1,7 @@
 {
   "set": "m2-e5-adversarial",
   "manifestId": "2026.11.08-seventh",
-  "ranAt": "2026-11-08T15:24:27.923Z",
+  "ranAt": "2026-11-08T21:33:08.063Z",
   "criteria": "LLM 无通道提交自由 SQL / 绝对日期（含未知字段拒绝）；全部被业务错误码拒绝，无 500",
   "total": 9,
   "passed": 9,

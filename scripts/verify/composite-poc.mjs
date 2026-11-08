@@ -63,6 +63,8 @@ async function executeComposite(subs, requestId) {
   return { outcome: body.data };
 }
 
+// request_id 是幂等键：同一脚本重复跑必须换 ID，否则第二轮起会被「已执行」挡在入口
+const runId = `r${Date.now()}`;
 const corpus = JSON.parse(readFileSync(CORPUS, "utf8"));
 const results = [];
 
@@ -93,7 +95,7 @@ for (const testCase of corpus.cases) {
   }
 
   const built = subs.map(toSubIntent);
-  const outcome = await executeComposite(built, `poc8-${testCase.id}`);
+  const outcome = await executeComposite(built, `poc8-${runId}-${testCase.id}`);
 
   if (outcome.errorCode) {
     // 语义正确但子查询本身非法的案例：跨表维度在 1:N 边扩散（orders→order_item→product）
