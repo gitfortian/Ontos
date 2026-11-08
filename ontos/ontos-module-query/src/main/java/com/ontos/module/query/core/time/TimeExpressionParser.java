@@ -73,8 +73,7 @@ public class TimeExpressionParser {
             return null;
         }
         if (shape.contains("N")) {
-            Matcher matcher = Pattern.compile(
-                    "^" + Pattern.quote(shape).replace("N", "(\\d+)") + "$").matcher(normalized);
+            Matcher matcher = Pattern.compile(numericPattern(shape)).matcher(normalized);
             if (!matcher.matches()) {
                 return null;
             }
@@ -83,7 +82,8 @@ public class TimeExpressionParser {
                 return null;
             }
             return switch (pattern.getGranularity()) {
-                case "DAY" -> dayRange(today.minusDays(n - 1L), today.minusDays(n - 1L).plusDays(1));
+                // 「近 N 天」含当天：[today-N+1, today+1) 恰为 N 天（ADR-0004 2.4）
+                case "DAY" -> dayRange(today.minusDays(n - 1L), today.plusDays(1));
                 case "MONTH" -> monthRange(today.minusMonths(n - 1L), n);
                 default -> null;
             };
@@ -100,6 +100,23 @@ public class TimeExpressionParser {
                 default -> null;
             };
         };
+    }
+
+    /**
+     * 构造含数字占位的匹配正则：按 N 分段，各段分别 quote（字面），
+     * N 位置插入捕获组——顺序是「先拆分再 quote」，不能先 quote 整串再替换
+     * （\Q..\E 会把 (\d+) 也变成字面文本，正则永远匹配不上数字）。
+     */
+    private static String numericPattern(String shape) {
+        String[] parts = shape.split("N", -1);
+        StringBuilder regex = new StringBuilder("^");
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) {
+                regex.append("(\\d+)");
+            }
+            regex.append(Pattern.quote(parts[i]));
+        }
+        return regex.append("$").toString();
     }
 
     /** 左闭右开日区间。 */
