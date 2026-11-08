@@ -27,7 +27,7 @@
     { "id": "g-b03", "mode": "lookup_batch", "dsl": { "entity": "concept.product", "identities": ["p-1", "p-2"] }, "expectShape": "商品批量投影" },
     { "id": "g-b04", "mode": "lookup_batch", "dsl": { "entity": "concept.customer", "identities": ["c-1001"], "booleanMetric": "metric.high_value_customer" }, "expectShape": "布尔判定列 = Rule 子查询展开（HAVING SUM>=50000）" },
     { "id": "g-f01", "mode": "funnel", "dsl": { "steps": ["ORDER_PLACED", "REFUND"], "entity": "concept.customer", "time": "近 30 天" }, "expectShape": "步进 CTE s1/s2，每步 count 与转化" },
-    { "id": "g-f02", "mode": "funnel", "dsl": { "steps": ["ORDER_PLACED"], "entity": "concept.customer", "time": "上个月" }, "expectShape": "单步退化 = 普通聚合（或拒绝，构造器定档）" },
+    { "id": "g-f02", "mode": "funnel", "negative": "步骤数不足（steps < 2）", "dsl": { "steps": ["ORDER_PLACED"], "entity": "concept.customer", "time": "上个月" }, "expectShape": "DSL_INVALID 拒绝（analysis-mode 规格 v1 §1.1）", "amendedBy": "ADR-0011" },
     { "id": "g-f03", "mode": "funnel", "dsl": { "steps": ["ORDER_PLACED", "ORDER_PLACED"], "entity": "concept.customer", "time": "近 7 天" }, "expectShape": "重复步骤 → 校验拒绝（负例）" },
     { "id": "g-f04", "mode": "funnel", "dsl": { "steps": ["ORDER_PLACED", "REFUND"], "entity": "concept.customer", "time": "今年", "groupBy": ["dim.region"] }, "expectShape": "漏斗 + 维度分组" },
     { "id": "g-y01", "mode": "yoy_mom", "dsl": { "metricId": "metric.gmv", "dimensions": ["dim.region"], "period": "MONTH" }, "expectShape": "窗口 lag 同比+环比双列" },

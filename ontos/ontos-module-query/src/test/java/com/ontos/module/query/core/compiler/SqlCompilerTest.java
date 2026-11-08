@@ -11,6 +11,7 @@ import com.ontos.module.query.core.dsl.QueryDsl;
 import org.junit.jupiter.api.Test;
 
 import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -127,5 +128,21 @@ class SqlCompilerTest {
                 "ON 条件应使用清单物理列: " + sql);
         assertEquals(1, compiled.getJoins().size());
         assertEquals("r.placesOrder", compiled.getJoins().get(0).getRelationId());
+    }
+
+    @Test
+    void shouldRejectJoinWithoutTableToIntroduce() {
+        // 纵深防御：缺少待引入表时整单拒绝，绝不把未展开关系退化成 WHERE 等值条件
+        QueryDsl.ResolvedJoin join = new QueryDsl.ResolvedJoin();
+        join.setRelationId("r.placesOrder");
+        join.setLeftColumn("public.dim_customer.id");
+        join.setRightColumn("public.fact_order.customer_id");
+
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setResolvedJoins(List.of(join));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> compiler.compile(dsl, TestFixtures.manifest()));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
     }
 }

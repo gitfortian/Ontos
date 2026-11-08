@@ -100,4 +100,15 @@ class DslCodecTest {
         assertRejected("{\"metricId\":\"gmv\",\"timeRange\":\"上个月\"}", DSL_INVALID.getCode());
     }
 
+    @Test
+    void shouldConvertJacksonTypeErrorsToBusinessRejection() {
+        // JsonUtils.parseObject 把 JacksonException 包成 IllegalArgumentException；
+        // 不转换会冒到 Spring 变 500，破坏「畸形 DSL 一律业务错误 fail-closed」契约。
+        assertRejected("{\"metricId\":\"gmv\",\"dimensions\":[{\"x\":1}]}", DSL_INVALID.getCode());
+        assertRejected("{\"metricId\":\"gmv\",\"limit\":\"not-a-number\"}", DSL_INVALID.getCode());
+        assertRejected("{\"metricId\":\"gmv\",\"mode\":\"NOT_A_MODE\"}", DSL_INVALID.getCode());
+        assertRejected("{\"metricId\":\"gmv\",\"filters\":[{\"fieldId\":\"region\","
+                + "\"operator\":\"EQ\",\"values\":[{\"x\":1}]}]}", DSL_INVALID.getCode());
+    }
+
 }

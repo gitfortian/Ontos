@@ -71,6 +71,8 @@ public class JoinPathResolver {
 
         Set<String> joinedTables = new LinkedHashSet<>();
         joinedTables.add(rootTable);
+        // 多个跨表维度可能规划出重叠路径；同一关系只展开一次，避免重复 JOIN 或伪造额外等值条件。
+        Set<String> expandedRelations = new LinkedHashSet<>();
         List<QueryDsl.ResolvedJoin> joins = new ArrayList<>();
         for (String targetTable : targetTables) {
             String targetConcept = conceptByTable.get(targetTable);
@@ -82,11 +84,17 @@ public class JoinPathResolver {
             if (plan.status() == OntologyPathPlanner.PathStatus.AMBIGUOUS) {
                 throw exception(PATH_AMBIGUOUS, rootConcept + " -> " + targetConcept + ": " + plan.reason());
             }
-            if (plan.status() == OntologyPathPlanner.PathStatus.NONE) {
-                throw exception(PATH_UNREACHABLE, rootConcept + " -> " + targetConcept + ": " + plan.reason());
+            if (plan.status() != OntologyPathPlanner.PathStatus.UNIQUE
+                    || plan.candidates().size() != 1) {
+                throw exception(PATH_UNREACHABLE,
+                        rootConcept + " -> " + targetConcept + ": " + plan.reason());
             }
             for (OntologyPathPlanner.PathEdge edge : plan.candidates().get(0).edges()) {
                 validateGranularity(edge);
+                if (expandedRelations.contains(edge.relationId())) {
+                    // 该边已由前一条路径展开并引入表，复用即可；不得重复加表、也不得退化为 WHERE 条件
+                    continue;
+                }
                 OntologySnapshot.Relation relation = relations.get(edge.relationId());
                 if (relation == null || relation.getFromColumn() == null || relation.getToColumn() == null) {
                     throw exception(PATH_UNREACHABLE, "关系缺少 Join 映射: " + edge.relationId());
@@ -103,8 +111,13 @@ public class JoinPathResolver {
                 if (!leftJoined && !rightJoined) {
                     throw exception(PATH_UNREACHABLE, "路径与已展开表不连通: " + edge.relationId());
                 }
-                String tableToJoin = leftJoined && rightJoined ? null
-                        : (leftJoined ? rightTable : leftTable);
+                if (leftJoined && rightJoined) {
+                    // 两端表已由其它路径引入，但该关系本身未展开：再加等值约束会静默改变结果，
+                    // 按 fail-closed 拒绝，绝不猜测连接（v1.4 §8.2「一行一事实」）。
+                    throw exception(PATH_UNREACHABLE,
+                            "关系两端已引入但未展开，禁止追加隐式连接: " + edge.relationId());
+                }
+                String tableToJoin = leftJoined ? rightTable : leftTable;
 
                 QueryDsl.ResolvedJoin join = new QueryDsl.ResolvedJoin();
                 join.setRelationId(edge.relationId());
@@ -114,9 +127,8 @@ public class JoinPathResolver {
                 join.setRightColumn(rightColumn);
                 join.setCardinality(effectiveCardinality(edge));
                 joins.add(join);
-                if (tableToJoin != null) {
-                    joinedTables.add(tableToJoin);
-                }
+                expandedRelations.add(edge.relationId());
+                joinedTables.add(tableToJoin);
             }
         }
         dsl.setResolvedJoins(joins);

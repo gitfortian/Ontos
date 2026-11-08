@@ -7,6 +7,7 @@ import java.util.Set;
 import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.PublishedManifest;
+import com.ontos.module.ontology.core.SemanticManifest;
 import com.ontos.module.query.core.TestFixtures;
 import com.ontos.module.query.core.dsl.QueryDsl;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JoinPathResolverTest {
 
     private static final String CUSTOMER_TABLE = "public.dim_customer";
+    private static final String ITEM_TABLE = "public.dim_item";
     private static final String ORDER_TABLE = TestFixtures.TABLE;
     private static final Set<String> DOMAINS = Set.of("trade", "customer");
 
@@ -151,6 +153,54 @@ class JoinPathResolverTest {
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> RESOLVER.resolve(dsl, manifest));
         assertEquals(PATH_GRANULARITY_VIOLATION.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldDeduplicateOverlappingPathsAcrossTargetTables() {
+        // 深度审核回归：目标 1 = customer（路径 r1），目标 2 = item（路径 r1+r2）。
+        // 旧实现会为第二条路径重复展开 r1，并把两端已引入的边退化成 WHERE 等值条件。
+        OntologySnapshot ontology = new OntologySnapshot();
+        ontology.setConcepts(List.of(
+                concept("concept.customer", "customer"),
+                concept("concept.order", "trade"),
+                concept("concept.order_item", "trade")));
+        ontology.setProperties(List.of(
+                property("p.customer.id", "concept.customer", CUSTOMER_TABLE + ".id"),
+                property("p.order.id", "concept.order", ORDER_TABLE + ".id"),
+                property("p.item.id", "concept.order_item", ITEM_TABLE + ".id")));
+
+        OntologySnapshot.Relation r1 = relation("r.placesOrder", "1:N", true, true);
+        OntologySnapshot.Relation r2 = new OntologySnapshot.Relation();
+        r2.setId("r.itemOfCustomer");
+        r2.setFrom("concept.customer");
+        r2.setTo("concept.order_item");
+        r2.setCardinality("N:1");
+        r2.setFromColumn(CUSTOMER_TABLE + ".id");
+        r2.setToColumn(ITEM_TABLE + ".customer_id");
+        r2.setQueryable(true);
+        r2.setGoldenPath(false);
+        ontology.setRelations(List.of(r1, r2));
+
+        PublishedManifest manifest = manifest(ontology);
+        SemanticManifest.Dimension item = new SemanticManifest.Dimension();
+        item.setId("item_name");
+        item.setTable(ITEM_TABLE);
+        item.setColumn(ITEM_TABLE + ".name");
+        List<SemanticManifest.Dimension> dimensions =
+                new ArrayList<>(manifest.getSemantic().getDimensions());
+        dimensions.add(item);
+        manifest.getSemantic().setDimensions(dimensions);
+
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setDimensions(List.of("customer_tier", "item_name"));
+
+        RESOLVER.resolve(dsl, manifest);
+
+        assertEquals(2, dsl.getResolvedJoins().size(), "重叠路径只展开两条边，不产生重复 JOIN");
+        assertTrue(dsl.getResolvedJoins().stream().allMatch(join -> join.getTable() != null),
+                "每条解析后的 Join 必须有待引入表，禁止静默退化为 WHERE");
+        assertEquals(List.of("r.placesOrder", "r.itemOfCustomer"),
+                dsl.getResolvedJoins().stream().map(QueryDsl.ResolvedJoin::getRelationId).toList());
     }
 
 }

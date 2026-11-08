@@ -10,6 +10,7 @@ import com.ontos.module.query.core.TestFixtures;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static com.ontos.module.ontology.enums.ErrorCodeConstants.DIMENSION_NOT_ALLOWED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ABSOLUTE_DATE_REJECTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
@@ -337,5 +338,67 @@ class DslValidatorTest {
         dsl.setAnalysisParams(params);
         ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
         assertEquals(ANALYSIS_MODE_NOT_IMPLEMENTED.getCode(), ex.getCode());
+    }
+
+    // ---------- 深度审核回归：维度授权三条引用路径 + 过滤值数量 ----------
+
+    private static QueryDsl.Filter filter(String fieldId, QueryDsl.Operator operator, List<String> values) {
+        QueryDsl.Filter filter = new QueryDsl.Filter();
+        filter.setFieldId(fieldId);
+        filter.setOperator(operator);
+        filter.setValues(values);
+        return filter;
+    }
+
+    private static QueryDsl.ResolvedJoin joinToCustomer() {
+        QueryDsl.ResolvedJoin join = new QueryDsl.ResolvedJoin();
+        join.setTable("public.dim_customer");
+        join.setLeftColumn("public.dim_customer.id");
+        join.setRightColumn("public.fact_order.customer_id");
+        return join;
+    }
+
+    @Test
+    void shouldRejectFilterOutsideMetricWhitelistEvenWhenJoinResolved() {
+        // T3.1 放开跨表 Join 后，过滤字段曾绕过 allowedDimensions 直接读未授权表（ADR-0003 判据 6）
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setFilters(List.of(filter("customer_tier", QueryDsl.Operator.EQ, List.of("VIP"))));
+        dsl.setResolvedJoins(List.of(joinToCustomer()));
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DIMENSION_NOT_ALLOWED.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldRejectTimeFieldOutsideMetricWhitelist() {
+        QueryDsl dsl = TestFixtures.query();
+        QueryDsl.TimeRange range = new QueryDsl.TimeRange();
+        range.setField("customer_tier");
+        range.setFrom(Instant.parse("2026-10-01T00:00:00Z"));
+        range.setTo(Instant.parse("2026-11-01T00:00:00Z"));
+        range.setSource(QueryDsl.TimeRange.SOURCE_EXPRESSION);
+        dsl.setTimeRange(range);
+        dsl.setTimeExpressionRaw("上个月");
+        dsl.setTimePatternId("tep.last_month");
+        dsl.setTimeParserVersion("time-parser-1.0");
+        dsl.setResolvedJoins(List.of(joinToCustomer()));
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DIMENSION_NOT_ALLOWED.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldRejectExtraValuesForSingleValuedOperator() {
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setFilters(List.of(filter(TestFixtures.DIMENSION_ID,
+                QueryDsl.Operator.EQ, List.of("华东", "华南"))));
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldAllowMultipleValuesForInOperator() {
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setFilters(List.of(filter(TestFixtures.DIMENSION_ID,
+                QueryDsl.Operator.IN, List.of("华东", "华南"))));
+        assertDoesNotThrow(() -> validator.validate(dsl, manifest));
     }
 }

@@ -73,7 +73,14 @@ public class DslCodec {
             }
         }
 
-        QueryDsl dsl = JsonUtils.parseObject(json, QueryDsl.class);
+        QueryDsl dsl;
+        try {
+            dsl = JsonUtils.parseObject(json, QueryDsl.class);
+        } catch (IllegalArgumentException ex) {
+            // JsonUtils.parseObject 把 JacksonException 包成 IllegalArgumentException；
+            // 不转换会冒到 Spring 变成 500，破坏「畸形 DSL 一律以业务错误 fail-closed」的契约。
+            throw exception(DSL_INVALID, "DSL 字段类型不合法: " + rootMessage(ex));
+        }
         if (dsl == null) {
             throw exception(DSL_INVALID, "DSL 反序列化结果为空");
         }
@@ -102,6 +109,15 @@ public class DslCodec {
         for (Map<String, Object> item : asMapList(value, path)) {
             checkKeys(item, allowed, path + "[]");
         }
+    }
+
+    private static String rootMessage(Throwable ex) {
+        Throwable current = ex;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        String message = current.getMessage();
+        return message == null ? "unknown" : (message.length() > 200 ? message.substring(0, 200) : message);
     }
 
     @SuppressWarnings("unchecked")

@@ -68,14 +68,14 @@ public class SqlCompiler {
 
         List<Condition> conditions = new ArrayList<>();
         for (QueryDsl.ResolvedJoin join : joins) {
+            // 纵深防御：JoinPathResolver 保证每条边都有待引入的表；
+            // 缺失时整单拒绝，绝不把未展开的关系退化成 WHERE 等值条件（那会静默改变结果）。
+            if (join.getTable() == null) {
+                throw exception(DSL_INVALID, "解析后的 Join 缺少待引入表: " + join.getRelationId());
+            }
             Condition on = DSL.field(columnName(join.getLeftColumn()))
                     .eq(DSL.field(columnName(join.getRightColumn())));
-            if (join.getTable() != null) {
-                select.addJoin(DSL.table(tableName(join.getTable())), on);
-            } else {
-                // 两端表都已引入：退化为 WHERE 里的等值条件，语义等价且不重复加表
-                conditions.add(on);
-            }
+            select.addJoin(DSL.table(tableName(join.getTable())), on);
         }
         if (queryDsl.getFilters() != null) {
             for (QueryDsl.Filter filter : queryDsl.getFilters()) {

@@ -63,11 +63,22 @@ public class QueryServiceImpl implements QueryService {
         RequestContext context = RequestContextHolder.require();
         String requestId = context.traceId();
         requestStateService.initialize(context, requestId);
-        PublishedManifest manifest = prepare(queryDsl, context);
-        CompiledQuery compiled = sqlCompiler.compile(queryDsl, manifest);
-        requestStateService.transition(context, requestId, RequestStatus.PROPOSED, "编译完成（dry-plan）");
-        auditService.record(buildAudit(context, "COMPILE", queryDsl, compiled, null));
-        return compiled;
+        try {
+            PublishedManifest manifest = prepare(queryDsl, context);
+            CompiledQuery compiled = sqlCompiler.compile(queryDsl, manifest);
+            requestStateService.transition(context, requestId, RequestStatus.PROPOSED, "编译完成（dry-plan）");
+            auditService.record(buildAudit(context, "COMPILE", queryDsl, compiled, null));
+            return compiled;
+        } catch (ServiceException ex) {
+            // 与 execute 对齐：fail-closed 拒绝也是合法终态，不能让 compile 分支停在初始态
+            requestStateService.transition(context, requestId, RequestStatus.REJECTED,
+                    truncate(ex.getMessage()));
+            throw ex;
+        } catch (RuntimeException ex) {
+            requestStateService.transition(context, requestId, RequestStatus.FAILED,
+                    truncate(String.valueOf(ex)));
+            throw ex;
+        }
     }
 
     @Override

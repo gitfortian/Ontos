@@ -16,7 +16,7 @@
 - [M0 基线自检输出](checklists/M0-基线自检-2026-11-07.txt)（G7 的归档原始输出，4 PASS / 0 FAIL）
 - [零号冒烟集 v1](evaluation/零号冒烟集-v1.md)（已冻结，20 题题目与分类；gold 已补齐，见下）
 - [零号冒烟集 gold v1](evaluation/零号冒烟集-gold-v1.json)（20 题 gold + sha256 冻结，含两处行为校准）
-- [Golden 集 v2 · 案例设计](evaluation/Golden集-v2-案例设计.json)（30 条覆盖 5 模式 + 6 负例；`sqlExpected` 待构造器落地后人工审阅回填，按 [ADR-0011](../01-decisions/ADR-0011-M2实施规格状态修订.md) 与 `steps ≥ 2` 契约对齐）
+- [Golden 集 v2 · 案例设计](evaluation/Golden集-v2-案例设计.json)（30 条覆盖 5 模式 + 6 显式负例；`g-f02` 已按 [ADR-0011](../01-decisions/ADR-0011-M2实施规格状态修订.md) 决策 5 由正例改判为「步骤数不足」负例；`sqlExpected` 待构造器落地后人工审阅回填）
 - [编译器 Golden 集 v1](evaluation/编译器Golden集-v1.json)（30 条，QUERY 20 + 非 QUERY 10；M2 补齐模式后升版）
 - [复合意图题集 v2](evaluation/复合意图题集-v2.json)（PoC #8 判据集，30 题；assetRef 已校准至首发清单真实 ID，结果待 M2 回填）
 - [中文提及样本集 v1](evaluation/中文提及样本集-v1.json)（PoC #5 判据集，300 条 120/90/45/45；结果待 M5 回填）

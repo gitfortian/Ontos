@@ -6,6 +6,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
 
+import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.framework.web.core.context.RequestContext;
 import com.ontos.framework.web.core.context.RequestContextHolder;
 import com.ontos.module.ontology.core.ManifestPayload.TimeExpressionPattern;
@@ -23,6 +24,7 @@ import com.ontos.module.system.service.audit.AuditLogCreateReqDTO;
 import com.ontos.module.system.service.audit.AuditService;
 import com.ontos.module.system.service.policy.PolicyService;
 import com.ontos.module.system.service.request.RequestStateService;
+import com.ontos.module.system.service.request.RequestStatus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,8 +32,10 @@ import org.mockito.ArgumentCaptor;
 
 import static com.ontos.module.query.core.dsl.QueryDsl.TimeRange.SOURCE_EXPRESSION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -106,6 +110,19 @@ class QueryServiceImplTest {
         assertTrue(auditDsl.contains("tep.last_n_days"), "审计 dsl_json 应含 patternId");
         assertTrue(auditDsl.contains("time-parser-1.0"), "审计 dsl_json 应含解析器版本");
         assertTrue(auditDsl.contains("近 3 天"), "审计 dsl_json 应含原始时间表达");
+    }
+
+    @Test
+    void shouldTransitionCompileRejectionToRejectedState() {
+        // 深度审核回归：compile 分支此前缺 catch，fail-closed 拒绝会让状态机停在初始态
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setMetricId("not_published_metric");
+
+        assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).compile(dsl));
+
+        verify(requestStateService).transition(any(), eq("trace-1"), eq(RequestStatus.REJECTED), any());
     }
 
 }

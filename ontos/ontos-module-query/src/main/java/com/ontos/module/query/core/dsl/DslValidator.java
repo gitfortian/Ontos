@@ -71,9 +71,7 @@ public class DslValidator {
         for (String dimensionId : dimensionIds) {
             SemanticManifest.Dimension dimension = semantic.requireDimension(dimensionId);
             resolvedDimensions.add(dimension);
-            if (!metric.getAllowedDimensions().contains(dimensionId)) {
-                throw exception(DIMENSION_NOT_ALLOWED, dimensionId);
-            }
+            requireAllowedDimension(metric, dimensionId);
             if (!Objects.equals(dimension.getTable(), metric.getTable())
                     && !joinCovers(dsl, dimension.getTable())) {
                 throw exception(CROSS_TABLE_UNSUPPORTED, dimensionId + " -> " + metric.getTable());
@@ -82,6 +80,9 @@ public class DslValidator {
 
         List<QueryDsl.Filter> filters = dsl.getFilters() == null ? List.of() : dsl.getFilters();
         for (QueryDsl.Filter filter : filters) {
+            // ADR-0003 判据 6：维度白名单对「分组 / 过滤 / 时间」三条引用路径一体生效。
+            // T3.1 放开跨表 Join 后，若只在分组处校验，过滤条件即可绕过指标级授权读到未授权表。
+            requireAllowedDimension(metric, filter.getFieldId());
             SemanticManifest.Dimension dimension = semantic.requireDimension(filter.getFieldId());
             if (!Objects.equals(dimension.getTable(), metric.getTable())
                     && !joinCovers(dsl, dimension.getTable())) {
@@ -94,8 +95,14 @@ public class DslValidator {
             if (values.isEmpty()) {
                 throw exception(DSL_INVALID, "过滤条件缺少 values: " + filter.getFieldId());
             }
-            if (filter.getOperator() == QueryDsl.Operator.BETWEEN && values.size() != 2) {
-                throw exception(DSL_INVALID, "BETWEEN 需要两个值: " + filter.getFieldId());
+            int expected = switch (filter.getOperator()) {
+                case EQ, GTE, LTE -> 1;
+                case BETWEEN -> 2;
+                case IN, NOT_IN -> -1; // IN / NOT_IN 允许任意非空集合
+            };
+            if (expected > 0 && values.size() != expected) {
+                throw exception(DSL_INVALID, "过滤条件 " + filter.getOperator()
+                        + " 需要 " + expected + " 个值，实际 " + values.size() + ": " + filter.getFieldId());
             }
         }
 
@@ -155,10 +162,18 @@ public class DslValidator {
         if (isBlank(range.getField())) {
             throw exception(DSL_INVALID, "timeRange 缺少 field");
         }
+        requireAllowedDimension(metric, range.getField());
         SemanticManifest.Dimension dimension = semantic.requireDimension(range.getField());
         if (!Objects.equals(dimension.getTable(), metric.getTable())
                 && !joinCovers(dsl, dimension.getTable())) {
             throw exception(CROSS_TABLE_UNSUPPORTED, range.getField() + " -> " + metric.getTable());
+        }
+    }
+
+    /** 指标级维度授权：分组、过滤、时间窗三条引用路径共用（ADR-0003 判据 6）。 */
+    private static void requireAllowedDimension(SemanticManifest.Metric metric, String dimensionId) {
+        if (!metric.getAllowedDimensions().contains(dimensionId)) {
+            throw exception(DIMENSION_NOT_ALLOWED, dimensionId);
         }
     }
 
