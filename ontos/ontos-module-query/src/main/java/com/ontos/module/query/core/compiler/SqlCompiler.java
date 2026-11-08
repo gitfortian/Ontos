@@ -10,6 +10,7 @@ import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.core.SemanticManifest;
 import com.ontos.module.query.core.dsl.QueryDsl;
+import com.ontos.module.query.core.time.TimeExpressionParser;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.Field;
@@ -49,6 +50,10 @@ public class SqlCompiler {
         // W3/T3.2：lookup 系列以实体为入口，走独立投影构造器
         if (mode == QueryDsl.AnalysisMode.LOOKUP || mode == QueryDsl.AnalysisMode.LOOKUP_BATCH) {
             return compileLookup(queryDsl, manifest, mode);
+        }
+        // W3/T3.3：同环比走周期骨架 + 窗口函数构造器
+        if (mode == QueryDsl.AnalysisMode.YOY_MOM) {
+            return compileYoyMom(queryDsl, manifest);
         }
         // 纵深防御（PoC-04 缺陷修复）：即使调用方绕过校验器，编译器也绝不把
         // 未实现的模式静默编译成聚合 SQL——只拒绝，不实现（funnel / yoy_mom 归 T3.3）。
@@ -194,6 +199,177 @@ public class SqlCompiler {
         compiled.setAppliedLimit(appliedLimit);
         compiled.setCompiledAt(Instant.now());
         return compiled;
+    }
+
+    /**
+     * yoy_mom 同环比编译（analysis-mode 规格 v1 §2.3）。
+     *
+     * <p>先构建「周期骨架 × 维度枚举并集」，再左连聚合结果：缺失周期仍有行、指标值为 null，
+     * lag 因此不会跨缺口错位。同比回看 12 个月 / 1 年，环比回看 1 期；相对值用
+     * {@code nullif(prev, 0)} 安全除法，分母为零输出 null。当前不完整周期按保守口径整期排除，
+     * 输出起点不早于本期 timeRange.from。
+     */
+    private CompiledQuery compileYoyMom(QueryDsl queryDsl, PublishedManifest manifest) {
+        SemanticManifest semantic = manifest.getSemantic();
+        SemanticManifest.Metric metric = semantic.requireMetric(queryDsl.getMetricId());
+        QueryDsl.AnalysisParams params = queryDsl.getAnalysisParams();
+        boolean monthly = "MONTH".equals(params.getPeriod());
+        String unit = monthly ? "month" : "year";
+        int yoyLag = monthly ? 12 : 1;
+
+        QueryDsl.TimeRange range = queryDsl.getTimeRange();
+        SemanticManifest.Dimension timeDimension = semantic.requireDimension(range.getField());
+        List<String> dimensionIds = queryDsl.getDimensions() == null
+                ? List.of() : queryDsl.getDimensions();
+        List<SemanticManifest.Dimension> dimensions = new ArrayList<>();
+        for (String dimensionId : dimensionIds) {
+            dimensions.add(semantic.requireDimension(dimensionId));
+        }
+
+        Field<Timestamp> timeField = DSL.field(
+                assetColumn(timeDimension.getTable(), timeDimension.getColumn()), Timestamp.class);
+        // 周期边界一律按 Asia/Shanghai 的本地时间构造，不依赖 JVM 默认时区（ADR-0004 2.4）
+        Timestamp from = shanghaiTimestamp(range.getFrom());
+        Timestamp to = shanghaiTimestamp(range.getTo());
+        // 同比回看需要把聚合范围扩到对比期，否则 yoy 永远为 null
+        Timestamp windowFrom = shanghaiTimestamp(monthly
+                ? range.getFrom().atZone(java.time.ZoneId.of(TimeExpressionParser.ZONE)).minusMonths(12).toInstant()
+                : range.getFrom().atZone(java.time.ZoneId.of(TimeExpressionParser.ZONE)).minusYears(1).toInstant());
+
+        Field<Timestamp> bucket = DSL.field("date_trunc({0}, {1})", Timestamp.class,
+                DSL.inline(unit), timeField);
+        List<Field<?>> rawDimensions = new ArrayList<>();
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            rawDimensions.add(DSL.field(assetColumn(dimension.getTable(), dimension.getColumn())));
+        }
+
+        // 聚合 CTE：覆盖 [对比期起点, 本期终点]
+        SelectQuery<Record> agg = dsl.selectQuery();
+        agg.addSelect(bucket.as("period"));
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            agg.addSelect(DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()))
+                    .as(DSL.name(dimension.getId())));
+        }
+        agg.addSelect(aggregate(metric).as("metric_value"));
+        agg.addFrom(DSL.table(tableName(metric.getTable())));
+        agg.addConditions(timeField.ge(DSL.val(windowFrom)), timeField.le(DSL.val(to)));
+        List<Field<?>> groupBy = new ArrayList<>();
+        groupBy.add(bucket);
+        groupBy.addAll(rawDimensions);
+        agg.addGroupBy(groupBy);
+
+        // 周期骨架：到 to 所在周期的前一周期为止（当前不完整周期整期排除）
+        SelectQuery<Record> periods = dsl.selectQuery();
+        periods.addSelect(DSL.field(
+                "generate_series(date_trunc({0}, {1}), date_trunc({0}, {2}) - cast({3} as interval), cast({3} as interval))",
+                Timestamp.class, DSL.inline(unit), DSL.val(windowFrom), DSL.val(to),
+                DSL.inline("1 " + unit)).as("period"));
+
+        // 维度枚举并集（覆盖对比期，去年才出现的维度也要占位）
+        SelectQuery<Record> dims = dsl.selectQuery();
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            dims.addSelect(DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()))
+                    .as(DSL.name(dimension.getId())));
+        }
+        if (!dimensions.isEmpty()) {
+            dims.addFrom(DSL.table(tableName(metric.getTable())));
+            dims.addConditions(timeField.ge(DSL.val(windowFrom)), timeField.le(DSL.val(to)));
+            dims.addGroupBy(rawDimensions);
+        }
+
+        // 骨架 = periods × dims（无维度时退化为纯周期序列）
+        SelectQuery<Record> grid = dsl.selectQuery();
+        grid.addSelect(DSL.field(DSL.name("p", "period"), Timestamp.class).as("period"));
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            grid.addSelect(DSL.field(DSL.name("d", dimension.getId())).as(DSL.name(dimension.getId())));
+        }
+        grid.addFrom(DSL.table(periods).as("p"));
+        if (!dimensions.isEmpty()) {
+            grid.addFrom(DSL.table(dims).as("d"));
+        }
+
+        Field<Timestamp> periodField = DSL.field(DSL.name("g", "period"), Timestamp.class);
+        Field<BigDecimal> value = DSL.field(DSL.name("a", "metric_value"), BigDecimal.class);
+        org.jooq.WindowSpecification window = dimensions.isEmpty()
+                ? DSL.orderBy(periodField)
+                : DSL.partitionBy(gridDimensionFields(dimensions)).orderBy(periodField);
+        Field<BigDecimal> previous = DSL.lag(value, 1).over(window);
+        Field<BigDecimal> previousYoy = DSL.lag(value, yoyLag).over(window);
+
+        // 窗口计算必须先于「本期起点」过滤：SQL 的 WHERE 在窗口函数之前执行，
+        // 直接把 period >= from 写进同一层会把对比期行滤掉，导致同比恒为 null。
+        SelectQuery<Record> windowed = dsl.selectQuery();
+        windowed.addSelect(periodField.as("period"));
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            windowed.addSelect(DSL.field(DSL.name("g", dimension.getId()))
+                    .as(DSL.name(dimension.getId())));
+        }
+        windowed.addSelect(value.as("metric_value"));
+        windowed.addSelect(DSL.field("({0} - {1}) / nullif({1}, 0)", BigDecimal.class, value, previous)
+                .as("mom"));
+        windowed.addSelect(DSL.field("({0} - {1}) / nullif({1}, 0)", BigDecimal.class, value, previousYoy)
+                .as("yoy"));
+        windowed.addFrom(DSL.table(grid).as("g"));
+        Condition on = DSL.field(DSL.name("a", "period")).eq(periodField);
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            on = on.and(DSL.field(DSL.name("a", dimension.getId()))
+                    .eq(DSL.field(DSL.name("g", dimension.getId()))));
+        }
+        windowed.addJoin(DSL.table(agg).as("a"), org.jooq.JoinType.LEFT_OUTER_JOIN, on);
+
+        Field<Timestamp> outputPeriod = DSL.field(DSL.name("w", "period"), Timestamp.class);
+        SelectQuery<Record> main = dsl.selectQuery();
+        main.addSelect(outputPeriod.as("period"));
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            main.addSelect(DSL.field(DSL.name("w", dimension.getId()))
+                    .as(DSL.name(dimension.getId())));
+        }
+        main.addSelect(DSL.field(DSL.name("w", "metric_value"), BigDecimal.class).as("metric_value"));
+        main.addSelect(DSL.field(DSL.name("w", "mom"), BigDecimal.class).as("mom"));
+        main.addSelect(DSL.field(DSL.name("w", "yoy"), BigDecimal.class).as("yoy"));
+        main.addFrom(DSL.table(windowed).as("w"));
+        main.addConditions(outputPeriod.ge(DSL.field("date_trunc({0}, {1})", Timestamp.class,
+                DSL.inline(unit), DSL.val(from))));
+        main.addOrderBy(outputPeriod);
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            main.addOrderBy(DSL.field(DSL.name("w", dimension.getId())));
+        }
+        int limit = queryDsl.getLimit() == null ? 500 : queryDsl.getLimit();
+        main.addLimit(limit);
+
+        Query query = main;
+        CompiledQuery compiled = new CompiledQuery();
+        compiled.setManifestId(manifest.getManifestId());
+        compiled.setContentHash(manifest.getContentHash());
+        compiled.setMode(QueryDsl.AnalysisMode.YOY_MOM.name());
+        compiled.setMetricId(metric.getId());
+        compiled.setDimensions(dimensionIds);
+        compiled.setJoins(List.of());
+        compiled.setDialect("postgresql");
+        compiled.setSql(query.getSQL(ParamType.INDEXED));
+        compiled.setBindValues(query.getBindValues());
+        compiled.setAppliedLimit(limit);
+        compiled.setCompiledAt(Instant.now());
+        return compiled;
+    }
+
+    /**
+     * Instant → 数据库侧「上海本地时间」的 Timestamp。
+     * 绑定值随后被 cast 成 timestamp（无时区），与 timestamptz 列比较时由执行器固定会话时区
+     * 为 Asia/Shanghai，二者才一致；直接用 Timestamp.from 会依赖 JVM 默认时区。
+     */
+    private static Timestamp shanghaiTimestamp(Instant instant) {
+        return Timestamp.valueOf(instant.atZone(
+                java.time.ZoneId.of(TimeExpressionParser.ZONE)).toLocalDateTime());
+    }
+
+    private static org.jooq.GroupField[] gridDimensionFields(
+            List<SemanticManifest.Dimension> dimensions) {
+        org.jooq.GroupField[] fields = new org.jooq.GroupField[dimensions.size()];
+        for (int i = 0; i < dimensions.size(); i++) {
+            fields[i] = DSL.field(DSL.name("g", dimensions.get(i).getId()));
+        }
+        return fields;
     }
 
     /** "table.column" / "schema.table.column" → 表限定名；裸列名返回 null。 */

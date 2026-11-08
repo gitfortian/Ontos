@@ -18,6 +18,7 @@ import javax.sql.DataSource;
 import com.ontos.framework.web.core.context.RequestContext;
 import com.ontos.module.query.core.QueryProperties;
 import com.ontos.module.query.core.compiler.CompiledQuery;
+import com.ontos.module.query.core.time.TimeExpressionParser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -37,8 +38,14 @@ import static com.ontos.module.query.enums.ErrorCodeConstants.QUERY_TIMEOUT;
 @Component
 public class QueryExecutor {
 
-    private static final String SET_RLS_CONTEXT =
-            "SELECT set_config('ontos.tenant_id', ?, true), set_config('ontos.user_id', ?, true)";
+    /**
+     * 事务级会话上下文：RLS 身份 + 时区。
+     * 时区必须固定为 Asia/Shanghai（ADR-0004 2.4）：date_trunc 与 timestamp/timestamptz
+     * 比较都依赖会话时区，不固定会让「自然月」口径随部署环境漂移。
+     */
+    static final String SET_RLS_CONTEXT =
+            "SELECT set_config('ontos.tenant_id', ?, true), set_config('ontos.user_id', ?, true),"
+                    + " set_config('TimeZone', ?, true)";
 
     private final DataSource queryDataSource;
     private final QueryProperties properties;
@@ -114,6 +121,7 @@ public class QueryExecutor {
         try (PreparedStatement statement = connection.prepareStatement(SET_RLS_CONTEXT)) {
             statement.setString(1, context.tenantId());
             statement.setString(2, context.userId());
+            statement.setString(3, TimeExpressionParser.ZONE);
             statement.execute();
         }
     }

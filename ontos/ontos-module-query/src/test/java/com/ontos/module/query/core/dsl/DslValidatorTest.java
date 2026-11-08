@@ -52,14 +52,14 @@ class DslValidatorTest {
 
     @Test
     void shouldRejectNonQueryModeEvenWhenWhitelisted() {
-        // 夹具清单声明了 LOOKUP / YOY_MOM：白名单放行不够，未实现的模式必须 fail-closed（PoC-04）。
-        // LOOKUP 已由 T3.2 实现（改由 lookup 入口校验），此处只验证仍未实现的 YOY_MOM。
-        for (QueryDsl.AnalysisMode mode : List.of(QueryDsl.AnalysisMode.YOY_MOM)) {
-            QueryDsl dsl = TestFixtures.query();
-            dsl.setMode(mode);
-            ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
-            assertEquals(ANALYSIS_MODE_NOT_IMPLEMENTED.getCode(), ex.getCode());
-        }
+        // 白名单放行不够，未实现的模式必须 fail-closed（PoC-04）。
+        // LOOKUP/LOOKUP_BATCH、YOY_MOM 已由 T3.2/T3.3 实现；FUNNEL 因清单缺事件判定条件暂缓（R-12）。
+        manifest.getSemantic().getMetrics().get(0).setAllowedModes(List.of("QUERY", "FUNNEL"));
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setMode(QueryDsl.AnalysisMode.FUNNEL);
+        dsl.setAnalysisParams(funnelParams());
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(ANALYSIS_MODE_NOT_IMPLEMENTED.getCode(), ex.getCode());
     }
 
     @Test
@@ -329,7 +329,28 @@ class DslValidatorTest {
     }
 
     @Test
-    void shouldPassYoyMomSchemaThenFailClosedOnUnimplementedMode() {
+    void shouldAcceptYoyMomWhenTimeRangePresent() {
+        manifest.getSemantic().getMetrics().get(0)
+                .setAllowedModes(List.of("QUERY", "FUNNEL", "YOY_MOM"));
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setMode(QueryDsl.AnalysisMode.YOY_MOM);
+        QueryDsl.AnalysisParams params = new QueryDsl.AnalysisParams();
+        params.setPeriod("MONTH");
+        dsl.setAnalysisParams(params);
+        QueryDsl.TimeRange range = new QueryDsl.TimeRange();
+        range.setField(TestFixtures.TIME_DIMENSION_ID);
+        range.setFrom(Instant.parse("2026-01-01T00:00:00Z"));
+        range.setTo(Instant.parse("2026-10-31T23:59:59Z"));
+        range.setSource(QueryDsl.TimeRange.SOURCE_EXPRESSION);
+        dsl.setTimeRange(range);
+        dsl.setTimeExpressionRaw("今年");
+        dsl.setTimePatternId("tep.this_year");
+        dsl.setTimeParserVersion("time-parser-1.0");
+        assertDoesNotThrow(() -> validator.validate(dsl, manifest));
+    }
+
+    @Test
+    void shouldRejectYoyMomWithoutTimeRange() {
         manifest.getSemantic().getMetrics().get(0)
                 .setAllowedModes(List.of("QUERY", "FUNNEL", "YOY_MOM"));
         QueryDsl dsl = TestFixtures.query();
@@ -338,7 +359,7 @@ class DslValidatorTest {
         params.setPeriod("MONTH");
         dsl.setAnalysisParams(params);
         ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
-        assertEquals(ANALYSIS_MODE_NOT_IMPLEMENTED.getCode(), ex.getCode());
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
     }
 
     // ---------- 深度审核回归：维度授权三条引用路径 + 过滤值数量 ----------

@@ -71,10 +71,14 @@ public class DslValidator {
         if (!metric.getAllowedModes().contains(mode.name())) {
             throw exception(ASSET_MODE_NOT_ALLOWED, mode.name());
         }
-        // fail-closed（PoC-04 缺陷修复）：W3 构造器落地前只有 QUERY 有确定性构造，
-        // 清单声明了其他 allowed_modes 也必须拒绝，防止非 QUERY 模式静默编译成聚合 SQL。
-        if (mode != QueryDsl.AnalysisMode.QUERY) {
+        // fail-closed（PoC-04 缺陷修复）：只有已落地确定性构造的模式才放行。
+        // W3/T3.2 已实现 QUERY / LOOKUP / LOOKUP_BATCH（lookup 在入口分流），
+        // W3/T3.3 实现 YOY_MOM；FUNNEL 因清单缺事件判定条件暂缓（R-12），其余模式一律拒绝。
+        if (mode != QueryDsl.AnalysisMode.QUERY && mode != QueryDsl.AnalysisMode.YOY_MOM) {
             throw exception(ANALYSIS_MODE_NOT_IMPLEMENTED, mode.name());
+        }
+        if (mode == QueryDsl.AnalysisMode.YOY_MOM && dsl.getTimeRange() == null) {
+            throw exception(DSL_INVALID, "yoy_mom 需要 timeRange 才能确定本期与对比期");
         }
 
         List<String> dimensionIds = dsl.getDimensions() == null ? List.of() : dsl.getDimensions();
