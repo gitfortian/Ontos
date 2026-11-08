@@ -82,6 +82,7 @@ class SqlCompilerTest {
         QueryDsl dsl = TestFixtures.query();
         QueryDsl.TimeRange range = new QueryDsl.TimeRange();
         range.setField(TestFixtures.TIME_DIMENSION_ID);
+        range.setSource(QueryDsl.TimeRange.SOURCE_EXPLICIT);
         range.setFrom(Instant.parse("2026-01-01T00:00:00Z"));
         range.setTo(Instant.parse("2026-01-31T00:00:00Z"));
         dsl.setTimeRange(range);

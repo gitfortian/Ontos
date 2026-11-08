@@ -15,5 +15,7 @@ public interface ErrorCodeConstants {
     ErrorCode RESULT_LIMIT_EXCEEDED = new ErrorCode(1_002_000_005, "结果行数超过上限: {}");
     ErrorCode ANALYSIS_MODE_NOT_IMPLEMENTED = new ErrorCode(1_002_000_006, "分析模式尚未实现确定性编译，已拒绝执行: {}");
     ErrorCode REQUEST_ALREADY_EXECUTED = new ErrorCode(1_002_000_007, "该请求已执行过（request_id 幂等）: {}");
+    ErrorCode TIME_PARSE_FAILED = new ErrorCode(1_002_000_008, "相对时间解析失败: {}");
+    ErrorCode ABSOLUTE_DATE_REJECTED = new ErrorCode(1_002_000_009, "绝对日期被拒绝（LLM 不产出绝对日期）: {}");
 
 }

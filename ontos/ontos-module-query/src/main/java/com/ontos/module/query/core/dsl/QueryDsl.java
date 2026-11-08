@@ -20,6 +20,8 @@ public class QueryDsl {
     private List<String> dimensions = new ArrayList<>();
     private List<Filter> filters = new ArrayList<>();
     private TimeRange timeRange;
+    /** 相对时间表达（如「上个月」「近 7 天」），由服务端时间解析器换算；LLM 不产出绝对日期。 */
+    private String timeExpressionRaw;
     private Integer limit = 100;
     private String variantHint;
 
@@ -30,11 +32,18 @@ public class QueryDsl {
         private List<String> values = new ArrayList<>();
     }
 
+    /**
+     * 时间窗：{@code source} 标记来源——用户显式日期为 EXPLICIT（唯一放行路径），
+     * 服务端解析器产出为 EXPRESSION（M2/T2.3）；两者皆无来源 = LLM 伪造绝对日期，校验拒绝。
+     */
     @Data
     public static class TimeRange {
+        public static final String SOURCE_EXPLICIT = "EXPLICIT";
+        public static final String SOURCE_EXPRESSION = "EXPRESSION";
         private String field;
         private Instant from;
         private Instant to;
+        private String source;
     }
 
     public enum Operator {

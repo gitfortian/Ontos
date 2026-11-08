@@ -12,8 +12,9 @@ import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exc
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.invalidParamException;
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.ASSET_MODE_NOT_ALLOWED;
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.DIMENSION_NOT_ALLOWED;
-import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.ABSOLUTE_DATE_REJECTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.CROSS_TABLE_UNSUPPORTED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
 
 /**
@@ -82,6 +83,17 @@ public class DslValidator {
 
         if (dsl.getTimeRange() != null) {
             QueryDsl.TimeRange range = dsl.getTimeRange();
+            // 硬性边界 3（绝对日期）：from/to 必须带来源标记——用户显式日期（EXPLICIT）
+            // 或服务端解析器产出（EXPRESSION）；两者皆无 = LLM 伪造绝对日期，拒绝
+            if (range.getSource() == null || range.getSource().isBlank()) {
+                throw exception(ABSOLUTE_DATE_REJECTED,
+                        "timeRange 缺少来源标记：相对时间请走 timeExpressionRaw，绝对日期仅限用户显式输入");
+            }
+            if (QueryDsl.TimeRange.SOURCE_EXPRESSION.equals(range.getSource())
+                    && (dsl.getTimeExpressionRaw() == null || dsl.getTimeExpressionRaw().isBlank())) {
+                throw exception(ABSOLUTE_DATE_REJECTED,
+                        "source=EXPRESSION 但缺少 time_expression_raw：解析器产出不可伪造");
+            }
             if (range.getFrom() == null || range.getTo() == null) {
                 throw exception(DSL_INVALID, "timeRange 需要同时提供 from 与 to");
             }
