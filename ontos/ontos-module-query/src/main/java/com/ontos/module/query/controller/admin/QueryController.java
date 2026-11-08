@@ -4,12 +4,14 @@ import com.ontos.framework.common.pojo.CommonResult;
 import com.ontos.module.query.controller.admin.vo.QueryCompileRespVO;
 import com.ontos.module.query.controller.admin.vo.QueryExecuteRespVO;
 import com.ontos.module.query.core.compiler.CompiledQuery;
+import com.ontos.module.query.core.dsl.DslCodec;
 import com.ontos.module.query.core.dsl.QueryDsl;
 import com.ontos.module.query.core.executor.QueryResult;
 import com.ontos.module.query.service.QueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.PostMapping;
+import tools.jackson.databind.JsonNode;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,20 +28,24 @@ import static com.ontos.framework.common.pojo.CommonResult.success;
 public class QueryController {
 
     private final QueryService queryService;
+    private final DslCodec dslCodec;
 
-    public QueryController(QueryService queryService) {
+    public QueryController(QueryService queryService, DslCodec dslCodec) {
         this.queryService = queryService;
+        this.dslCodec = dslCodec;
     }
 
     @PostMapping("/compile")
     @Operation(summary = "编译 DSL（dry-plan，不执行）")
-    public CommonResult<QueryCompileRespVO> compile(@RequestBody QueryDsl queryDsl) {
+    public CommonResult<QueryCompileRespVO> compile(@RequestBody JsonNode body) {
+        QueryDsl queryDsl = dslCodec.decode(body);
         CompiledQuery compiled = queryService.compile(queryDsl);
         QueryCompileRespVO vo = new QueryCompileRespVO();
         vo.setManifestId(compiled.getManifestId());
         vo.setContentHash(compiled.getContentHash());
         vo.setMetricId(compiled.getMetricId());
         vo.setDimensions(compiled.getDimensions());
+        vo.setJoins(compiled.getJoins());
         vo.setDialect(compiled.getDialect());
         vo.setSql(compiled.getSql());
         vo.setBindValues(compiled.getBindValues());
@@ -49,7 +55,8 @@ public class QueryController {
 
     @PostMapping("/execute")
     @Operation(summary = "编译并执行 DSL")
-    public CommonResult<QueryExecuteRespVO> execute(@RequestBody QueryDsl queryDsl) {
+    public CommonResult<QueryExecuteRespVO> execute(@RequestBody JsonNode body) {
+        QueryDsl queryDsl = dslCodec.decode(body);
         QueryResult result = queryService.execute(queryDsl);
         QueryExecuteRespVO vo = new QueryExecuteRespVO();
         vo.setManifestId(result.getManifestId());

@@ -2,6 +2,7 @@ package com.ontos.module.query.controller.admin.vo;
 
 import java.util.List;
 
+import com.ontos.module.query.core.dsl.QueryDsl;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -20,6 +21,9 @@ public class QueryCompileRespVO {
 
     @Schema(description = "分组维度 ID 列表")
     private List<String> dimensions;
+
+    @Schema(description = "服务端解析出的 UNIQUE Join 路径")
+    private List<QueryDsl.ResolvedJoin> joins;
 
     @Schema(description = "SQL 方言", example = "postgresql")
     private String dialect;

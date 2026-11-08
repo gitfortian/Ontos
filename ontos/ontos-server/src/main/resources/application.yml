@@ -47,6 +47,8 @@ ontos:
     max-rows: 500
     statement-timeout: PT15S
     max-batch-size: 50
+    # 敏感资产无维度分组（批量导出形状）的行数闸门，M2 编译侧 guardrail
+    sensitive-ungrouped-limit: 50
   manifest:
     startup-load: true
   policy:

@@ -28,8 +28,9 @@ import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
 /**
  * 确定性 SQL 编译器：只依据已发布的语义映射与已校验 DSL 生成 SQL。
  *
- * <p>当前骨架实现单表聚合（指标 + 维度 + 过滤 + 时间窗 + limit）；
- * 跨表 Join 由本体路径规划补齐，缺失时 DslValidator 已 fail-closed，不在此处降级。
+ * <p>W3/T3.1：单表聚合之外，支持服务端 UNIQUE 路径展开的 Join。
+ * Join 的表名与 ON 列全部来自已发布清单（Relation.fromColumn / toColumn），
+ * 用 jOOQ 结构化构造，禁止字符串拼接（ADR-0007）；AMBIGUOUS/NONE 在 JoinPathResolver 已被拒绝。
  */
 @Component
 public class SqlCompiler {
@@ -40,7 +41,7 @@ public class SqlCompiler {
 
     public CompiledQuery compile(QueryDsl queryDsl, PublishedManifest manifest) {
         // 纵深防御（PoC-04 缺陷修复）：即使调用方绕过校验器，编译器也绝不把
-        // 非 QUERY 模式静默编译成聚合 SQL——只拒绝，不实现（能力归 M2）。
+        // 非 QUERY 模式静默编译成聚合 SQL——只拒绝，不实现（能力归 W3 后续任务）。
         QueryDsl.AnalysisMode mode = queryDsl.getMode() == null ? QueryDsl.AnalysisMode.QUERY : queryDsl.getMode();
         if (mode != QueryDsl.AnalysisMode.QUERY) {
             throw exception(ANALYSIS_MODE_NOT_IMPLEMENTED, mode.name());
@@ -48,6 +49,8 @@ public class SqlCompiler {
         SemanticManifest semantic = manifest.getSemantic();
         SemanticManifest.Metric metric = semantic.requireMetric(queryDsl.getMetricId());
         List<String> dimensionIds = queryDsl.getDimensions() == null ? List.of() : queryDsl.getDimensions();
+        List<QueryDsl.ResolvedJoin> joins = queryDsl.getResolvedJoins() == null
+                ? List.of() : queryDsl.getResolvedJoins();
 
         SelectQuery<Record> select = dsl.selectQuery();
         select.addSelect(aggregate(metric).as(VALUE_ALIAS));
@@ -55,7 +58,7 @@ public class SqlCompiler {
         List<Field<?>> groupFields = new ArrayList<>();
         for (String dimensionId : dimensionIds) {
             SemanticManifest.Dimension dimension = semantic.requireDimension(dimensionId);
-            Field<Object> field = DSL.field(columnName(dimension.getColumn()));
+            Field<Object> field = DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()));
             select.addSelect(field.as(DSL.name(dimensionId)));
             groupFields.add(field);
         }
@@ -64,6 +67,16 @@ public class SqlCompiler {
         select.addFrom(DSL.table(tableName(metric.getTable())));
 
         List<Condition> conditions = new ArrayList<>();
+        for (QueryDsl.ResolvedJoin join : joins) {
+            Condition on = DSL.field(columnName(join.getLeftColumn()))
+                    .eq(DSL.field(columnName(join.getRightColumn())));
+            if (join.getTable() != null) {
+                select.addJoin(DSL.table(tableName(join.getTable())), on);
+            } else {
+                // 两端表都已引入：退化为 WHERE 里的等值条件，语义等价且不重复加表
+                conditions.add(on);
+            }
+        }
         if (queryDsl.getFilters() != null) {
             for (QueryDsl.Filter filter : queryDsl.getFilters()) {
                 SemanticManifest.Dimension dimension = semantic.requireDimension(filter.getFieldId());
@@ -84,6 +97,7 @@ public class SqlCompiler {
         compiled.setContentHash(manifest.getContentHash());
         compiled.setMetricId(metric.getId());
         compiled.setDimensions(dimensionIds);
+        compiled.setJoins(joins);
         compiled.setDialect("postgresql");
         compiled.setSql(query.getSQL(ParamType.INDEXED));
         compiled.setBindValues(query.getBindValues());
@@ -96,7 +110,7 @@ public class SqlCompiler {
         if (metric.getAggregation() == null) {
             throw exception(DSL_INVALID, "指标缺少 aggregation: " + metric.getId());
         }
-        Name column = columnName(metric.getColumn());
+        Name column = assetColumn(metric.getTable(), metric.getColumn());
         Field<BigDecimal> decimalField = DSL.field(column, BigDecimal.class);
         return switch (metric.getAggregation()) {
             case SUM -> DSL.sum(decimalField);
@@ -109,7 +123,7 @@ public class SqlCompiler {
     }
 
     private static Condition condition(QueryDsl.Filter filter, SemanticManifest.Dimension dimension) {
-        Field<Object> field = DSL.field(columnName(dimension.getColumn()));
+        Field<Object> field = DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()));
         List<Object> values = new ArrayList<>(filter.getValues());
         return switch (filter.getOperator()) {
             case EQ -> field.eq(values.get(0));
@@ -123,11 +137,22 @@ public class SqlCompiler {
 
     private static Condition timeCondition(QueryDsl.TimeRange range, SemanticManifest semantic) {
         // field 是资产 ID，与 filters 一致；物理列名只能从已发布语义清单解析，DSL 不得携带
-        String column = semantic.requireDimension(range.getField()).getColumn();
-        Field<Timestamp> field = DSL.field(columnName(column), Timestamp.class);
+        SemanticManifest.Dimension dimension = semantic.requireDimension(range.getField());
+        Field<Timestamp> field = DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()), Timestamp.class);
         Timestamp from = Timestamp.from(range.getFrom());
         Timestamp to = Timestamp.from(range.getTo());
         return field.ge(from).and(field.le(to));
+    }
+
+    /**
+     * 资产物理列：清单可能给限定名（schema.table.column）或裸列名（column）。
+     * 裸列名用清单中的 table 补全为限定名，避免跨表 Join 时列歧义（ADR-0007）。
+     */
+    private static Name assetColumn(String table, String column) {
+        if (column != null && !column.contains(".") && table != null && !table.isBlank()) {
+            return columnName(table + "." + column);
+        }
+        return columnName(column);
     }
 
     private static Name columnName(String column) {

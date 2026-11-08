@@ -18,5 +18,7 @@ public class QueryProperties {
     private Duration statementTimeout = Duration.ofSeconds(15);
     /** lookup_batch 单批上限（v1.4 8.2）。 */
     private int maxBatchSize = 50;
+    /** 敏感资产在无维度分组时允许的最大行数；超过即按「批量导出形状」拒绝（M2 编译侧 guardrail）。 */
+    private int sensitiveUngroupedLimit = 50;
 
 }

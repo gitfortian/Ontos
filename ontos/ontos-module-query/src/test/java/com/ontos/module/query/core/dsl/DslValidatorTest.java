@@ -10,7 +10,10 @@ import com.ontos.module.query.core.TestFixtures;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static com.ontos.module.query.enums.ErrorCodeConstants.ABSOLUTE_DATE_REJECTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
+import static com.ontos.module.query.enums.ErrorCodeConstants.SENSITIVE_BULK_EXPORT_REJECTED;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -127,5 +130,212 @@ class DslValidatorTest {
         QueryDsl dsl = TestFixtures.query();
         dsl.setLimit(50);
         assertThrows(ServiceException.class, () -> strict.validate(dsl, manifest));
+    }
+
+    // ---------- W2.5：敏感资产批量导出 guardrail ----------
+
+    @Test
+    void shouldRejectSensitiveUngroupedBulkExport() {
+        manifest.getSemantic().getMetrics().get(0).setSensitive(true);
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setDimensions(List.of());
+        dsl.setLimit(100);
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(SENSITIVE_BULK_EXPORT_REJECTED.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldAllowSensitiveQueryWhenGroupedOrSmall() {
+        manifest.getSemantic().getMetrics().get(0).setSensitive(true);
+        assertDoesNotThrow(() -> validator.validate(TestFixtures.query(), manifest));
+        QueryDsl small = TestFixtures.query();
+        small.setDimensions(List.of());
+        small.setLimit(50);
+        assertDoesNotThrow(() -> validator.validate(small, manifest));
+    }
+
+    // ---------- W2.5：时间来源二通道 ----------
+
+    private static QueryDsl.TimeRange timeRange(String source) {
+        QueryDsl.TimeRange range = new QueryDsl.TimeRange();
+        range.setField(TestFixtures.TIME_DIMENSION_ID);
+        range.setFrom(Instant.parse("2026-01-01T00:00:00Z"));
+        range.setTo(Instant.parse("2026-02-01T00:00:00Z"));
+        range.setSource(source);
+        return range;
+    }
+
+    @Test
+    void shouldRejectExpressionWithoutServerParserMetadata() {
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setTimeRange(timeRange(QueryDsl.TimeRange.SOURCE_EXPRESSION));
+        dsl.setTimeExpressionRaw("近 3 天");
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(ABSOLUTE_DATE_REJECTED.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldAcceptServerResolvedExpression() {
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setTimeRange(timeRange(QueryDsl.TimeRange.SOURCE_EXPRESSION));
+        dsl.setTimeExpressionRaw("近 3 天");
+        dsl.setTimePatternId("tep.last_n_days");
+        dsl.setTimeParserVersion("time-parser-1.0");
+        assertDoesNotThrow(() -> validator.validate(dsl, manifest));
+    }
+
+    @Test
+    void shouldRejectExplicitSourceWithoutExplicitRange() {
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setTimeRange(timeRange(QueryDsl.TimeRange.SOURCE_EXPLICIT));
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(ABSOLUTE_DATE_REJECTED.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldAcceptExplicitRangeChannel() {
+        QueryDsl dsl = TestFixtures.query();
+        QueryDsl.TimeRange explicit = timeRange(null);
+        dsl.setExplicitRange(explicit);
+        explicit.setSource(QueryDsl.TimeRange.SOURCE_EXPLICIT);
+        dsl.setTimeRange(explicit);
+        assertDoesNotThrow(() -> validator.validate(dsl, manifest));
+    }
+
+    @Test
+    void shouldRejectUnknownTimeSource() {
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setTimeRange(timeRange("LLM_GUESS"));
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(ABSOLUTE_DATE_REJECTED.getCode(), ex.getCode());
+    }
+
+    // ---------- W2.5：复合意图结构 ----------
+
+    private static QueryDsl.SubIntent subIntent(String id, String metricId) {
+        QueryDsl.SubIntent sub = new QueryDsl.SubIntent();
+        sub.setSubIntentId(id);
+        sub.setMetricId(metricId);
+        return sub;
+    }
+
+    @Test
+    void shouldAcceptIndependentSubIntents() {
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setSubIntents(List.of(subIntent("s1", TestFixtures.METRIC_ID), subIntent("s2", TestFixtures.METRIC_ID)));
+        assertDoesNotThrow(() -> validator.validate(dsl, manifest));
+    }
+
+    @Test
+    void shouldRejectDuplicateSubIntentIds() {
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setSubIntents(List.of(subIntent("s1", TestFixtures.METRIC_ID), subIntent("s1", TestFixtures.METRIC_ID)));
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldRejectDependentSubIntent() {
+        QueryDsl dsl = TestFixtures.query();
+        QueryDsl.SubIntent sub = subIntent("s1", TestFixtures.METRIC_ID);
+        sub.setDependsOn(List.of("s0"));
+        dsl.setSubIntents(List.of(sub));
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldAllowCrossTableDimensionWhenUniqueJoinResolved() {
+        manifest.getSemantic().getMetrics().get(0)
+                .setAllowedDimensions(List.of(TestFixtures.DIMENSION_ID,
+                        TestFixtures.TIME_DIMENSION_ID, "customer_tier"));
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setDimensions(List.of("customer_tier"));
+        QueryDsl.ResolvedJoin join = new QueryDsl.ResolvedJoin();
+        join.setTable("public.dim_customer");
+        join.setLeftColumn("public.dim_customer.id");
+        join.setRightColumn("public.fact_order.customer_id");
+        dsl.setResolvedJoins(List.of(join));
+        assertDoesNotThrow(() -> validator.validate(dsl, manifest));
+    }
+
+    // ---------- W2.5：analysis_params（T3.0 规格 v1） ----------
+
+    private static QueryDsl.AnalysisParams funnelParams() {
+        QueryDsl.AnalysisParams params = new QueryDsl.AnalysisParams();
+        params.setSteps(List.of("ORDER_PLACED", "REFUND"));
+        QueryDsl.CohortWindow cohort = new QueryDsl.CohortWindow();
+        cohort.setTimeExpressionRaw("近 30 天");
+        params.setCohortWindow(cohort);
+        params.setStepWindow("7d");
+        params.setSubjectPropertyId("property.customer.customer_id");
+        params.setDeduplication("first_occurrence");
+        params.setConversionDenominator("previous_step");
+        return params;
+    }
+
+    @Test
+    void shouldRejectAnalysisParamsOnQueryMode() {
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setAnalysisParams(funnelParams());
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldRejectSingleStepFunnel() {
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setMode(QueryDsl.AnalysisMode.FUNNEL);
+        QueryDsl.AnalysisParams params = funnelParams();
+        params.setSteps(List.of("ORDER_PLACED"));
+        dsl.setAnalysisParams(params);
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldRejectDuplicateFunnelSteps() {
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setMode(QueryDsl.AnalysisMode.FUNNEL);
+        QueryDsl.AnalysisParams params = funnelParams();
+        params.setSteps(List.of("ORDER_PLACED", "ORDER_PLACED"));
+        dsl.setAnalysisParams(params);
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldPassFunnelSchemaThenFailClosedOnUnimplementedMode() {
+        manifest.getSemantic().getMetrics().get(0)
+                .setAllowedModes(List.of("QUERY", "FUNNEL", "YOY_MOM"));
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setMode(QueryDsl.AnalysisMode.FUNNEL);
+        dsl.setAnalysisParams(funnelParams());
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(ANALYSIS_MODE_NOT_IMPLEMENTED.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldRejectYoyMomQuarter() {
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setMode(QueryDsl.AnalysisMode.YOY_MOM);
+        QueryDsl.AnalysisParams params = new QueryDsl.AnalysisParams();
+        params.setPeriod("QUARTER");
+        dsl.setAnalysisParams(params);
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldPassYoyMomSchemaThenFailClosedOnUnimplementedMode() {
+        manifest.getSemantic().getMetrics().get(0)
+                .setAllowedModes(List.of("QUERY", "FUNNEL", "YOY_MOM"));
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setMode(QueryDsl.AnalysisMode.YOY_MOM);
+        QueryDsl.AnalysisParams params = new QueryDsl.AnalysisParams();
+        params.setPeriod("MONTH");
+        dsl.setAnalysisParams(params);
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(ANALYSIS_MODE_NOT_IMPLEMENTED.getCode(), ex.getCode());
     }
 }

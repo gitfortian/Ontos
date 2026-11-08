@@ -22,6 +22,20 @@ public class QueryDsl {
     private TimeRange timeRange;
     /** 相对时间表达（如「上个月」「近 7 天」），由服务端时间解析器换算；LLM 不产出绝对日期。 */
     private String timeExpressionRaw;
+    /**
+     * 用户显式给出的绝对日期区间（唯一放行绝对日期的通道）。
+     * 服务端校验后复制进 timeRange 并标记 source=EXPLICIT；LLM 输出契约禁止产出该字段。
+     */
+    private TimeRange explicitRange;
+    /** 复合意图的逐子意图（M2/W4 逐子独立编译；M2 遇到 dependsOn 即拒绝转澄清）。 */
+    private List<SubIntent> subIntents = new ArrayList<>();
+    /** funnel / yoy_mom 的模式参数，契约见 analysis-mode 规格 v1。 */
+    private AnalysisParams analysisParams;
+    /** 以下两字段由服务端 TimeWindowResolver 回填并随 dsl_json 进审计；客户端提交由 DslCodec 拒绝。 */
+    private String timePatternId;
+    private String timeParserVersion;
+    /** 服务端 JoinPathResolver 回填的 UNIQUE 路径（W3/T3.1）；随 dsl_json 进审计，客户端提交由 DslCodec 拒绝。 */
+    private List<ResolvedJoin> resolvedJoins = new ArrayList<>();
     private Integer limit = 100;
     private String variantHint;
 
@@ -44,6 +58,52 @@ public class QueryDsl {
         private Instant from;
         private Instant to;
         private String source;
+    }
+
+    /** 复合意图子项：只携带已发布资产 ID，不携带物理名与 SQL。 */
+    @Data
+    public static class SubIntent {
+        private String subIntentId;
+        private String metricId;
+        private AnalysisMode mode = AnalysisMode.QUERY;
+        private List<String> dimensions = new ArrayList<>();
+        private List<Filter> filters = new ArrayList<>();
+        private String timeExpressionRaw;
+        /** M2 仅支持无依赖子集；非空即拒绝并转澄清（全链路归 M6）。 */
+        private List<String> dependsOn = new ArrayList<>();
+    }
+
+    /** funnel / yoy_mom 的 analysis_params（字段名按 DSL camelCase 契约，语义见规格 v1）。 */
+    @Data
+    public static class AnalysisParams {
+        private List<String> steps = new ArrayList<>();
+        private CohortWindow cohortWindow;
+        private String stepWindow;
+        private String subjectPropertyId;
+        private String deduplication;
+        private String conversionDenominator;
+        /** yoy_mom：MONTH | YEAR 封闭枚举，QUARTER 归 M6。 */
+        private String period;
+    }
+
+    @Data
+    public static class CohortWindow {
+        private String timeExpressionRaw;
+    }
+
+    /**
+     * 一条已解析的 Join 边（服务端回填，物理列只来自已发布清单的 Relation）。
+     * leftColumn / rightColumn 为限定物理列名，ON 条件由 jOOQ 结构化构造。
+     */
+    @Data
+    public static class ResolvedJoin {
+        private String relationId;
+        private String direction;
+        /** 本次 JOIN 需要引入的表（尚未在 FROM 中的那一端）。 */
+        private String table;
+        private String leftColumn;
+        private String rightColumn;
+        private String cardinality;
     }
 
     public enum Operator {

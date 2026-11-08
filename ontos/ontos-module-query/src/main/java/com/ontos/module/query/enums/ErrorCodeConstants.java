@@ -17,5 +17,10 @@ public interface ErrorCodeConstants {
     ErrorCode REQUEST_ALREADY_EXECUTED = new ErrorCode(1_002_000_007, "该请求已执行过（request_id 幂等）: {}");
     ErrorCode TIME_PARSE_FAILED = new ErrorCode(1_002_000_008, "相对时间解析失败: {}");
     ErrorCode ABSOLUTE_DATE_REJECTED = new ErrorCode(1_002_000_009, "绝对日期被拒绝（LLM 不产出绝对日期）: {}");
+    ErrorCode SENSITIVE_BULK_EXPORT_REJECTED = new ErrorCode(1_002_000_010, "敏感资产禁止无分组的大批量导出: {}");
+    ErrorCode DSL_UNKNOWN_FIELD = new ErrorCode(1_002_000_011, "DSL 存在未知字段（fail-closed）: {}");
+    ErrorCode PATH_AMBIGUOUS = new ErrorCode(1_002_000_012, "跨表路径存在并列候选，须澄清（禁止私自选择）: {}");
+    ErrorCode PATH_UNREACHABLE = new ErrorCode(1_002_000_013, "跨表路径不可达（跳数/授权子图/业务对象）: {}");
+    ErrorCode PATH_GRANULARITY_VIOLATION = new ErrorCode(1_002_000_014, "跨表路径存在粒度扩散，违反一行一事实: {}");
 
 }

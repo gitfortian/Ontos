@@ -7,11 +7,13 @@ import com.ontos.framework.web.core.context.RequestContextHolder;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.service.manifest.ManifestService;
 import com.ontos.module.query.core.compiler.CompiledQuery;
+import com.ontos.module.query.core.compiler.JoinPathResolver;
 import com.ontos.module.query.core.compiler.SqlCompiler;
 import com.ontos.module.query.core.dsl.DslValidator;
 import com.ontos.module.query.core.dsl.QueryDsl;
 import com.ontos.module.query.core.executor.QueryExecutor;
 import com.ontos.module.query.core.executor.QueryResult;
+import com.ontos.module.query.core.time.TimeWindowResolver;
 import com.ontos.module.system.service.audit.AuditLogCreateReqDTO;
 import com.ontos.module.system.service.audit.AuditService;
 import com.ontos.module.system.service.policy.PolicyService;
@@ -33,6 +35,8 @@ public class QueryServiceImpl implements QueryService {
     private final QueryExecutor queryExecutor;
     private final AuditService auditService;
     private final RequestStateService requestStateService;
+    private final TimeWindowResolver timeWindowResolver;
+    private final JoinPathResolver joinPathResolver;
 
     public QueryServiceImpl(ManifestService manifestService,
                             DslValidator dslValidator,
@@ -40,7 +44,9 @@ public class QueryServiceImpl implements QueryService {
                             SqlCompiler sqlCompiler,
                             QueryExecutor queryExecutor,
                             AuditService auditService,
-                            RequestStateService requestStateService) {
+                            RequestStateService requestStateService,
+                            TimeWindowResolver timeWindowResolver,
+                            JoinPathResolver joinPathResolver) {
         this.manifestService = manifestService;
         this.dslValidator = dslValidator;
         this.policyService = policyService;
@@ -48,6 +54,8 @@ public class QueryServiceImpl implements QueryService {
         this.queryExecutor = queryExecutor;
         this.auditService = auditService;
         this.requestStateService = requestStateService;
+        this.timeWindowResolver = timeWindowResolver;
+        this.joinPathResolver = joinPathResolver;
     }
 
     @Override
@@ -127,6 +135,12 @@ public class QueryServiceImpl implements QueryService {
             throw exception(MANIFEST_MISMATCH, queryDsl.getManifestId());
         }
         PublishedManifest manifest = manifestService.validateManifest(queryDsl.getManifestId());
+        // M2/T2.3 接线：相对时间先由服务端解析器换算，再进入结构与授权校验。
+        // 解析结果（含 patternId / parserVersion）写入 DSL，随 buildAudit 的 dsl_json 进审计。
+        timeWindowResolver.resolve(queryDsl, manifest);
+        // W3/T3.1：跨表字段先由规划器解析 UNIQUE 路径，歧义/不可达在此拒绝，
+        // 校验器与编译器只消费服务端回填的 resolvedJoins。
+        joinPathResolver.resolve(queryDsl, manifest);
         dslValidator.validate(queryDsl, manifest);
         policyService.check(context, queryDsl.getMetricId());
         return manifest;

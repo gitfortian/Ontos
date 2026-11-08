@@ -103,4 +103,29 @@ class SqlCompilerTest {
         ServiceException ex = assertThrows(ServiceException.class, () -> compiler.compile(dsl, TestFixtures.manifest()));
         assertEquals(ANALYSIS_MODE_NOT_IMPLEMENTED.getCode(), ex.getCode());
     }
+
+    @Test
+    void shouldCompileUniquePathAsStructuredJoin() {
+        // W3/T3.1：ON 列与表只来自已发布清单，jOOQ 结构化构造，零字符串拼接
+        QueryDsl.ResolvedJoin join = new QueryDsl.ResolvedJoin();
+        join.setRelationId("r.placesOrder");
+        join.setDirection("reverse");
+        join.setTable("public.dim_customer");
+        join.setLeftColumn("public.dim_customer.id");
+        join.setRightColumn("public.fact_order.customer_id");
+        join.setCardinality("N:1");
+
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setResolvedJoins(List.of(join));
+
+        CompiledQuery compiled = compiler.compile(dsl, TestFixtures.manifest());
+        String sql = compiled.getSql().toLowerCase();
+        assertTrue(sql.contains("join"), "UNIQUE 路径应展开为 JOIN: " + sql);
+        assertTrue(sql.contains("dim_customer"), "JOIN 表应来自清单: " + sql);
+        assertTrue(sql.contains("on \"public\".\"dim_customer\".\"id\" = "
+                        + "\"public\".\"fact_order\".\"customer_id\""),
+                "ON 条件应使用清单物理列: " + sql);
+        assertEquals(1, compiled.getJoins().size());
+        assertEquals("r.placesOrder", compiled.getJoins().get(0).getRelationId());
+    }
 }
