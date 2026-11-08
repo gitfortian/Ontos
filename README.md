@@ -166,7 +166,7 @@ DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、F
   [ADR-0011](docs/01-decisions/ADR-0011-M2实施规格状态修订.md)）；
   W3 全部完成（T3.0 [funnel/yoy_mom 规格 v1](docs/04-specs/analysis-mode-funnel-yoy-mom-规格-v1.md)、
   T3.1 UNIQUE 路径 → 结构化 Join、T3.2 lookup/lookup_batch、T3.3 funnel+yoy_mom 构造器、
-  T3.4 Rule 求值、T3.5 敏感资产 guardrail），首发清单 `2026.11.08-third` 上 5/5 模式编译冒烟全绿；
+  T3.4 Rule 求值、T3.5 敏感资产 guardrail），首发清单上 5/5 模式编译冒烟全绿（当前生效 `2026.11.08-fifth`，含跨表维度与时间维度授权）；
   W4 完成：T4.1 dry-plan / dry-run（EXPLAIN 成本闸门 + 受限执行）、T4.2 dry-run 独立超时/行数闸门、
   T4.5 编译产物持久化与 `/plan/{requestId}` 回放、T4.3 复合意图逐子编译（无依赖子集，两阶段执行）、
   T4.4 query_cache 读写与激活失效钩子（ADR-0008）；W5 调试页与 W6 PoC 回填未启动。
