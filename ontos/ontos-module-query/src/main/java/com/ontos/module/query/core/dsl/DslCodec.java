@@ -30,9 +30,11 @@ public class DslCodec {
     private static final Set<String> TOP_LEVEL = Set.of(
             "manifestId", "scenarioId", "mode", "metricId", "dimensions", "filters",
             "timeRange", "timeExpressionRaw", "explicitRange", "subIntents", "analysisParams",
+            "entityId", "attributes", "identity", "identities", "identityPropertyId",
             "limit", "variantHint");
     private static final Set<String> TIME_RANGE = Set.of("field", "from", "to");
     private static final Set<String> FILTER = Set.of("fieldId", "operator", "values");
+    private static final Set<String> IDENTITY = Set.of("propertyId", "value");
     private static final Set<String> ANALYSIS_PARAMS = Set.of(
             "steps", "cohortWindow", "stepWindow", "subjectPropertyId",
             "deduplication", "conversionDenominator", "period");
@@ -52,6 +54,7 @@ public class DslCodec {
 
         checkObject(root.get("timeRange"), TIME_RANGE, "timeRange");
         checkObject(root.get("explicitRange"), TIME_RANGE, "explicitRange");
+        checkObject(root.get("identity"), IDENTITY, "identity");
         checkList(root.get("filters"), FILTER, "filters");
 
         Map<String, Object> params = root.containsKey("analysisParams")

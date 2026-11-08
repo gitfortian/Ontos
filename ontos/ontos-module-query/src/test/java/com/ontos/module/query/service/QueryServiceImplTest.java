@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.ontos.framework.common.exception.ServiceException;
@@ -19,6 +20,7 @@ import com.ontos.module.query.core.compiler.SqlCompiler;
 import com.ontos.module.query.core.dsl.DslValidator;
 import com.ontos.module.query.core.dsl.QueryDsl;
 import com.ontos.module.query.core.executor.QueryExecutor;
+import com.ontos.module.query.core.executor.QueryResult;
 import com.ontos.module.query.core.time.TimeWindowResolver;
 import com.ontos.module.system.service.audit.AuditLogCreateReqDTO;
 import com.ontos.module.system.service.audit.AuditService;
@@ -110,6 +112,72 @@ class QueryServiceImplTest {
         assertTrue(auditDsl.contains("tep.last_n_days"), "审计 dsl_json 应含 patternId");
         assertTrue(auditDsl.contains("time-parser-1.0"), "审计 dsl_json 应含解析器版本");
         assertTrue(auditDsl.contains("近 3 天"), "审计 dsl_json 应含原始时间表达");
+    }
+
+    @Test
+    void shouldProtectBatchLookupRowExistenceAndMaskSensitiveValues() {
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.lookupManifest());
+        when(requestStateService.findState(any())).thenReturn(java.util.Optional.empty());
+
+        CompiledQuery compiled = new CompiledQuery();
+        compiled.setManifestId("manifest-001");
+        compiled.setContentHash("hash-1");
+        compiled.setMode("LOOKUP_BATCH");
+        compiled.setEntityId(TestFixtures.CUSTOMER_CONCEPT);
+        compiled.setAttributes(List.of(TestFixtures.CUSTOMER_EMAIL_PROPERTY));
+        compiled.setIdentities(List.of("c-1", "c-2", "c-3"));
+        compiled.setSql("select 1");
+        when(sqlCompiler.compile(any(), any())).thenReturn(compiled);
+
+        QueryResult result = new QueryResult();
+        result.setManifestId("manifest-001");
+        result.setContentHash("hash-1");
+        result.setColumns(List.of("__identity", TestFixtures.CUSTOMER_EMAIL_PROPERTY));
+        result.setRows(List.of(
+                Map.of("__identity", "c-1", TestFixtures.CUSTOMER_EMAIL_PROPERTY, "zhang@example.com"),
+                Map.of("__identity", "c-3", TestFixtures.CUSTOMER_EMAIL_PROPERTY, "li@example.com")));
+        result.setRowCount(2);
+        when(queryExecutor.execute(any(), any())).thenReturn(result);
+
+        service(new TimeWindowResolver()).execute(TestFixtures.batchLookup());
+
+        List<QueryResult.LookupRow> lookupRows = result.getLookupRows();
+        assertEquals(3, lookupRows.size(), "必须按请求 identities 顺序逐行对齐");
+        assertEquals("c-1", lookupRows.get(0).identity());
+        assertTrue(lookupRows.get(0).available());
+        assertEquals("z***@example.com", lookupRows.get(0).values().get(TestFixtures.CUSTOMER_EMAIL_PROPERTY),
+                "displayHints=mask 的属性必须掩码返回");
+        assertEquals("c-2", lookupRows.get(1).identity());
+        assertTrue(!lookupRows.get(1).available(), "缺失行统一不可用");
+        assertTrue(lookupRows.get(1).values().isEmpty(), "不可用行不返回任何值，避免泄露存在性差异");
+        assertTrue(lookupRows.get(2).available());
+        assertEquals("z***@example.com", result.getRows().get(0).get(TestFixtures.CUSTOMER_EMAIL_PROPERTY),
+                "rows 是另一条返回通道，必须同步掩码，否则掩码形同虚设");
+    }
+
+    @Test
+    void shouldRejectSingleLookupWhenIdentityHitsMultipleRows() {
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.lookupManifest());
+        when(requestStateService.findState(any())).thenReturn(java.util.Optional.empty());
+
+        CompiledQuery compiled = new CompiledQuery();
+        compiled.setManifestId("manifest-001");
+        compiled.setContentHash("hash-1");
+        compiled.setMode("LOOKUP");
+        compiled.setEntityId(TestFixtures.CUSTOMER_CONCEPT);
+        compiled.setAttributes(List.of(TestFixtures.CUSTOMER_EMAIL_PROPERTY));
+        compiled.setSql("select 1");
+        when(sqlCompiler.compile(any(), any())).thenReturn(compiled);
+
+        QueryResult result = new QueryResult();
+        result.setRows(List.of(
+                Map.of("__identity", "c-1", TestFixtures.CUSTOMER_EMAIL_PROPERTY, "a@example.com"),
+                Map.of("__identity", "c-1", TestFixtures.CUSTOMER_EMAIL_PROPERTY, "b@example.com")));
+        result.setRowCount(2);
+        when(queryExecutor.execute(any(), any())).thenReturn(result);
+
+        assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).execute(TestFixtures.singleLookup()));
     }
 
     @Test

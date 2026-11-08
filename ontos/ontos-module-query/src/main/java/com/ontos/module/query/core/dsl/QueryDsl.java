@@ -31,12 +31,29 @@ public class QueryDsl {
     private List<SubIntent> subIntents = new ArrayList<>();
     /** funnel / yoy_mom 的模式参数，契约见 analysis-mode 规格 v1。 */
     private AnalysisParams analysisParams;
+    /**
+     * lookup / lookup_batch 的投影实体（Concept ID）。这两类模式不需要 metric：
+     * v1.4 §6.3.1 明确 lookup 允许 metrics / dimensions 为空。
+     */
+    private String entityId;
+    /** lookup 投影属性（Property ID），必须属于 entity 且 lookupProjectable；M2 要求同表。 */
+    private List<String> attributes = new ArrayList<>();
+    /** lookup 单实体标识（propertyId + value）；property 必须属于 entity 且可定位。 */
+    private LookupIdentity identity;
+    /** lookup_batch 的标识值列表：按请求顺序逐行对齐，缺失行统一「不可用」。 */
+    private List<String> identities = new ArrayList<>();
+    /** lookup_batch 的标识属性（Property ID）。 */
+    private String identityPropertyId;
     /** 以下两字段由服务端 TimeWindowResolver 回填并随 dsl_json 进审计；客户端提交由 DslCodec 拒绝。 */
     private String timePatternId;
     private String timeParserVersion;
     /** 服务端 JoinPathResolver 回填的 UNIQUE 路径（W3/T3.1）；随 dsl_json 进审计，客户端提交由 DslCodec 拒绝。 */
     private List<ResolvedJoin> resolvedJoins = new ArrayList<>();
-    private Integer limit = 100;
+    /**
+     * 结果行数上限。默认 null 表示「由模式定档」：QUERY 取 max-rows、lookup 取 1、
+     * lookup_batch 取 max-batch-size；显式值必须落在对应上限内。校验器会把生效值写回。
+     */
+    private Integer limit;
     private String variantHint;
 
     @Data
@@ -89,6 +106,13 @@ public class QueryDsl {
     @Data
     public static class CohortWindow {
         private String timeExpressionRaw;
+    }
+
+    /** lookup 单实体标识：只引用本体属性 ID + 值，不携带物理列。 */
+    @Data
+    public static class LookupIdentity {
+        private String propertyId;
+        private String value;
     }
 
     /**

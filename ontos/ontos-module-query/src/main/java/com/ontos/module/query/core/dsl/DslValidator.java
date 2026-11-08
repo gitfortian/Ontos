@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.core.SemanticManifest;
 import com.ontos.module.query.core.QueryProperties;
@@ -20,6 +21,10 @@ import static com.ontos.module.query.enums.ErrorCodeConstants.ABSOLUTE_DATE_REJE
 import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.CROSS_TABLE_UNSUPPORTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
+import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_ATTRIBUTE_NOT_PROJECTABLE;
+import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_BATCH_LIMIT_EXCEEDED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_CROSS_TABLE_UNSUPPORTED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_IDENTITY_REQUIRED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.SENSITIVE_BULK_EXPORT_REJECTED;
 
 /**
@@ -47,12 +52,18 @@ public class DslValidator {
         if (dsl == null) {
             throw invalidParamException("查询 DSL 不能为空");
         }
+        QueryDsl.AnalysisMode mode = dsl.getMode() == null ? QueryDsl.AnalysisMode.QUERY : dsl.getMode();
+        // W3/T3.2：lookup 系列以实体为入口，不引用 metric（v1.4 §6.3.1 允许 metrics 为空），
+        // 必须在 metric 必填检查之前分流。
+        if (mode == QueryDsl.AnalysisMode.LOOKUP || mode == QueryDsl.AnalysisMode.LOOKUP_BATCH) {
+            validateLookup(dsl, manifest, mode);
+            return;
+        }
         if (dsl.getMetricId() == null || dsl.getMetricId().isBlank()) {
             throw exception(DSL_INVALID, "metricId 不能为空");
         }
         SemanticManifest semantic = manifest.getSemantic();
         SemanticManifest.Metric metric = semantic.requireMetric(dsl.getMetricId());
-        QueryDsl.AnalysisMode mode = dsl.getMode() == null ? QueryDsl.AnalysisMode.QUERY : dsl.getMode();
 
         validateAnalysisParams(dsl, mode);
         validateSubIntents(dsl, semantic);
@@ -88,22 +99,7 @@ public class DslValidator {
                     && !joinCovers(dsl, dimension.getTable())) {
                 throw exception(CROSS_TABLE_UNSUPPORTED, filter.getFieldId() + " -> " + metric.getTable());
             }
-            if (filter.getOperator() == null) {
-                throw exception(DSL_INVALID, "过滤条件缺少 operator");
-            }
-            List<String> values = filter.getValues() == null ? List.of() : filter.getValues();
-            if (values.isEmpty()) {
-                throw exception(DSL_INVALID, "过滤条件缺少 values: " + filter.getFieldId());
-            }
-            int expected = switch (filter.getOperator()) {
-                case EQ, GTE, LTE -> 1;
-                case BETWEEN -> 2;
-                case IN, NOT_IN -> -1; // IN / NOT_IN 允许任意非空集合
-            };
-            if (expected > 0 && values.size() != expected) {
-                throw exception(DSL_INVALID, "过滤条件 " + filter.getOperator()
-                        + " 需要 " + expected + " 个值，实际 " + values.size() + ": " + filter.getFieldId());
-            }
+            validateFilterValues(filter);
         }
 
         validateTimeRange(dsl, semantic, metric);
@@ -112,6 +108,7 @@ public class DslValidator {
         if (limit < 1 || limit > properties.getMaxRows()) {
             throw exception(DSL_INVALID, "limit 必须在 [1, " + properties.getMaxRows() + "]");
         }
+        dsl.setLimit(limit);
         boolean sensitive = metric.isSensitive()
                 || resolvedDimensions.stream().anyMatch(SemanticManifest.Dimension::isSensitive);
         if (sensitive && dimensionIds.isEmpty() && limit > properties.getSensitiveUngroupedLimit()) {
@@ -199,6 +196,154 @@ public class DslValidator {
         }
         int lastDot = column.lastIndexOf('.');
         return lastDot > 0 && table.equals(column.substring(0, lastDot));
+    }
+
+    /**
+     * lookup / lookup_batch 校验（v1.4 §6.3.1、M2/T3.2）。
+     *
+     * <p>四条硬边界：实体必须已发布；投影属性必须属于实体、可投影且同表（M2 单表定档）；
+     * 标识属性必须属于实体且可定位；批量上限与 limit 取配置值，不信任客户端。
+     * 时间窗 / 分析参数 / 子意图不属于实体直查，出现即拒绝。
+     */
+    private void validateLookup(QueryDsl dsl, PublishedManifest manifest, QueryDsl.AnalysisMode mode) {
+        OntologySnapshot ontology = manifest.getOntology();
+        String entityId = dsl.getEntityId();
+        if (isBlank(entityId) || !ontology.conceptIndex().containsKey(entityId)) {
+            throw exception(LOOKUP_IDENTITY_REQUIRED, "entityId=" + entityId);
+        }
+        if (!isBlank(dsl.getMetricId())
+                || (dsl.getDimensions() != null && !dsl.getDimensions().isEmpty())) {
+            throw exception(DSL_INVALID, "lookup 不接受 metricId / dimensions");
+        }
+        if (dsl.getAnalysisParams() != null
+                || (dsl.getSubIntents() != null && !dsl.getSubIntents().isEmpty())) {
+            throw exception(DSL_INVALID, "lookup 不接受 analysisParams / subIntents");
+        }
+        if (dsl.getTimeRange() != null || dsl.getExplicitRange() != null
+                || !isBlank(dsl.getTimeExpressionRaw())) {
+            throw exception(DSL_INVALID, "lookup 是实体直查，不接受时间窗");
+        }
+
+        List<String> attributes = dsl.getAttributes() == null ? List.of() : dsl.getAttributes();
+        if (attributes.isEmpty()) {
+            throw exception(LOOKUP_ATTRIBUTE_NOT_PROJECTABLE, "attributes 为空");
+        }
+        Set<String> tables = new HashSet<>();
+        for (String attributeId : attributes) {
+            String table = tableOf(requireLookupProperty(ontology, entityId, attributeId, true).getColumn());
+            if (table == null) {
+                throw exception(LOOKUP_CROSS_TABLE_UNSUPPORTED, "属性缺少表限定: " + attributeId);
+            }
+            tables.add(table);
+        }
+        if (tables.size() > 1) {
+            throw exception(LOOKUP_CROSS_TABLE_UNSUPPORTED, String.join(",", tables));
+        }
+
+        for (QueryDsl.Filter filter : dsl.getFilters() == null ? List.<QueryDsl.Filter>of() : dsl.getFilters()) {
+            OntologySnapshot.Property property = requireLookupProperty(ontology, entityId, filter.getFieldId(), false);
+            if (!property.isFilterable()) {
+                throw exception(LOOKUP_ATTRIBUTE_NOT_PROJECTABLE, "过滤属性不可过滤: " + filter.getFieldId());
+            }
+            validateFilterValues(filter);
+        }
+
+        if (mode == QueryDsl.AnalysisMode.LOOKUP) {
+            if (dsl.getIdentity() == null || isBlank(dsl.getIdentity().getPropertyId())
+                    || isBlank(dsl.getIdentity().getValue())) {
+                throw exception(LOOKUP_IDENTITY_REQUIRED, "identity.propertyId / value");
+            }
+            requireIdentityProperty(ontology, entityId, dsl.getIdentity().getPropertyId());
+            if (dsl.getIdentities() != null && !dsl.getIdentities().isEmpty()) {
+                throw exception(DSL_INVALID, "lookup 单实体不接受 identities");
+            }
+            int limit = dsl.getLimit() == null ? 1 : dsl.getLimit();
+            if (limit != 1) {
+                throw exception(DSL_INVALID, "lookup 单实体 limit 必须为 1");
+            }
+            dsl.setLimit(1);
+            return;
+        }
+
+        if (isBlank(dsl.getIdentityPropertyId())) {
+            throw exception(LOOKUP_IDENTITY_REQUIRED, "identityPropertyId");
+        }
+        requireIdentityProperty(ontology, entityId, dsl.getIdentityPropertyId());
+        if (dsl.getIdentity() != null) {
+            throw exception(DSL_INVALID, "lookup_batch 不接受 identity 单实体字段");
+        }
+        List<String> identities = dsl.getIdentities() == null ? List.of() : dsl.getIdentities();
+        if (identities.isEmpty()) {
+            throw exception(LOOKUP_IDENTITY_REQUIRED, "identities 为空");
+        }
+        if (identities.size() > properties.getMaxBatchSize()) {
+            throw exception(LOOKUP_BATCH_LIMIT_EXCEEDED,
+                    identities.size() + " > " + properties.getMaxBatchSize());
+        }
+        for (String identity : identities) {
+            if (isBlank(identity)) {
+                throw exception(LOOKUP_IDENTITY_REQUIRED, "identities 含空值");
+            }
+        }
+        int limit = dsl.getLimit() == null ? properties.getMaxBatchSize() : dsl.getLimit();
+        if (limit < 1 || limit > properties.getMaxBatchSize()) {
+            throw exception(LOOKUP_BATCH_LIMIT_EXCEEDED, "limit=" + limit);
+        }
+        // limit 小于标识数会静默截断（后面的 identity 被误判为不可用），必须拒绝
+        if (limit < identities.size()) {
+            throw exception(LOOKUP_BATCH_LIMIT_EXCEEDED,
+                    "limit=" + limit + " < identities=" + identities.size());
+        }
+        dsl.setLimit(limit);
+    }
+
+    private static OntologySnapshot.Property requireLookupProperty(OntologySnapshot ontology, String entityId,
+                                                                  String propertyId, boolean projectable) {
+        OntologySnapshot.Property property = ontology.propertyIndex().get(propertyId);
+        if (property == null || !entityId.equals(property.getConceptId())) {
+            throw exception(LOOKUP_ATTRIBUTE_NOT_PROJECTABLE, propertyId);
+        }
+        if (projectable && !property.isLookupProjectable()) {
+            throw exception(LOOKUP_ATTRIBUTE_NOT_PROJECTABLE, propertyId);
+        }
+        return property;
+    }
+
+    /** 标识属性必须可过滤；存在性敏感属性允许「可查不可看值」（v1.4 §8.2 存在性保护）。 */
+    private static void requireIdentityProperty(OntologySnapshot ontology, String entityId, String propertyId) {
+        OntologySnapshot.Property property = ontology.propertyIndex().get(propertyId);
+        if (property == null || !entityId.equals(property.getConceptId())
+                || (!property.isFilterable() && !property.isExistenceSensitive())) {
+            throw exception(LOOKUP_IDENTITY_REQUIRED, propertyId);
+        }
+    }
+
+    private static void validateFilterValues(QueryDsl.Filter filter) {
+        if (filter.getOperator() == null) {
+            throw exception(DSL_INVALID, "过滤条件缺少 operator");
+        }
+        List<String> values = filter.getValues() == null ? List.of() : filter.getValues();
+        if (values.isEmpty()) {
+            throw exception(DSL_INVALID, "过滤条件缺少 values: " + filter.getFieldId());
+        }
+        int expected = switch (filter.getOperator()) {
+            case EQ, GTE, LTE -> 1;
+            case BETWEEN -> 2;
+            case IN, NOT_IN -> -1; // IN / NOT_IN 允许任意非空集合
+        };
+        if (expected > 0 && values.size() != expected) {
+            throw exception(DSL_INVALID, "过滤条件 " + filter.getOperator()
+                    + " 需要 " + expected + " 个值，实际 " + values.size() + ": " + filter.getFieldId());
+        }
+    }
+
+    /** "table.column" / "schema.table.column" → 表限定名；裸列名返回 null。 */
+    private static String tableOf(String column) {
+        if (column == null) {
+            return null;
+        }
+        int lastDot = column.lastIndexOf('.');
+        return lastDot <= 0 ? null : column.substring(0, lastDot);
     }
 
     /** funnel / yoy_mom 的 analysis_params 契约（analysis-mode 规格 v1）。W3 构造器据此实现。 */

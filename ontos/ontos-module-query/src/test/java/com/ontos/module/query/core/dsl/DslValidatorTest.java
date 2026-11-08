@@ -52,8 +52,9 @@ class DslValidatorTest {
 
     @Test
     void shouldRejectNonQueryModeEvenWhenWhitelisted() {
-        // 夹具清单声明了 LOOKUP / YOY_MOM：白名单放行不够，未实现的模式必须 fail-closed（PoC-04）
-        for (QueryDsl.AnalysisMode mode : List.of(QueryDsl.AnalysisMode.LOOKUP, QueryDsl.AnalysisMode.YOY_MOM)) {
+        // 夹具清单声明了 LOOKUP / YOY_MOM：白名单放行不够，未实现的模式必须 fail-closed（PoC-04）。
+        // LOOKUP 已由 T3.2 实现（改由 lookup 入口校验），此处只验证仍未实现的 YOY_MOM。
+        for (QueryDsl.AnalysisMode mode : List.of(QueryDsl.AnalysisMode.YOY_MOM)) {
             QueryDsl dsl = TestFixtures.query();
             dsl.setMode(mode);
             ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));

@@ -66,6 +66,15 @@ public class QueryController {
         vo.setRowCount(result.getRowCount());
         vo.setTruncated(result.isTruncated());
         vo.setElapsedMs(result.getElapsedMs());
+        vo.setLookupRows(result.getLookupRows() == null ? null : result.getLookupRows().stream()
+                .map(row -> {
+                    QueryExecuteRespVO.LookupRowVO lookupRow = new QueryExecuteRespVO.LookupRowVO();
+                    lookupRow.setIdentity(row.identity());
+                    lookupRow.setAvailable(row.available());
+                    lookupRow.setValues(row.values());
+                    return lookupRow;
+                })
+                .toList());
         return success(vo);
     }
 

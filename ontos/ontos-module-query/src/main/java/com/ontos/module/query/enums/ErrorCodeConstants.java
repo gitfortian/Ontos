@@ -22,5 +22,11 @@ public interface ErrorCodeConstants {
     ErrorCode PATH_AMBIGUOUS = new ErrorCode(1_002_000_012, "跨表路径存在并列候选，须澄清（禁止私自选择）: {}");
     ErrorCode PATH_UNREACHABLE = new ErrorCode(1_002_000_013, "跨表路径不可达（跳数/授权子图/业务对象）: {}");
     ErrorCode PATH_GRANULARITY_VIOLATION = new ErrorCode(1_002_000_014, "跨表路径存在粒度扩散，违反一行一事实: {}");
+    ErrorCode LOOKUP_IDENTITY_REQUIRED = new ErrorCode(1_002_000_015, "lookup 缺少合法唯一标识: {}");
+    ErrorCode LOOKUP_ATTRIBUTE_NOT_PROJECTABLE = new ErrorCode(1_002_000_016, "属性不可投影或不属于该实体: {}");
+    ErrorCode LOOKUP_CROSS_TABLE_UNSUPPORTED = new ErrorCode(1_002_000_017, "lookup 投影属性跨表，M2 仅支持单表投影: {}");
+    ErrorCode LOOKUP_NOT_UNIQUE = new ErrorCode(1_002_000_018, "标识属性命中多行，单实体 lookup 拒绝猜测: {}");
+    ErrorCode LOOKUP_BATCH_LIMIT_EXCEEDED = new ErrorCode(1_002_000_019, "批量 lookup 超过单批上限或 limit 非法: {}");
+    ErrorCode ATTRIBUTE_NOT_AVAILABLE = new ErrorCode(1_002_000_020, "属性存在性敏感且当前身份不可读: {}");
 
 }

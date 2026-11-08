@@ -31,4 +31,18 @@ public class QueryExecuteRespVO {
     @Schema(description = "执行耗时（毫秒）")
     private Long elapsedMs;
 
+    @Schema(description = "lookup 逐行可用性（按请求顺序；不可用行不区分不存在/无权限）")
+    private List<LookupRowVO> lookupRows;
+
+    @Schema(description = "lookup 单行结果")
+    @Data
+    public static class LookupRowVO {
+        @Schema(description = "请求标识值")
+        private String identity;
+        @Schema(description = "该行是否可用")
+        private Boolean available;
+        @Schema(description = "投影属性值（属性 ID → 值，已按 displayHints 转换）")
+        private Map<String, Object> values;
+    }
+
 }

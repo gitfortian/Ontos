@@ -17,6 +17,14 @@ public final class TestFixtures {
     public static final String DIMENSION_ID = "region";
     public static final String TIME_DIMENSION_ID = "order_date";
 
+    public static final String CUSTOMER_CONCEPT = "concept.customer";
+    public static final String ORDER_CONCEPT = "concept.order";
+    public static final String CUSTOMER_ID_PROPERTY = "property.customer.customer_id";
+    public static final String CUSTOMER_EMAIL_PROPERTY = "property.customer.email";
+    public static final String CUSTOMER_TIER_PROPERTY = "property.customer.tier";
+    public static final String CUSTOMER_BIO_PROPERTY = "property.customer.bio";
+    public static final String ORDER_NO_PROPERTY = "property.order.order_no";
+
     private TestFixtures() {
     }
 
@@ -73,6 +81,71 @@ public final class TestFixtures {
         manifest.setSemantic(semantic);
         manifest.setOntology(new OntologySnapshot());
         return manifest;
+    }
+
+    /** lookup 夹具：customer / order 两实体，含可投影 / 不可投影 / 存在性敏感三类属性。 */
+    public static PublishedManifest lookupManifest() {
+        OntologySnapshot.Concept customer = new OntologySnapshot.Concept();
+        customer.setId(CUSTOMER_CONCEPT);
+        customer.setDomain("customer");
+        OntologySnapshot.Concept order = new OntologySnapshot.Concept();
+        order.setId(ORDER_CONCEPT);
+        order.setDomain("trade");
+
+        OntologySnapshot ontology = new OntologySnapshot();
+        ontology.setConcepts(List.of(customer, order));
+        ontology.setProperties(List.of(
+                property(CUSTOMER_ID_PROPERTY, CUSTOMER_CONCEPT, "customer.id", true, true, false),
+                property(CUSTOMER_EMAIL_PROPERTY, CUSTOMER_CONCEPT, "customer.email", true, false, true),
+                property(CUSTOMER_TIER_PROPERTY, CUSTOMER_CONCEPT, "customer.tier", false, true, false),
+                // 同实体、不同物理表：用于验证 M2 单表投影的 fail-closed
+                property(CUSTOMER_BIO_PROPERTY, CUSTOMER_CONCEPT, "customer_profile.bio", true, false, false),
+                property(ORDER_NO_PROPERTY, ORDER_CONCEPT, "orders.id", true, true, false)));
+        PublishedManifest manifest = manifest();
+        manifest.setOntology(ontology);
+        return manifest;
+    }
+
+    public static OntologySnapshot.Property property(String id, String conceptId, String column,
+                                                     boolean projectable, boolean filterable,
+                                                     boolean existenceSensitive) {
+        OntologySnapshot.Property property = new OntologySnapshot.Property();
+        property.setId(id);
+        property.setConceptId(conceptId);
+        property.setColumn(column);
+        property.setLookupProjectable(projectable);
+        property.setFilterable(filterable);
+        property.setExistenceSensitive(existenceSensitive);
+        if (existenceSensitive) {
+            property.setDisplayHints(List.of("mask"));
+        }
+        return property;
+    }
+
+    public static QueryDsl singleLookup() {
+        QueryDsl dsl = new QueryDsl();
+        dsl.setManifestId("manifest-001");
+        dsl.setMode(QueryDsl.AnalysisMode.LOOKUP);
+        dsl.setEntityId(CUSTOMER_CONCEPT);
+        dsl.setAttributes(List.of(CUSTOMER_EMAIL_PROPERTY));
+        QueryDsl.LookupIdentity identity = new QueryDsl.LookupIdentity();
+        identity.setPropertyId(CUSTOMER_ID_PROPERTY);
+        identity.setValue("c-1001");
+        dsl.setIdentity(identity);
+        dsl.setLimit(1);
+        return dsl;
+    }
+
+    public static QueryDsl batchLookup() {
+        QueryDsl dsl = new QueryDsl();
+        dsl.setManifestId("manifest-001");
+        dsl.setMode(QueryDsl.AnalysisMode.LOOKUP_BATCH);
+        dsl.setEntityId(CUSTOMER_CONCEPT);
+        dsl.setAttributes(List.of(CUSTOMER_EMAIL_PROPERTY));
+        dsl.setIdentityPropertyId(CUSTOMER_ID_PROPERTY);
+        dsl.setIdentities(List.of("c-1001", "c-1002"));
+        // limit 留给模式定档（max-batch-size），验证「不信任客户端默认值」
+        return dsl;
     }
 
     public static QueryDsl query() {

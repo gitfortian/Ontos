@@ -98,9 +98,10 @@ class SqlCompilerTest {
 
     @Test
     void shouldRejectNonQueryModeDefensively() {
-        // 纵深防御：即使绕过校验器，编译器也绝不把非 QUERY 模式静默编译成聚合 SQL（PoC-04）
+        // 纵深防御：即使绕过校验器，编译器也绝不把未实现模式静默编译成聚合 SQL（PoC-04）
+        // LOOKUP/LOOKUP_BATCH 已由 T3.2 实现，这里用尚未实现的 YOY_MOM 验证
         QueryDsl dsl = TestFixtures.query();
-        dsl.setMode(QueryDsl.AnalysisMode.LOOKUP);
+        dsl.setMode(QueryDsl.AnalysisMode.YOY_MOM);
         ServiceException ex = assertThrows(ServiceException.class, () -> compiler.compile(dsl, TestFixtures.manifest()));
         assertEquals(ANALYSIS_MODE_NOT_IMPLEMENTED.getCode(), ex.getCode());
     }
