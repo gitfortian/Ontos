@@ -150,7 +150,7 @@ node scripts/verify-baseline.mjs          # 上面四项 + jar 启动探活，�
 统一响应为 `CommonResult<T>`（`code=0` 成功），分页为 `PageResult<T>`。
 发布/激活/规划等管理端点经策略闸门（M4 前非 local profile 整体 403）。
 
-## 当前状态（M2 · 确定性编译与执行内核，进行中）
+## 当前状态（M2 · 确定性编译与执行内核，已通过）
 
 已落地：多模块骨架、yudao 风格通用层、双数据源、发布清单加载与哈希校验、
 DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、Flyway 迁移、AG-UI 注册、前端页面与 SSE 客户端、架构守护测试。
@@ -159,18 +159,13 @@ DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、F
 - **M1 已通过**（2026-11-08）：[验收报告 v2](docs/06-verification/checklists/M1-验收报告-v2.md) E1–E8 全部满足——
   清单 payload v2 与本体元模型、首发清单与发布链路（dry-run/确认/激活/回滚）、路径规划器、
   请求级八态状态机与迁移审计、管理界面三页；G2 三批 100% 维持关闭；ADR-0007~0010 冻结。
-- **M2 进行中**：[实施规格 v1.0](docs/03-plans/stages/M2/M2-确定性编译与执行内核-实施规格-v1.md) 已冻结，
-  W1 完成（Golden 集 v2 案例 30 条、冒烟集 gold、M1 定稿包）；
-  W2 + W2.5 完成（DSL 来源标记 / 绝对日期拒绝 / 时间解析器接线与审计版本 / 未知字段 fail-closed /
-  `sub_intents` / `explicit_range` / `analysis_params` / 敏感资产 guardrail，口径见
-  [ADR-0011](docs/01-decisions/ADR-0011-M2实施规格状态修订.md)）；
-  W3 全部完成（T3.0 [funnel/yoy_mom 规格 v1](docs/04-specs/analysis-mode-funnel-yoy-mom-规格-v1.md)、
-  T3.1 UNIQUE 路径 → 结构化 Join、T3.2 lookup/lookup_batch、T3.3 funnel+yoy_mom 构造器、
-  T3.4 Rule 求值、T3.5 敏感资产 guardrail），首发清单上 5/5 模式编译冒烟全绿（当前生效 `2026.11.08-fifth`，含跨表维度与时间维度授权）；
-  W4 完成：T4.1 dry-plan / dry-run（EXPLAIN 成本闸门 + 受限执行）、T4.2 dry-run 独立超时/行数闸门、
-  T4.5 编译产物持久化与 `/plan/{requestId}` 回放、T4.3 复合意图逐子编译（无依赖子集，两阶段执行）、
-  T4.4 query_cache 读写与激活失效钩子（ADR-0008）；
-  W5 编译调试页完成（dry-plan 成本/路径展示 + dry-run 受限执行结果 + 缓存命中标记）；W6 PoC 回填未启动。
+- **M2 已通过（E1 附条件）**（2026-11-08）：[验收报告 v1](docs/06-verification/checklists/M2-验收报告-v1.md) 冻结，
+  E2–E8 满足、E1 可构造子集 27/27 逐字一致（3 条不可构造案例按
+  [ADR-0013](docs/01-decisions/ADR-0013-Golden不可构造案例处置口径.md) 由两条单测与 M4 域策略接替）。
+  W1–W6 全部完成：DSL 来源标记与 fail-closed 白名单、时间解析器与「今年」模式、UNIQUE 路径 → 结构化 Join、
+  5 模式构造器（query/lookup/lookup_batch/funnel/yoy_mom）、Rule 求值、敏感资产 guardrail、
+  dry-plan/dry-run 与成本闸门、复合意图两阶段逐子编译、编译产物持久化与 `/plan/{id}` 回放、
+  query_cache 与激活失效钩子、编译调试页。当前生效清单 `2026.11.08-seventh`（含跨表维度、时间维度与 YOY_MOM 授权）。
 
 实测基线（2026-11-08）：`mvn test` 全绿、`pnpm check` 通过、`vite build` 通过（新输出目录）、
 文档治理检查通过。进度与状态口径以 `docs/05-progress/2026/` 和
