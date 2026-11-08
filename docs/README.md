@@ -1,13 +1,13 @@
 # Ontos 文档规范与总索引
 
 > **状态**：已冻结
-> **版本**：v1.1
+> **版本**：v1.2
 > **类型**：规范 / 索引
 > **负责人**：项目负责人
-> **最后更新**：2026-11-07
+> **最后更新**：2026-11-08
 > **适用范围**：`docs/` 下全部文档，以及仓库内所有引用 `docs/` 的代码与配置
 > **上游依据**：v1.4 完整可落地方案 §16 引用边界、v1.1 技术选型 §10 事实台账
-> **修订记录**：2026-11-06 v1.0 首次发布；建立分层、命名、生命周期与单一事实源规则；2026-11-07 v1.1 索引维护——M0 验收报告 v2 勘误版、ADR-0006、版本事实台账、基线自检归档入索引（本文件路径固定为唯一入口，升版以修订记录承载，不迁移归档）
+> **修订记录**：2026-11-06 v1.0 首次发布；建立分层、命名、生命周期与单一事实源规则；2026-11-07 v1.1 索引维护——M0 验收报告 v2 勘误版、ADR-0006、版本事实台账、基线自检归档入索引；2026-11-08 v1.2 M2 阶段索引维护——补登记 M2 实施规格、funnel/yoy_mom 规格、ADR-0009~0011、Golden 集 v2 案例设计、冒烟集 gold、11-08 进度快照（本文件路径固定为唯一入口，升版以修订记录承载，不迁移归档）
 
 本文件是 `docs/` 的**唯一入口**，同时是文档治理规范。任何 agent 在新增、修改、查找文档前必须先读本文件。
 
@@ -185,13 +185,15 @@ node docs/00-governance/check-docs.mjs
 
 | 文档 | 类型 | 状态 | 版本 | 路径 |
 |---|---|---|---|---|
-| 文档规范与总索引 | 规范 | 已冻结 | v1.0 | [`README.md`](README.md) |
+| 文档规范与总索引 | 规范 | 已冻结 | v1.2 | [`README.md`](README.md) |
 | 智能问数系统技术选型方案 | 方案 | 已冻结 | v1.1 | [`02-solutions/architecture/智能问数系统技术选型方案-v1.1.md`](02-solutions/architecture/智能问数系统技术选型方案-v1.1.md) |
 | 智能问数系统完整可落地方案 | 方案 | 已冻结 | v1.4 | [`02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md`](02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md) |
 | Ontos 开发计划 · 阶段性功能拆解 | 计划 | 评审中 | v1 | [`03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md`](03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md) |
 | M0 · 工程基线与阶段零硬判据 实施规格 | 计划 | 已冻结 | v1.0 | [`03-plans/stages/M0/M0-工程基线与阶段零硬判据-实施规格-v1.md`](03-plans/stages/M0/M0-工程基线与阶段零硬判据-实施规格-v1.md) |
 | M1 · 本体与发布链路 实施规格 | 计划 | 已冻结 | v1.0 | [`03-plans/stages/M1/M1-本体与发布链路-实施规格-v1.md`](03-plans/stages/M1/M1-本体与发布链路-实施规格-v1.md) |
+| M2 · 确定性编译与执行内核 实施规格 | 计划 | 已冻结 | v1.0 | [`03-plans/stages/M2/M2-确定性编译与执行内核-实施规格-v1.md`](03-plans/stages/M2/M2-确定性编译与执行内核-实施规格-v1.md) |
 | ontology · 业务化命名 规格 | 规格 | 已冻结 | v1 | [`04-specs/ontology-业务化命名-规格-v1.md`](04-specs/ontology-业务化命名-规格-v1.md) |
+| analysis-mode · funnel 与 yoy_mom 规格 | 规格 | 已冻结 | v1 | [`04-specs/analysis-mode-funnel-yoy-mom-规格-v1.md`](04-specs/analysis-mode-funnel-yoy-mom-规格-v1.md) |
 | M0 验收报告 | 验证 | 已冻结 | v2 | [`06-verification/checklists/M0-验收报告-v2.md`](06-verification/checklists/M0-验收报告-v2.md) |
 | M1 验收报告 | 验证 | 已冻结 | v2 | [`06-verification/checklists/M1-验收报告-v2.md`](06-verification/checklists/M1-验收报告-v2.md) |
 | M0 基线自检归档输出 | 验证 | 已归档 | — | [`06-verification/checklists/M0-基线自检-2026-11-07.txt`](06-verification/checklists/M0-基线自检-2026-11-07.txt) |
@@ -199,7 +201,10 @@ node docs/00-governance/check-docs.mjs
 | 版本事实台账 | 参考 | 已冻结 | v1 | [`07-references/版本事实台账-v1.md`](07-references/版本事实台账-v1.md) |
 | 首份进度快照 | 进度 | 已记录 | — | [`05-progress/2026/2026-11-06.md`](05-progress/2026/2026-11-06.md) |
 | 进度快照（W5 归位） | 进度 | 已记录 | — | [`05-progress/2026/2026-11-07.md`](05-progress/2026/2026-11-07.md) |
+| 进度快照（M1 定稿 / M2 开工 / 交接审计） | 进度 | 已记录 | — | [`05-progress/2026/2026-11-08.md`](05-progress/2026/2026-11-08.md) |
 | 零号冒烟集 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/零号冒烟集-v1.md`](06-verification/evaluation/零号冒烟集-v1.md) |
+| 零号冒烟集 gold | 验证 | 已冻结 | v1 | [`06-verification/evaluation/零号冒烟集-gold-v1.json`](06-verification/evaluation/零号冒烟集-gold-v1.json) |
+| Golden 集 v2 · 案例设计 | 验证 | 已冻结 | v2-cases | [`06-verification/evaluation/Golden集-v2-案例设计.json`](06-verification/evaluation/Golden集-v2-案例设计.json) |
 | 编译器 Golden 集 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/编译器Golden集-v1.json`](06-verification/evaluation/编译器Golden集-v1.json) |
 | 复合意图题集（PoC #8） | 验证 | 已冻结 | v2 | [`06-verification/evaluation/复合意图题集-v2.json`](06-verification/evaluation/复合意图题集-v2.json) |
 | 中文提及样本集（PoC #5） | 验证 | 已冻结 | v1 | [`06-verification/evaluation/中文提及样本集-v1.json`](06-verification/evaluation/中文提及样本集-v1.json) |
@@ -211,6 +216,9 @@ node docs/00-governance/check-docs.mjs
 | ADR-0006 · G2 有条件关闭与重开口径 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0006-G2有条件关闭与重开口径.md`](01-decisions/ADR-0006-G2有条件关闭与重开口径.md) |
 | ADR-0007 · jOOQ 命名与 schema 映射规范 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0007-jOOQ命名与schema映射规范.md`](01-decisions/ADR-0007-jOOQ命名与schema映射规范.md) |
 | ADR-0008 · 缓存落库形态与失效口径 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0008-缓存落库形态与失效口径.md`](01-decisions/ADR-0008-缓存落库形态与失效口径.md) |
+| ADR-0009 · 中文分词器选型 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0009-中文分词器选型.md`](01-decisions/ADR-0009-中文分词器选型.md) |
+| ADR-0010 · CopilotKit 复查与主路线评估 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0010-CopilotKit复查与主路线评估.md`](01-decisions/ADR-0010-CopilotKit复查与主路线评估.md) |
+| ADR-0011 · M2 实施规格状态修订与 T3.0 归位 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0011-M2实施规格状态修订.md`](01-decisions/ADR-0011-M2实施规格状态修订.md) |
 | PoC-01 · RLS 最终边界报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-01-RLS最终边界.md`](06-verification/poc/PoC-01-RLS最终边界.md) |
 | PoC-02 · 发布快照可复现报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-02-发布快照可复现.md`](06-verification/poc/PoC-02-发布快照可复现.md) |
 | PoC-03 · AgentScope 准入报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-03-AgentScope准入.md`](06-verification/poc/PoC-03-AgentScope准入.md) |

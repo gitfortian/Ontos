@@ -146,16 +146,23 @@ node scripts/verify-baseline.mjs          # 上面四项 + jar 启动探活，�
 统一响应为 `CommonResult<T>`（`code=0` 成功），分页为 `PageResult<T>`。
 发布/激活/规划等管理端点经策略闸门（M4 前非 local profile 整体 403）。
 
-## 当前状态（M1 实施完成，验收附条件）
+## 当前状态（M2 · 确定性编译与执行内核，进行中）
 
 已落地：多模块骨架、yudao 风格通用层、双数据源、发布清单加载与哈希校验、
-DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、Flyway 迁移、AG-UI 注册、前端页面与 SSE 客户端、架构守护测试、
-阶段零 PoC 全链验收与 M0 闸门关闭（ADR-0002~0006、版本事实台账）、
-**M1 全部实施任务**：意图提案契约校验与修复轮（机械闸门）、清单 payload v2 与本体元模型、
-交易域首发建模（6 表 RLS）与首发清单、发布链路（dry-run/确认/激活/回滚/发布脚本）、
-路径规划器（golden 优先/授权子图/歧义标记）、请求级八态状态机与迁移审计、管理界面三页。
-详见 `docs/06-verification/checklists/M1-验收报告-v1.md`（E1–E5/E8 满足）。
+DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、Flyway 迁移、AG-UI 注册、前端页面与 SSE 客户端、架构守护测试。
 
-待补齐（M1 定稿前）：G2 正式批 2/3（跨自然日，批 1 已 100%）、ADR-0007/0008 签字、
-管理页浏览器人工复核、冒烟集 gold 与分词器选型 ADR（T1.4/T1.6/T1.7）。
-M2 编码在 M1 验收定稿前不启动。参见 `docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md`。
+- **M0 已通过**（2026-11-07）：阶段零 PoC 全链验收，G1–G8 关闭，见 `docs/06-verification/checklists/M0-验收报告-v2.md`。
+- **M1 已通过**（2026-11-08）：[验收报告 v2](docs/06-verification/checklists/M1-验收报告-v2.md) E1–E8 全部满足——
+  清单 payload v2 与本体元模型、首发清单与发布链路（dry-run/确认/激活/回滚）、路径规划器、
+  请求级八态状态机与迁移审计、管理界面三页；G2 三批 100% 维持关闭；ADR-0007~0010 冻结。
+- **M2 进行中**：[实施规格 v1.0](docs/03-plans/stages/M2/M2-确定性编译与执行内核-实施规格-v1.md) 已冻结，
+  W1 完成（Golden 集 v2 案例 30 条、冒烟集 gold、M1 定稿包）；
+  W2 + W2.5 完成（DSL 来源标记 / 绝对日期拒绝 / 时间解析器接线与审计版本 / 未知字段 fail-closed /
+  `sub_intents` / `explicit_range` / `analysis_params` / 敏感资产 guardrail，口径见
+  [ADR-0011](docs/01-decisions/ADR-0011-M2实施规格状态修订.md)）；
+  W3 完成 T3.0（[funnel/yoy_mom 规格 v1](docs/04-specs/analysis-mode-funnel-yoy-mom-规格-v1.md)）
+  与 T3.1（UNIQUE 路径 → 结构化 Join，AMBIGUOUS/NONE/粒度扩散拒绝）；T3.2–T3.5 与 W4–W6 未启动。
+
+实测基线（2026-11-08）：`mvn test` 全绿、`pnpm check` 通过、`vite build` 通过（新输出目录）、
+文档治理检查通过。进度与状态口径以 `docs/05-progress/2026/` 和
+`docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md` 为准。

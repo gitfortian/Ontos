@@ -14,7 +14,9 @@
 - [M0 验收报告 v2](checklists/M0-验收报告-v2.md)（已冻结，G1–G8 逐条核对；G2 有条件关闭经签字并见 [ADR-0006](../01-decisions/ADR-0006-G2有条件关闭与重开口径.md)；含审计勘误记录）
   - 历史版本：[v1](../99-archive/checklists/M0-验收报告-v1.md)（已归档；Golden 集条数与 HITL/STATE 回填阶段两处口径经审计勘误）
 - [M0 基线自检输出](checklists/M0-基线自检-2026-11-07.txt)（G7 的归档原始输出，4 PASS / 0 FAIL）
-- [零号冒烟集 v1](evaluation/零号冒烟集-v1.md)（已冻结，20 题题目与分类；gold 待 M1/M2 补齐）
+- [零号冒烟集 v1](evaluation/零号冒烟集-v1.md)（已冻结，20 题题目与分类；gold 已补齐，见下）
+- [零号冒烟集 gold v1](evaluation/零号冒烟集-gold-v1.json)（20 题 gold + sha256 冻结，含两处行为校准）
+- [Golden 集 v2 · 案例设计](evaluation/Golden集-v2-案例设计.json)（30 条覆盖 5 模式 + 6 负例；`sqlExpected` 待构造器落地后人工审阅回填，按 [ADR-0011](../01-decisions/ADR-0011-M2实施规格状态修订.md) 与 `steps ≥ 2` 契约对齐）
 - [编译器 Golden 集 v1](evaluation/编译器Golden集-v1.json)（30 条，QUERY 20 + 非 QUERY 10；M2 补齐模式后升版）
 - [复合意图题集 v2](evaluation/复合意图题集-v2.json)（PoC #8 判据集，30 题；assetRef 已校准至首发清单真实 ID，结果待 M2 回填）
 - [中文提及样本集 v1](evaluation/中文提及样本集-v1.json)（PoC #5 判据集，300 条 120/90/45/45；结果待 M5 回填）
@@ -33,6 +35,9 @@
 
 - [闸门可行性-raw.json](poc/闸门可行性-raw.json)（点名资产机械闸门，26 样例两阶段：真机 25/26，误拦全部归因别名缺失）
 - [PoC-03-重开判定-正式批1-raw.json](poc/PoC-03-重开判定-正式批1-raw.json)（G2 正式批 1：语义一致率 100%，1/3 批）
+- [PoC-03-重开判定-正式批2-raw.json](poc/PoC-03-重开判定-正式批2-raw.json)（G2 正式批 2：16/16，修复轮 0）
+- [PoC-03-重开判定-正式批3-raw.json](poc/PoC-03-重开判定-正式批3-raw.json)（G2 正式批 3：16/16，修复轮 0；三批 60 会话跨 2 自然日，G2 维持关闭）
+- [E6-assets-v2.png](poc/E6-assets-v2.png) / [E6-assets-impact-v3.png](poc/E6-assets-impact-v3.png)（E6 浏览器复核证据：数据词典页业务名渲染与引用反查）
 - [PoC-02-首发回归-raw.json](poc/PoC-02-首发回归-raw.json)（PoC#2 首发清单回归 PASS：300/300 逐字一致）
 - [路径规划探针-raw.json](poc/路径规划探针-raw.json)（T4.4：7 关系正反向 + golden 优先 + 负例，19/19）
 
