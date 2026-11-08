@@ -1,12 +1,15 @@
 package com.ontos.module.query.core.dsl;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.core.SemanticManifest;
@@ -29,6 +32,9 @@ import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_ATTRIBUTE_N
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_BATCH_LIMIT_EXCEEDED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_CROSS_TABLE_UNSUPPORTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_IDENTITY_REQUIRED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.RULE_EXPRESSION_INVALID;
+import static com.ontos.module.query.enums.ErrorCodeConstants.RULE_NOT_FOUND;
+import static com.ontos.module.query.enums.ErrorCodeConstants.RULE_NOT_PUBLISHED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.SENSITIVE_BULK_EXPORT_REJECTED;
 
 /**
@@ -45,6 +51,8 @@ public class DslValidator {
 
     private static final Pattern STEP_WINDOW = Pattern.compile("^[1-9]\\d*[dhm]$");
     private static final Set<String> YOY_MOM_PERIODS = Set.of("MONTH", "YEAR");
+    /** M2 规则求值支持的单值比较算子；IN（集合阈值）归 M6。 */
+    private static final Set<String> RULE_OPERATORS = Set.of("EQ", "NEQ", "GT", "GTE", "LT", "LTE");
 
     private final QueryProperties properties;
 
@@ -295,6 +303,7 @@ public class DslValidator {
         if (isBlank(entityId) || !ontology.conceptIndex().containsKey(entityId)) {
             throw exception(LOOKUP_IDENTITY_REQUIRED, "entityId=" + entityId);
         }
+        validateBooleanMetric(dsl, manifest, mode);
         if (!isBlank(dsl.getMetricId())
                 || (dsl.getDimensions() != null && !dsl.getDimensions().isEmpty())) {
             throw exception(DSL_INVALID, "lookup 不接受 metricId / dimensions");
@@ -379,6 +388,46 @@ public class DslValidator {
                     "limit=" + limit + " < identities=" + identities.size());
         }
         dsl.setLimit(limit);
+    }
+
+    /**
+     * T3.4：布尔判定列校验。Rule 是布尔判定口径的唯一合法载体，运行时只认 published；
+     * 表达式三元组（metricId / operator / threshold）必须可解析且引用已发布指标。
+     * 用户临时阈值不得即时转 Rule（v1.4 §5.9），DSL 也不允许携带表达式。
+     */
+    private void validateBooleanMetric(QueryDsl dsl, PublishedManifest manifest,
+                                       QueryDsl.AnalysisMode mode) {
+        String booleanMetricId = dsl.getBooleanMetricId();
+        if (isBlank(booleanMetricId)) {
+            return;
+        }
+        SemanticManifest.Metric booleanMetric = manifest.getSemantic().requireMetric(booleanMetricId);
+        if (isBlank(booleanMetric.getRuleId())) {
+            throw exception(DSL_INVALID, "booleanMetricId 不是 ruleId 型布尔指标: " + booleanMetricId);
+        }
+        if (!booleanMetric.getAllowedModes().contains(mode.name())) {
+            throw exception(ASSET_MODE_NOT_ALLOWED, booleanMetricId + " / " + mode.name());
+        }
+        ManifestPayload.Rule rule = manifest.getRules().stream()
+                .filter(candidate -> booleanMetric.getRuleId().equals(candidate.getId()))
+                .findFirst()
+                .orElseThrow(() -> exception(RULE_NOT_FOUND, booleanMetric.getRuleId()));
+        if (!"published".equals(rule.getStatus())) {
+            throw exception(RULE_NOT_PUBLISHED, rule.getId() + " status=" + rule.getStatus());
+        }
+        Map<String, Object> expression = rule.getExpression();
+        String metricId = expression == null ? null : (String) expression.get("metricId");
+        String operator = expression == null ? null : String.valueOf(expression.get("operator"));
+        Object threshold = expression == null ? null : expression.get("threshold");
+        if (isBlank(metricId) || operator == null || !RULE_OPERATORS.contains(operator) || threshold == null) {
+            throw exception(RULE_EXPRESSION_INVALID, rule.getId());
+        }
+        manifest.getSemantic().requireMetric(metricId);
+        try {
+            new BigDecimal(String.valueOf(threshold));
+        } catch (NumberFormatException ex) {
+            throw exception(RULE_EXPRESSION_INVALID, "threshold 非数值: " + threshold);
+        }
     }
 
     private static OntologySnapshot.Property requireLookupProperty(OntologySnapshot ontology, String entityId,

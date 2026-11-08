@@ -224,7 +224,7 @@ public class QueryServiceImpl implements QueryService {
         result.setLookupRows(lookupRows);
     }
 
-    /** 只保留投影属性子集（不含 __identity 等内部列）。 */
+    /** 只保留投影属性与布尔判定列（不含 __identity 等内部列）。 */
     private static Map<String, Object> subset(Map<String, Object> row, CompiledQuery compiled) {
         if (row == null) {
             return Map.of();
@@ -232,6 +232,10 @@ public class QueryServiceImpl implements QueryService {
         Map<String, Object> values = new java.util.LinkedHashMap<>();
         for (String attributeId : compiled.getAttributes() == null ? List.<String>of() : compiled.getAttributes()) {
             values.put(attributeId, row.get(attributeId));
+        }
+        // T3.4：布尔判定列是编译期生成的列，不在 attributes 中，必须一并进入结构化返回通道
+        if (compiled.getBooleanMetricId() != null) {
+            values.put(compiled.getBooleanMetricId(), row.get(compiled.getBooleanMetricId()));
         }
         return values;
     }

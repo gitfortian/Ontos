@@ -44,6 +44,8 @@ public class QueryDsl {
     private List<String> identities = new ArrayList<>();
     /** lookup_batch 的标识属性（Property ID）。 */
     private String identityPropertyId;
+    /** lookup / lookup_batch 的布尔判定列（引用 ruleId 型 Metric），编译期展开为 Rule 子查询。 */
+    private String booleanMetricId;
     /** 以下两字段由服务端 TimeWindowResolver 回填并随 dsl_json 进审计；客户端提交由 DslCodec 拒绝。 */
     private String timePatternId;
     private String timeParserVersion;

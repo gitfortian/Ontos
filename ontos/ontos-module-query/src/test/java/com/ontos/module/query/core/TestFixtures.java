@@ -1,7 +1,9 @@
 package com.ontos.module.query.core;
 
 import java.util.List;
+import java.util.Map;
 
+import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.core.SemanticManifest;
@@ -31,6 +33,8 @@ public final class TestFixtures {
     public static final String EVENT_PARTICIPANT_PROPERTY = "property.event.customer_id";
     public static final String CUSTOMER_SUBJECT_PROPERTY = "property.customer.customer_id";
     public static final String CUSTOMER_TIER_DIMENSION = "customer_tier";
+    public static final String BOOLEAN_METRIC_ID = "metric.high_value_customer";
+    public static final String RULE_METRIC_ID = "metric.gmv";
 
     private TestFixtures() {
     }
@@ -224,6 +228,63 @@ public final class TestFixtures {
         params.setConversionDenominator("previous_step");
         dsl.setAnalysisParams(params);
         dsl.setLimit(100);
+        return dsl;
+    }
+
+    /** T3.4 夹具：布尔指标 + published Rule + 唯一的主体/指标表连接关系。 */
+    public static PublishedManifest ruleManifest() {
+        PublishedManifest manifest = lookupManifest();
+        OntologySnapshot ontology = manifest.getOntology();
+        ontology.getConcepts().stream()
+                .filter(concept -> CUSTOMER_CONCEPT.equals(concept.getId()))
+                .findFirst()
+                .orElseThrow()
+                .setIdentityProperty(CUSTOMER_ID_PROPERTY);
+
+        OntologySnapshot.Relation relation = new OntologySnapshot.Relation();
+        relation.setId("r.placesOrder");
+        relation.setFrom(CUSTOMER_CONCEPT);
+        relation.setTo(ORDER_CONCEPT);
+        relation.setFromColumn("customer.id");
+        relation.setToColumn("orders.customer_id");
+        relation.setCardinality("1:N");
+        relation.setQueryable(true);
+        relation.setGoldenPath(true);
+        ontology.setRelations(List.of(relation));
+
+        SemanticManifest.Metric gmv = new SemanticManifest.Metric();
+        gmv.setId(RULE_METRIC_ID);
+        gmv.setTable("orders");
+        gmv.setColumn("amount");
+        gmv.setAggregation(SemanticManifest.Aggregation.SUM);
+        gmv.setAllowedModes(List.of("QUERY", "LOOKUP"));
+        SemanticManifest.Metric booleanMetric = new SemanticManifest.Metric();
+        booleanMetric.setId(BOOLEAN_METRIC_ID);
+        booleanMetric.setRuleId("rule.high_value_customer");
+        booleanMetric.setAllowedModes(List.of("LOOKUP", "LOOKUP_BATCH"));
+
+        SemanticManifest.Dimension tier = new SemanticManifest.Dimension();
+        tier.setId(CUSTOMER_TIER_DIMENSION);
+        tier.setTable("customer");
+        tier.setColumn("tier");
+
+        manifest.getSemantic().setMetrics(List.of(gmv, booleanMetric));
+        manifest.getSemantic().setDimensions(List.of(tier));
+
+        ManifestPayload.Rule rule = new ManifestPayload.Rule();
+        rule.setId("rule.high_value_customer");
+        rule.setName("高价值客户");
+        rule.setSummary("累计消费满 5 万");
+        rule.setScope("global");
+        rule.setStatus("published");
+        rule.setExpression(Map.of("metricId", RULE_METRIC_ID, "operator", "GTE", "threshold", 50000));
+        manifest.setRules(List.of(rule));
+        return manifest;
+    }
+
+    public static QueryDsl ruleLookupDsl() {
+        QueryDsl dsl = singleLookup();
+        dsl.setBooleanMetricId(BOOLEAN_METRIC_ID);
         return dsl;
     }
 

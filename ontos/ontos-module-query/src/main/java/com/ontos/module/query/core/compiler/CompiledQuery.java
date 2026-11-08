@@ -20,6 +20,8 @@ public class CompiledQuery {
     /** W3/T3.2：lookup 投影实体与属性（Property ID），供 dry-plan 展示与批量结果对齐。 */
     private String entityId;
     private List<String> attributes;
+    /** W3/T3.4：布尔判定列所引用的 ruleId 型 Metric，供 dry-plan 展示与审计回放。 */
+    private String booleanMetricId;
     /** lookup_batch 的请求标识顺序，执行后按此顺序逐行判定可用性。 */
     private List<String> identities;
     private List<String> dimensions;

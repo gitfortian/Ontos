@@ -5,7 +5,9 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.core.SemanticManifest;
@@ -32,6 +34,10 @@ import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_TIME_WINDOW
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_ATTRIBUTE_NOT_PROJECTABLE;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_CROSS_TABLE_UNSUPPORTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_IDENTITY_REQUIRED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.RULE_EXPRESSION_INVALID;
+import static com.ontos.module.query.enums.ErrorCodeConstants.RULE_NOT_FOUND;
+import static com.ontos.module.query.enums.ErrorCodeConstants.RULE_NOT_PUBLISHED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.RULE_SUBJECT_PATH_NOT_UNIQUE;
 
 /**
  * 确定性 SQL 编译器：只依据已发布的语义映射与已校验 DSL 生成 SQL。
@@ -175,6 +181,10 @@ public class SqlCompiler {
             select.addSelect(DSL.field(assetColumn(table, property.getColumn()))
                     .as(DSL.name(property.getId())));
         }
+        if (queryDsl.getBooleanMetricId() != null && !queryDsl.getBooleanMetricId().isBlank()) {
+            // T3.4：布尔判定列在编译期展开为 Rule 子查询（M2 规格 §3.1 决策 2）
+            select.addSelect(ruleColumn(queryDsl, manifest));
+        }
         select.addFrom(DSL.table(tableName(table)));
         int appliedLimit;
         if (mode == QueryDsl.AnalysisMode.LOOKUP) {
@@ -195,6 +205,7 @@ public class SqlCompiler {
         compiled.setMode(mode.name());
         compiled.setEntityId(entityId);
         compiled.setAttributes(attributeIds);
+        compiled.setBooleanMetricId(queryDsl.getBooleanMetricId());
         compiled.setIdentities(mode == QueryDsl.AnalysisMode.LOOKUP_BATCH
                 ? queryDsl.getIdentities() : null);
         compiled.setDimensions(List.of());
@@ -205,6 +216,92 @@ public class SqlCompiler {
         compiled.setAppliedLimit(appliedLimit);
         compiled.setCompiledAt(Instant.now());
         return compiled;
+    }
+
+    /**
+     * T3.4 Rule 求值：布尔指标编译期展开为
+     * {@code 实体 IN (SELECT 主体列 FROM 指标表 GROUP BY 主体列 HAVING 聚合 OP 阈值)}
+     * （M2 规格 §3.1 决策 2）。表达式三元组全部结构化构造：算子是封闭枚举的 switch，
+     * 阈值走绑定值，物理名只来自已发布 Relation / Metric / Property，禁止表达式字符串。
+     */
+    private Field<Boolean> ruleColumn(QueryDsl queryDsl, PublishedManifest manifest) {
+        String booleanMetricId = queryDsl.getBooleanMetricId();
+        SemanticManifest.Metric booleanMetric = manifest.getSemantic().requireMetric(booleanMetricId);
+        if (booleanMetric.getRuleId() == null) {
+            throw exception(RULE_EXPRESSION_INVALID, "不是 ruleId 型布尔指标: " + booleanMetricId);
+        }
+        ManifestPayload.Rule rule = manifest.getRules().stream()
+                .filter(candidate -> booleanMetric.getRuleId().equals(candidate.getId()))
+                .findFirst()
+                .orElseThrow(() -> exception(RULE_NOT_FOUND, booleanMetric.getRuleId()));
+        if (!"published".equals(rule.getStatus())) {
+            throw exception(RULE_NOT_PUBLISHED, rule.getId());
+        }
+        Map<String, Object> expression = rule.getExpression();
+        String metricId = expression == null ? null : (String) expression.get("metricId");
+        String operator = expression == null ? null : String.valueOf(expression.get("operator"));
+        if (expression == null || metricId == null || operator == null
+                || expression.get("threshold") == null) {
+            throw exception(RULE_EXPRESSION_INVALID, rule.getId());
+        }
+        SemanticManifest.Metric metric = manifest.getSemantic().requireMetric(metricId);
+        BigDecimal threshold;
+        try {
+            threshold = new BigDecimal(String.valueOf(expression.get("threshold")));
+        } catch (NumberFormatException ex) {
+            throw exception(RULE_EXPRESSION_INVALID, "threshold 非数值: " + expression.get("threshold"));
+        }
+
+        OntologySnapshot.Concept concept = manifest.getOntology().conceptIndex().get(queryDsl.getEntityId());
+        OntologySnapshot.Property subjectProperty = concept == null ? null
+                : manifest.getOntology().propertyIndex().get(concept.getIdentityProperty());
+        if (subjectProperty == null || tableOf(subjectProperty.getColumn()) == null) {
+            throw exception(RULE_SUBJECT_PATH_NOT_UNIQUE, "主体标识属性缺失");
+        }
+        String subjectColumn = subjectProperty.getColumn();
+        String subjectTable = tableOf(subjectColumn);
+        String metricTable = metric.getTable();
+
+        // 连接「主体表 ↔ 规则指标表」的关系必须唯一，禁止猜测关联列
+        List<OntologySnapshot.Relation> matched = new ArrayList<>();
+        List<OntologySnapshot.Relation> relations = manifest.getOntology().getRelations() == null
+                ? List.of() : manifest.getOntology().getRelations();
+        for (OntologySnapshot.Relation relation : relations) {
+            String fromTable = tableOf(relation.getFromColumn());
+            String toTable = tableOf(relation.getToColumn());
+            if ((subjectTable.equals(fromTable) && metricTable.equals(toTable))
+                    || (subjectTable.equals(toTable) && metricTable.equals(fromTable))) {
+                matched.add(relation);
+            }
+        }
+        if (matched.size() != 1) {
+            throw exception(RULE_SUBJECT_PATH_NOT_UNIQUE,
+                    subjectTable + " -> " + metricTable + " 命中 " + matched.size() + " 条关系");
+        }
+        OntologySnapshot.Relation relation = matched.get(0);
+        String groupColumn = metricTable.equals(tableOf(relation.getFromColumn()))
+                ? relation.getFromColumn() : relation.getToColumn();
+
+        Field<BigDecimal> aggregated = DSL.field("{0}", BigDecimal.class, aggregate(metric));
+        Field<BigDecimal> bound = DSL.val(threshold, BigDecimal.class);
+        Condition having = switch (operator) {
+            case "GTE" -> aggregated.ge(bound);
+            case "GT" -> aggregated.gt(bound);
+            case "LTE" -> aggregated.le(bound);
+            case "LT" -> aggregated.lt(bound);
+            case "EQ" -> aggregated.eq(bound);
+            case "NEQ" -> aggregated.ne(bound);
+            default -> throw exception(RULE_EXPRESSION_INVALID, "不支持的算子: " + operator);
+        };
+
+        Field<Object> groupField = DSL.field(columnName(groupColumn));
+        SelectQuery<Record> subquery = dsl.selectQuery();
+        subquery.addSelect(groupField);
+        subquery.addFrom(DSL.table(tableName(metricTable)));
+        subquery.addGroupBy(groupField);
+        subquery.addHaving(having);
+        return DSL.field("{0} in ({1})", Boolean.class,
+                DSL.field(columnName(subjectColumn)), subquery).as(DSL.name(booleanMetricId));
     }
 
     /**

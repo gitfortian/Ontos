@@ -32,5 +32,9 @@ public interface ErrorCodeConstants {
     ErrorCode FUNNEL_EVENT_NOT_FOUND = new ErrorCode(1_002_000_022, "funnel 步骤找不到唯一事件定义: {}");
     ErrorCode FUNNEL_DIMENSION_UNSUPPORTED = new ErrorCode(1_002_000_023, "funnel 维度必须属于主体实体: {}");
     ErrorCode FUNNEL_TIME_WINDOW_MISSING = new ErrorCode(1_002_000_024, "funnel cohort 窗口缺失或未解析: {}");
+    ErrorCode RULE_NOT_FOUND = new ErrorCode(1_002_000_025, "布尔指标引用的 Rule 未发布或不存在: {}");
+    ErrorCode RULE_NOT_PUBLISHED = new ErrorCode(1_002_000_026, "Rule 状态不是 published，拒绝求值: {}");
+    ErrorCode RULE_EXPRESSION_INVALID = new ErrorCode(1_002_000_027, "Rule 表达式三元组非法: {}");
+    ErrorCode RULE_SUBJECT_PATH_NOT_UNIQUE = new ErrorCode(1_002_000_028, "规则主体与指标表的连接关系不唯一或缺失: {}");
 
 }

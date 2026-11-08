@@ -126,6 +126,7 @@ class QueryServiceImplTest {
         compiled.setMode("LOOKUP_BATCH");
         compiled.setEntityId(TestFixtures.CUSTOMER_CONCEPT);
         compiled.setAttributes(List.of(TestFixtures.CUSTOMER_EMAIL_PROPERTY));
+        compiled.setBooleanMetricId(TestFixtures.BOOLEAN_METRIC_ID);
         compiled.setIdentities(List.of("c-1", "c-2", "c-3"));
         compiled.setSql("select 1");
         when(sqlCompiler.compile(any(), any())).thenReturn(compiled);
@@ -135,8 +136,10 @@ class QueryServiceImplTest {
         result.setContentHash("hash-1");
         result.setColumns(List.of("__identity", TestFixtures.CUSTOMER_EMAIL_PROPERTY));
         result.setRows(List.of(
-                Map.of("__identity", "c-1", TestFixtures.CUSTOMER_EMAIL_PROPERTY, "zhang@example.com"),
-                Map.of("__identity", "c-3", TestFixtures.CUSTOMER_EMAIL_PROPERTY, "li@example.com")));
+                Map.of("__identity", "c-1", TestFixtures.CUSTOMER_EMAIL_PROPERTY, "zhang@example.com",
+                        TestFixtures.BOOLEAN_METRIC_ID, true),
+                Map.of("__identity", "c-3", TestFixtures.CUSTOMER_EMAIL_PROPERTY, "li@example.com",
+                        TestFixtures.BOOLEAN_METRIC_ID, false)));
         result.setRowCount(2);
         when(queryExecutor.execute(any(), any())).thenReturn(result);
 
@@ -148,6 +151,8 @@ class QueryServiceImplTest {
         assertTrue(lookupRows.get(0).available());
         assertEquals("z***@example.com", lookupRows.get(0).values().get(TestFixtures.CUSTOMER_EMAIL_PROPERTY),
                 "displayHints=mask 的属性必须掩码返回");
+        assertEquals(Boolean.TRUE, lookupRows.get(0).values().get(TestFixtures.BOOLEAN_METRIC_ID),
+                "编译期生成的布尔判定列也必须进入 lookupRows");
         assertEquals("c-2", lookupRows.get(1).identity());
         assertTrue(!lookupRows.get(1).available(), "缺失行统一不可用");
         assertTrue(lookupRows.get(1).values().isEmpty(), "不可用行不返回任何值，避免泄露存在性差异");
