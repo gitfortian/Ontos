@@ -6,7 +6,7 @@
 > **负责人**：项目负责人（2026-11-08 确认冻结）
 > **最后更新**：2026-11-08
 > **适用范围**：前端 AG-UI 接入路线；T5.5 遗留项（观察项）的复查结论；验证页与依赖去留
-> **上游依据**：[T5.5 · CopilotKit 接入验证 v1](../06-verification/poc/T5.5-CopilotKit接入验证-v1.md)、[ADR-0001 前端组件栈归位范围](ADR-0001-前端组件栈归位范围.md)、[M1 验收报告 v1 §4](../06-verification/checklists/M1-验收报告-v1.md)、[CopilotKit selfManagedAgents 官方文档](https://docs.copilotkit.ai/backend/self-managed-agents)
+> **上游依据**：[T5.5 · CopilotKit 接入验证 v1](../06-verification/poc/T5.5-CopilotKit接入验证-v1.md)、[ADR-0001 前端组件栈归位范围](ADR-0001-前端组件栈归位范围.md)、[M1 验收报告 v1 §4](../06-verification/checklists/M1-验收报告-v2.md)、[CopilotKit selfManagedAgents 官方文档](https://docs.copilotkit.ai/backend/self-managed-agents)
 > **修订记录**：2026-11-08 v1 首次冻结（M1/T1.7）：复查发现官方已文档化 selfManagedAgents 非生产禁区接入；决策维持 M2 退路 + spike 登记
 
 ## 背景

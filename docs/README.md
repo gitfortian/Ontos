@@ -193,7 +193,7 @@ node docs/00-governance/check-docs.mjs
 | M1 · 本体与发布链路 实施规格 | 计划 | 已冻结 | v1.0 | [`03-plans/stages/M1/M1-本体与发布链路-实施规格-v1.md`](03-plans/stages/M1/M1-本体与发布链路-实施规格-v1.md) |
 | ontology · 业务化命名 规格 | 规格 | 已冻结 | v1 | [`04-specs/ontology-业务化命名-规格-v1.md`](04-specs/ontology-业务化命名-规格-v1.md) |
 | M0 验收报告 | 验证 | 已冻结 | v2 | [`06-verification/checklists/M0-验收报告-v2.md`](06-verification/checklists/M0-验收报告-v2.md) |
-| M1 验收报告 | 验证 | 草稿 | v1 | [`06-verification/checklists/M1-验收报告-v1.md`](06-verification/checklists/M1-验收报告-v1.md) |
+| M1 验收报告 | 验证 | 已冻结 | v2 | [`06-verification/checklists/M1-验收报告-v2.md`](06-verification/checklists/M1-验收报告-v2.md) |
 | M0 基线自检归档输出 | 验证 | 已归档 | — | [`06-verification/checklists/M0-基线自检-2026-11-07.txt`](06-verification/checklists/M0-基线自检-2026-11-07.txt) |
 | M1 基线自检归档输出 | 验证 | 已归档 | — | [`06-verification/checklists/M1-基线自检-2026-11-08.txt`](06-verification/checklists/M1-基线自检-2026-11-08.txt) |
 | 版本事实台账 | 参考 | 已冻结 | v1 | [`07-references/版本事实台账-v1.md`](07-references/版本事实台账-v1.md) |
