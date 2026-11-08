@@ -25,6 +25,13 @@ public final class TestFixtures {
     public static final String CUSTOMER_BIO_PROPERTY = "property.customer.bio";
     public static final String ORDER_NO_PROPERTY = "property.order.order_no";
 
+    public static final String EVENT_CONCEPT = "concept.event";
+    public static final String EVENT_TYPE_PROPERTY = "property.event.event_type";
+    public static final String EVENT_TIME_PROPERTY = "property.event.occurred_at";
+    public static final String EVENT_PARTICIPANT_PROPERTY = "property.event.customer_id";
+    public static final String CUSTOMER_SUBJECT_PROPERTY = "property.customer.customer_id";
+    public static final String CUSTOMER_TIER_DIMENSION = "customer_tier";
+
     private TestFixtures() {
     }
 
@@ -145,6 +152,78 @@ public final class TestFixtures {
         dsl.setIdentityPropertyId(CUSTOMER_ID_PROPERTY);
         dsl.setIdentities(List.of("c-1001", "c-1002"));
         // limit 留给模式定档（max-batch-size），验证「不信任客户端默认值」
+        return dsl;
+    }
+
+    /** ADR-0012 夹具：事件映射齐备、主体维度与事件同构的最小清单。 */
+    public static PublishedManifest funnelManifest() {
+        OntologySnapshot.Concept customer = new OntologySnapshot.Concept();
+        customer.setId(CUSTOMER_CONCEPT);
+        customer.setDomain("customer");
+        OntologySnapshot.Concept eventConcept = new OntologySnapshot.Concept();
+        eventConcept.setId(EVENT_CONCEPT);
+        eventConcept.setDomain("trade");
+
+        OntologySnapshot ontology = new OntologySnapshot();
+        ontology.setConcepts(List.of(customer, eventConcept));
+        ontology.setProperties(List.of(
+                property(CUSTOMER_SUBJECT_PROPERTY, CUSTOMER_CONCEPT, "customer.id", true, true, false),
+                property("property.customer.tier", CUSTOMER_CONCEPT, "customer.tier", true, true, false),
+                property(EVENT_TYPE_PROPERTY, EVENT_CONCEPT, "event.event_type", true, true, false),
+                property(EVENT_TIME_PROPERTY, EVENT_CONCEPT, "event.occurred_at", true, true, false),
+                property(EVENT_PARTICIPANT_PROPERTY, EVENT_CONCEPT, "event.customer_id", true, true, false)));
+        ontology.setEvents(List.of(
+                eventDef("event.order_placed", "ORDER_PLACED"),
+                eventDef("event.refund", "REFUND")));
+
+        SemanticManifest.Dimension tier = new SemanticManifest.Dimension();
+        tier.setId(CUSTOMER_TIER_DIMENSION);
+        tier.setTable("customer");
+        tier.setColumn("tier");
+
+        PublishedManifest manifest = manifest();
+        manifest.setOntology(ontology);
+        manifest.getSemantic().setDimensions(List.of(tier));
+        return manifest;
+    }
+
+    private static OntologySnapshot.EventDef eventDef(String id, String eventType) {
+        OntologySnapshot.EventDef event = new OntologySnapshot.EventDef();
+        event.setId(id);
+        event.setName(eventType);
+        event.setSummary(eventType);
+        event.setAliases(List.of(eventType));
+        event.setEventType(eventType);
+        event.setEventTypeProperty(EVENT_TYPE_PROPERTY);
+        event.setEventTypeValue(eventType);
+        event.setParticipantProperty(EVENT_PARTICIPANT_PROPERTY);
+        event.setTimeProperty(EVENT_TIME_PROPERTY);
+        event.setParticipantClass(CUSTOMER_CONCEPT);
+        event.setDedupKey("order_id:" + eventType);
+        return event;
+    }
+
+    public static QueryDsl funnelDsl() {
+        QueryDsl dsl = new QueryDsl();
+        dsl.setManifestId("manifest-001");
+        dsl.setMode(QueryDsl.AnalysisMode.FUNNEL);
+        dsl.setDimensions(List.of(CUSTOMER_TIER_DIMENSION));
+        QueryDsl.AnalysisParams params = new QueryDsl.AnalysisParams();
+        params.setSteps(List.of("ORDER_PLACED", "REFUND"));
+        QueryDsl.CohortWindow window = new QueryDsl.CohortWindow();
+        window.setTimeExpressionRaw("近 30 天");
+        window.setFrom(java.time.Instant.parse("2026-10-09T00:00:00Z"));
+        window.setTo(java.time.Instant.parse("2026-11-08T00:00:00Z"));
+        window.setSource(QueryDsl.TimeRange.SOURCE_EXPRESSION);
+        window.setPatternId("tep.last_n_days");
+        window.setParserVersion("time-parser-1.0");
+        params.setCohortWindow(window);
+        params.setStepWindow("7d");
+        params.setSubjectPropertyId(CUSTOMER_SUBJECT_PROPERTY);
+        params.setDeduplication("first_occurrence");
+        params.setConversionDenominator("previous_step");
+        dsl.setAnalysisParams(params);
+        dsl.setLimit(100);
         return dsl;
     }
 

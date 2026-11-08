@@ -1,13 +1,13 @@
 # Ontos 文档规范与总索引
 
 > **状态**：已冻结
-> **版本**：v1.2
+> **版本**：v1.3
 > **类型**：规范 / 索引
 > **负责人**：项目负责人
 > **最后更新**：2026-11-08
 > **适用范围**：`docs/` 下全部文档，以及仓库内所有引用 `docs/` 的代码与配置
 > **上游依据**：v1.4 完整可落地方案 §16 引用边界、v1.1 技术选型 §10 事实台账
-> **修订记录**：2026-11-06 v1.0 首次发布；建立分层、命名、生命周期与单一事实源规则；2026-11-07 v1.1 索引维护——M0 验收报告 v2 勘误版、ADR-0006、版本事实台账、基线自检归档入索引；2026-11-08 v1.2 M2 阶段索引维护——补登记 M2 实施规格、funnel/yoy_mom 规格、ADR-0009~0011、Golden 集 v2 案例设计、冒烟集 gold、11-08 进度快照（本文件路径固定为唯一入口，升版以修订记录承载，不迁移归档）
+> **修订记录**：2026-11-06 v1.0 首次发布；建立分层、命名、生命周期与单一事实源规则；2026-11-07 v1.1 索引维护——M0 验收报告 v2 勘误版、ADR-0006、版本事实台账、基线自检归档入索引；2026-11-08 v1.2 M2 阶段索引维护——补登记 M2 实施规格、funnel/yoy_mom 规格、ADR-0009~0011、Golden 集 v2 案例设计、冒烟集 gold、11-08 进度快照；2026-11-08 v1.3 补登记 ADR-0012（EventDef 事件判定映射扩展与清单 v2）（本文件路径固定为唯一入口，升版以修订记录承载，不迁移归档）
 
 本文件是 `docs/` 的**唯一入口**，同时是文档治理规范。任何 agent 在新增、修改、查找文档前必须先读本文件。
 
@@ -219,6 +219,7 @@ node docs/00-governance/check-docs.mjs
 | ADR-0009 · 中文分词器选型 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0009-中文分词器选型.md`](01-decisions/ADR-0009-中文分词器选型.md) |
 | ADR-0010 · CopilotKit 复查与主路线评估 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0010-CopilotKit复查与主路线评估.md`](01-decisions/ADR-0010-CopilotKit复查与主路线评估.md) |
 | ADR-0011 · M2 实施规格状态修订与 T3.0 归位 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0011-M2实施规格状态修订.md`](01-decisions/ADR-0011-M2实施规格状态修订.md) |
+| ADR-0012 · EventDef 事件判定映射扩展与清单 v2 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0012-EventDef事件判定映射扩展.md`](01-decisions/ADR-0012-EventDef事件判定映射扩展.md) |
 | PoC-01 · RLS 最终边界报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-01-RLS最终边界.md`](06-verification/poc/PoC-01-RLS最终边界.md) |
 | PoC-02 · 发布快照可复现报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-02-发布快照可复现.md`](06-verification/poc/PoC-02-发布快照可复现.md) |
 | PoC-03 · AgentScope 准入报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-03-AgentScope准入.md`](06-verification/poc/PoC-03-AgentScope准入.md) |

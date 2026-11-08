@@ -119,8 +119,14 @@ public class OntologySnapshot {
         private String participantClass;
         /** 发生时间（信息项 ID）。 */
         private String timeProperty;
-        /** 事件类型标识。 */
+        /** 事件类型标识（逻辑值，funnel 的 steps 引用它）。 */
         private String eventType;
+        /** 事件类型判定属性（Property ID）；ADR-0012：funnel 的物理过滤来源。 */
+        private String eventTypeProperty;
+        /** 判定属性上代表本事件的值；缺省取 eventType。 */
+        private String eventTypeValue;
+        /** 事件表上的主体标识属性（Property ID）；funnel 用它关联 subjectPropertyId。 */
+        private String participantProperty;
         /** 去重键。 */
         private String dedupKey;
     }

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
+import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_TIME_WINDOW_MISSING;
 import static com.ontos.module.query.enums.ErrorCodeConstants.TIME_PARSE_FAILED;
 
 /**
@@ -43,6 +44,12 @@ public class TimeWindowResolver {
         // 先清空服务端回填字段：无论客户端是否夹带，都以本次解析结果为准
         dsl.setTimePatternId(null);
         dsl.setTimeParserVersion(null);
+
+        // W3/T3.3a：funnel 的时间窗在 analysisParams.cohortWindow，不在 timeRange
+        if (dsl.getMode() == QueryDsl.AnalysisMode.FUNNEL) {
+            resolveCohort(dsl, manifest);
+            return;
+        }
 
         String raw = dsl.getTimeExpressionRaw();
         boolean hasRaw = raw != null && !raw.isBlank();
@@ -80,6 +87,29 @@ public class TimeWindowResolver {
         dsl.setTimeRange(resolved);
         dsl.setTimePatternId(result.resolved().patternId());
         dsl.setTimeParserVersion(result.resolved().version());
+    }
+
+    /**
+     * funnel cohort 窗口解析（analysis-mode 规格 v1 §1.1）：只接受相对时间表达，
+     * 结果回填 CohortWindow 并随 dsl_json 进审计；未命中即拒绝，禁止猜测。
+     */
+    private void resolveCohort(QueryDsl dsl, PublishedManifest manifest) {
+        QueryDsl.AnalysisParams params = dsl.getAnalysisParams();
+        QueryDsl.CohortWindow window = params == null ? null : params.getCohortWindow();
+        if (window == null || window.getTimeExpressionRaw() == null
+                || window.getTimeExpressionRaw().isBlank()) {
+            throw exception(FUNNEL_TIME_WINDOW_MISSING, "cohortWindow.timeExpressionRaw");
+        }
+        ParseResult result = new TimeExpressionParser(manifest.getTimeExpressionPatterns())
+                .parse(window.getTimeExpressionRaw(), LocalDate.now(clock));
+        if (result.resolved() == null) {
+            throw exception(TIME_PARSE_FAILED, result.failReason());
+        }
+        window.setFrom(result.resolved().from());
+        window.setTo(result.resolved().to());
+        window.setSource(QueryDsl.TimeRange.SOURCE_EXPRESSION);
+        window.setPatternId(result.resolved().patternId());
+        window.setParserVersion(result.resolved().version());
     }
 
 }

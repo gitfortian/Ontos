@@ -21,6 +21,10 @@ import static com.ontos.module.query.enums.ErrorCodeConstants.ABSOLUTE_DATE_REJE
 import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.CROSS_TABLE_UNSUPPORTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
+import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_DIMENSION_UNSUPPORTED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_EVENT_MAPPING_MISSING;
+import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_EVENT_NOT_FOUND;
+import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_TIME_WINDOW_MISSING;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_ATTRIBUTE_NOT_PROJECTABLE;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_BATCH_LIMIT_EXCEEDED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_CROSS_TABLE_UNSUPPORTED;
@@ -57,6 +61,11 @@ public class DslValidator {
         // 必须在 metric 必填检查之前分流。
         if (mode == QueryDsl.AnalysisMode.LOOKUP || mode == QueryDsl.AnalysisMode.LOOKUP_BATCH) {
             validateLookup(dsl, manifest, mode);
+            return;
+        }
+        // W3/T3.3a：funnel 以事件主体为入口，不使用 metric，时间窗在 cohortWindow
+        if (mode == QueryDsl.AnalysisMode.FUNNEL) {
+            validateFunnel(dsl, manifest);
             return;
         }
         if (dsl.getMetricId() == null || dsl.getMetricId().isBlank()) {
@@ -169,6 +178,77 @@ public class DslValidator {
                 && !joinCovers(dsl, dimension.getTable())) {
             throw exception(CROSS_TABLE_UNSUPPORTED, range.getField() + " -> " + metric.getTable());
         }
+    }
+
+    /**
+     * funnel 校验（analysis-mode 规格 v1 §1、ADR-0012）。
+     *
+     * <p>关键前置：每个 step 必须能匹配到**唯一**事件定义，且该事件声明了
+     * eventTypeProperty / participantProperty / timeProperty 三件物理映射；
+     * 缺任一即拒绝，绝不从 dedupKey 或命名习惯推断。M2 的维度只允许主体实体属性
+     * （首次触点取用户属性），跨实体维度直接拒绝。
+     */
+    private void validateFunnel(QueryDsl dsl, PublishedManifest manifest) {
+        OntologySnapshot ontology = manifest.getOntology();
+        SemanticManifest semantic = manifest.getSemantic();
+        if (!isBlank(dsl.getMetricId())) {
+            throw exception(DSL_INVALID, "funnel 不接受 metricId（按事件主体计数）");
+        }
+        if (dsl.getTimeRange() != null || dsl.getExplicitRange() != null
+                || !isBlank(dsl.getTimeExpressionRaw())) {
+            throw exception(DSL_INVALID, "funnel 的时间窗只能走 analysisParams.cohortWindow");
+        }
+        if (dsl.getSubIntents() != null && !dsl.getSubIntents().isEmpty()) {
+            throw exception(DSL_INVALID, "funnel 不接受 subIntents");
+        }
+        if (dsl.getIdentity() != null
+                || (dsl.getIdentities() != null && !dsl.getIdentities().isEmpty())
+                || (dsl.getAttributes() != null && !dsl.getAttributes().isEmpty())) {
+            throw exception(DSL_INVALID, "funnel 不接受 lookup 字段");
+        }
+        QueryDsl.AnalysisParams params = dsl.getAnalysisParams();
+        if (params == null) {
+            throw exception(DSL_INVALID, "funnel 缺少 analysisParams");
+        }
+        validateAnalysisParams(dsl, QueryDsl.AnalysisMode.FUNNEL);
+        if (params.getCohortWindow().getFrom() == null || params.getCohortWindow().getTo() == null) {
+            throw exception(FUNNEL_TIME_WINDOW_MISSING, "cohortWindow 尚未解析");
+        }
+
+        OntologySnapshot.Property subject = ontology.propertyIndex().get(params.getSubjectPropertyId());
+        if (subject == null) {
+            throw exception(DSL_INVALID, "subjectPropertyId 未发布: " + params.getSubjectPropertyId());
+        }
+        String subjectTable = tableOf(subject.getColumn());
+        for (String step : params.getSteps()) {
+            List<OntologySnapshot.EventDef> matched = ontology.getEvents().stream()
+                    .filter(event -> step.equals(event.getEventType()))
+                    .toList();
+            if (matched.size() != 1) {
+                throw exception(FUNNEL_EVENT_NOT_FOUND, step + " 命中 " + matched.size() + " 个事件定义");
+            }
+            OntologySnapshot.EventDef event = matched.get(0);
+            if (isBlank(event.getEventTypeProperty()) || isBlank(event.getParticipantProperty())
+                    || isBlank(event.getTimeProperty())) {
+                throw exception(FUNNEL_EVENT_MAPPING_MISSING, event.getId());
+            }
+            if (!subject.getConceptId().equals(event.getParticipantClass())) {
+                throw exception(FUNNEL_EVENT_MAPPING_MISSING,
+                        "participantClass 与主体不一致: " + event.getId());
+            }
+        }
+
+        for (String dimensionId : dsl.getDimensions() == null ? List.<String>of() : dsl.getDimensions()) {
+            SemanticManifest.Dimension dimension = semantic.requireDimension(dimensionId);
+            if (!subjectTable.equals(dimension.getTable())) {
+                throw exception(FUNNEL_DIMENSION_UNSUPPORTED, dimensionId + " -> " + subjectTable);
+            }
+        }
+        int limit = dsl.getLimit() == null ? properties.getMaxRows() : dsl.getLimit();
+        if (limit < 1 || limit > properties.getMaxRows()) {
+            throw exception(DSL_INVALID, "limit 必须在 [1, " + properties.getMaxRows() + "]");
+        }
+        dsl.setLimit(limit);
     }
 
     /** 指标级维度授权：分组、过滤、时间窗三条引用路径共用（ADR-0003 判据 6）。 */

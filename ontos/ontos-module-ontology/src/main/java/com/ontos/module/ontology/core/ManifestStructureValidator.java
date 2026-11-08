@@ -110,6 +110,7 @@ public final class ManifestStructureValidator {
         }
         Set<String> conceptIds = new HashSet<>();
         Set<String> propertyIds = new HashSet<>();
+        Map<String, OntologySnapshot.Property> propertyById = new java.util.HashMap<>();
         for (OntologySnapshot.Concept concept : orEmpty(ontology.getConcepts())) {
             String at = "concept." + concept.getId();
             requireId(concept.getId(), at, violations);
@@ -139,6 +140,7 @@ public final class ManifestStructureValidator {
             }
             requirePhysicalName(property.getColumn(), at + ".column", violations);
             propertyIds.add(property.getId());
+            propertyById.put(property.getId(), property);
         }
         for (OntologySnapshot.Concept concept : orEmpty(ontology.getConcepts())) {
             String identity = concept.getIdentityProperty();
@@ -183,6 +185,46 @@ public final class ManifestStructureValidator {
             if (blank(event.getDedupKey())) missing.add("dedupKey");
             if (!missing.isEmpty()) {
                 violations.add(new Violation(at, "事件四要素缺失: " + String.join(", ", missing)));
+            }
+            // ADR-0012：事件判定映射为可选字段，但声明后必须可解析且与时间属性同表
+            if (blank(event.getEventTypeProperty()) && !blank(event.getEventTypeValue())) {
+                violations.add(new Violation(at, "声明了 eventTypeValue 但缺少 eventTypeProperty"));
+            }
+            List<String> mapped = new ArrayList<>();
+            if (!blank(event.getTimeProperty())) {
+                mapped.add(event.getTimeProperty());
+            }
+            if (!blank(event.getEventTypeProperty())) {
+                mapped.add(event.getEventTypeProperty());
+                OntologySnapshot.Property typeProperty = propertyById.get(event.getEventTypeProperty());
+                if (typeProperty == null) {
+                    violations.add(new Violation(at, "eventTypeProperty 引用不存在的属性: "
+                            + event.getEventTypeProperty()));
+                } else if (!typeProperty.isFilterable()) {
+                    violations.add(new Violation(at, "eventTypeProperty 不可过滤: " + event.getEventTypeProperty()));
+                }
+            }
+            if (!blank(event.getParticipantProperty())) {
+                mapped.add(event.getParticipantProperty());
+                if (!propertyById.containsKey(event.getParticipantProperty())) {
+                    violations.add(new Violation(at, "participantProperty 引用不存在的属性: "
+                            + event.getParticipantProperty()));
+                }
+            }
+            String eventTable = null;
+            for (String propertyId : mapped) {
+                OntologySnapshot.Property property = propertyById.get(propertyId);
+                if (property == null) {
+                    continue; // 已在上面单独报错
+                }
+                String table = tableOf(property.getColumn());
+                if (table == null) {
+                    violations.add(new Violation(at, "事件映射属性缺少表限定列名: " + propertyId));
+                } else if (eventTable == null) {
+                    eventTable = table;
+                } else if (!eventTable.equals(table)) {
+                    violations.add(new Violation(at, "事件映射属性跨表: " + eventTable + " vs " + table));
+                }
             }
         }
         for (OntologySnapshot.Synonym synonym : orEmpty(ontology.getSynonyms())) {
@@ -309,6 +351,15 @@ public final class ManifestStructureValidator {
             violations.add(new Violation(at,
                     "物理名必须是小写 snake_case 限定名（ADR-0007）: " + physicalName));
         }
+    }
+
+    /** "table.column" / "schema.table.column" → 表限定名；裸列名返回 null。 */
+    private static String tableOf(String column) {
+        if (column == null) {
+            return null;
+        }
+        int lastDot = column.lastIndexOf('.');
+        return lastDot <= 0 ? null : column.substring(0, lastDot);
     }
 
     private static boolean blank(String value) {

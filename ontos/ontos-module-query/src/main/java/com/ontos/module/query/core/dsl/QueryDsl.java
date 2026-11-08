@@ -105,7 +105,14 @@ public class QueryDsl {
 
     @Data
     public static class CohortWindow {
+        /** 用户/LLM 给出的相对时间表达；客户端唯一可提交的字段。 */
         private String timeExpressionRaw;
+        /** 以下由服务端 TimeWindowResolver 回填，客户端提交由 DslCodec 拒绝。 */
+        private Instant from;
+        private Instant to;
+        private String source;
+        private String patternId;
+        private String parserVersion;
     }
 
     /** lookup 单实体标识：只引用本体属性 ID + 值，不携带物理列。 */

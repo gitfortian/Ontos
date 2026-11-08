@@ -14,6 +14,7 @@ import static com.ontos.module.ontology.enums.ErrorCodeConstants.DIMENSION_NOT_A
 import static com.ontos.module.query.enums.ErrorCodeConstants.ABSOLUTE_DATE_REJECTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
+import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_EVENT_NOT_FOUND;
 import static com.ontos.module.query.enums.ErrorCodeConstants.SENSITIVE_BULK_EXPORT_REJECTED;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -53,11 +54,10 @@ class DslValidatorTest {
     @Test
     void shouldRejectNonQueryModeEvenWhenWhitelisted() {
         // 白名单放行不够，未实现的模式必须 fail-closed（PoC-04）。
-        // LOOKUP/LOOKUP_BATCH、YOY_MOM 已由 T3.2/T3.3 实现；FUNNEL 因清单缺事件判定条件暂缓（R-12）。
-        manifest.getSemantic().getMetrics().get(0).setAllowedModes(List.of("QUERY", "FUNNEL"));
+        // 已实现 QUERY/LOOKUP/LOOKUP_BATCH/YOY_MOM/FUNNEL；ATTRIBUTION 仍未实现。
+        manifest.getSemantic().getMetrics().get(0).setAllowedModes(List.of("QUERY", "ATTRIBUTION"));
         QueryDsl dsl = TestFixtures.query();
-        dsl.setMode(QueryDsl.AnalysisMode.FUNNEL);
-        dsl.setAnalysisParams(funnelParams());
+        dsl.setMode(QueryDsl.AnalysisMode.ATTRIBUTION);
         ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
         assertEquals(ANALYSIS_MODE_NOT_IMPLEMENTED.getCode(), ex.getCode());
     }
@@ -307,14 +307,20 @@ class DslValidatorTest {
     }
 
     @Test
-    void shouldPassFunnelSchemaThenFailClosedOnUnimplementedMode() {
-        manifest.getSemantic().getMetrics().get(0)
-                .setAllowedModes(List.of("QUERY", "FUNNEL", "YOY_MOM"));
+    void shouldRejectFunnelWithoutPublishedEventMapping() {
+        // FUNNEL 已由 T3.3a 实现：schema 通过后必须因「清单未发布事件定义」fail-closed
         QueryDsl dsl = TestFixtures.query();
         dsl.setMode(QueryDsl.AnalysisMode.FUNNEL);
         dsl.setAnalysisParams(funnelParams());
-        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
-        assertEquals(ANALYSIS_MODE_NOT_IMPLEMENTED.getCode(), ex.getCode());
+        dsl.setMetricId(null); // funnel 按事件主体计数，不接受 metricId
+        dsl.getAnalysisParams().getCohortWindow().setFrom(Instant.parse("2026-10-01T00:00:00Z"));
+        dsl.getAnalysisParams().getCohortWindow().setTo(Instant.parse("2026-11-01T00:00:00Z"));
+        dsl.setDimensions(List.of());
+        dsl.getAnalysisParams().setSubjectPropertyId(TestFixtures.CUSTOMER_SUBJECT_PROPERTY);
+        PublishedManifest noEvents = TestFixtures.funnelManifest();
+        noEvents.getOntology().setEvents(List.of());
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, noEvents));
+        assertEquals(FUNNEL_EVENT_NOT_FOUND.getCode(), ex.getCode());
     }
 
     @Test

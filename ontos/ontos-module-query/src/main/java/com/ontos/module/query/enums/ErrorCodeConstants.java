@@ -28,5 +28,9 @@ public interface ErrorCodeConstants {
     ErrorCode LOOKUP_NOT_UNIQUE = new ErrorCode(1_002_000_018, "标识属性命中多行，单实体 lookup 拒绝猜测: {}");
     ErrorCode LOOKUP_BATCH_LIMIT_EXCEEDED = new ErrorCode(1_002_000_019, "批量 lookup 超过单批上限或 limit 非法: {}");
     ErrorCode ATTRIBUTE_NOT_AVAILABLE = new ErrorCode(1_002_000_020, "属性存在性敏感且当前身份不可读: {}");
+    ErrorCode FUNNEL_EVENT_MAPPING_MISSING = new ErrorCode(1_002_000_021, "funnel 事件缺少物理判定映射（ADR-0012）: {}");
+    ErrorCode FUNNEL_EVENT_NOT_FOUND = new ErrorCode(1_002_000_022, "funnel 步骤找不到唯一事件定义: {}");
+    ErrorCode FUNNEL_DIMENSION_UNSUPPORTED = new ErrorCode(1_002_000_023, "funnel 维度必须属于主体实体: {}");
+    ErrorCode FUNNEL_TIME_WINDOW_MISSING = new ErrorCode(1_002_000_024, "funnel cohort 窗口缺失或未解析: {}");
 
 }

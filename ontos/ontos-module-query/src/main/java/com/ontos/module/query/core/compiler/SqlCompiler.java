@@ -26,6 +26,9 @@ import org.springframework.stereotype.Component;
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
+import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_EVENT_MAPPING_MISSING;
+import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_EVENT_NOT_FOUND;
+import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_TIME_WINDOW_MISSING;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_ATTRIBUTE_NOT_PROJECTABLE;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_CROSS_TABLE_UNSUPPORTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_IDENTITY_REQUIRED;
@@ -51,9 +54,12 @@ public class SqlCompiler {
         if (mode == QueryDsl.AnalysisMode.LOOKUP || mode == QueryDsl.AnalysisMode.LOOKUP_BATCH) {
             return compileLookup(queryDsl, manifest, mode);
         }
-        // W3/T3.3：同环比走周期骨架 + 窗口函数构造器
+        // W3/T3.3：同环比走周期骨架 + 窗口函数构造器；funnel 走步进 CTE
         if (mode == QueryDsl.AnalysisMode.YOY_MOM) {
             return compileYoyMom(queryDsl, manifest);
+        }
+        if (mode == QueryDsl.AnalysisMode.FUNNEL) {
+            return compileFunnel(queryDsl, manifest);
         }
         // 纵深防御（PoC-04 缺陷修复）：即使调用方绕过校验器，编译器也绝不把
         // 未实现的模式静默编译成聚合 SQL——只拒绝，不实现（funnel / yoy_mom 归 T3.3）。
@@ -199,6 +205,206 @@ public class SqlCompiler {
         compiled.setAppliedLimit(appliedLimit);
         compiled.setCompiledAt(Instant.now());
         return compiled;
+    }
+
+    /**
+     * funnel 步进 CTE 编译（analysis-mode 规格 v1 §1.3、ADR-0012）。
+     *
+     * <p>cohort = 首步事件在窗口内的主体 + 首次发生时间（维度取首次触点时的主体属性值）；
+     * step_k = 在前一步 step_time 之后、step_window 之内发生第 k 步的主体 + 首次时间；
+     * 最终按维度分组产出 count(distinct subject) per step，转化率分母固定为上一步。
+     * 事件类型过滤值只来自已发布 EventDef 的 `eventTypeValue`，不接受 DSL 里的物理条件。
+     */
+    private CompiledQuery compileFunnel(QueryDsl queryDsl, PublishedManifest manifest) {
+        OntologySnapshot ontology = manifest.getOntology();
+        SemanticManifest semantic = manifest.getSemantic();
+        QueryDsl.AnalysisParams params = queryDsl.getAnalysisParams();
+        List<String> steps = params.getSteps();
+
+        List<OntologySnapshot.EventDef> events = new ArrayList<>();
+        for (String step : steps) {
+            OntologySnapshot.EventDef event = ontology.getEvents().stream()
+                    .filter(candidate -> step.equals(candidate.getEventType()))
+                    .findFirst()
+                    .orElseThrow(() -> exception(FUNNEL_EVENT_NOT_FOUND, step));
+            events.add(event);
+        }
+        OntologySnapshot.Property typeProperty =
+                requireEventProperty(ontology, events.get(0).getEventTypeProperty());
+        OntologySnapshot.Property timeProperty = requireEventProperty(ontology, events.get(0).getTimeProperty());
+        OntologySnapshot.Property participantProperty =
+                requireEventProperty(ontology, events.get(0).getParticipantProperty());
+        String eventTable = tableOf(timeProperty.getColumn());
+        if (eventTable == null
+                || !eventTable.equals(tableOf(typeProperty.getColumn()))
+                || !eventTable.equals(tableOf(participantProperty.getColumn()))) {
+            throw exception(FUNNEL_EVENT_MAPPING_MISSING, "事件映射属性跨表或缺少表限定");
+        }
+
+        Field<Timestamp> eventTime = DSL.field(columnName(timeProperty.getColumn()), Timestamp.class);
+        Field<String> eventType = DSL.field(columnName(typeProperty.getColumn()), String.class);
+        Field<String> participant = DSL.field(columnName(participantProperty.getColumn()), String.class);
+
+        Timestamp cohortFrom = shanghaiTimestamp(params.getCohortWindow().getFrom());
+        Timestamp cohortTo = shanghaiTimestamp(params.getCohortWindow().getTo());
+        String stepInterval = toInterval(params.getStepWindow());
+
+        OntologySnapshot.Property subject = ontology.propertyIndex().get(params.getSubjectPropertyId());
+        if (subject == null || tableOf(subject.getColumn()) == null) {
+            throw exception(FUNNEL_EVENT_MAPPING_MISSING,
+                    "subjectPropertyId 无法解析物理列: " + params.getSubjectPropertyId());
+        }
+        String subjectTable = tableOf(subject.getColumn());
+        List<String> dimensionIds = queryDsl.getDimensions() == null
+                ? List.of() : queryDsl.getDimensions();
+        List<SemanticManifest.Dimension> dimensions = new ArrayList<>();
+        for (String dimensionId : dimensionIds) {
+            dimensions.add(semantic.requireDimension(dimensionId));
+        }
+
+        // cohort：首步事件 + 首次发生时间 + 首次触点维度值
+        SelectQuery<Record> cohort = dsl.selectQuery();
+        cohort.addSelect(participant.as("subject"));
+        cohort.addSelect(DSL.min(eventTime).as("first_time"));
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            cohort.addSelect(DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()))
+                    .as(DSL.name(dimension.getId())));
+        }
+        cohort.addFrom(DSL.table(tableName(eventTable)));
+        if (!dimensions.isEmpty()) {
+            cohort.addJoin(DSL.table(tableName(subjectTable)),
+                    DSL.field(columnName(subject.getColumn())).eq(participant));
+        }
+        cohort.addConditions(
+                eventType.eq(events.get(0).getEventTypeValue()),
+                eventTime.ge(DSL.val(cohortFrom)),
+                eventTime.le(DSL.val(cohortTo)));
+        List<Field<?>> cohortGroup = new ArrayList<>();
+        cohortGroup.add(participant);
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            cohortGroup.add(DSL.field(assetColumn(dimension.getTable(), dimension.getColumn())));
+        }
+        cohort.addGroupBy(cohortGroup);
+
+        // step_2..step_N：严格有序 + 步窗约束
+        List<org.jooq.CommonTableExpression<Record>> ctes = new ArrayList<>();
+        ctes.add(DSL.name("cohort").as(cohort));
+        String previousCte = "cohort";
+        Field<Timestamp> previousTime = DSL.field(DSL.name("cohort", "first_time"), Timestamp.class);
+        for (int index = 1; index < events.size(); index++) {
+            String cteName = "step_" + (index + 1);
+            OntologySnapshot.EventDef event = events.get(index);
+            SelectQuery<Record> step = dsl.selectQuery();
+            step.addSelect(participant.as("subject"));
+            step.addSelect(DSL.min(eventTime).as("step_time"));
+            step.addFrom(DSL.table(tableName(eventTable)));
+            step.addJoin(DSL.table(DSL.name(previousCte)),
+                    DSL.field(DSL.name(previousCte, "subject")).eq(participant));
+            step.addConditions(
+                    eventType.eq(event.getEventTypeValue()),
+                    eventTime.gt(previousTime),
+                    eventTime.le(DSL.field("cast({0} as timestamp) + cast({1} as interval)",
+                            Timestamp.class, previousTime, DSL.inline(stepInterval))));
+            step.addGroupBy(participant);
+            ctes.add(DSL.name(cteName).as(step));
+            previousCte = cteName;
+            previousTime = DSL.field(DSL.name(previousCte, "step_time"), Timestamp.class);
+        }
+
+        // 聚合：每步 count(distinct subject) + 维度分组
+        SelectQuery<Record> aggregate = dsl.selectQuery();
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            aggregate.addSelect(DSL.field(DSL.name("cohort", dimension.getId()))
+                    .as(DSL.name(dimension.getId())));
+        }
+        aggregate.addSelect(DSL.countDistinct(DSL.field(DSL.name("cohort", "subject"))).as("step_1"));
+        for (int index = 1; index < events.size(); index++) {
+            String cteName = "step_" + (index + 1);
+            aggregate.addSelect(DSL.countDistinct(DSL.field(DSL.name(cteName, "subject")))
+                    .as("step_" + (index + 1)));
+        }
+        aggregate.addFrom(DSL.table(DSL.name("cohort")));
+        for (int index = 1; index < events.size(); index++) {
+            String cteName = "step_" + (index + 1);
+            aggregate.addJoin(DSL.table(DSL.name(cteName)), org.jooq.JoinType.LEFT_OUTER_JOIN,
+                    DSL.field(DSL.name(cteName, "subject"))
+                            .eq(DSL.field(DSL.name("cohort", "subject"))));
+        }
+        if (!dimensions.isEmpty()) {
+            List<Field<?>> groupBy = new ArrayList<>();
+            for (SemanticManifest.Dimension dimension : dimensions) {
+                groupBy.add(DSL.field(DSL.name("cohort", dimension.getId())));
+            }
+            aggregate.addGroupBy(groupBy);
+        }
+
+        // 外层：转化率（分母 = 上一步）。CTE 只能通过 WithStep 链式声明，
+        // SelectQuery 本身没有 addWith（jOOQ 3.21）。
+        List<Field<?>> outerFields = new ArrayList<>();
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            outerFields.add(DSL.field(DSL.name("q", dimension.getId()))
+                    .as(DSL.name(dimension.getId())));
+        }
+        for (int index = 1; index <= events.size(); index++) {
+            outerFields.add(DSL.field(DSL.name("q", "step_" + index)).as("step_" + index));
+        }
+        for (int index = 2; index <= events.size(); index++) {
+            Field<?> current = DSL.field(DSL.name("q", "step_" + index));
+            Field<?> prior = DSL.field(DSL.name("q", "step_" + (index - 1)));
+            // {0} 当前步、{1} 上一步；模板索引必须与参数顺序一一对应，
+            // 写成两个 {0} 会让分母也取当前步（转化率恒为 1）
+            outerFields.add(DSL.field("cast({0} as numeric) / nullif({1}, 0)", BigDecimal.class,
+                    current, prior).as("conversion_" + index));
+        }
+        List<Field<?>> orderFields = new ArrayList<>();
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            orderFields.add(DSL.field(DSL.name("q", dimension.getId())));
+        }
+        org.jooq.SelectJoinStep<Record> from = dsl.with(ctes)
+                .select(outerFields.toArray(new Field[0]))
+                .from(DSL.table(aggregate).as("q"));
+        int limit = queryDsl.getLimit() == null ? 500 : queryDsl.getLimit();
+        org.jooq.Select<Record> outer = orderFields.isEmpty()
+                ? from.limit(limit)
+                : from.orderBy(orderFields.toArray(new Field[0])).limit(limit);
+
+        Query query = outer;
+        CompiledQuery compiled = new CompiledQuery();
+        compiled.setManifestId(manifest.getManifestId());
+        compiled.setContentHash(manifest.getContentHash());
+        compiled.setMode(QueryDsl.AnalysisMode.FUNNEL.name());
+        compiled.setDimensions(dimensionIds);
+        compiled.setJoins(List.of());
+        compiled.setDialect("postgresql");
+        compiled.setSql(query.getSQL(ParamType.INDEXED));
+        compiled.setBindValues(query.getBindValues());
+        compiled.setAppliedLimit(limit);
+        compiled.setCompiledAt(Instant.now());
+        return compiled;
+    }
+
+    private static OntologySnapshot.Property requireEventProperty(OntologySnapshot ontology, String propertyId) {
+        OntologySnapshot.Property property = propertyId == null
+                ? null : ontology.propertyIndex().get(propertyId);
+        if (property == null) {
+            throw exception(FUNNEL_EVENT_MAPPING_MISSING, "属性未发布: " + propertyId);
+        }
+        return property;
+    }
+
+    /** step_window `7d` / `12h` / `30m` → PostgreSQL interval 字面量（格式由校验器保证）。 */
+    private static String toInterval(String stepWindow) {
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("^(\\d+)([dhm])$").matcher(stepWindow == null ? "" : stepWindow);
+        if (!matcher.matches()) {
+            throw exception(FUNNEL_TIME_WINDOW_MISSING, "stepWindow=" + stepWindow);
+        }
+        String unit = switch (matcher.group(2)) {
+            case "d" -> "days";
+            case "h" -> "hours";
+            default -> "minutes";
+        };
+        return matcher.group(1) + " " + unit;
     }
 
     /**

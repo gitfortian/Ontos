@@ -159,9 +159,12 @@ public class QueryServiceImpl implements QueryService {
             // M2/T2.3 接线：相对时间先由服务端解析器换算，再进入结构与授权校验。
             // 解析结果（含 patternId / parserVersion）写入 DSL，随 buildAudit 的 dsl_json 进审计。
             timeWindowResolver.resolve(queryDsl, manifest);
-            // W3/T3.1：跨表字段先由规划器解析 UNIQUE 路径，歧义/不可达在此拒绝，
-            // 校验器与编译器只消费服务端回填的 resolvedJoins。
-            joinPathResolver.resolve(queryDsl, manifest);
+            // W3/T3.1：跨表字段先由规划器解析 UNIQUE 路径，歧义/不可达在此拒绝。
+            // funnel 按事件主体编译、没有 metric，也不做本体路径规划，必须跳过规划器，
+            // 否则 requireMetric(null) 会以「语义资产不存在」误拒合法漏斗。
+            if (queryDsl.getMode() != QueryDsl.AnalysisMode.FUNNEL) {
+                joinPathResolver.resolve(queryDsl, manifest);
+            }
         }
         dslValidator.validate(queryDsl, manifest);
         // lookup 系列以实体为授权资产（没有 metricId）；其余模式仍以指标为锚点。

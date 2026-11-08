@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import static com.ontos.module.query.core.dsl.QueryDsl.TimeRange.SOURCE_EXPRESSION;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -178,6 +179,28 @@ class QueryServiceImplTest {
 
         assertThrows(ServiceException.class,
                 () -> service(new TimeWindowResolver()).execute(TestFixtures.singleLookup()));
+    }
+
+    @Test
+    void shouldCompileFunnelWithoutMetricLookup() {
+        // 端到端回归：funnel 没有 metric，prepare 必须跳过 JoinPathResolver，
+        // 否则规划器 requireMetric(null) 会以「语义资产不存在」误拒合法漏斗。
+        PublishedManifest manifest = TestFixtures.funnelManifest();
+        TimeExpressionPattern lastNDays = new TimeExpressionPattern();
+        lastNDays.setPatternId("tep.last_n_days");
+        lastNDays.setPattern("近 N 天");
+        lastNDays.setGranularity("DAY");
+        manifest.setTimeExpressionPatterns(List.of(lastNDays));
+        when(manifestService.validateManifest("manifest-001")).thenReturn(manifest);
+
+        CompiledQuery compiled = new CompiledQuery();
+        compiled.setManifestId("manifest-001");
+        compiled.setContentHash("hash-1");
+        compiled.setSql("with cohort as (select 1) select 1");
+        when(sqlCompiler.compile(any(), any())).thenReturn(compiled);
+
+        assertDoesNotThrow(() -> service(new TimeWindowResolver()).compile(TestFixtures.funnelDsl()));
+        verify(auditService).record(any());
     }
 
     @Test
