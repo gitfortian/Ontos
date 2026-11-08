@@ -6,6 +6,7 @@ import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.query.core.QueryProperties;
 import com.ontos.module.query.core.TestFixtures;
+import com.ontos.module.ontology.core.OntologySnapshot;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -14,6 +15,7 @@ import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_ATTRIBUTE_N
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_BATCH_LIMIT_EXCEEDED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_CROSS_TABLE_UNSUPPORTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_IDENTITY_REQUIRED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.SENSITIVE_BULK_EXPORT_REJECTED;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -127,6 +129,43 @@ class LookupValidatorTest {
         dsl.setIdentities(List.of("c-1", " "));
         ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
         assertEquals(LOOKUP_IDENTITY_REQUIRED.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldRejectSensitiveBulkLookupOverLimit() {
+        QueryProperties properties = TestFixtures.queryProperties();
+        properties.setMaxBatchSize(3);
+        properties.setSensitiveUngroupedLimit(1);
+        DslValidator strict = new DslValidator(properties);
+        manifest.getOntology().propertyIndex().get(TestFixtures.CUSTOMER_EMAIL_PROPERTY)
+                .setSensitivity(OntologySnapshot.Sensitivity.PII);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> strict.validate(TestFixtures.batchLookup(), manifest));
+        assertEquals(SENSITIVE_BULK_EXPORT_REJECTED.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldAllowSensitiveBulkLookupWithinLimit() {
+        QueryProperties properties = TestFixtures.queryProperties();
+        properties.setMaxBatchSize(3);
+        properties.setSensitiveUngroupedLimit(2);
+        DslValidator strict = new DslValidator(properties);
+        manifest.getOntology().propertyIndex().get(TestFixtures.CUSTOMER_EMAIL_PROPERTY)
+                .setSensitivity(OntologySnapshot.Sensitivity.PII);
+        assertDoesNotThrow(() -> strict.validate(TestFixtures.batchLookup(), manifest));
+    }
+
+    @Test
+    void shouldNotApplyBulkGuardToNonSensitiveAttributes() {
+        QueryProperties properties = TestFixtures.queryProperties();
+        properties.setMaxBatchSize(3);
+        properties.setSensitiveUngroupedLimit(1);
+        DslValidator strict = new DslValidator(properties);
+        // email 在夹具里是 existenceSensitive，改用普通编号属性才是真正的「非敏感」
+        QueryDsl dsl = TestFixtures.batchLookup();
+        dsl.setAttributes(List.of(TestFixtures.CUSTOMER_ID_PROPERTY));
+        assertDoesNotThrow(() -> strict.validate(dsl, manifest));
     }
 
     @Test

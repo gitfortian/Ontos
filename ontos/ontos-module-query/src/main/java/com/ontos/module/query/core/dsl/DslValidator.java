@@ -246,15 +246,27 @@ public class DslValidator {
             }
         }
 
+        boolean sensitiveDimension = false;
         for (String dimensionId : dsl.getDimensions() == null ? List.<String>of() : dsl.getDimensions()) {
             SemanticManifest.Dimension dimension = semantic.requireDimension(dimensionId);
             if (!subjectTable.equals(dimension.getTable())) {
                 throw exception(FUNNEL_DIMENSION_UNSUPPORTED, dimensionId + " -> " + subjectTable);
             }
+            sensitiveDimension |= dimension.isSensitive();
         }
         int limit = dsl.getLimit() == null ? properties.getMaxRows() : dsl.getLimit();
         if (limit < 1 || limit > properties.getMaxRows()) {
             throw exception(DSL_INVALID, "limit 必须在 [1, " + properties.getMaxRows() + "]");
+        }
+        // T3.5：funnel 在入口独立分流，guardrail 必须显式补上，不能因为「按主体聚合」
+        // 就默认放行敏感主体/维度的大结果集（M2 只做标记校验，完整累计检测归 M4）。
+        boolean sensitive = sensitiveDimension
+                || subject.isExistenceSensitive()
+                || subject.getSensitivity() == OntologySnapshot.Sensitivity.PII
+                || subject.getSensitivity() == OntologySnapshot.Sensitivity.LABEL;
+        if (sensitive && limit > properties.getSensitiveUngroupedLimit()) {
+            throw exception(SENSITIVE_BULK_EXPORT_REJECTED,
+                    "funnel 敏感主体/维度且 limit=" + limit);
         }
         dsl.setLimit(limit);
     }
@@ -332,6 +344,9 @@ public class DslValidator {
         if (tables.size() > 1) {
             throw exception(LOOKUP_CROSS_TABLE_UNSUPPORTED, String.join(",", tables));
         }
+        if (mode == QueryDsl.AnalysisMode.LOOKUP_BATCH) {
+            guardSensitiveBulkLookup(dsl, ontology);
+        }
 
         for (QueryDsl.Filter filter : dsl.getFilters() == null ? List.<QueryDsl.Filter>of() : dsl.getFilters()) {
             OntologySnapshot.Property property = requireLookupProperty(ontology, entityId, filter.getFieldId(), false);
@@ -388,6 +403,32 @@ public class DslValidator {
                     "limit=" + limit + " < identities=" + identities.size());
         }
         dsl.setLimit(limit);
+    }
+
+    /**
+     * T3.5：lookup_batch 投影敏感属性且请求行数超阈值时按「批量导出形状」拒绝。
+     * M2 编译侧只做标记校验，完整累计检测（sensitive_query_event 落库 + 窗口聚合）归 M4。
+     * 单实体 lookup 固定 LIMIT 1，天然不构成批量导出，无需检查。
+     */
+    private void guardSensitiveBulkLookup(QueryDsl dsl, OntologySnapshot ontology) {
+        boolean sensitive = false;
+        for (String attributeId : dsl.getAttributes() == null ? List.<String>of() : dsl.getAttributes()) {
+            OntologySnapshot.Property property = ontology.propertyIndex().get(attributeId);
+            if (property != null && (property.isExistenceSensitive()
+                    || property.getSensitivity() == OntologySnapshot.Sensitivity.PII
+                    || property.getSensitivity() == OntologySnapshot.Sensitivity.LABEL)) {
+                sensitive = true;
+                break;
+            }
+        }
+        if (!sensitive) {
+            return;
+        }
+        int rows = dsl.getIdentities() == null ? 0 : dsl.getIdentities().size();
+        if (rows > properties.getSensitiveUngroupedLimit()) {
+            throw exception(SENSITIVE_BULK_EXPORT_REJECTED,
+                    "敏感属性批量 lookup " + rows + " 行 > " + properties.getSensitiveUngroupedLimit());
+        }
     }
 
     /**

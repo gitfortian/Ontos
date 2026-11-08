@@ -3,6 +3,7 @@ package com.ontos.module.query.service;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -11,6 +12,7 @@ import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.framework.web.core.context.RequestContext;
 import com.ontos.framework.web.core.context.RequestContextHolder;
 import com.ontos.module.ontology.core.ManifestPayload.TimeExpressionPattern;
+import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.service.manifest.ManifestService;
 import com.ontos.module.query.core.TestFixtures;
@@ -206,6 +208,42 @@ class QueryServiceImplTest {
 
         assertDoesNotThrow(() -> service(new TimeWindowResolver()).compile(TestFixtures.funnelDsl()));
         verify(auditService).record(any());
+    }
+
+    @Test
+    void shouldMaskPiiPropertyEvenWithoutDisplayHints() {
+        // T3.5 兜底：清单只标 sensitivity=PII、没写 displayHints / existenceSensitive 时也必须掩码
+        String phoneId = "property.customer.phone";
+        PublishedManifest manifest = TestFixtures.lookupManifest();
+        OntologySnapshot.Property phone = TestFixtures.property(
+                phoneId, TestFixtures.CUSTOMER_CONCEPT, "customer.phone", true, false, false);
+        phone.setSensitivity(OntologySnapshot.Sensitivity.PII);
+        List<OntologySnapshot.Property> properties = new ArrayList<>(manifest.getOntology().getProperties());
+        properties.add(phone);
+        manifest.getOntology().setProperties(properties);
+        when(manifestService.validateManifest("manifest-001")).thenReturn(manifest);
+        when(requestStateService.findState(any())).thenReturn(java.util.Optional.empty());
+
+        CompiledQuery compiled = new CompiledQuery();
+        compiled.setManifestId("manifest-001");
+        compiled.setContentHash("hash-1");
+        compiled.setMode("LOOKUP");
+        compiled.setAttributes(List.of(phoneId));
+        compiled.setSql("select 1");
+        when(sqlCompiler.compile(any(), any())).thenReturn(compiled);
+
+        QueryResult result = new QueryResult();
+        result.setColumns(List.of("__identity", phoneId));
+        result.setRows(List.of(Map.of("__identity", "c-1", phoneId, "13800000000")));
+        result.setRowCount(1);
+        when(queryExecutor.execute(any(), any())).thenReturn(result);
+
+        QueryDsl dsl = TestFixtures.singleLookup();
+        dsl.setAttributes(List.of(phoneId));
+        service(new TimeWindowResolver()).execute(dsl);
+
+        assertEquals("1***", result.getLookupRows().get(0).values().get(phoneId));
+        assertEquals("1***", result.getRows().get(0).get(phoneId), "rows 通道也必须同步掩码");
     }
 
     @Test

@@ -251,7 +251,13 @@ public class QueryServiceImpl implements QueryService {
                 continue;
             }
             OntologySnapshot.Property property = manifest.getOntology().propertyIndex().get(attributeId);
+            // T3.5 兜底：displayHints / existenceSensitive 漏配时，PII / LABEL 也必须掩码，
+            // 不能把「清单没写 mask」当成可明文导出的授权。
+            boolean sensitiveLevel = property != null
+                    && (property.getSensitivity() == OntologySnapshot.Sensitivity.PII
+                    || property.getSensitivity() == OntologySnapshot.Sensitivity.LABEL);
             boolean shouldMask = property != null && (property.isExistenceSensitive()
+                    || sensitiveLevel
                     || (property.getDisplayHints() != null && property.getDisplayHints().contains("mask")));
             if (shouldMask) {
                 row.put(attributeId, mask(String.valueOf(value)));

@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.module.ontology.core.PublishedManifest;
+import com.ontos.module.query.core.QueryProperties;
 import com.ontos.module.query.core.TestFixtures;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_DIMENSION_U
 import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_EVENT_MAPPING_MISSING;
 import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_EVENT_NOT_FOUND;
 import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_TIME_WINDOW_MISSING;
+import static com.ontos.module.query.enums.ErrorCodeConstants.SENSITIVE_BULK_EXPORT_REJECTED;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -27,6 +29,17 @@ class FunnelValidatorTest {
     void setUp() {
         validator = new DslValidator(TestFixtures.queryProperties());
         manifest = TestFixtures.funnelManifest();
+    }
+
+    @Test
+    void shouldRejectSensitiveDimensionBulkFunnel() {
+        QueryProperties properties = TestFixtures.queryProperties();
+        properties.setSensitiveUngroupedLimit(10);
+        DslValidator strict = new DslValidator(properties);
+        manifest.getSemantic().getDimensions().get(0).setSensitive(true);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> strict.validate(TestFixtures.funnelDsl(), manifest));
+        assertEquals(SENSITIVE_BULK_EXPORT_REJECTED.getCode(), ex.getCode());
     }
 
     @Test
