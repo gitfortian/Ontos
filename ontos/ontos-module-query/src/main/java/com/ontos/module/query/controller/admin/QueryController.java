@@ -1,11 +1,17 @@
 package com.ontos.module.query.controller.admin;
 
+import java.util.List;
+
 import com.ontos.framework.common.pojo.CommonResult;
 import com.ontos.module.query.controller.admin.vo.QueryCompileRespVO;
+import com.ontos.module.query.controller.admin.vo.QueryDryRunRespVO;
 import com.ontos.module.query.controller.admin.vo.QueryExecuteRespVO;
+import com.ontos.module.query.controller.admin.vo.QueryPlanRespVO;
 import com.ontos.module.query.core.compiler.CompiledQuery;
 import com.ontos.module.query.core.dsl.DslCodec;
 import com.ontos.module.query.core.dsl.QueryDsl;
+import com.ontos.module.query.core.executor.DryRunOutcome;
+import com.ontos.module.query.core.executor.QueryPlan;
 import com.ontos.module.query.core.executor.QueryResult;
 import com.ontos.module.query.service.QueryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -66,16 +72,69 @@ public class QueryController {
         vo.setRowCount(result.getRowCount());
         vo.setTruncated(result.isTruncated());
         vo.setElapsedMs(result.getElapsedMs());
-        vo.setLookupRows(result.getLookupRows() == null ? null : result.getLookupRows().stream()
-                .map(row -> {
-                    QueryExecuteRespVO.LookupRowVO lookupRow = new QueryExecuteRespVO.LookupRowVO();
-                    lookupRow.setIdentity(row.identity());
-                    lookupRow.setAvailable(row.available());
-                    lookupRow.setValues(row.values());
-                    return lookupRow;
-                })
-                .toList());
+        vo.setLookupRows(toLookupRowVOs(result.getLookupRows()));
         return success(vo);
+    }
+
+    @PostMapping("/dry-plan")
+    @Operation(summary = "dry-plan：同一编译产物 + EXPLAIN 计划与成本（不执行业务查询）")
+    public CommonResult<QueryPlanRespVO> dryPlan(@RequestBody JsonNode body) {
+        return success(toPlanVO(queryService.dryPlan(dslCodec.decode(body))));
+    }
+
+    @PostMapping("/dry-run")
+    @Operation(summary = "dry-run：同一编译产物受限执行（更紧的超时/行数，成本超限直接拒绝）")
+    public CommonResult<QueryDryRunRespVO> dryRun(@RequestBody JsonNode body) {
+        return success(toDryRunVO(queryService.dryRun(dslCodec.decode(body))));
+    }
+
+    private static QueryPlanRespVO toPlanVO(QueryPlan plan) {
+        QueryPlanRespVO vo = new QueryPlanRespVO();
+        fillPlan(vo, plan);
+        return vo;
+    }
+
+    private static QueryDryRunRespVO toDryRunVO(DryRunOutcome outcome) {
+        QueryDryRunRespVO vo = new QueryDryRunRespVO();
+        fillPlan(vo, outcome.plan());
+        QueryResult result = outcome.result();
+        vo.setColumns(result.getColumns());
+        vo.setRows(result.getRows());
+        vo.setRowCount(result.getRowCount());
+        vo.setTruncated(result.isTruncated());
+        vo.setElapsedMs(result.getElapsedMs());
+        vo.setLookupRows(toLookupRowVOs(result.getLookupRows()));
+        return vo;
+    }
+
+    private static void fillPlan(QueryPlanRespVO vo, QueryPlan plan) {
+        CompiledQuery compiled = plan.getCompiled();
+        vo.setManifestId(compiled.getManifestId());
+        vo.setContentHash(compiled.getContentHash());
+        vo.setMode(compiled.getMode());
+        vo.setSql(compiled.getSql());
+        vo.setBindValues(compiled.getBindValues());
+        vo.setAppliedLimit(compiled.getAppliedLimit());
+        vo.setJoins(compiled.getJoins());
+        vo.setPlanJson(plan.getPlanJson());
+        vo.setEstimatedCost(plan.getEstimatedCost());
+        vo.setEstimatedRows(plan.getEstimatedRows());
+        vo.setStatus(plan.getStatus());
+        vo.setBlockReason(plan.getBlockReason());
+        vo.setVerified(plan.isVerified());
+    }
+
+    private static List<QueryExecuteRespVO.LookupRowVO> toLookupRowVOs(List<QueryResult.LookupRow> rows) {
+        if (rows == null) {
+            return null;
+        }
+        return rows.stream().map(row -> {
+            QueryExecuteRespVO.LookupRowVO lookupRow = new QueryExecuteRespVO.LookupRowVO();
+            lookupRow.setIdentity(row.identity());
+            lookupRow.setAvailable(row.available());
+            lookupRow.setValues(row.values());
+            return lookupRow;
+        }).toList();
     }
 
 }

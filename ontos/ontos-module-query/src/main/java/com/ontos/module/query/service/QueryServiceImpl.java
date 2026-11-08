@@ -15,7 +15,9 @@ import com.ontos.module.query.core.compiler.JoinPathResolver;
 import com.ontos.module.query.core.compiler.SqlCompiler;
 import com.ontos.module.query.core.dsl.DslValidator;
 import com.ontos.module.query.core.dsl.QueryDsl;
+import com.ontos.module.query.core.executor.DryRunOutcome;
 import com.ontos.module.query.core.executor.QueryExecutor;
+import com.ontos.module.query.core.executor.QueryPlan;
 import com.ontos.module.query.core.executor.QueryResult;
 import com.ontos.module.query.core.time.TimeWindowResolver;
 import com.ontos.module.system.service.audit.AuditLogCreateReqDTO;
@@ -28,6 +30,7 @@ import org.springframework.stereotype.Service;
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.MANIFEST_MISMATCH;
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_NOT_UNIQUE;
+import static com.ontos.module.query.enums.ErrorCodeConstants.PLAN_COST_BLOCKED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.REQUEST_ALREADY_EXECUTED;
 
 @Service
@@ -119,6 +122,56 @@ public class QueryServiceImpl implements QueryService {
                     truncate(String.valueOf(ex)));
             throw ex;
         }
+    }
+
+    /**
+     * dry-plan（M2 规格 §3.2）：编译产物 + EXPLAIN 计划与成本，不执行业务查询。
+     *
+     * <p>调试通道不推进 {@code request_state}：它不产出业务结果，也不参与幂等判定；
+     * 若复用业务状态机，客户端重放同一个 X-Request-Id（已 EXECUTED / REJECTED）会触发非法迁移，
+     * 把一次调试请求变成 500。调试动作只留审计痕迹（action=DRY_PLAN）。
+     */
+    @Override
+    public QueryPlan dryPlan(QueryDsl queryDsl) {
+        RequestContext context = RequestContextHolder.require();
+        PublishedManifest manifest = prepare(queryDsl, context);
+        CompiledQuery compiled = sqlCompiler.compile(queryDsl, manifest);
+        QueryPlan plan = queryExecutor.explain(compiled, context);
+        plan.setCompiled(compiled);
+        recordPlanAudit(context, "DRY_PLAN", queryDsl, compiled, plan, null);
+        return plan;
+    }
+
+    /**
+     * dry-run（M2 规格 §3.2/§3.3）：同一编译产物在更紧的超时与行数上限下受限执行。
+     *
+     * <p>成本超阈值时先落审计再拒绝（fail-closed 可追溯）；执行结果与正式通道走
+     * 同一套展示转换（掩码），否则调试通道会变成绕过脱敏的旁路。
+     */
+    @Override
+    public DryRunOutcome dryRun(QueryDsl queryDsl) {
+        RequestContext context = RequestContextHolder.require();
+        PublishedManifest manifest = prepare(queryDsl, context);
+        CompiledQuery compiled = sqlCompiler.compile(queryDsl, manifest);
+        QueryPlan plan = queryExecutor.explain(compiled, context);
+        plan.setCompiled(compiled);
+        if (QueryPlan.BLOCKED.equals(plan.getStatus())) {
+            recordPlanAudit(context, "DRY_RUN", queryDsl, compiled, plan, null);
+            throw exception(PLAN_COST_BLOCKED, plan.getBlockReason());
+        }
+        QueryResult result = queryExecutor.executeDryRun(compiled, context);
+        assembleLookupRows(queryDsl, manifest, compiled, result);
+        plan.setVerified(true);
+        recordPlanAudit(context, "DRY_RUN", queryDsl, compiled, plan, result.getRowCount());
+        return new DryRunOutcome(plan, result);
+    }
+
+    /** dry-plan / dry-run 结果进审计：action 区分动作，reasonCode 记录 OK / BLOCKED 判定。 */
+    private void recordPlanAudit(RequestContext context, String action, QueryDsl queryDsl,
+                                 CompiledQuery compiled, QueryPlan plan, Integer rowCount) {
+        AuditLogCreateReqDTO audit = buildAudit(context, action, queryDsl, compiled, rowCount);
+        audit.setReasonCode(plan.getStatus());
+        auditService.record(audit);
     }
 
     private static String truncate(String text) {

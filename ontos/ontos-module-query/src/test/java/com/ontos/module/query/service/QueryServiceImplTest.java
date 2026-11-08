@@ -21,7 +21,9 @@ import com.ontos.module.query.core.compiler.JoinPathResolver;
 import com.ontos.module.query.core.compiler.SqlCompiler;
 import com.ontos.module.query.core.dsl.DslValidator;
 import com.ontos.module.query.core.dsl.QueryDsl;
+import com.ontos.module.query.core.executor.DryRunOutcome;
 import com.ontos.module.query.core.executor.QueryExecutor;
+import com.ontos.module.query.core.executor.QueryPlan;
 import com.ontos.module.query.core.executor.QueryResult;
 import com.ontos.module.query.core.time.TimeWindowResolver;
 import com.ontos.module.system.service.audit.AuditLogCreateReqDTO;
@@ -35,6 +37,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import static com.ontos.module.query.core.dsl.QueryDsl.TimeRange.SOURCE_EXPRESSION;
+import static com.ontos.module.query.enums.ErrorCodeConstants.PLAN_COST_BLOCKED;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -42,6 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -244,6 +248,84 @@ class QueryServiceImplTest {
 
         assertEquals("1***", result.getLookupRows().get(0).values().get(phoneId));
         assertEquals("1***", result.getRows().get(0).get(phoneId), "rows 通道也必须同步掩码");
+    }
+
+    private static CompiledQuery plannedProduct() {
+        CompiledQuery compiled = new CompiledQuery();
+        compiled.setManifestId("manifest-001");
+        compiled.setContentHash("hash-1");
+        compiled.setMetricId(TestFixtures.METRIC_ID);
+        compiled.setSql("select sum(amount) from public.fact_order");
+        return compiled;
+    }
+
+    private static QueryPlan okPlan() {
+        QueryPlan plan = new QueryPlan();
+        plan.setPlanJson("[{\"Plan\":{\"Total Cost\":1.0}}]");
+        plan.setEstimatedCost(1);
+        plan.setStatus(QueryPlan.OK);
+        return plan;
+    }
+
+    private void stubPlan(QueryPlan plan) {
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
+        when(queryExecutor.explain(any(), any())).thenReturn(plan);
+    }
+
+    @Test
+    void shouldDryPlanReuseCompiledProductAndRecordAudit() {
+        stubPlan(okPlan());
+
+        QueryPlan result = service(new TimeWindowResolver()).dryPlan(TestFixtures.query());
+
+        assertEquals(TestFixtures.METRIC_ID, result.getCompiled().getMetricId(),
+                "dry-plan 必须复用同一编译产物");
+        ArgumentCaptor<AuditLogCreateReqDTO> captor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);
+        verify(auditService).record(captor.capture());
+        assertEquals("DRY_PLAN", captor.getValue().getAction());
+        assertEquals(QueryPlan.OK, captor.getValue().getReasonCode());
+        // 调试通道不推进业务状态机：重放已终态的 request_id 不应触发非法迁移
+        verify(requestStateService, never()).transition(any(), any(), any(), any());
+        verify(requestStateService, never()).initialize(any(), any());
+    }
+
+    @Test
+    void shouldRejectBlockedDryRunAndStillRecordAudit() {
+        QueryPlan blocked = okPlan();
+        blocked.setStatus(QueryPlan.BLOCKED);
+        blocked.setBlockReason("成本超阈值");
+        stubPlan(blocked);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).dryRun(TestFixtures.query()));
+        assertEquals(PLAN_COST_BLOCKED.getCode(), ex.getCode());
+        verify(queryExecutor, never()).executeDryRun(any(), any());
+        ArgumentCaptor<AuditLogCreateReqDTO> captor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);
+        verify(auditService).record(captor.capture());
+        assertEquals("DRY_RUN", captor.getValue().getAction());
+        assertEquals(QueryPlan.BLOCKED, captor.getValue().getReasonCode());
+    }
+
+    @Test
+    void shouldExecuteDryRunWithLimitedExecutionAndRecordRowCount() {
+        stubPlan(okPlan());
+        QueryResult result = new QueryResult();
+        result.setColumns(List.of("region", "gmv"));
+        result.setRows(List.of(Map.of("region", "east", "gmv", 12)));
+        result.setRowCount(1);
+        when(queryExecutor.executeDryRun(any(), any())).thenReturn(result);
+
+        DryRunOutcome outcome = service(new TimeWindowResolver()).dryRun(TestFixtures.query());
+
+        assertTrue(outcome.plan().isVerified());
+        assertEquals(1, outcome.result().getRowCount());
+        verify(queryExecutor).executeDryRun(any(), any());
+        ArgumentCaptor<AuditLogCreateReqDTO> captor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);
+        verify(auditService).record(captor.capture());
+        assertEquals("DRY_RUN", captor.getValue().getAction());
+        assertEquals(QueryPlan.OK, captor.getValue().getReasonCode());
+        assertEquals(1, captor.getValue().getRowCount(), "dry-run 审计必须记录真实行数");
     }
 
     @Test

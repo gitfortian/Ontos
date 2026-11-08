@@ -49,6 +49,11 @@ ontos:
     max-batch-size: 50
     # 敏感资产无维度分组（批量导出形状）的行数闸门，M2 编译侧 guardrail
     sensitive-ungrouped-limit: 50
+    # EXPLAIN 估算成本上限，超限标 BLOCKED 且 dry-run 拒绝（M2/W4）
+    max-plan-cost: 10000
+    # dry-run 调试通道的资源闸门：必须比正式执行更紧（M2/W4/T4.2）
+    dry-run-timeout: PT5S
+    dry-run-max-rows: 50
   manifest:
     startup-load: true
   policy:

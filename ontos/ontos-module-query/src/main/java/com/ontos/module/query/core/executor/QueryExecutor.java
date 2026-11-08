@@ -7,6 +7,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.SQLTimeoutException;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,6 +16,7 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
+import com.ontos.framework.common.util.json.JsonUtils;
 import com.ontos.framework.web.core.context.RequestContext;
 import com.ontos.module.query.core.QueryProperties;
 import com.ontos.module.query.core.compiler.CompiledQuery;
@@ -22,8 +24,10 @@ import com.ontos.module.query.core.time.TimeExpressionParser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
 
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
+import static com.ontos.module.query.enums.ErrorCodeConstants.PLAN_UNAVAILABLE;
 import static com.ontos.module.query.enums.ErrorCodeConstants.QUERY_EXECUTION_FAILED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.QUERY_NOT_READ_ONLY;
 import static com.ontos.module.query.enums.ErrorCodeConstants.QUERY_TIMEOUT;
@@ -56,8 +60,19 @@ public class QueryExecutor {
     }
 
     public QueryResult execute(CompiledQuery compiled, RequestContext context) {
+        return run(compiled, context, properties.getMaxRows(), properties.getStatementTimeout());
+    }
+
+    /**
+     * dry-run：受限执行（M2 规格 §3.2/§3.3）——与正式执行共用同一编译产物、同一会话上下文，
+     * 只是超时与行数上限更紧；展示转换与审计由调用方负责（调试通道，不推进业务状态机）。
+     */
+    public QueryResult executeDryRun(CompiledQuery compiled, RequestContext context) {
+        return run(compiled, context, properties.getDryRunMaxRows(), properties.getDryRunTimeout());
+    }
+
+    private QueryResult run(CompiledQuery compiled, RequestContext context, int maxRows, Duration timeout) {
         assertReadOnly(compiled.getSql());
-        int maxRows = properties.getMaxRows();
         long start = System.nanoTime();
 
         try (Connection connection = queryDataSource.getConnection()) {
@@ -67,7 +82,7 @@ public class QueryExecutor {
                 setRlsContext(connection, context);
                 try (PreparedStatement statement = connection.prepareStatement(compiled.getSql())) {
                     bind(statement, compiled.getBindValues());
-                    statement.setQueryTimeout((int) properties.getStatementTimeout().toSeconds());
+                    statement.setQueryTimeout(timeoutSeconds(timeout));
                     statement.setMaxRows(maxRows + 1);
                     try (ResultSet resultSet = statement.executeQuery()) {
                         QueryResult result = read(resultSet, maxRows);
@@ -87,9 +102,71 @@ public class QueryExecutor {
                 throw ex;
             }
         } catch (SQLException ex) {
-            log.error("[execute][获取查询连接失败]", ex);
+            log.error("[run][获取查询连接失败]", ex);
             throw exception(QUERY_EXECUTION_FAILED);
         }
+    }
+
+    /**
+     * dry-plan / dry-run 共用：EXPLAIN (FORMAT JSON) 取真实计划与成本（只读、不执行业务查询）。
+     * 与正式执行共用同一会话上下文（RLS GUC + Asia/Shanghai 时区），保证计划与执行口径一致。
+     */
+    public QueryPlan explain(CompiledQuery compiled, RequestContext context) {
+        assertReadOnly(compiled.getSql());
+        try (Connection connection = queryDataSource.getConnection()) {
+            connection.setReadOnly(true);
+            connection.setAutoCommit(false);
+            try {
+                setRlsContext(connection, context);
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "EXPLAIN (FORMAT JSON) " + compiled.getSql())) {
+                    bind(statement, compiled.getBindValues());
+                    statement.setQueryTimeout(timeoutSeconds(properties.getStatementTimeout()));
+                    try (ResultSet resultSet = statement.executeQuery()) {
+                        if (!resultSet.next()) {
+                            throw exception(PLAN_UNAVAILABLE, "EXPLAIN 无结果行");
+                        }
+                        QueryPlan plan = parsePlan(resultSet.getString(1));
+                        if (plan.getEstimatedCost() > properties.getMaxPlanCost()) {
+                            plan.setStatus(QueryPlan.BLOCKED);
+                            plan.setBlockReason("EXPLAIN 估算成本 " + plan.getEstimatedCost()
+                                    + " 超阈值 " + properties.getMaxPlanCost());
+                        }
+                        connection.commit();
+                        return plan;
+                    }
+                }
+            } catch (SQLException | RuntimeException ex) {
+                rollbackQuietly(connection);
+                if (ex instanceof SQLException sqlException) {
+                    throw translate(sqlException);
+                }
+                throw ex;
+            }
+        } catch (SQLException ex) {
+            log.error("[explain][获取查询连接失败]", ex);
+            throw exception(QUERY_EXECUTION_FAILED);
+        }
+    }
+
+    private static QueryPlan parsePlan(String json) {
+        QueryPlan plan = new QueryPlan();
+        plan.setPlanJson(json);
+        try {
+            JsonNode root = json == null ? null : JsonUtils.parseTree(json);
+            JsonNode first = root == null ? null : (root.isArray() ? root.get(0) : root);
+            JsonNode node = first == null ? null : first.path("Plan");
+            if (node == null || node.isMissingNode()) {
+                throw exception(PLAN_UNAVAILABLE, "计划 JSON 缺少 Plan 节点");
+            }
+            JsonNode cost = node.get("Total Cost");
+            JsonNode rows = node.get("Plan Rows");
+            plan.setEstimatedCost(cost == null ? 0 : cost.asDouble());
+            plan.setEstimatedRows(rows == null ? 0 : rows.asLong());
+        } catch (IllegalArgumentException ex) {
+            throw exception(PLAN_UNAVAILABLE, "计划 JSON 解析失败");
+        }
+        return plan;
     }
 
     private static void rollbackQuietly(Connection connection) {
@@ -130,6 +207,17 @@ public class QueryExecutor {
         for (int i = 0; i < bindValues.size(); i++) {
             statement.setObject(i + 1, bindValues.get(i));
         }
+    }
+
+    /**
+     * JDBC 的查询超时以「整秒」为单位，不足 1 秒会被截断为 0，而 0 在驱动里表示「无超时」——
+     * 相当于把资源闸门关掉。这里统一向上取整并兜底 1 秒，避免配置成毫秒级时静默失效。
+     */
+    private static int timeoutSeconds(Duration timeout) {
+        if (timeout == null || timeout.isNegative() || timeout.isZero()) {
+            return 1;
+        }
+        return (int) Math.max(1, (timeout.toMillis() + 999) / 1000);
     }
 
     private static QueryResult read(ResultSet resultSet, int maxRows) throws SQLException {

@@ -20,5 +20,11 @@ public class QueryProperties {
     private int maxBatchSize = 50;
     /** 敏感资产在无维度分组时允许的最大行数；超过即按「批量导出形状」拒绝（M2 编译侧 guardrail）。 */
     private int sensitiveUngroupedLimit = 50;
+    /** EXPLAIN 估算成本上限；超过即把计划标为 BLOCKED，dry-run 拒绝执行（M2/W4）。 */
+    private double maxPlanCost = 10_000;
+    /** dry-run 的语句超时，必须比正式执行更紧（M2/W4/T4.2）。 */
+    private Duration dryRunTimeout = Duration.ofSeconds(5);
+    /** dry-run 的返回行数上限，必须比正式执行更紧（M2/W4/T4.2）。 */
+    private int dryRunMaxRows = 50;
 
 }

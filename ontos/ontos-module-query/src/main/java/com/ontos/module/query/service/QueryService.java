@@ -2,6 +2,8 @@ package com.ontos.module.query.service;
 
 import com.ontos.module.query.core.compiler.CompiledQuery;
 import com.ontos.module.query.core.dsl.QueryDsl;
+import com.ontos.module.query.core.executor.DryRunOutcome;
+import com.ontos.module.query.core.executor.QueryPlan;
 import com.ontos.module.query.core.executor.QueryResult;
 
 /**
@@ -18,5 +20,17 @@ public interface QueryService {
      * 正式执行：编译后经只读连接执行，并写入审计。
      */
     QueryResult execute(QueryDsl queryDsl);
+
+    /**
+     * dry-plan：与 compile/execute 复用同一 CompiledQuery，额外做 EXPLAIN 成本估算；
+     * 不执行业务查询、不返回业务行。超阈值时计划标 BLOCKED。
+     */
+    QueryPlan dryPlan(QueryDsl queryDsl);
+
+    /**
+     * dry-run：同一编译产物在更紧的超时与行数上限下受限执行，返回计划 + 结果 + 执行元数据；
+     * 计划超阈值直接拒绝。调试通道，不推进业务状态机、不做幂等。
+     */
+    DryRunOutcome dryRun(QueryDsl queryDsl);
 
 }

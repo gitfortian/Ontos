@@ -129,6 +129,8 @@ node scripts/verify-baseline.mjs          # 上面四项 + jar 启动探活，�
 | GET | `/api/v1/ontology/manifests/current` | 当前生效发布清单 |
 | GET | `/api/v1/ontology/manifests/{id}` | 按 ID 取清单 |
 | POST | `/api/v1/query/compile` | 编译 DSL（dry-plan，不执行） |
+| POST | `/api/v1/query/dry-plan` | 同一编译产物 + EXPLAIN 计划与成本（不触数据表） |
+| POST | `/api/v1/query/dry-run` | 受限执行（更紧的超时/行数，成本超限拒绝），返回结果与执行元数据 |
 | POST | `/api/v1/query/execute` | 编译并执行，返回行数据 |
 | GET | `/api/v1/approvals` | 审批单分页（按租户隔离） |
 | POST | `/api/v1/approvals/{id}/decide` | 批准 / 拒绝 PENDING 单据 |
@@ -160,8 +162,11 @@ DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、F
   W2 + W2.5 完成（DSL 来源标记 / 绝对日期拒绝 / 时间解析器接线与审计版本 / 未知字段 fail-closed /
   `sub_intents` / `explicit_range` / `analysis_params` / 敏感资产 guardrail，口径见
   [ADR-0011](docs/01-decisions/ADR-0011-M2实施规格状态修订.md)）；
-  W3 完成 T3.0（[funnel/yoy_mom 规格 v1](docs/04-specs/analysis-mode-funnel-yoy-mom-规格-v1.md)）
-  与 T3.1（UNIQUE 路径 → 结构化 Join，AMBIGUOUS/NONE/粒度扩散拒绝）；T3.2–T3.5 与 W4–W6 未启动。
+  W3 全部完成（T3.0 [funnel/yoy_mom 规格 v1](docs/04-specs/analysis-mode-funnel-yoy-mom-规格-v1.md)、
+  T3.1 UNIQUE 路径 → 结构化 Join、T3.2 lookup/lookup_batch、T3.3 funnel+yoy_mom 构造器、
+  T3.4 Rule 求值、T3.5 敏感资产 guardrail），首发清单 `2026.11.08-third` 上 5/5 模式编译冒烟全绿；
+  W4 进行中：T4.1 dry-plan / dry-run（EXPLAIN 成本闸门 + 受限执行）、T4.2 dry-run 独立超时/行数闸门已落地，
+  T4.3–T4.5 与 W5/W6 未启动。
 
 实测基线（2026-11-08）：`mvn test` 全绿、`pnpm check` 通过、`vite build` 通过（新输出目录）、
 文档治理检查通过。进度与状态口径以 `docs/05-progress/2026/` 和
