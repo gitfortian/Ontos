@@ -67,15 +67,23 @@ public class OntologyPublishController {
         Map<String, Object> sections = new LinkedHashMap<>();
         sections.put("manifestId", manifest.getManifestId());
         sections.put("contentHash", manifest.getContentHash());
+        // 业务化命名规格 §4：界面展示业务名（name），内部 ID 随对象返回仅供点选反查
         sections.put("metrics", manifest.getSemantic() == null ? List.of()
-                : manifest.getSemantic().getMetrics().stream().map(m -> m.getId()).toList());
+                : manifest.getSemantic().getMetrics().stream()
+                        .map(m -> Map.of("id", m.getId(), "name", m.getName())).toList());
         sections.put("dimensions", manifest.getSemantic() == null ? List.of()
-                : manifest.getSemantic().getDimensions().stream().map(d -> d.getId()).toList());
-        sections.put("concepts", manifest.getOntology().getConcepts().stream().map(c -> c.getId()).toList());
-        sections.put("properties", manifest.getOntology().getProperties().stream().map(p -> p.getId()).toList());
-        sections.put("relations", manifest.getOntology().getRelations().stream().map(r -> r.getId()).toList());
-        sections.put("rules", manifest.getRules().stream().map(r -> r.getId()).toList());
-        sections.put("scenarios", manifest.getScenarios().stream().map(s -> s.getId()).toList());
+                : manifest.getSemantic().getDimensions().stream()
+                        .map(d -> Map.of("id", d.getId(), "name", d.getName())).toList());
+        sections.put("concepts", manifest.getOntology().getConcepts().stream()
+                .map(c -> Map.of("id", c.getId(), "name", c.getName())).toList());
+        sections.put("properties", manifest.getOntology().getProperties().stream()
+                .map(p -> Map.of("id", p.getId(), "name", p.getName())).toList());
+        sections.put("relations", manifest.getOntology().getRelations().stream()
+                .map(r -> Map.of("id", r.getId(), "name", r.getName())).toList());
+        sections.put("rules", manifest.getRules().stream()
+                .map(r -> Map.of("id", r.getId(), "name", r.getName())).toList());
+        sections.put("scenarios", manifest.getScenarios().stream()
+                .map(s -> Map.of("id", s.getId(), "name", s.getName())).toList());
         return success(sections);
     }
 

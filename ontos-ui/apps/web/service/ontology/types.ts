@@ -12,18 +12,18 @@ export interface ManifestVO {
   conceptIds: string[];
 }
 
-/** 资产浏览（按类型分组的 ID 清单，GET /ontology/assets） */
+/** 资产浏览 v2（按类型分组的 {id, name}，GET /ontology/assets；业务化命名规格 §4） */
 export interface AssetsVO {
   manifestId?: string;
   contentHash?: string;
   empty?: boolean;
-  metrics?: string[];
-  dimensions?: string[];
-  concepts?: string[];
-  properties?: string[];
-  relations?: string[];
-  rules?: string[];
-  scenarios?: string[];
+  metrics?: AssetChipVO[];
+  dimensions?: AssetChipVO[];
+  concepts?: AssetChipVO[];
+  properties?: AssetChipVO[];
+  relations?: AssetChipVO[];
+  rules?: AssetChipVO[];
+  scenarios?: AssetChipVO[];
 }
 
 /** 资产级 diff（GET /ontology/manifests/{id}/diff/{baseId}） */
@@ -79,4 +79,10 @@ export interface PathPlanVO {
     allGolden: boolean;
   }>;
   reason?: string;
+}
+
+/** 资产浏览 v2：每类返回 {id, name}（业务化命名规格 §4，界面展示业务名） */
+export interface AssetChipVO {
+  id: string;
+  name: string;
 }

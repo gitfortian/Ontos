@@ -3,9 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, PageHeader, SectionCard, Spinner } from "@ontos/ui";
 
 import { getAssets, getImpact, ontologyQueryKeys } from "@/service/ontology";
+import type { AssetChipVO, AssetsVO } from "@/service/ontology/types";
 import { failureMessage } from "@/utils/error-message";
 
-/** 业务化命名规格 §4：界面只出现业务叫法，不出现标准术语与内部 ID 语义解释。 */
+/** 业务化命名规格 §4：芯片展示业务名（name），内部 ID 不作为可见文本。 */
+
 const SECTIONS: ReadonlyArray<{
   label: string;
   key: "metrics" | "dimensions" | "concepts" | "properties" | "relations" | "rules" | "scenarios";
@@ -19,16 +21,42 @@ const SECTIONS: ReadonlyArray<{
   { label: "业务场景", key: "scenarios" },
 ];
 
+type SectionKey = (typeof SECTIONS)[number]["key"];
+
+function chipsOf(assets: AssetsVO | undefined, key: SectionKey): AssetChipVO[] {
+  const value = assets?.[key];
+  return Array.isArray(value) ? value : [];
+}
+
+/** 引用反查结果 id → 业务名（用已加载的词表解析；解析不到才退回显示 ID）。 */
+function toNames(assets: AssetsVO | undefined, ids: readonly string[]): string[] {
+  const nameById = new Map<string, string>();
+  for (const key of [
+    "metrics",
+    "dimensions",
+    "concepts",
+    "properties",
+    "relations",
+    "rules",
+    "scenarios",
+  ] as const) {
+    for (const chip of chipsOf(assets, key)) {
+      nameById.set(chip.id, chip.name);
+    }
+  }
+  return ids.map((id) => nameById.get(id) ?? id);
+}
+
 export function AssetsPage() {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<AssetChipVO | null>(null);
   const assetsQuery = useQuery({
     queryKey: ontologyQueryKeys.assets(undefined),
     queryFn: ({ signal }) => getAssets(undefined, signal),
   });
   const assets = assetsQuery.data;
   const impactQuery = useQuery({
-    queryKey: ontologyQueryKeys.impact(selected ?? ""),
-    queryFn: ({ signal }) => getImpact(selected ?? "", signal),
+    queryKey: ontologyQueryKeys.impact(selected?.id ?? ""),
+    queryFn: ({ signal }) => getImpact(selected?.id ?? "", signal),
     enabled: selected !== null,
   });
 
@@ -53,22 +81,23 @@ export function AssetsPage() {
       {assets && !assets.empty && (
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           {SECTIONS.map((section) => {
-            const ids = assets[section.key] ?? [];
+            const chips = chipsOf(assets, section.key);
             return (
-              <SectionCard key={section.key} title={`${section.label}（${ids.length}）`}>
+              <SectionCard key={section.key} title={`${section.label}（${chips.length}）`}>
                 <div className="flex flex-wrap gap-2 p-3">
-                  {ids.map((id) => (
+                  {chips.map((chip) => (
                     <button
-                      key={id}
+                      key={chip.id}
                       type="button"
-                      onClick={() => setSelected(id)}
-                      className={`text-xs px-2 py-1 rounded border cursor-pointer ${
-                        selected === id
+                      title={chip.id}
+                      onClick={() => setSelected(chip)}
+                      className={`text-sm px-2.5 py-1 rounded border cursor-pointer ${
+                        selected?.id === chip.id
                           ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]"
                           : "border-[var(--border)] hover:border-[var(--primary)]"
                       }`}
                     >
-                      {id}
+                      {chip.name}
                     </button>
                   ))}
                 </div>
@@ -76,29 +105,31 @@ export function AssetsPage() {
             );
           })}
           {selected && (
-            <SectionCard title={`引用反查：${selected}`}>
+            <SectionCard title={`引用反查：${selected.name}`}>
               {impactQuery.isFetching && <Spinner className="m-3" />}
               {impactQuery.data && (
                 <dl className="p-3 space-y-2 text-sm">
                   <div>
                     <dt className="text-[var(--muted-foreground)]">被判定标准引用</dt>
                     <dd>
-                      {impactQuery.data.rules.length > 0 ? impactQuery.data.rules.join("、") : "无"}
+                      {toNames(assets, impactQuery.data.rules).length > 0
+                        ? toNames(assets, impactQuery.data.rules).join("、")
+                        : "无"}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-[var(--muted-foreground)]">被业务场景引用</dt>
                     <dd>
-                      {impactQuery.data.scenarios.length > 0
-                        ? impactQuery.data.scenarios.join("、")
+                      {toNames(assets, impactQuery.data.scenarios).length > 0
+                        ? toNames(assets, impactQuery.data.scenarios).join("、")
                         : "无"}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-[var(--muted-foreground)]">允许该维度分组分析执行的指标</dt>
                     <dd>
-                      {impactQuery.data.metricsAllowedDimensions.length > 0
-                        ? impactQuery.data.metricsAllowedDimensions.join("、")
+                      {toNames(assets, impactQuery.data.metricsAllowedDimensions).length > 0
+                        ? toNames(assets, impactQuery.data.metricsAllowedDimensions).join("、")
                         : "无"}
                     </dd>
                   </div>
