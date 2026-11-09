@@ -65,3 +65,13 @@
 - **M3/W2 已完成**：caliberVariantId 进 DSL；多口径指标缺变体 → 1002000033 CALIBER_AMBIGUOUS（候选带别名，禁止 LLM 二选一）；变体条件下推 QUERY WHERE 与 YOY 两个 CTE。R-27：复合子意图暂不支持变体。
 - **后续不得破坏**：变体条件只允许与指标同表（跨表拒绝）；文案模板占位符必须白名单声明；「上季度」按 patternId=tep.last_quarter 解析（不按粒度回退）；多口径指标缺变体必须澄清不得默认。
 - M3 范围：lookup 产品化、布尔判定闭环、口径变体、上季度时间模式、文案模板、`__identity` 收口；并行偿还 R-20/R-23/R-25。
+
+## M3 状态（2026-11-09 收口）
+- **M3 已通过（E1–E6 全满足）**：验收报告 v1 冻结；M5 放行（M4 可并行）。
+- 当前生效清单 `2026.11.08-eighth`（hash 2720fb36）；M3 Golden 增量 6/0（m3-golden.mjs）；
+  M2 基线未回退（Golden 27/0、复合分布一致、RLS、E5 9/9）。
+- **后续不得破坏**：`rows` 不携带 `__identity`；lookup 缺失行 `available=false/values={}` 与不存在同形；
+  文案渲染绝不透 `{x}` 原文；能力层只组装 DSL（校验全复用 execute）；前端 app 层不直连 service/http
+  （BizError 经 service/query 转发）；`getResponse` 是拿响应头的唯一通道。
+- 基线：`mvn test` **304 例**（33 类）；`pnpm check` exit 0（21 单测）；docs 63/493。
+- 待办：M5（ask 对话主干与能力编排；R-27 复合子意图变体、R-29 variantHint 语义随做）或 M4（并行）。

@@ -1,0 +1,145 @@
+{
+  "manifestId": "2026.11.08-eighth",
+  "generatedAt": "2026-11-09T02:27:13.229Z",
+  "cases": [
+    {
+      "id": "m-lookup-single",
+      "title": "单实体属性直查",
+      "kind": "sql",
+      "dsl": {
+        "mode": "LOOKUP",
+        "entityId": "concept.customer",
+        "attributes": [
+          "property.customer.email",
+          "property.customer.tier"
+        ],
+        "identity": {
+          "propertyId": "property.customer.customer_id",
+          "value": "c-1001"
+        }
+      },
+      "sqlExpected": "select \"customer\".\"id\" as \"__identity\", \"customer\".\"email\" as \"property.customer.email\", \"customer\".\"tier\" as \"property.customer.tier\" from \"customer\" where \"customer\".\"id\" = ? fetch next ? rows only",
+      "joinsExpected": [],
+      "bindValuesSample": [
+        "c-1001",
+        2
+      ]
+    },
+    {
+      "id": "m-lookup-batch",
+      "title": "批量实体直查（缺失行同形）",
+      "kind": "sql",
+      "dsl": {
+        "mode": "LOOKUP_BATCH",
+        "entityId": "concept.customer",
+        "identityPropertyId": "property.customer.customer_id",
+        "attributes": [
+          "property.customer.email",
+          "property.customer.tier"
+        ],
+        "identities": [
+          "c-1001",
+          "c-9999"
+        ]
+      },
+      "sqlExpected": "select \"customer\".\"id\" as \"__identity\", \"customer\".\"email\" as \"property.customer.email\", \"customer\".\"tier\" as \"property.customer.tier\" from \"customer\" where \"customer\".\"id\" in (?, ?) fetch next ? rows only",
+      "joinsExpected": [],
+      "bindValuesSample": [
+        "c-1001",
+        "c-9999",
+        50
+      ]
+    },
+    {
+      "id": "m-boolean",
+      "title": "布尔判定列（引用已发布 Rule，无内联表达式）",
+      "kind": "sql",
+      "dsl": {
+        "mode": "LOOKUP",
+        "entityId": "concept.customer",
+        "attributes": [
+          "property.customer.tier"
+        ],
+        "identity": {
+          "propertyId": "property.customer.customer_id",
+          "value": "c-1001"
+        },
+        "booleanMetricId": "metric.high_value_customer"
+      },
+      "sqlExpected": "select \"customer\".\"id\" as \"__identity\", \"customer\".\"tier\" as \"property.customer.tier\", \"customer\".\"id\" in (select \"orders\".\"customer_id\" from \"orders\" group by \"orders\".\"customer_id\" having sum(\"orders\".\"amount\") >= ?) as \"metric.high_value_customer\" from \"customer\" where \"customer\".\"id\" = ? fetch next ? rows only",
+      "joinsExpected": [],
+      "bindValuesSample": [
+        50000,
+        "c-1001",
+        2
+      ]
+    },
+    {
+      "id": "m-caliber-hit",
+      "title": "口径变体命中（声明式条件进入 WHERE）",
+      "kind": "sql",
+      "dsl": {
+        "mode": "QUERY",
+        "metricId": "metric.paid_gmv",
+        "dimensions": [
+          "dim.region"
+        ],
+        "caliberVariantId": "metric.paid_gmv.online",
+        "timeExpressionRaw": "近 3650 天",
+        "timeRange": {
+          "field": "dim.order_date"
+        }
+      },
+      "sqlExpected": "select sum(\"orders\".\"amount\") as \"value\", \"orders\".\"region\" as \"dim.region\" from \"orders\" where (\"orders\".\"channel\" = ? and \"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by \"orders\".\"region\" fetch next ? rows only",
+      "joinsExpected": [],
+      "bindValuesSample": [
+        "线上",
+        "2016-11-11T16:00:00.000Z",
+        "2026-11-09T16:00:00.000Z",
+        500
+      ]
+    },
+    {
+      "id": "m-caliber-ambiguous",
+      "title": "多口径指标缺变体 → 澄清而非默认",
+      "kind": "negative",
+      "dsl": {
+        "mode": "QUERY",
+        "metricId": "metric.paid_gmv",
+        "dimensions": [
+          "dim.region"
+        ],
+        "timeExpressionRaw": "近 3650 天",
+        "timeRange": {
+          "field": "dim.order_date"
+        }
+      },
+      "expectedErrorCode": 1002000033,
+      "actualErrorCode": 1002000033,
+      "status": "supported"
+    },
+    {
+      "id": "m-last-quarter",
+      "title": "上季度（tep.last_quarter，时间窗走绑定值）",
+      "kind": "sql",
+      "dsl": {
+        "mode": "QUERY",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.region"
+        ],
+        "timeExpressionRaw": "上季度",
+        "timeRange": {
+          "field": "dim.order_date"
+        }
+      },
+      "sqlExpected": "select sum(\"orders\".\"amount\") as \"value\", \"orders\".\"region\" as \"dim.region\" from \"orders\" where (\"orders\".\"order_date\" >= cast(? as timestamp) and \"orders\".\"order_date\" <= cast(? as timestamp)) group by \"orders\".\"region\" fetch next ? rows only",
+      "joinsExpected": [],
+      "bindValuesSample": [
+        "2026-06-30T16:00:00.000Z",
+        "2026-09-30T16:00:00.000Z",
+        500
+      ]
+    }
+  ]
+}

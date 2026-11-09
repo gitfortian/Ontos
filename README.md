@@ -150,7 +150,7 @@ node scripts/verify-baseline.mjs          # 上面四项 + jar 启动探活，�
 统一响应为 `CommonResult<T>`（`code=0` 成功），分页为 `PageResult<T>`。
 发布/激活/规划等管理端点经策略闸门（M4 前非 local profile 整体 403）。
 
-## 当前状态（M2 · 确定性编译与执行内核，已通过）
+## 当前状态（M3 · 简单问法最小闭环，已通过）
 
 已落地：多模块骨架、yudao 风格通用层、双数据源、发布清单加载与哈希校验、
 DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、Flyway 迁移、AG-UI 注册、前端页面与 SSE 客户端、架构守护测试。
@@ -167,11 +167,13 @@ DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、F
   dry-plan/dry-run 与成本闸门、复合意图两阶段逐子编译、编译产物持久化与 `/plan/{id}` 回放、
   query_cache 与激活失效钩子、编译调试页。当前生效清单 `2026.11.08-eighth`（M3/W1：新增带两个口径变体的 `metric.paid_gmv`、「上季度」时间模式与 9 条原因码文案模板）。
 
-- **M3 进行中**（规格 v1.0 冻结）：W1 资产与清单 v8、W2 口径变体闭环（`caliberVariantId` +
-  `CALIBER_AMBIGUOUS` 1002000033）、W3 能力注册与 lookup 产品化（`skill.entity_lookup`、
-  `rows` 不再携带内部列 `__identity`）、W4 文案模板服务（`GET /api/v1/copy-templates/{reasonCode}`，
-  占位符白名单渲染 + GENERIC 兜底）与 W5 前端（口径澄清卡片、entity_lookup 结果与逐行可用性、
-  `/plan/{requestId}` 回放 UI、时间列 Asia/Shanghai 本地化）已完成；M3 验收报告待出。
+- **M3 已通过**（2026-11-09，[验收报告 v1](docs/06-verification/checklists/M3-验收报告-v1.md) 冻结，E1–E6 满足）：
+  W1 资产与清单 v8（带两个口径变体的 `metric.paid_gmv`、「上季度」模式、9 条文案模板）、
+  W2 口径变体闭环（`caliberVariantId` + `CALIBER_AMBIGUOUS` 1002000033，歧义澄清不允许 LLM 二选一）、
+  W3 能力注册与 lookup 产品化（`skill.entity_lookup`、`rows` 不再携带内部列 `__identity`）、
+  W4 文案模板服务（`GET /api/v1/copy-templates/{reasonCode}`，占位符白名单渲染 + GENERIC 兜底）、
+  W5 前端（口径澄清卡片、entity_lookup 结果与逐行可用性、`/plan/{requestId}` 回放 UI、
+  时间列 Asia/Shanghai 本地化）。当前生效清单 `2026.11.08-eighth`。
 
 实测基线（2026-11-08）：`mvn test` 全绿、`pnpm check` 通过、`vite build` 通过（新输出目录）、
 文档治理检查通过。进度与状态口径以 `docs/05-progress/2026/` 和

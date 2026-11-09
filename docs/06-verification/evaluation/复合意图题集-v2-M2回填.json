@@ -1,8 +1,8 @@
 {
   "set": "poc08-composite-v2",
   "m2Depth": "无依赖子集（结果依赖类登记 M6，M2 规格 §1-G）",
-  "manifestId": "2026.11.08-seventh",
-  "generatedAt": "2026-11-08T21:33:17.552Z",
+  "manifestId": "2026.11.08-eighth",
+  "generatedAt": "2026-11-09T02:28:52.563Z",
   "total": 30,
   "counters": {
     "deferred_m6": 9,

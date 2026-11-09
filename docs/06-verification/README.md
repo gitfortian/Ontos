@@ -8,6 +8,7 @@
 
 **当前文档**
 
+- [M3 验收报告 v1](checklists/M3-验收报告-v1.md)（已冻结，E1–E6 全部满足，M5 放行）
 - [M2 验收报告 v1](checklists/M2-验收报告-v1.md)（已冻结，E2–E8 满足、E1 按 [ADR-0013](../01-decisions/ADR-0013-Golden不可构造案例处置口径.md) 附条件关闭，M3 放行）
 - [M2 收口后深度审核 v1](checklists/M2-收口后深度审核-v1.md)（已归档：12 项发现全部修复复验，R-18 关闭；M2 判定不变）
 - [M1 验收报告 v2](checklists/M1-验收报告-v2.md)（已冻结，E1–E8 全部满足，M2 编码放行）
@@ -23,6 +24,7 @@
 - [编译器 Golden 集 v1](evaluation/编译器Golden集-v1.json)（30 条，QUERY 20 + 非 QUERY 10；M2 补齐模式后升版）
 - [复合意图题集 v2](evaluation/复合意图题集-v2.json)（PoC #8 判据集，30 题；assetRef 已校准至首发清单真实 ID）
 - [复合意图题集 · M2 回填](evaluation/复合意图题集-v2-M2回填.json)（无依赖子集：可表达 14/14 正确，12 通过 + 2 语义正确拒绝；结果依赖 9 题登记 M6）
+- [M3 Golden 增量 v1](evaluation/M3-Golden-v1.json)（6 条：lookup 单/批/布尔/变体命中/歧义负例/上季度；逐字比对 6/0）
 - [中文提及样本集 v1](evaluation/中文提及样本集-v1.json)（PoC #5 判据集，300 条 120/90/45/45；结果待 M5 回填）
 - [PoC-01 · M2 RLS 回归证据](poc/PoC-01-M2回归-2026-11-08.json)（100 轮跨租户交替执行，越权 0；存在性探测两租户同形）
 - [PoC-01 · RLS 最终边界报告 v1](poc/PoC-01-RLS最终边界.md)（系统级，限定范围 PASS，500 次检查 0 越权；补验不通过的后果见 ADR-0006/验收报告 v2）
