@@ -116,6 +116,86 @@ const foreignReplay = await get(`/api/v1/ask/run/${runId}/events`, "demo", "ask-
 note("T6", "跨用户 run 重放不可见（1005000002）",
   foreignReplay?.code === 1005000002, { code: foreignReplay?.code });
 
+// ---------- T7 HITL 内联全链（T4.2）：个体探针触发 → 决策 → 令牌放行 → FINISHED ----------
+// 独立 user：单行 pii lookup（邮箱）→ 敏感个体探针即时转审批 → run WAITING_APPROVAL
+// → 审批人批准 → 编排携令牌重放 → 放行 → run FINISHED + query 终态
+const hitlUser = `ask-hitl`;
+sql("DELETE FROM ask_run_event WHERE run_id IN (SELECT run_id FROM ask_run WHERE tenant_id='demo' AND user_id LIKE 'ask-hitl%')");
+sql("DELETE FROM ask_run WHERE tenant_id='demo' AND user_id LIKE 'ask-hitl%'");
+sql("DELETE FROM session_state WHERE tenant_id='demo' AND user_id LIKE 'ask-hitl%'");
+sql("DELETE FROM sensitive_query_event WHERE tenant_id='demo' AND user_id LIKE 'ask-hitl%'");
+sql("DELETE FROM approval_request WHERE tenant_id='demo' AND user_id LIKE 'ask-hitl%'");
+
+// 7.1 触发（POST 在审批期间挂起等待；用并行 fetch 不阻塞探针主流程）
+const hitlPost = post("/api/v1/ask/runs", { utterance: "帮我查一下邮箱 c-1001" },
+  "demo", hitlUser, "s7", 1);
+// 7.2 等 WAITING_APPROVAL 出现后提取审批单 ID（轮询 DB，最多 10s）
+let approvalId = null;
+for (let i = 0; i < 20; i += 1) {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  approvalId = sql(`SELECT id::text FROM approval_request WHERE tenant_id='demo'
+    AND user_id LIKE 'ask-hitl%' AND status='PENDING' ORDER BY requested_at DESC LIMIT 1`);
+  if (approvalId) break;
+}
+note("T7", "敏感触发建审批单（个体探针）", Boolean(approvalId), { approvalId });
+const waitingRun = sql(`SELECT status FROM ask_run WHERE tenant_id='demo'
+  AND user_id LIKE 'ask-hitl%' ORDER BY created_at DESC LIMIT 1`);
+note("T7", "run 进入 WAITING_APPROVAL", waitingRun === "WAITING_APPROVAL", { status: waitingRun });
+const interruptSeen = sql(`SELECT count(*) FROM ask_run_event e JOIN ask_run r ON r.run_id = e.run_id
+  WHERE r.tenant_id='demo' AND r.user_id LIKE 'ask-hitl%' AND e.type='INTERRUPT'`);
+note("T7", "INTERRUPT 事件已持久化", Number(interruptSeen) >= 1, { events: interruptSeen });
+
+// 7.3 审批人批准（决策人 ≠ 申请人）
+const decision = await post(`/api/v1/approvals/${approvalId}/decide`,
+  { decision: "APPROVED", reason: "e2e" }, "demo", "approver-main", "s7", 1);
+note("T7", "审批人批准通过", decision?.code === 0, { code: decision?.code });
+
+// 7.4 编排轮询到 APPROVED → 携令牌重放 → 放行 → run FINISHED（等待 POST 返回，最多 20s）
+let hitlResult = null;
+try {
+  hitlResult = await hitlPost;
+} catch (error) {
+  hitlResult = null;
+}
+note("T7", "令牌放行：run FINISHED + query 终态",
+  hitlResult?.code === 0 && hitlResult?.data?.terminal === "query",
+  { code: hitlResult?.code, terminal: hitlResult?.data?.terminal, rows: hitlResult?.data?.body?.rowCount });
+const finalRun = sql(`SELECT status FROM ask_run WHERE tenant_id='demo'
+  AND user_id LIKE 'ask-hitl%' ORDER BY created_at DESC LIMIT 1`);
+note("T7", "run 终态 FINISHED（WAITING_APPROVAL → RUNNING → FINISHED）",
+  finalRun === "FINISHED", { status: finalRun });
+const consumed = sql(`SELECT grant_consumed_at IS NOT NULL FROM approval_request
+  WHERE id='${approvalId}'`);
+note("T7", "放行令牌已单次消费", consumed === "t", {});
+
+// 7.5 拒绝路径：第二次触发 → 决策 REJECTED → run FAILED + SENSITIVE_QUERY_REJECTED
+const rejectPost = post("/api/v1/ask/runs", { utterance: "帮我查一下邮箱 c-1002" },
+  "demo", hitlUser, "s7b", 1);
+let rejectApprovalId = null;
+for (let i = 0; i < 40; i += 1) {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  rejectApprovalId = sql(`SELECT id::text FROM approval_request WHERE tenant_id='demo'
+    AND user_id LIKE 'ask-hitl%' AND status='PENDING' ORDER BY requested_at DESC LIMIT 1`) || null;
+  if (rejectApprovalId) break;
+}
+note("T7", "拒绝轮审批单已建（第二次个体探针）", Boolean(rejectApprovalId), {});
+if (rejectApprovalId) {
+  await post(`/api/v1/approvals/${rejectApprovalId}/decide`,
+    { decision: "REJECTED", reason: "e2e-reject" }, "demo", "approver-main", "s7b", 1);
+}
+let rejectResult = null;
+try {
+  rejectResult = await rejectPost;
+} catch (error) {
+  rejectResult = null;
+}
+const rejectRun = sql(`SELECT status FROM ask_run WHERE tenant_id='demo'
+  AND user_id LIKE 'ask-hitl%' AND session_id='s7b' ORDER BY created_at DESC LIMIT 1`);
+const rejectedCopy = JSON.stringify(rejectResult?.data ?? {});
+note("T7", "拒绝路径：run FAILED + 结构化收尾文案",
+  rejectRun === "FAILED" && rejectedCopy.includes("SENSITIVE_QUERY_REJECTED"),
+  { status: rejectRun, reason: rejectResult?.data?.reasonCode });
+
 // ---------- 汇总 ----------
 const passed = results.filter((item) => item.pass).length;
 console.log(`\nask-probe: ${passed}/${results.length} 通过`);

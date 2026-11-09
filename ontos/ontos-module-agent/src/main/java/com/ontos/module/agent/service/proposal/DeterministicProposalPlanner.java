@@ -54,6 +54,37 @@ public class DeterministicProposalPlanner {
             return proposal("query", List.of(subIntent), null, null, outcome);
         }
 
+        // 2.5 命中信息项（property）而无指标 → LOOKUP 模式（M3 语义：身份投影 + 属性回显）；
+        // entity 按命名约定反查（property.<concept>.<name> → concept.<concept>）
+        RetrievedCandidate property = outcome.dslReady().stream()
+                .filter(candidate -> "property".equals(candidate.assetType()))
+                .findFirst().orElse(null);
+        if (property != null) {
+            // 身份值（确定性提取）：utterance 中的标识形如 c-1001；缺失则转澄清（不猜身份）
+            java.util.regex.Matcher identityMatcher = java.util.regex.Pattern
+                    .compile("[a-zA-Z]+-\\d+").matcher(utterance == null ? "" : utterance);
+            String identityValue = identityMatcher.find() ? identityMatcher.group() : null;
+            if (identityValue == null) {
+                Map<String, Object> clarification = new LinkedHashMap<>();
+                clarification.put("ambiguity", utterance);
+                clarification.put("candidates", List.of());
+                clarification.put("default_suggestion", null);
+                clarification.put("degraded_behavior", "ask_identity");
+                return proposal("clarification", null, clarification, null, outcome);
+            }
+            Map<String, Object> subIntent = new LinkedHashMap<>();
+            subIntent.put("metric_id", null);
+            subIntent.put("analysis_mode", "lookup");
+            // entity 不进提案：concept 由编排层从 property.conceptId 反查（服务端推衍，
+            // 不参与 LLM 输出对账——确定性提案的推衍字段与模型输出字段分离）
+            subIntent.put("attributes", outcome.dslReady().stream()
+                    .filter(candidate -> "property".equals(candidate.assetType()))
+                    .map(RetrievedCandidate::assetId).toList());
+            subIntent.put("identity_value", identityValue);
+            subIntent.put("filters", List.of());
+            return proposal("query", List.of(subIntent), null, null, outcome);
+        }
+
         // 3. 命中了维度/实体但没有指标 → 泛化问法，引导澄清（候选=可用指标）
         if (!outcome.dslReady().isEmpty() || !outcome.prevTurn().isEmpty()) {
             Map<String, Object> clarification = new LinkedHashMap<>();

@@ -37,7 +37,8 @@ public class AskRunStateService {
     private static final Map<String, Set<String>> TRANSITIONS = Map.of(
             AskRunDO.PENDING, Set.of(AskRunDO.RUNNING, AskRunDO.FAILED),
             AskRunDO.RUNNING, Set.of(AskRunDO.FINISHED, AskRunDO.FAILED, AskRunDO.WAITING_APPROVAL),
-            AskRunDO.WAITING_APPROVAL, Set.of(AskRunDO.RUNNING, AskRunDO.EXPIRED));
+            // FAILED：审批被拒绝的收尾（T4.2）；EXPIRED：TTL 到期收尾
+            AskRunDO.WAITING_APPROVAL, Set.of(AskRunDO.RUNNING, AskRunDO.FAILED, AskRunDO.EXPIRED));
 
     private final AskRunMapper mapper;
     private final SessionRunGate sessionRunGate;
@@ -75,6 +76,13 @@ public class AskRunStateService {
             throw exception(AskErrorCodeConstants.ASK_RUN_STATE_ILLEGAL, from + " → " + to + "（DB 状态不匹配）");
         }
         log.info("[transition][run {} : {} -> {}]", runId, from, to);
+    }
+
+    /** 会话最新 run（waiting 中间态回执用）。 */
+    public String latestRunId(String tenantId, String userId, String sessionId) {
+        return mapper.findActiveBySession(tenantId, userId, sessionId).stream().findFirst()
+                .map(AskRunDO::getRunId)
+                .orElse(null);
     }
 
     public AskRunDO require(String runId, RequestContext context) {

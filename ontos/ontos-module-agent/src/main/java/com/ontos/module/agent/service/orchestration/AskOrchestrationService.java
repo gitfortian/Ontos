@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.ontos.framework.agent.config.AgentProperties;
+import com.ontos.framework.common.exception.ServiceException;
+import com.ontos.module.agent.config.AskProperties;
 import com.ontos.framework.agent.core.IntentProposalContract;
 import com.ontos.framework.agent.core.OntosAgentFactory;
 import com.ontos.framework.common.util.json.JsonUtils;
@@ -15,6 +17,10 @@ import com.ontos.module.agent.service.event.AskEventService;
 import com.ontos.module.agent.service.proposal.DeterministicProposalPlanner;
 import com.ontos.module.agent.service.proposal.ProposalIntegrityService;
 import com.ontos.module.agent.service.run.AskRunStateService;
+import com.ontos.module.agent.service.terminal.TerminalAssembler;
+import com.ontos.module.system.dal.dataobject.ApprovalRequestDO;
+import com.ontos.module.system.dal.mysql.ApprovalRequestMapper;
+import com.ontos.module.system.service.approval.HitlNotifier;
 import com.ontos.module.ontology.service.manifest.ManifestService;
 import com.ontos.module.query.core.dsl.QueryDsl;
 import com.ontos.module.query.service.QueryService;
@@ -30,6 +36,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import jakarta.annotation.PreDestroy;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.ontos.module.agent.enums.AskErrorCodeConstants.ASK_MODE_REJECTED;
@@ -68,6 +81,12 @@ public class AskOrchestrationService {
     private final ObjectProvider<OntosAgentFactory> agentFactoryProvider;
     private final SessionCandidateContextProvider candidateProvider;
     private final ManifestService manifestService;
+    private final TerminalAssembler terminalAssembler;
+    private final HitlNotifier hitlNotifier;
+    private final ApprovalRequestMapper approvalRequestMapper;
+    private final AskProperties askProperties;
+    /** run 执行线程池（F-8）：HITL 轮询在执行线程内进行，不占 REST 线程。 */
+    private final ExecutorService runExecutor;
 
     @Autowired
     public AskOrchestrationService(AskRunStateService runStateService,
@@ -80,7 +99,11 @@ public class AskOrchestrationService {
                                    AgentProperties agentProperties,
                                    ObjectProvider<OntosAgentFactory> agentFactoryProvider,
                                    SessionCandidateContextProvider candidateProvider,
-                                   ManifestService manifestService) {
+                                   ManifestService manifestService,
+                                   TerminalAssembler terminalAssembler,
+                                   HitlNotifier hitlNotifier,
+                                   ApprovalRequestMapper approvalRequestMapper,
+                                   AskProperties askProperties) {
         this.runStateService = runStateService;
         this.sessionStateService = sessionStateService;
         this.retrievalService = retrievalService;
@@ -92,15 +115,91 @@ public class AskOrchestrationService {
         this.agentFactoryProvider = agentFactoryProvider;
         this.candidateProvider = candidateProvider;
         this.manifestService = manifestService;
+        this.terminalAssembler = terminalAssembler;
+        this.hitlNotifier = hitlNotifier;
+        this.approvalRequestMapper = approvalRequestMapper;
+        this.askProperties = askProperties;
+        this.runExecutor = Executors.newFixedThreadPool(
+                Math.max(askProperties.getRunExecutorPool(), 1), runnable -> {
+                    Thread thread = new Thread(runnable, "ask-run-executor");
+                    thread.setDaemon(true);
+                    return thread;
+                });
+    }
+
+    @PreDestroy
+    void shutdownExecutor() {
+        runExecutor.shutdownNow();
     }
 
     private IntentProposalContract contract() {
         return new IntentProposalContract(candidateProvider::candidateVocabulary);
     }
 
-    /** 一轮对话：返回终态载荷（W3 同步 REST；HITL 内联轮询在 W4 完善）。 */
+    /**
+     * 一轮对话：run 在专用执行线程池内执行（HITL 轮询不占 REST 线程）；POST 同步等待至多
+     * {@code ontos.ask.run-wait-timeout}，超时返回 waiting 中间态（run 继续执行，
+     * 终态经事件重放通道跟踪——T4.2 HITL 内联的承载形态）。
+     */
     public Map<String, Object> executeTurn(RequestContext context, String utterance,
                                            String clarificationChoice) {
+        var future = runExecutor.submit(
+                () -> executeTurnInThread(context, utterance, clarificationChoice));
+        try {
+            return future.get(askProperties.getRunWaitTimeout().toMillis(), TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.ExecutionException ex) {
+            if (ex.getCause() instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            throw new IllegalStateException(ex.getCause());
+        } catch (TimeoutException ex) {
+            // 同步窗口到期：run 仍在执行（可能等待审批），返回中间态由客户端经事件重放跟踪
+            String runId = latestRunIdOf(context);
+            String approvalId = approvalIdOfRun(runId);
+            return terminalAssembler.waiting(runId, approvalId);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("ask 执行被中断", ex);
+        }
+    }
+
+    private String latestRunIdOf(RequestContext context) {
+        return runStateService.latestRunId(context.tenantId(), context.userId(),
+                context.sessionId());
+    }
+
+    /** 审批 ID 从 run 的 INTERRUPT 事件提取（无则 null）。 */
+    private String approvalIdOfRun(String runId) {
+        for (Map<String, Object> event : eventService.replayAfter(runId, 0)) {
+            if (AskEventService.INTERRUPT.equals(event.get("type"))) {
+                Object payload = event.get("payload");
+                if (payload instanceof String text) {
+                    Matcher matcher = APPROVAL_ID_PATTERN.matcher(text);
+                    if (matcher.find()) {
+                        return matcher.group(1);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /** run 执行主体（执行线程内；context 显式绑定线程——QueryService 链路依赖 RequestContextHolder）。 */
+    private Map<String, Object> executeTurnInThread(RequestContext context, String utterance,
+                                                    String clarificationChoice) {
+        com.ontos.framework.web.core.context.RequestContextHolder.set(context);
+        try {
+            return doExecuteTurn(context, utterance, clarificationChoice);
+        } catch (SensitiveClosedException closed) {
+            // 敏感收尾（拒绝/TTL）：终态已装配落事件、run 已置终态，直接返回载荷（不走 FAILED）
+            return closed.terminal();
+        } finally {
+            com.ontos.framework.web.core.context.RequestContextHolder.clear();
+        }
+    }
+
+    private Map<String, Object> doExecuteTurn(RequestContext context, String utterance,
+                                              String clarificationChoice) {
         // run 创建 = turn 占用（乐观锁）：按会话当前 turn_index 占用（冲突即 409 由客户端重试），
         // 请求头 X-Ontos-Turn 是轮次声明，不做占用基准
         var state = sessionStateService.read(context.tenantId(), context.userId(),
@@ -164,29 +263,29 @@ public class AskOrchestrationService {
         if (!validation.valid()) {
             // 确定性输出也必须过合同；不过即编排缺陷，fail-closed 拒答
             log.warn("[doExecute][proposal 违反输出契约: {}]", validation.violations());
-            return outOfCapability("PROPOSAL_CONTRACT_INVALID");
+            return outOfCapability(context, "PROPOSAL_CONTRACT_INVALID");
         }
         ProposalIntegrityService.IntegrityResult integrity =
                 integrityService.check(proposal, outcome, utterance, context);
         if (!integrity.passed()) {
             if (integrity.action() == ProposalIntegrityService.IntegrityAction.REJECT) {
-                return outOfCapability(integrity.reason());
+                return outOfCapability(context, integrity.reason());
             }
             // CLARIFY：候选集外 ID → 用瀑布澄清候选救一次
             if (!outcome.clarifications().isEmpty()) {
-                return clarificationTerminal(outcome);
+                return clarificationTerminal(context, outcome);
             }
-            return outOfCapability(integrity.reason());
+            return outOfCapability(context, integrity.reason());
         }
 
         // 4. 终态分派
         String terminal = String.valueOf(proposal.get("terminal"));
         return switch (terminal) {
             case "query" -> executeQueryTerminal(context, runId, proposal);
-            case "composite" -> executeCompositeTerminal(context, proposal);
-            case "clarification" -> clarificationTerminal(outcome);
-            case "discovery" -> discoveryTerminal(outcome);
-            default -> outOfCapability("OUT_OF_SCOPE");
+            case "composite" -> executeCompositeTerminal(context, runId, proposal);
+            case "clarification" -> clarificationTerminal(context, outcome);
+            case "discovery" -> discoveryTerminal(context, outcome);
+            default -> outOfCapability(context, "OUT_OF_SCOPE");
         };
     }
 
@@ -246,7 +345,12 @@ public class AskOrchestrationService {
                 .reduce("", (left, right) -> left + right);
     }
 
-    // ---------- 终态装配（W3 初装；W4/T4.1 完善载荷契约与文案模板） ----------
+    // ---------- 终态装配（T4.1 收敛到 TerminalAssembler） ----------
+
+    /** M4 敏感触发对外码（§4.8.3 统一码）——异常消息内含审批单 ID。 */
+    private static final int SENSITIVE_SEQUENCE_CODE = 1003000008;
+    private static final Pattern APPROVAL_ID_PATTERN =
+            Pattern.compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> executeQueryTerminal(RequestContext context, String runId,
@@ -254,7 +358,7 @@ public class AskOrchestrationService {
         Object raw = proposal.get("sub_intents");
         if (!(raw instanceof List<?> subIntents) || subIntents.isEmpty()
                 || !(subIntents.get(0) instanceof Map<?, ?> box)) {
-            return outOfCapability("PROPOSAL_CONTRACT_INVALID");
+            return terminalAssembler.outOfCapability(context, "PROPOSAL_CONTRACT_INVALID");
         }
         QueryDsl dsl = assembleDsl(context, (Map<String, Object>) box);
 
@@ -263,22 +367,139 @@ public class AskOrchestrationService {
 
         eventService.emit(runId, AskEventService.TOOL_CALL,
                 Map.of("toolName", "execute_query", "argsScope", "server_assembled"));
-        var result = queryService.execute(dsl);
+        var result = executeWithHitl(context, runId, dsl);
 
         // 会话投影（F-1：每轮全量覆盖）
         sessionStateService.project(context, SessionProjection.of(dsl), "query", context.traceId());
 
-        Map<String, Object> terminal = new LinkedHashMap<>();
-        terminal.put("terminal", "query");
-        terminal.put("requestId", context.traceId());
-        terminal.put("rowCount", result == null ? 0 : result.getRowCount());
-        terminal.put("rows", result == null ? List.of() : result.getRows());
-        terminal.put("degraded", Boolean.TRUE.equals(proposal.get("degraded")));
+        Map<String, Object> terminal = terminalAssembler.query(context.traceId(),
+                result == null ? 0 : result.getRowCount(),
+                result == null ? List.of() : result.getRows(),
+                Boolean.TRUE.equals(proposal.get("degraded")));
+        terminalAssembler.emitTerminal(eventService, runId, terminal);
         return terminal;
     }
 
+    /**
+     * T4.2 HITL 内联：执行抛 1003000008（敏感累计/差分/个体探针触发）→ run 置
+     * WAITING_APPROVAL + INTERRUPT 事件（复用 M4 HitlNotifier）→ DB 轮询审批状态
+     * （1s 间隔 / TTL 上限）→ APPROVED 携令牌重放同一查询 → 放行；REJECTED / 超时收尾。
+     */
+    private com.ontos.module.query.core.executor.QueryResult executeWithHitl(
+            RequestContext context, String runId, QueryDsl dsl) {
+        try {
+            return queryService.execute(dsl);
+        } catch (ServiceException ex) {
+            if (ex.getCode() != SENSITIVE_SEQUENCE_CODE) {
+                throw ex;
+            }
+            String approvalId = extractApprovalId(ex.getMessage());
+            if (approvalId == null) {
+                // 无审批单可等待（异常形态异常）：按拒答收尾，不悬挂
+                throw ex;
+            }
+            return awaitApprovalAndReplay(context, runId, dsl, approvalId);
+        }
+    }
+
+    private String extractApprovalId(String message) {
+        if (message == null) {
+            return null;
+        }
+        Matcher matcher = APPROVAL_ID_PATTERN.matcher(message);
+        // 正则无捕获组：取完整匹配（group(1) 会 IndexOutOfBounds——W2 探针同款教训）
+        return matcher.find() ? matcher.group(0) : null;
+    }
+
+    private com.ontos.module.query.core.executor.QueryResult awaitApprovalAndReplay(
+            RequestContext context, String runId, QueryDsl dsl, String approvalId) {
+        // 敏感触发：run → WAITING_APPROVAL（先判定后转移，状态机校验迁移合法性）
+        runStateService.transition(runId, AskRunDO.RUNNING, AskRunDO.WAITING_APPROVAL);
+        Map<String, Object> interrupt = new LinkedHashMap<>();
+        interrupt.put("approvalId", approvalId);
+        interrupt.put("decideEndpoint", "/api/v1/approvals/" + approvalId + "/decide");
+        interrupt.put("reasonCode", "SENSITIVE_QUERY_SEQUENCE");
+        eventService.emit(runId, AskEventService.INTERRUPT, interrupt);
+        // M4 SSE 通道同步下发（前端审批卡片；无订阅者静默跳过——审批单已在 DB）
+        hitlNotifier.notifyInterrupt(context.tenantId(), context.userId(), approvalId,
+                "SENSITIVE_QUERY_SEQUENCE", String.valueOf(dsl.getMetricId()));
+
+        var decision = pollApproval(context, approvalId);
+        if (decision == null) {
+            // TTL 到期：run EXPIRED（审批单仍在 TTL 内有效，用户可携令牌重查——M4 闭环不受影响）
+            runStateService.transition(runId, AskRunDO.WAITING_APPROVAL, AskRunDO.EXPIRED);
+            Map<String, Object> terminal =
+                    terminalAssembler.sensitiveClosed(context, "SENSITIVE_QUERY_EXPIRED", approvalId);
+            terminalAssembler.emitTerminal(eventService, runId, terminal);
+            eventService.emit(runId, AskEventService.RUN_FINISHED,
+                    Map.of("terminal", "out_of_capability"));
+            throw new SensitiveClosedException(terminal);
+        }
+        if (!"APPROVED".equals(decision.getStatus())) {
+            // 决策拒绝：run → FAILED + 结构化收尾
+            runStateService.transition(runId, AskRunDO.WAITING_APPROVAL, AskRunDO.FAILED);
+            Map<String, Object> terminal =
+                    terminalAssembler.sensitiveClosed(context, "SENSITIVE_QUERY_REJECTED", approvalId);
+            terminalAssembler.emitTerminal(eventService, runId, terminal);
+            eventService.emit(runId, AskEventService.RUN_FINISHED,
+                    Map.of("terminal", "out_of_capability"));
+            throw new SensitiveClosedException(terminal);
+        }
+        // APPROVED：恢复 RUNNING → 携 M4 令牌重放同一查询（QueryService 的 consumeGrant
+        // 做指纹比对与单次消费；换 filters 不放行、复用拒绝）。
+        // 重放是新执行：request_id 换新（原 ID 已被首次触发的 REJECTED 占用——幂等键不可复用）
+        runStateService.transition(runId, AskRunDO.WAITING_APPROVAL, AskRunDO.RUNNING);
+        RequestContext granted = new RequestContext(context.tenantId(), context.userId(),
+                context.sessionId(), context.turnIndex(), context.manifestId(),
+                context.traceId() + "-replay",
+                context.roles(), context.devMode(), approvalId);
+        com.ontos.framework.web.core.context.RequestContextHolder.set(granted);
+        try {
+            var result = queryService.execute(dsl);
+            // 放行的审计（SENSITIVE_APPROVED_GRANT 由 QueryService 审计链路承载）
+            return result;
+        } finally {
+            com.ontos.framework.web.core.context.RequestContextHolder.clear();
+        }
+    }
+
+    /** 审批状态轮询：1s 间隔（可配），上限 TTL；返回终态决策或 null（超时）。 */
+    private ApprovalRequestDO pollApproval(RequestContext context, String approvalId) {
+        long deadline = System.currentTimeMillis()
+                + askProperties.getApprovalWaitLimit().toMillis();
+        long interval = Math.max(askProperties.getApprovalPollInterval().toMillis(), 100);
+        while (System.currentTimeMillis() < deadline && !Thread.currentThread().isInterrupted()) {
+            var approval = approvalRequestMapper.selectById(approvalId, context.tenantId());
+            if (approval.isPresent()
+                    && !"PENDING".equals(approval.get().getStatus())) {
+                return approval.get();
+            }
+            try {
+                Thread.sleep(interval);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /** 敏感收尾信号：终态已装配并落事件，向上传递给 executeTurn 直接返回（不走 FAILED）。 */
+    private static class SensitiveClosedException extends RuntimeException {
+        private final Map<String, Object> terminal;
+
+        SensitiveClosedException(Map<String, Object> terminal) {
+            super("sensitive closed", null, false, false);
+            this.terminal = terminal;
+        }
+
+        Map<String, Object> terminal() {
+            return terminal;
+        }
+    }
+
     @SuppressWarnings("unchecked")
-    private Map<String, Object> executeCompositeTerminal(RequestContext context,
+    private Map<String, Object> executeCompositeTerminal(RequestContext context, String runId,
                                                          Map<String, Object> proposal) {
         QueryDsl dsl = new QueryDsl();
         dsl.setManifestId(activeManifestId(context));
@@ -302,61 +523,35 @@ public class AskOrchestrationService {
         dsl.setSubIntents(children);
         // composite 透传 M2 复合通道（定档 ⑥）：不拆分编排，PoC #8 归 M6
         var outcome = queryService.executeComposite(dsl);
-        Map<String, Object> terminal = new LinkedHashMap<>();
-        terminal.put("terminal", "composite");
-        terminal.put("requestId", context.traceId());
-        terminal.put("degraded", Boolean.TRUE.equals(proposal.get("degraded")));
-        terminal.put("subResults", outcome == null ? List.of() : outcome.results());
+        Map<String, Object> terminal = terminalAssembler.composite(context.traceId(),
+                outcome == null ? List.of() : outcome.results(),
+                Boolean.TRUE.equals(proposal.get("degraded")));
+        terminalAssembler.emitTerminal(eventService, runIdOf(context), terminal);
         return terminal;
     }
 
-    private Map<String, Object> clarificationTerminal(RetrievalOutcome outcome) {
+    private String runIdOf(RequestContext context) {
+        return latestRunIdOf(context);
+    }
+
+    private Map<String, Object> clarificationTerminal(RequestContext context,
+                                                      RetrievalOutcome outcome) {
         var payload = outcome.clarifications().isEmpty() ? null : outcome.clarifications().get(0);
-        Map<String, Object> terminal = new LinkedHashMap<>();
-        terminal.put("terminal", "clarification");
-        if (payload == null) {
-            // 泛化问法：澄清候选由终态装配补 discovery 候选（W4/T4.1 完善）
-            terminal.put("ambiguity", "未识别到具体指标");
-            terminal.put("candidates", List.of());
-            terminal.put("defaultSuggestion", null);
-            terminal.put("skippable", true);
-            return terminal;
-        }
-        terminal.put("ambiguity", payload.mention());
-        terminal.put("candidates", payload.candidates().stream()
-                .map(candidate -> Map.of("assetId", candidate.assetId(),
-                        "assetType", candidate.assetType(), "matchedTerm", candidate.matchedTerm()))
-                .toList());
-        terminal.put("defaultSuggestion", payload.defaultSuggestion());
-        terminal.put("skippable", payload.skippable());
-        return terminal;
+        return terminalAssembler.clarification(context, payload);
     }
 
-    private Map<String, Object> discoveryTerminal(RetrievalOutcome outcome) {
-        Map<String, Object> terminal = new LinkedHashMap<>();
-        terminal.put("terminal", "discovery");
+    private Map<String, Object> discoveryTerminal(RequestContext context,
+                                                  RetrievalOutcome outcome) {
         // 授权 scope 内可用能力（已发布引用，不由 LLM 生成）
-        terminal.put("metrics", outcome.dslReady().stream()
-                .filter(candidate -> "metric".equals(candidate.assetType()))
-                .map(CandidateView::of).toList());
-        terminal.put("dimensions", outcome.dslReady().stream()
-                .filter(candidate -> "dimension".equals(candidate.assetType()))
-                .map(CandidateView::of).toList());
-        return terminal;
+        return terminalAssembler.discovery(
+                outcome.dslReady().stream()
+                        .filter(candidate -> "metric".equals(candidate.assetType())).toList(),
+                outcome.dslReady().stream()
+                        .filter(candidate -> "dimension".equals(candidate.assetType())).toList());
     }
 
-    /** 终态载荷不泄漏 session 内部 record 类型。 */
-    private record CandidateView(String assetId, String assetType, String matchedTerm) {
-        static CandidateView of(com.ontos.module.session.service.retrieval.RetrievedCandidate c) {
-            return new CandidateView(c.assetId(), c.assetType(), c.matchedTerm());
-        }
-    }
-
-    private Map<String, Object> outOfCapability(String reason) {
-        Map<String, Object> terminal = new LinkedHashMap<>();
-        terminal.put("terminal", "out_of_capability");
-        terminal.put("reason", reason);
-        return terminal;
+    private Map<String, Object> outOfCapability(RequestContext context, String reason) {
+        return terminalAssembler.outOfCapability(context, reason);
     }
 
     // ---------- 服务端 DSL 组装与路由 ----------
@@ -388,7 +583,52 @@ public class AskOrchestrationService {
             }
         }
         dsl.setTimeExpressionRaw(stringOf(subIntent.get("time_expression_raw")));
+        // 属性投影（LOOKUP 回显列）：提案的 attributes 是语义槽位，物理列由清单约束
+        if (subIntent.get("attributes") instanceof List<?> attributes) {
+            attributes.forEach(attribute -> {
+                if (attribute instanceof String s && !s.isBlank()) {
+                    dsl.getAttributes().add(s);
+                }
+            });
+        }
+        if (dsl.getMode() == QueryDsl.AnalysisMode.LOOKUP) {
+            fillLookupIdentity(context, dsl, stringOf(subIntent.get("identity_value")));
+        }
         return dsl;
+    }
+
+    /**
+     * LOOKUP 身份补全（服务端推衍，M3 语义）：entityId 从首个投影属性的 {@code conceptId}
+     * 反查（清单事实，不参与 LLM 输出对账）；identityPropertyId 取 concept.identityProperty；
+     * identity.value 来自话术确定性提取。
+     */
+    private void fillLookupIdentity(RequestContext context, QueryDsl dsl, String identityValue) {
+        if (identityValue == null || dsl.getAttributes() == null || dsl.getAttributes().isEmpty()) {
+            return;
+        }
+        var manifest = manifestService.getActiveManifestOrNull();
+        if (manifest == null || manifest.getOntology() == null) {
+            return;
+        }
+        String conceptId = manifest.getOntology().getProperties().stream()
+                .filter(property -> dsl.getAttributes().contains(property.getId()))
+                .findFirst()
+                .map(com.ontos.module.ontology.core.OntologySnapshot.Property::getConceptId)
+                .orElse(null);
+        if (conceptId == null) {
+            return;
+        }
+        dsl.setEntityId(conceptId);
+        manifest.getOntology().getConcepts().stream()
+                .filter(concept -> concept.getId().equals(conceptId))
+                .findFirst()
+                .ifPresent(concept -> {
+                    dsl.setIdentityPropertyId(concept.getIdentityProperty());
+                    QueryDsl.LookupIdentity identity = new QueryDsl.LookupIdentity();
+                    identity.setPropertyId(concept.getIdentityProperty());
+                    identity.setValue(identityValue);
+                    dsl.setIdentity(identity);
+                });
     }
 
     /** T3.4 第二级路由：analysis_mode 必须在指标 allowed_modes 内（确定性过滤，非模型判断）。 */

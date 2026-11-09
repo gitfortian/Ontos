@@ -40,7 +40,7 @@ import static org.mockito.Mockito.when;
 class MentionBackfillBatchTest {
 
     private static final Path REPO_ROOT = Path.of("..", "..");
-    private static final Path MANIFEST_JSON = REPO_ROOT.resolve("ontos-assets/first-release-v9.json");
+    private static final Path MANIFEST_JSON = REPO_ROOT.resolve("ontos-assets/first-release-v10.json");
     private static final Path SAMPLES_JSON =
             REPO_ROOT.resolve("docs/06-verification/evaluation/中文提及样本集-v1.json");
     private static final Path EVIDENCE_JSON =
@@ -58,7 +58,7 @@ class MentionBackfillBatchTest {
         String manifestJson = Files.readString(MANIFEST_JSON, StandardCharsets.UTF_8);
         ManifestPayload payload = JsonUtils.parseObject(manifestJson, ManifestPayload.class);
         PublishedManifest manifest = new PublishedManifest();
-        manifest.setManifestId("2026.11.09-ninth");
+        manifest.setManifestId("2026.11.09-tenth");
         manifest.setContentHash(PublishedManifest.sha256(manifestJson));
         manifest.setPayloadJson(manifestJson);
         manifest.setSemantic(payload.getSemantic());
@@ -161,7 +161,7 @@ class MentionBackfillBatchTest {
         // 证据 JSON（PoC 证据规范：可复算、含环境与逐条明细）
         Map<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("setId", "中文提及样本集-v1");
-        evidence.put("manifestId", "2026.11.09-ninth");
+        evidence.put("manifestId", "2026.11.09-tenth");
         evidence.put("ranAt", java.time.OffsetDateTime.now().toString());
         evidence.put("total", cases.size());
         evidence.put("top5Hit", top5Hit);

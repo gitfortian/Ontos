@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -65,7 +66,12 @@ class AskRunStateServiceTest {
         // WAITING_APPROVAL → FINISHED（审批未决不得直接完成）
         assertThrows(ServiceException.class,
                 () -> service.transition("r1", AskRunDO.WAITING_APPROVAL, AskRunDO.FINISHED));
-        verify(mapper, never()).transition(any(), any(), any());
+        // 合法：WAITING_APPROVAL → FAILED（审批被拒绝的收尾，T4.2）
+        when(mapper.transition("r1", AskRunDO.WAITING_APPROVAL, AskRunDO.FAILED)).thenReturn(true);
+        service.transition("r1", AskRunDO.WAITING_APPROVAL, AskRunDO.FAILED);
+        // 非法迁移从未触达 DB（fail 在应用层迁移表校验）
+        verify(mapper, never()).transition(eq("r1"), eq(AskRunDO.FINISHED), any());
+        verify(mapper, never()).transition(eq("r1"), eq(AskRunDO.PENDING), eq(AskRunDO.FINISHED));
     }
 
     @Test
