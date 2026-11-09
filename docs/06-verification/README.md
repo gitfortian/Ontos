@@ -8,6 +8,7 @@
 
 **当前文档**
 
+- [M5 W4 再次深度审核记录 v1](checklists/M5-W4-再次深度审核-v1.md)（已归档：换视角复审 5 项发现——**R-A P1 group(1) 同款缺陷第三次出现（waiting 路径）**、**R-B P1 SensitiveClosedException 被 catch 链污染致重放序列 FINISHED 后跟 RUN_ERROR**、R-C P2 审批单 EXPIRED 误报 REJECTED；3 修 2 登记，E2E 23/23 复验）
 - [M5 W4 深度审核记录 v1](checklists/M5-W4-深度审核-v1.md)（已归档：结构化终态与 HITL 内联 T4.1–T4.3 落地——五终态载荷契约收敛/文案模板渲染/敏感触发→WAITING_APPROVAL→决策→令牌单次消费→FINISHED 全链（拒绝→FAILED+收尾文案）/R-30 三条模板发布（清单 v10, hash 6b1f4e33…）；E2E 23/23；基线 395 例全绿）
 - [M5 W3 深度审核记录 v1](checklists/M5-W3-深度审核-v1.md)（已归档：LLM 编排器与 AG-UI T3.1–T3.4 落地——编排主链/确定性降级（degraded 声明）/Proposal 完整性对抗 6 类全拦截（InjectionCheckpoint 首次真实接入）/事件持久化与 afterSeq 重放幂等（重复执行 0）/RUN_STARTED 脱敏/run 状态机锁定；E2E 14/14；基线 395 例全绿）
 - [M5 W2 深度审核记录 v1](checklists/M5-W2-深度审核-v1.md)（已归档：检索瀑布 T2.1–T2.4 落地——三层瀑布/授权裁剪/模糊进 DSL=0/澄清四要素/指代消解；T2.4 回填 300 条非拼音 Top-5 **98.82% ≥95%** 零污染；清单 **v9**（2026.11.09-ninth）别名扩充经全量回归（Golden 27/0、冒烟 14/0/6、RLS 30/0、E5 9/9、敏感 32/32）无破坏；基线 382 例全绿）

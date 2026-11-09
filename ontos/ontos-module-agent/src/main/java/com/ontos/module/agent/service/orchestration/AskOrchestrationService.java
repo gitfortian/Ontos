@@ -155,6 +155,12 @@ public class AskOrchestrationService {
         } catch (TimeoutException ex) {
             // 同步窗口到期：run 仍在执行（可能等待审批），返回中间态由客户端经事件重放跟踪
             String runId = latestRunIdOf(context);
+            if (runId == null) {
+                // 竞态：run 已收尾（无活跃 run）——客户端按「重新查询/查历史」处理
+                Map<String, Object> terminal = terminalAssembler.waiting(null, null);
+                terminal.put("note", "run 已离开活跃状态，请经事件重放或审批列表查询结果");
+                return terminal;
+            }
             String approvalId = approvalIdOfRun(runId);
             return terminalAssembler.waiting(runId, approvalId);
         } catch (InterruptedException ex) {
@@ -175,8 +181,9 @@ public class AskOrchestrationService {
                 Object payload = event.get("payload");
                 if (payload instanceof String text) {
                     Matcher matcher = APPROVAL_ID_PATTERN.matcher(text);
+                    // 正则无捕获组：取完整匹配（group(1) 同款缺陷——W4-5/W2 教训，静态审查再抓一次）
                     if (matcher.find()) {
-                        return matcher.group(1);
+                        return matcher.group(0);
                     }
                 }
             }
@@ -231,6 +238,10 @@ public class AskOrchestrationService {
             eventService.emit(runId, AskEventService.RUN_FINISHED,
                     Map.of("terminal", String.valueOf(terminal.get("terminal"))));
             return terminal;
+        } catch (SensitiveClosedException closed) {
+            // 敏感收尾（拒绝/TTL）：终态与 RUN_FINISHED 已落事件、run 已置终态——
+            // 不 safeFail、不 emit RUN_ERROR（否则重放序列出现 FINISHED 后跟 ERROR 的矛盾）
+            throw closed;
         } catch (RuntimeException ex) {
             if (reachedRunning) {
                 // 先判定后转移：只有 RUNNING 才落到 FAILED（终态规则由状态机服务强制）
@@ -435,6 +446,16 @@ public class AskOrchestrationService {
                     Map.of("terminal", "out_of_capability"));
             throw new SensitiveClosedException(terminal);
         }
+        if ("EXPIRED".equals(decision.getStatus())) {
+            // 审批单被 TTL 扫描置 EXPIRED：与轮询超时同收尾（语义一致，不误报 REJECTED）
+            runStateService.transition(runId, AskRunDO.WAITING_APPROVAL, AskRunDO.EXPIRED);
+            Map<String, Object> terminal =
+                    terminalAssembler.sensitiveClosed(context, "SENSITIVE_QUERY_EXPIRED", approvalId);
+            terminalAssembler.emitTerminal(eventService, runId, terminal);
+            eventService.emit(runId, AskEventService.RUN_FINISHED,
+                    Map.of("terminal", "out_of_capability"));
+            throw new SensitiveClosedException(terminal);
+        }
         if (!"APPROVED".equals(decision.getStatus())) {
             // 决策拒绝：run → FAILED + 结构化收尾
             runStateService.transition(runId, AskRunDO.WAITING_APPROVAL, AskRunDO.FAILED);
@@ -526,12 +547,8 @@ public class AskOrchestrationService {
         Map<String, Object> terminal = terminalAssembler.composite(context.traceId(),
                 outcome == null ? List.of() : outcome.results(),
                 Boolean.TRUE.equals(proposal.get("degraded")));
-        terminalAssembler.emitTerminal(eventService, runIdOf(context), terminal);
+        terminalAssembler.emitTerminal(eventService, runId, terminal);
         return terminal;
-    }
-
-    private String runIdOf(RequestContext context) {
-        return latestRunIdOf(context);
     }
 
     private Map<String, Object> clarificationTerminal(RequestContext context,
