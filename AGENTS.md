@@ -95,7 +95,8 @@ Spring Boot 4 默认 JSON 栈是 **Jackson 3（`tools.jackson.*`）**，但注�
 
 - **每完成一个任务**（子任务、单个工作流、单步实现）立即做一次深度审核，不得只复述「已完成」。
   审核维度：改动与需求/规格一致、代码逻辑与边界（尤其 fail-closed、身份、物理名来源）、
-  测试真实执行且断言有效、文档与索引同步、提交范围与工作区干净。
+  测试真实执行且断言有效、文档与索引同步、提交范围与工作区干净、
+  **并行义务同步建设核对**（见 §6.4：所有并行 / 同步建设项是否逐项点名、欠账是否登记）。
 - **整个大任务**（阶段 / 里程碑 / 一批任务）结束后，再做一次覆盖全局的深度审核：
   子任务间契约一致性、全量回归基线（`mvn test` / `pnpm check` / `check-docs.mjs` / 构建）、
   文档状态与真实进度是否一致、遗留项是否登记。
@@ -114,13 +115,32 @@ Spring Boot 4 默认 JSON 栈是 **Jackson 3（`tools.jackson.*`）**，但注�
   也**不能**与深度审核结论混在一起——两者都必须在回复中出现。
 - 纯文档、纯配置、纯运维动作不适用；只要涉及 `src/main/**` 的新增或修改就适用。
 
+### 6.4 并行义务纪律（不可跳过）
+
+用户 2026-11-09 要求「把纪律规范起来，不能漏掉不做」。roadmap 里所有
+「并行 / 同步建设 / 不许后置」类约束（当前为 M4、M7）与主线阶段同等受跟踪，
+**状态栏写「待启动」不等于可以略过**：
+
+- **阶段收口必查**：每个阶段的验收报告、收口深度审核、进度快照必须逐项点名全部并行义务；
+  已交付写证据链接，未交付写欠账登记（归属阶段、触发点、负责人、证据），
+  并同步 `docs/00-governance/parallel-obligations.json`。**未点名不得宣告阶段关闭**。
+- **状态只有两种**：`done` / `deferred`；禁止 `skipped` / `n/a` / 删除条目。
+  `deferred` 必须写清触发阶段；触发阶段一旦通过验收而义务未闭环即判违规。
+- **机器强制**：`node docs/00-governance/check-parallel-obligations.mjs` 从 roadmap 自动抽取义务，
+  校验台账与证据、触发是否过期、最近进度快照是否点名、阶段状态与验收报告是否一致，
+  并接入 `scripts/verify-baseline.mjs`。任一违规即 `FAIL`；**禁止为跑通而放宽脚本或删改 roadmap 硬约束文本**。
+- **口径不降级**：并行义务未按「自 M1 起同步建设」执行时，用 ADR 登记偏离与闭环触发点
+  （见 [ADR-0014](docs/01-decisions/ADR-0014-并行义务纪律与M7同步建设偏离.md)），
+  不得事后改计划追认，不得把主线顺带产生的素材算作并行阶段交付物。
+
 ## 7. 提交前检查
 
 ```bash
 cd ontos && mvn test                        # 含 ArchUnit 架构规则
 cd ontos-ui && pnpm check && pnpm build
 node docs/00-governance/check-docs.mjs     # docs 治理：层级、命名、链接
-node scripts/verify-baseline.mjs            # 四类基线检查 + jar 启动探活（M0 T1.2）
+node docs/00-governance/check-parallel-obligations.mjs  # 并行义务与阶段状态（§6.4）
+node scripts/verify-baseline.mjs            # 五类基线检查 + jar 启动探活（M0 T1.2）
 ```
 
 新增依赖的版本依据一律以 Maven Central POM / npm registry 实测为准，不采信第三方博客坐标。
@@ -138,3 +158,4 @@ node scripts/verify-baseline.mjs            # 四类基线检查 + jar 启动探
 - **单一事实源**：技术栈版本与锁定项只在 `02-solutions` 定义；阶段编号 M0–M8 只在 `03-plans/roadmap` 定义；PoC 判据引用技术选型 §7。其它文档只引用，不复制数值或结论。
 - **引用**：一律相对路径，且目标必须存在；移动文档必须同步全仓引用并跑治理检查。
 - **进度 append-only**：完成实质工作（方案、代码、验证、决策）后向 `docs/05-progress/<年>/` 追加快照，不回改历史条目。
+- **并行义务同步**：roadmap 的并行 / 同步建设约束变更时同步 `docs/00-governance/parallel-obligations.json`，阶段收口快照须逐项点名未闭环义务（详见 §6.4）。

@@ -1,5 +1,5 @@
 /**
- * M0 T1.2 基线自检：把四类检查串成一条命令，分别记录结果。
+ * M0 T1.2 基线自检：把五类检查串成一条命令，分别记录结果。
  * 运行：node scripts/verify-baseline.mjs
  *
  * 报告区分 PASS / FAIL / SKIP；SKIP 不算通过。
@@ -114,6 +114,7 @@ function report() {
 check("后端 mvn package（含测试）", "ontos", "mvn -B package");
 check("前端 pnpm check", "ontos-ui", "pnpm check");
 check("docs 治理检查", ".", "node docs/00-governance/check-docs.mjs");
+check("并行义务与阶段状态检查", ".", "node docs/00-governance/check-parallel-obligations.mjs");
 await bootProbe();
 
 process.exit(report());
