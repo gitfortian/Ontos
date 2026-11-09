@@ -75,3 +75,8 @@
   （BizError 经 service/query 转发）；`getResponse` 是拿响应头的唯一通道。
 - 基线：`mvn test` **304 例**（33 类）；`pnpm check` exit 0（21 单测）；docs 63/493。
 - 待办：M5（ask 对话主干与能力编排；R-27 复合子意图变体、R-29 variantHint 语义随做）或 M4（并行）。
+
+## 并行义务纪律（2026-11-09，用户要求「不能漏掉不做」）
+- **硬约束**：roadmap 所有「并行 / 同步建设 / 不许后置」项与主线同等跟踪；状态「待启动」不等于可略过。每阶段收口（验收报告 / 深度审核 / 进度快照）必须逐项点名，欠账写清触发点 / 负责人 / 证据并同步台账；**未点名不得宣告阶段关闭**。见 `AGENTS.md` §6.4、ADR-0014、`docs/README.md` §7.8。
+- **机器强制**：`docs/00-governance/parallel-obligations.json`（状态仅 `done` / `deferred`）＋ `check-parallel-obligations.mjs`（接入 `verify-baseline.mjs`，基线 5 项）；禁止放宽脚本或删改 roadmap 硬约束文本绕过。
+- **当前欠账**：OBL-M4 触发 M5（M5 启动前必须完成 M4）；OBL-M7 触发 M4（M4 启动前补正式评测集 / 冒烟 runner / 分层统计，M6 后收敛）。M1–M3 已通过而两者均 `deferred`，属静默未执行，已由 ADR-0014 登记，**不得事后追认或把主线素材算作 M7 交付物**。

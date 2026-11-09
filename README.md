@@ -75,6 +75,12 @@ docker compose up -d
 初始化脚本会建 `ontos_system` / `ontos_queryds` 双库、`ontos_app` / `ontos_query_ro` 角色，
 并在 Query DS 应用演示表与 RLS 策略。弱口令仅供本地，禁止用于共享环境。
 
+> 本机已装 PostgreSQL 且已建好 `ontos` / `ontos_queryds` 双库与只读角色时，可直接跳过 Docker。
+> **compose 与默认连接串不通用**：compose 建的是 `ontos_system` 库 + `ontos_app` 角色，
+> 而 `application.yml` 默认连 `ontos` 库；用 compose 必须额外设置 `ONTOS_SYSTEM_DB_URL`、
+> `ONTOS_SYSTEM_DB_USER/PASSWORD`、`ONTOS_QUERY_DB_URL`、`ONTOS_QUERY_DB_USER/PASSWORD`
+> 覆盖（环境变量优先级高于 `application-local.yml`）。该路径未在本机验证（本机无 docker）。
+
 **2) 启动后端**（`local` profile 放开 demo 身份与策略）
 
 ```bash
@@ -82,6 +88,18 @@ cd ontos
 mvn -DskipTests package
 java -jar ontos-server/target/ontos-server-0.1.0-SNAPSHOT.jar --spring.profiles.active=local
 ```
+
+> **在 IntelliJ IDEA 里 Run `OntosApplication` 时必须显式激活 `local`**：
+> `Run/Debug Configurations` → Spring Boot → **Active profiles** 填 `local`；等价做法是
+> VM options 加 `-Dspring.profiles.active=local`、环境变量加 `SPRING_PROFILES_ACTIVE=local`、
+> 或 Program arguments 加 `--spring.profiles.active=local`（也可直接用 `scripts/run-local-backend.sh`，脚本已带该参数）。
+>
+> 漏掉这一步时 `application.yml` 里 `ontos.datasource.*.username/password` 是空占位符
+> （fail-closed：非 local 必须显式提供凭据），Flyway 会以空用户名连库并抛
+> `SQL State 28000 / 未指定 PostgreSQL 用户名`，随后 `systemJdbcTemplate` → `ManifestServiceImpl`
+> 整条装配链失败、应用启动中止。**不要**为了让 IDEA 能启动而把默认凭据写回 `application.yml`；
+> 若确实不用 `local`，需显式提供 `ONTOS_SYSTEM_DB_USER/PASSWORD`、`ONTOS_QUERY_DB_USER/PASSWORD`。
+> Windows 控制台里 PostgreSQL 的中文报错显示为乱码只是 GBK 解码问题，不是另一个故障。
 
 Flyway 会在启动时创建 System DB 的表。首次联调再灌一份演示清单：
 
