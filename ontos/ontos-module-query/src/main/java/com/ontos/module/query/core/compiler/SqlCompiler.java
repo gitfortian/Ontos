@@ -100,6 +100,10 @@ public class SqlCompiler {
                 conditions.add(condition(filter, dimension));
             }
         }
+        Condition caliber = caliberCondition(semantic, metric, queryDsl);
+        if (caliber != null) {
+            conditions.add(caliber);
+        }
         if (queryDsl.getTimeRange() != null) {
             conditions.add(timeCondition(queryDsl.getTimeRange(), semantic));
         }
@@ -135,6 +139,42 @@ public class SqlCompiler {
                     .eq(DSL.field(columnName(join.getRightColumn())));
             select.addJoin(DSL.table(tableName(join.getTable())), on);
         }
+    }
+
+    /**
+     * 口径变体 → 追加的 WHERE 条件（M3/W2，v1.4 §5.4）。
+     *
+     * <p>发布期已保证「同表 + 指标授权字段 + 封闭算子」，这里仍按纵深防御重新解析：
+     * 编译器不依赖调用顺序，清单被绕过校验装配时宁可拒绝也不产出错误 SQL。
+     */
+    private Condition caliberCondition(SemanticManifest semantic, SemanticManifest.Metric metric,
+                                       QueryDsl queryDsl) {
+        String variantId = queryDsl.getCaliberVariantId();
+        if (variantId == null || variantId.isBlank()) {
+            return null;
+        }
+        SemanticManifest.CaliberVariant variant = metric.getCaliberVariants() == null ? null
+                : metric.getCaliberVariants().stream()
+                        .filter(candidate -> variantId.equals(candidate.getVariantId()))
+                        .findFirst()
+                        .orElse(null);
+        if (variant == null || variant.getCondition() == null) {
+            throw exception(DSL_INVALID, "caliberVariantId 不属于该指标: " + variantId);
+        }
+        SemanticManifest.VariantCondition vc = variant.getCondition();
+        SemanticManifest.Dimension dimension = semantic.requireDimension(vc.getFieldId());
+        if (!java.util.Objects.equals(dimension.getTable(), metric.getTable())) {
+            throw exception(DSL_INVALID, "口径变体条件字段与指标不同表: " + vc.getFieldId());
+        }
+        QueryDsl.Filter filter = new QueryDsl.Filter();
+        filter.setFieldId(vc.getFieldId());
+        try {
+            filter.setOperator(QueryDsl.Operator.valueOf(vc.getOperator()));
+        } catch (IllegalArgumentException ex) {
+            throw exception(DSL_INVALID, "口径变体算子非法: " + vc.getOperator());
+        }
+        filter.setValues(new ArrayList<>(vc.getValues() == null ? List.of() : vc.getValues()));
+        return condition(filter, dimension);
     }
 
     /**
@@ -571,6 +611,10 @@ public class SqlCompiler {
         for (QueryDsl.Filter filter : queryDsl.getFilters() == null
                 ? List.<QueryDsl.Filter>of() : queryDsl.getFilters()) {
             filters.add(condition(filter, semantic.requireDimension(filter.getFieldId())));
+        }
+        Condition caliber = caliberCondition(semantic, metric, queryDsl);
+        if (caliber != null) {
+            filters.add(caliber);
         }
 
         Field<Timestamp> timeField = DSL.field(

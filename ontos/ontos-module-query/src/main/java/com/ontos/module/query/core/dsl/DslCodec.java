@@ -32,7 +32,7 @@ public class DslCodec {
             "timeRange", "timeExpressionRaw", "explicitRange", "subIntents", "analysisParams",
             "entityId", "attributes", "identity", "identities", "identityPropertyId",
             "booleanMetricId",
-            "limit", "variantHint");
+            "limit", "variantHint", "caliberVariantId");
     private static final Set<String> TIME_RANGE = Set.of("field", "from", "to");
     private static final Set<String> FILTER = Set.of("fieldId", "operator", "values");
     private static final Set<String> IDENTITY = Set.of("propertyId", "value");

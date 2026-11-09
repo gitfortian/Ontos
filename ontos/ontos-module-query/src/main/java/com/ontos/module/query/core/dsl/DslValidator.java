@@ -21,6 +21,7 @@ import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.inv
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.ASSET_MODE_NOT_ALLOWED;
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.DIMENSION_NOT_ALLOWED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ABSOLUTE_DATE_REJECTED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.CALIBER_AMBIGUOUS;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.CROSS_TABLE_UNSUPPORTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
@@ -92,6 +93,7 @@ public class DslValidator {
                 throw exception(DSL_INVALID, "yoy_mom 的分组维度不能是时间维度本身（时间口径由 period 承担）");
             }
         }
+        validateCaliberVariant(dsl, semantic, metric);
 
         List<String> dimensionIds = dsl.getDimensions() == null ? List.of() : dsl.getDimensions();
         List<SemanticManifest.Dimension> resolvedDimensions = new ArrayList<>();
@@ -258,6 +260,9 @@ public class DslValidator {
             // M2 未给 funnel 过滤定档，按 fail-closed 明确拒绝，不用「看起来成功」糊过去。
             throw exception(DSL_INVALID, "funnel 暂不支持 filters（M2 未定档，拒绝而非静默忽略）");
         }
+        if (!isBlank(dsl.getCaliberVariantId())) {
+            throw exception(DSL_INVALID, "funnel 不接受 caliberVariantId（口径变体只作用于指标）");
+        }
         if (!isBlank(dsl.getEntityId()) || dsl.getIdentity() != null
                 || (dsl.getIdentities() != null && !dsl.getIdentities().isEmpty())
                 || (dsl.getAttributes() != null && !dsl.getAttributes().isEmpty())
@@ -331,6 +336,44 @@ public class DslValidator {
         dsl.setLimit(limit);
     }
 
+    /**
+     * 口径变体闸门（M3/W2，v1.4 §5.4）：带变体的指标必须显式选择，缺失转澄清；
+     * 变体必须属于该指标。禁止 LLM 在候选里二选一——歧义必须回到人。
+     */
+    private void validateCaliberVariant(QueryDsl dsl, SemanticManifest semantic,
+                                       SemanticManifest.Metric metric) {
+        List<SemanticManifest.CaliberVariant> variants = metric.getCaliberVariants() == null
+                ? List.of() : metric.getCaliberVariants();
+        if (variants.isEmpty()) {
+            if (!isBlank(dsl.getCaliberVariantId())) {
+                throw exception(DSL_INVALID,
+                        "指标没有口径变体，不接受 caliberVariantId: " + dsl.getCaliberVariantId());
+            }
+            return;
+        }
+        if (isBlank(dsl.getCaliberVariantId())) {
+            List<String> candidates = new ArrayList<>();
+            for (SemanticManifest.CaliberVariant variant : variants) {
+                String alias = variant.getAlias() == null || variant.getAlias().isEmpty()
+                        ? "" : "（" + variant.getAlias().get(0) + "）";
+                candidates.add(variant.getVariantId() + alias);
+            }
+            throw exception(CALIBER_AMBIGUOUS, metric.getId() + " 候选: " + String.join(" / ", candidates));
+        }
+        SemanticManifest.CaliberVariant matched = variants.stream()
+                .filter(candidate -> dsl.getCaliberVariantId().equals(candidate.getVariantId()))
+                .findFirst()
+                .orElseThrow(() -> exception(DSL_INVALID,
+                        "caliberVariantId 不属于该指标: " + dsl.getCaliberVariantId()));
+        SemanticManifest.VariantCondition condition = matched.getCondition();
+        if (condition == null || isBlank(condition.getFieldId())) {
+            throw exception(DSL_INVALID, "变体缺少 condition.fieldId: " + matched.getVariantId());
+        }
+        // 与分组/过滤/时间同一条授权口径：变体条件字段也必须在指标允许维度内
+        requireAllowedDimension(metric, condition.getFieldId());
+        semantic.requireDimension(condition.getFieldId());
+    }
+
     /** 指标级维度授权：分组、过滤、时间窗三条引用路径共用（ADR-0003 判据 6）。 */
     private static void requireAllowedDimension(SemanticManifest.Metric metric, String dimensionId) {
         if (!metric.getAllowedDimensions().contains(dimensionId)) {
@@ -383,6 +426,9 @@ public class DslValidator {
         if (dsl.getAnalysisParams() != null
                 || (dsl.getSubIntents() != null && !dsl.getSubIntents().isEmpty())) {
             throw exception(DSL_INVALID, "lookup 不接受 analysisParams / subIntents");
+        }
+        if (!isBlank(dsl.getCaliberVariantId())) {
+            throw exception(DSL_INVALID, "lookup 不接受 caliberVariantId（口径变体只作用于指标）");
         }
         if (dsl.getTimeRange() != null || dsl.getExplicitRange() != null
                 || !isBlank(dsl.getTimeExpressionRaw())) {
@@ -715,8 +761,9 @@ public class DslValidator {
         if (!isBlank(dsl.getEntityId()) || dsl.getIdentity() != null
                 || (dsl.getIdentities() != null && !dsl.getIdentities().isEmpty())
                 || (dsl.getAttributes() != null && !dsl.getAttributes().isEmpty())
-                || !isBlank(dsl.getIdentityPropertyId()) || !isBlank(dsl.getBooleanMetricId())) {
-            throw exception(DSL_INVALID, "复合意图不接受 lookup 字段");
+                || !isBlank(dsl.getIdentityPropertyId()) || !isBlank(dsl.getBooleanMetricId())
+                || !isBlank(dsl.getCaliberVariantId())) {
+            throw exception(DSL_INVALID, "复合意图不接受 lookup 字段或口径变体（请下放到子意图）");
         }
         validateSubIntents(dsl, manifest.getSemantic());
     }

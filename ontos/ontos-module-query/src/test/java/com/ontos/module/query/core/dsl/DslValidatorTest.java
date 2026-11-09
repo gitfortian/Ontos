@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.module.ontology.core.PublishedManifest;
+import com.ontos.module.ontology.core.SemanticManifest;
 import com.ontos.module.query.core.QueryProperties;
 import com.ontos.module.query.core.TestFixtures;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.DIMENSION_NOT_ALLOWED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ABSOLUTE_DATE_REJECTED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.CALIBER_AMBIGUOUS;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
 import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_EVENT_NOT_FOUND;
@@ -366,6 +368,59 @@ class DslValidatorTest {
         dsl.setAnalysisParams(params);
         ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
         assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
+    // ---------- M3/W2：口径变体 ----------
+
+    private SemanticManifest.CaliberVariant caliberVariant(String id) {
+        SemanticManifest.VariantCondition condition = new SemanticManifest.VariantCondition();
+        condition.setFieldId(TestFixtures.DIMENSION_ID);
+        condition.setOperator("EQ");
+        condition.setValues(List.of("华东"));
+        SemanticManifest.CaliberVariant variant = new SemanticManifest.CaliberVariant();
+        variant.setVariantId(id);
+        variant.setAlias(List.of("华东口径"));
+        variant.setCondition(condition);
+        variant.setVersion("1.0.0");
+        return variant;
+    }
+
+    @Test
+    void shouldRequireExplicitVariantWhenMetricHasCalibers() {
+        manifest.getSemantic().getMetrics().get(0)
+                .setCaliberVariants(List.of(caliberVariant("gmv.online"), caliberVariant("gmv.offline")));
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> validator.validate(TestFixtures.query(), manifest));
+        assertEquals(CALIBER_AMBIGUOUS.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("gmv.online"), "错误信息必须带候选变体: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("gmv.offline"));
+    }
+
+    @Test
+    void shouldRejectVariantNotBelongingToMetric() {
+        manifest.getSemantic().getMetrics().get(0).setCaliberVariants(List.of(caliberVariant("gmv.online")));
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setCaliberVariantId("metric.other.v1");
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("不属于该指标"));
+    }
+
+    @Test
+    void shouldAcceptExplicitCaliberVariant() {
+        manifest.getSemantic().getMetrics().get(0).setCaliberVariants(List.of(caliberVariant("gmv.online")));
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setCaliberVariantId("gmv.online");
+        assertDoesNotThrow(() -> validator.validate(dsl, manifest));
+    }
+
+    @Test
+    void shouldRejectVariantOnMetricWithoutVariants() {
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setCaliberVariantId("metric.gmv.online");
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("没有口径变体"));
     }
 
     // ---------- M2 收口后深度审核回归（D49–D59）----------

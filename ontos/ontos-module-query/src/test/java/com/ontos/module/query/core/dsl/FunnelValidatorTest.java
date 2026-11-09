@@ -96,6 +96,14 @@ class FunnelValidatorTest {
     }
 
     @Test
+    void shouldRejectCaliberVariantOnFunnel() {
+        QueryDsl dsl = TestFixtures.funnelDsl();
+        dsl.setCaliberVariantId("metric.paid_gmv.online");
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
     void shouldRejectFiltersInsteadOfSilentlyIgnoringThem() {
         // 深度审核 D58：步进 CTE 没有接 filters 的位置，静默忽略会让「华东漏斗」返回全国数字
         QueryDsl dsl = TestFixtures.funnelDsl();

@@ -101,6 +101,14 @@ class DslCodecTest {
     }
 
     @Test
+    void shouldDecodeCaliberVariantId() {
+        QueryDsl dsl = codec.decode(json(
+                "{\"manifestId\":\"m\",\"metricId\":\"gmv\",\"mode\":\"QUERY\","
+                        + "\"caliberVariantId\":\"metric.gmv.online\"}"));
+        assertEquals("metric.gmv.online", dsl.getCaliberVariantId());
+    }
+
+    @Test
     void shouldConvertJacksonTypeErrorsToBusinessRejection() {
         // JsonUtils.parseObject 把 JacksonException 包成 IllegalArgumentException；
         // 不转换会冒到 Spring 变 500，破坏「畸形 DSL 一律业务错误 fail-closed」契约。

@@ -7,6 +7,7 @@ import java.util.List;
 
 import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.module.ontology.core.PublishedManifest;
+import com.ontos.module.ontology.core.SemanticManifest;
 import com.ontos.module.query.core.TestFixtures;
 import com.ontos.module.query.core.dsl.QueryDsl;
 import org.junit.jupiter.api.Test;
@@ -146,6 +147,30 @@ class SqlCompilerTest {
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> compiler.compile(dsl, TestFixtures.manifest()));
         assertEquals(DSL_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldAppendCaliberVariantCondition() {
+        // M3/W2：变体的声明式条件必须与 filters 同等地位进入 WHERE
+        PublishedManifest manifest = TestFixtures.manifest();
+        SemanticManifest.VariantCondition condition = new SemanticManifest.VariantCondition();
+        condition.setFieldId(TestFixtures.DIMENSION_ID);
+        condition.setOperator("EQ");
+        condition.setValues(List.of("华东"));
+        SemanticManifest.CaliberVariant variant = new SemanticManifest.CaliberVariant();
+        variant.setVariantId("gmv.online");
+        variant.setAlias(List.of("华东口径"));
+        variant.setCondition(condition);
+        variant.setVersion("1.0.0");
+        manifest.getSemantic().getMetrics().get(0).setCaliberVariants(List.of(variant));
+
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setCaliberVariantId("gmv.online");
+        CompiledQuery compiled = compiler.compile(dsl, manifest);
+
+        assertTrue(compiled.getSql().contains("region"), "变体条件必须进入 SQL: " + compiled.getSql());
+        assertTrue(compiled.getBindValues().contains("华东"),
+                "变体条件值必须是绑定值: " + compiled.getBindValues());
     }
 
     @Test

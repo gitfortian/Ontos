@@ -25,7 +25,7 @@ const argOf = (name, fallback) => {
 
 const repo = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const BASE = argOf("--base-url", "http://127.0.0.1:8080");
-const MANIFEST_ID = argOf("--manifest-id", "2026.11.08-seventh");
+let MANIFEST_ID = argOf("--manifest-id", null);
 const CORPUS = resolve(repo, "docs/06-verification/evaluation/复合意图题集-v2.json");
 const EVIDENCE = resolve(repo, "docs/06-verification/evaluation/复合意图题集-v2-M2回填.json");
 
@@ -36,6 +36,22 @@ const HEADERS = {
   "X-Ontos-Session": "poc8",
   "X-Ontos-Turn": "1",
 };
+
+// 请求在 M1 口径下被钉在「当前生效清单」上：未显式指定时默认取 active，
+// 否则清单一升级，脚本里写死的 manifestId 会让整批请求被 1001000001 拦住。
+if (!MANIFEST_ID) {
+  MANIFEST_ID = await fetch(BASE + "/api/v1/ontology/manifests/current", {
+    headers: { "Content-Type": "application/json", "X-Ontos-Tenant": "demo",
+      "X-Ontos-User": "verify-runner", "X-Ontos-Session": "verify", "X-Ontos-Turn": "1" },
+  })
+    .then((response) => response.json())
+    .then((body) => body?.data?.manifestId);
+  if (!MANIFEST_ID) {
+    console.error("无法取得当前生效清单，请用 --manifest-id 显式指定");
+    process.exit(1);
+  }
+  console.log(`使用当前生效清单: ${MANIFEST_ID}`);
+}
 
 /** 子意图里没有时间表达：M2 不做推断，统一不带时间窗（案例也没给）。 */
 function toSubIntent(sub, index) {

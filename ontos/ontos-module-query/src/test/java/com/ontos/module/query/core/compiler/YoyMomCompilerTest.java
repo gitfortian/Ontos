@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.util.List;
 
 import com.ontos.framework.common.exception.ServiceException;
+import com.ontos.module.ontology.core.PublishedManifest;
+import com.ontos.module.ontology.core.SemanticManifest;
 import com.ontos.module.query.core.TestFixtures;
 import com.ontos.module.query.core.dsl.QueryDsl;
 import org.junit.jupiter.api.Test;
@@ -110,6 +112,29 @@ class YoyMomCompilerTest {
         long filterBinds = compiled.getBindValues().stream()
                 .filter("华东"::equals).count();
         assertEquals(2, filterBinds, "过滤条件必须同时进入 agg 与 dims: " + compiled.getBindValues());
+    }
+
+    @Test
+    void shouldApplyCaliberVariantToBothCtes() {
+        // M3/W2：YOY 的变体条件必须同时进入聚合与维度枚举（与 filters 同一批）
+        PublishedManifest manifest = TestFixtures.manifest();
+        SemanticManifest.VariantCondition condition = new SemanticManifest.VariantCondition();
+        condition.setFieldId(TestFixtures.DIMENSION_ID);
+        condition.setOperator("EQ");
+        condition.setValues(List.of("华东"));
+        SemanticManifest.CaliberVariant variant = new SemanticManifest.CaliberVariant();
+        variant.setVariantId("gmv.online");
+        variant.setAlias(List.of("华东口径"));
+        variant.setCondition(condition);
+        variant.setVersion("1.0.0");
+        manifest.getSemantic().getMetrics().get(0).setCaliberVariants(List.of(variant));
+
+        QueryDsl dsl = yoyMom("MONTH", List.of(TestFixtures.DIMENSION_ID));
+        dsl.setCaliberVariantId("gmv.online");
+        CompiledQuery compiled = compiler.compile(dsl, manifest);
+
+        long binds = compiled.getBindValues().stream().filter("华东"::equals).count();
+        assertEquals(2, binds, "变体条件必须同时进入 agg 与 dims: " + compiled.getBindValues());
     }
 
     @Test

@@ -57,6 +57,11 @@ public class QueryDsl {
      */
     private Integer limit;
     private String variantHint;
+    /**
+     * 口径变体（M3/W2，v1.4 §5.4）：多口径指标必须显式选择，缺失转 CALIBER_AMBIGUOUS，
+     * 禁止 LLM 二选一；编译期把变体的声明式条件追加到 WHERE。
+     */
+    private String caliberVariantId;
 
     @Data
     public static class Filter {
