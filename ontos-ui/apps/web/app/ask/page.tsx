@@ -1,6 +1,7 @@
 import { PageHeader } from "@ontos/ui";
 
 import { AguiPanel } from "./agui-panel";
+import { ChatPanel } from "./chat-panel";
 import { DslPanel } from "./dsl-panel";
 import { SkillPanel } from "./skill-panel";
 
@@ -9,10 +10,11 @@ export function AskPage() {
     <div className="px-6 py-5 max-md:px-4">
       <PageHeader
         title="智能问数"
-        description="自然语言经 AG-UI 事件流进入 Agent；确定性链路只接受类型化 DSL"
+        description="自然语言经编排链路返回结构化终态；确定性链路只接受类型化 DSL"
       />
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
         <div className="space-y-4">
+          <ChatPanel />
           <AguiPanel />
           <SkillPanel />
         </div>

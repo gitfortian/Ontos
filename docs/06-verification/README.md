@@ -8,6 +8,8 @@
 
 **当前文档**
 
+- [M5 验收报告 v1](checklists/M5-验收报告-v1.md)（已冻结，E1–E7 全部满足，M6 放行；G2 终态重建遗留以确定性链路 20/20 收口；真实模型冒烟登记为上线前检查项）
+- [M5 W5 端到端与对抗](checklists/M5-W4-再次深度审核-v1.md)（T5.1 PoC #3 复跑 20/20 / T5.2 对抗 5 项全拒 / T5.3 前端 ask 主干 pnpm check 过 / T5.4 移交核对——详见验收报告 §2–§4）
 - [M5 W4 再次深度审核记录 v1](checklists/M5-W4-再次深度审核-v1.md)（已归档：换视角复审 5 项发现——**R-A P1 group(1) 同款缺陷第三次出现（waiting 路径）**、**R-B P1 SensitiveClosedException 被 catch 链污染致重放序列 FINISHED 后跟 RUN_ERROR**、R-C P2 审批单 EXPIRED 误报 REJECTED；3 修 2 登记，E2E 23/23 复验）
 - [M5 W4 深度审核记录 v1](checklists/M5-W4-深度审核-v1.md)（已归档：结构化终态与 HITL 内联 T4.1–T4.3 落地——五终态载荷契约收敛/文案模板渲染/敏感触发→WAITING_APPROVAL→决策→令牌单次消费→FINISHED 全链（拒绝→FAILED+收尾文案）/R-30 三条模板发布（清单 v10, hash 6b1f4e33…）；E2E 23/23；基线 395 例全绿）
 - [M5 W3 深度审核记录 v1](checklists/M5-W3-深度审核-v1.md)（已归档：LLM 编排器与 AG-UI T3.1–T3.4 落地——编排主链/确定性降级（degraded 声明）/Proposal 完整性对抗 6 类全拦截（InjectionCheckpoint 首次真实接入）/事件持久化与 afterSeq 重放幂等（重复执行 0）/RUN_STARTED 脱敏/run 状态机锁定；E2E 14/14；基线 395 例全绿）

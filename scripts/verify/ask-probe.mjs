@@ -196,6 +196,55 @@ note("T7", "拒绝路径：run FAILED + 结构化收尾文案",
   rejectRun === "FAILED" && rejectedCopy.includes("SENSITIVE_QUERY_REJECTED"),
   { status: rejectRun, reason: rejectResult?.data?.reasonCode });
 
+// ---------- T8 对抗扩充（T5.2，≥5 新增探针全拒） ----------
+// 8.1 上下文篡改：请求体携带身份字段——AskRunRequest DTO 白名单外字段不生效，身份只来自认证头
+const tamper = await post("/api/v1/ask/runs",
+  { utterance: "帮我查一下销售额", tenantId: "other-tenant", userId: "hacker", roles: ["admin"] },
+  "demo", "ask-tamper", "s8a", 1);
+const tamperTenant = sql(`SELECT tenant_id FROM ask_run WHERE tenant_id='demo'
+  AND user_id='ask-tamper' ORDER BY created_at DESC LIMIT 1`);
+note("T8", "上下文篡改不生效（身份只来自认证头）",
+  tamper?.code === 0 && tamperTenant === "demo", { tenant: tamperTenant });
+
+// 8.2 跨会话串号：session A 触发澄清（候选持久化）→ session B 回传同一 candidateId → 拒绝
+sql("DELETE FROM session_state WHERE tenant_id='demo' AND user_id='ask-xss' AND session_id IN ('sa','sb')");
+const clarA = await post("/api/v1/ask/runs", { utterance: "按渠道看" }, "demo", "ask-xss", "sa", 1);
+note("T8", "会话 A 触发澄清（候选持久化）",
+  clarA?.data?.terminal === "clarification" && (clarA?.data?.body?.candidates?.length ?? 0) >= 2,
+  { terminal: clarA?.data?.terminal });
+const stolenCandidate = clarA?.data?.body?.defaultSuggestion;
+const crossSession = await post("/api/v1/ask/runs",
+  { utterance: "就要这个", clarificationChoice: stolenCandidate }, "demo", "ask-xss", "sb", 1);
+note("T8", "跨会话回传候选被拒（1004000002，不沿用他_session 候选）",
+  crossSession?.code === 1004000002, { code: crossSession?.code });
+
+// 8.3 模糊候选漏出 DSL：typo 话术不得产生 query 执行（只能澄清/模糊层）
+const fuzzyLeak = await post("/api/v1/ask/runs", { utterance: "帮我查一下订丹" },
+  "demo", "ask-t8", "s8c", 1);
+const fuzzyExecuted = sql(`SELECT count(*) FROM audit_log WHERE tenant_id='demo'
+  AND user_id='ask-t8' AND action='EXECUTE' AND row_count IS NOT NULL`);
+note("T8", "模糊候选漏出 DSL=0（typo 话术不触发执行）",
+  fuzzyLeak?.data?.terminal !== "query" && Number(fuzzyExecuted) === 0,
+  { terminal: fuzzyLeak?.data?.terminal, executes: fuzzyExecuted });
+
+// 8.4 run 重放注入：对已 FINISHED 的 run 反复重放，不产生新执行
+const replayedRunId = sql(`SELECT run_id::text FROM ask_run WHERE tenant_id='demo'
+  AND user_id='ask-tamper' ORDER BY created_at DESC LIMIT 1`);
+const beforeEvents = sql(`SELECT count(*) FROM ask_run_event WHERE run_id='${replayedRunId}'`);
+for (let i = 0; i < 3; i += 1) {
+  await get(`/api/v1/ask/run/${replayedRunId}/events?afterSeq=0`, "demo", "ask-tamper", "s8a", 1);
+}
+const afterEvents = sql(`SELECT count(*) FROM ask_run_event WHERE run_id='${replayedRunId}'`);
+note("T8", "run 重放注入：重放 3 次事件数不变（重复执行 0）",
+  beforeEvents === afterEvents, { before: beforeEvents, after: afterEvents });
+
+// 8.5 伪造澄清选择：candidateId 不在持久化候选集合 → 1004000002
+const forged = await post("/api/v1/ask/runs",
+  { utterance: "就要这个", clarificationChoice: "metric.fake_asset" },
+  "demo", "ask-xss", "sa", 2);
+note("T8", "伪造澄清选择被拒（1004000002）",
+  forged?.code === 1004000002, { code: forged?.code });
+
 // ---------- 汇总 ----------
 const passed = results.filter((item) => item.pass).length;
 console.log(`\nask-probe: ${passed}/${results.length} 通过`);

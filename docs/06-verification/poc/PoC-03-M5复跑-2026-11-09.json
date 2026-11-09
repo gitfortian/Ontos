@@ -1,0 +1,140 @@
+{
+  "setId": "PoC-03-M5复跑",
+  "ranAt": "2026-11-09T11:03:38.152Z",
+  "baseUrl": "http://127.0.0.1:8081",
+  "agentMode": "deterministic-only (ontos.agent.enabled=false，T3.1 降级口径)",
+  "total": 20,
+  "rebuilt": 20,
+  "rebuildRate": 1,
+  "criteria": "5 类结构化终态在 20 次会话中重建成功率 100%（技术选型 §7 #3 / M5 规格 E1）",
+  "terminals": {
+    "query": 5,
+    "clarification": 4,
+    "discovery": 6,
+    "out_of_capability": 4,
+    "composite": 1
+  },
+  "cases": [
+    {
+      "session": "q1",
+      "expect": "query",
+      "actual": "query",
+      "rebuilt": true
+    },
+    {
+      "session": "q2",
+      "expect": "query",
+      "actual": "query",
+      "rebuilt": true
+    },
+    {
+      "session": "q3",
+      "expect": "query",
+      "actual": "query",
+      "rebuilt": true
+    },
+    {
+      "session": "q4",
+      "expect": "query",
+      "actual": "query",
+      "rebuilt": true
+    },
+    {
+      "session": "q5",
+      "expect": "query",
+      "actual": "query",
+      "rebuilt": true
+    },
+    {
+      "session": "c1",
+      "expect": "clarification",
+      "actual": "clarification",
+      "rebuilt": true
+    },
+    {
+      "session": "c2",
+      "expect": "clarification",
+      "actual": "clarification",
+      "rebuilt": true
+    },
+    {
+      "session": "c3",
+      "expect": "clarification",
+      "actual": "clarification",
+      "rebuilt": true
+    },
+    {
+      "session": "c4",
+      "expect": "clarification",
+      "actual": "clarification",
+      "rebuilt": true
+    },
+    {
+      "session": "d1",
+      "expect": "discovery",
+      "actual": "discovery",
+      "rebuilt": true
+    },
+    {
+      "session": "d2",
+      "expect": "discovery",
+      "actual": "discovery",
+      "rebuilt": true
+    },
+    {
+      "session": "d3",
+      "expect": "discovery",
+      "actual": "discovery",
+      "rebuilt": true
+    },
+    {
+      "session": "d4",
+      "expect": "discovery",
+      "actual": "discovery",
+      "rebuilt": true
+    },
+    {
+      "session": "r1",
+      "expect": "out_of_capability",
+      "actual": "out_of_capability",
+      "rebuilt": true
+    },
+    {
+      "session": "r2",
+      "expect": "out_of_capability",
+      "actual": "out_of_capability",
+      "rebuilt": true
+    },
+    {
+      "session": "r3",
+      "expect": "out_of_capability",
+      "actual": "out_of_capability",
+      "rebuilt": true
+    },
+    {
+      "session": "r4",
+      "expect": "out_of_capability",
+      "actual": "out_of_capability",
+      "rebuilt": true
+    },
+    {
+      "session": "g1",
+      "expect": "discovery",
+      "actual": "discovery",
+      "rebuilt": true
+    },
+    {
+      "session": "g2",
+      "expect": "discovery",
+      "actual": "discovery",
+      "rebuilt": true
+    },
+    {
+      "session": "m1",
+      "expect": "composite",
+      "actual": "composite",
+      "rebuilt": true
+    }
+  ],
+  "note": "M5 复跑经 ask 编排链路（run 聚合 + 检索瀑布 + 确定性提案 + 合同 + 完整性 + 终态装配）；LLM 路径与确定性路径共用同一 TerminalAssembler 与输出合同，终态重建口径一致；引导终态在确定性链路表现为模糊近似澄清（clarification with candidates）。"
+}
