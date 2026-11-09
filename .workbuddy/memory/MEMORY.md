@@ -58,4 +58,5 @@
 - 当前生效清单 `2026.11.08-seventh`（hash 471cc654）；Golden 30 条中 27 可构造逐字一致 0 失败；复合可表达子集 14/14；RLS 100 轮 0 越权。
 - **后续改动不得破坏的口径**：YOY_MOM 的 Join 与 filters 必须同时进入「聚合」与「维度枚举」两个 CTE；FUNNEL 在 M2 不接受 filters（拒绝而非忽略）；时间窗绑定统一按上海墙钟（会话时区固定 Asia/Shanghai）；模式授权 `validateMode` 必须先于路径规划；聚合模式拒绝 lookup 字段；YOY_MOM 不允许时间维度自身作分组维度。
 - 基线：`mvn test` **269 例**（30 类）；`pnpm check` exit 0；`check-docs.mjs` 60 文档 / 467 链接。
-- 下一步 M3（简单问法最小闭环）：lookup 产品化、口径变体、文案模板、`__identity` 收口；并行偿还 R-20/R-23/R-25。
+- **M3 规格已冻结（v1.0）**：能力注册落 query `core/skill`（不新建 agent 模块）；口径变体由新增 `metric.paid_gmv` 承载（不改 gmv）；文案模板走独立端点。W1 待启动（负责人要求先冻结）。
+- M3 范围：lookup 产品化、布尔判定闭环、口径变体、上季度时间模式、文案模板、`__identity` 收口；并行偿还 R-20/R-23/R-25。
