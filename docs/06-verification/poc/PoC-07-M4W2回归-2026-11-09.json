@@ -1,0 +1,182 @@
+{
+  "generatedAt": "2026-11-09T05:21:10.387Z",
+  "manifestId": "2026.11.08-eighth",
+  "devAllowAll": false,
+  "total": 21,
+  "failures": 0,
+  "results": [
+    {
+      "phase": "T1",
+      "name": "个体探针：单行 pii lookup 即时转审批",
+      "pass": true,
+      "detail": {
+        "code": 1003000008
+      }
+    },
+    {
+      "phase": "T1",
+      "name": "个体探针审批单已建",
+      "pass": true,
+      "detail": {
+        "approvals": 1
+      }
+    },
+    {
+      "phase": "T1",
+      "name": "记账 pattern_tag=individual_probe（pii 行）",
+      "pass": true,
+      "detail": {
+        "tag": "individual_probe"
+      }
+    },
+    {
+      "phase": "T1",
+      "name": "双源叠加：同时记 existence 行（plain）",
+      "pass": true,
+      "detail": {
+        "events": 2
+      }
+    },
+    {
+      "phase": "T3",
+      "name": "差分前件正常返回（rowCount=3 > 1）",
+      "pass": true,
+      "detail": {
+        "code": 0
+      }
+    },
+    {
+      "phase": "T3",
+      "name": "差分后件即时转审批（集合差1+基数差1+均>1）",
+      "pass": true,
+      "detail": {
+        "code": 1003000008
+      }
+    },
+    {
+      "phase": "T3",
+      "name": "差分记账 pattern_tag=differential_instant",
+      "pass": true,
+      "detail": {
+        "tag": "differential_instant"
+      }
+    },
+    {
+      "phase": "T2",
+      "name": "每请求按适用层各记一行（个体2+差分4+批量4 = 10 行）",
+      "pass": true,
+      "detail": {
+        "events": 10
+      }
+    },
+    {
+      "phase": "T2",
+      "name": "批量段独立 user 未触发（existence 计数 2 < T4）",
+      "pass": true,
+      "detail": {
+        "a": 0,
+        "b": 0
+      }
+    },
+    {
+      "phase": "T4",
+      "name": "阈值前正常放行（existence 计数 3 < 4）",
+      "pass": true,
+      "detail": {
+        "a": 0,
+        "b": 0,
+        "c": 0
+      }
+    },
+    {
+      "phase": "T4",
+      "name": "session 级计数达 T(4) 触发拒答（existence 层 T=4 拒答档）",
+      "pass": true,
+      "detail": {
+        "code": 1003000008,
+        "events": 18
+      }
+    },
+    {
+      "phase": "T4",
+      "name": "触发后窗口持续拒答——含缓存命中路径（临时冻结语义）",
+      "pass": true,
+      "detail": {
+        "code": 1003000008
+      }
+    },
+    {
+      "phase": "T4",
+      "name": "审批单累计 ≥ 3（个体 + 差分 + 窗口）",
+      "pass": true,
+      "detail": {
+        "approvals": 5
+      }
+    },
+    {
+      "phase": "T4",
+      "name": "窗口拒答档审批单 reason=SENSITIVE_SEQUENCE_BLOCKED",
+      "pass": true,
+      "detail": {
+        "blocked": 1
+      }
+    },
+    {
+      "phase": "T5",
+      "name": "触发返回审批单 ID",
+      "pass": true,
+      "detail": {
+        "code": 1003000008,
+        "approvalId": "7762f054-7cad-4d13-8d13-e965b39bc6db"
+      }
+    },
+    {
+      "phase": "T5",
+      "name": "自审批禁止（决策人 ≠ 申请人）",
+      "pass": true,
+      "detail": {
+        "code": 1003000010
+      }
+    },
+    {
+      "phase": "T5",
+      "name": "审批人批准通过",
+      "pass": true,
+      "detail": {
+        "code": 0
+      }
+    },
+    {
+      "phase": "T5",
+      "name": "APPROVED 单已生成放行指纹（未消费）",
+      "pass": true,
+      "detail": {
+        "row": "APPROVED|t|t"
+      }
+    },
+    {
+      "phase": "T5",
+      "name": "令牌放行：同指纹单次执行成功",
+      "pass": true,
+      "detail": {
+        "code": 0
+      }
+    },
+    {
+      "phase": "T5",
+      "name": "令牌单次有效：复用被拒",
+      "pass": true,
+      "detail": {
+        "code": 1003000008
+      }
+    },
+    {
+      "phase": "T5",
+      "name": "换查询（不同 filters）重新触发审批",
+      "pass": true,
+      "detail": {
+        "code": 1003000008
+      }
+    }
+  ]
+}

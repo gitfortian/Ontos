@@ -13,6 +13,8 @@ public final class OntosHeaders {
     public static final String MANIFEST = "X-Ontos-Manifest";
     public static final String ROLES = "X-Ontos-Roles";
     public static final String REQUEST_ID = "X-Request-Id";
+    /** 审批放行令牌 ID（M4/W2 T2.3）：敏感累计触发后携审批单放行的单次凭证。 */
+    public static final String APPROVAL = "X-Ontos-Approval";
 
     private OntosHeaders() {
     }

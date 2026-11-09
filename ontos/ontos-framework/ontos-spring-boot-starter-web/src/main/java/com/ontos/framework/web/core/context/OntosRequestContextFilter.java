@@ -58,8 +58,10 @@ public class OntosRequestContextFilter extends OncePerRequestFilter {
                 int turnIndex = parseTurn(header(request, OntosHeaders.TURN, "0"));
                 String manifestId = header(request, OntosHeaders.MANIFEST, null);
                 Set<String> roles = parseRoles(header(request, OntosHeaders.ROLES, ""));
+                String approvalId = header(request, OntosHeaders.APPROVAL, null);
                 RequestContextHolder.set(new RequestContext(
-                        tenantId, userId, sessionId, turnIndex, manifestId, traceId, roles, devMode));
+                        tenantId, userId, sessionId, turnIndex, manifestId, traceId, roles, devMode,
+                        approvalId));
             }
 
             response.setHeader("X-Request-Id", traceId);

@@ -37,7 +37,9 @@ import com.ontos.module.query.service.cache.QueryCacheService;
 import com.ontos.module.system.service.audit.AuditLogCreateReqDTO;
 import com.ontos.module.system.service.audit.AuditService;
 import com.ontos.module.system.service.policy.PolicyService;
+import com.ontos.module.system.service.policy.PolicySnapshotService;
 import com.ontos.module.system.service.request.RequestStateService;
+import com.ontos.module.system.service.sensitive.SensitiveEventService;
 import com.ontos.module.system.service.request.RequestStatus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,6 +59,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -78,11 +81,22 @@ class QueryServiceImplTest {
     private final RequestStateService requestStateService = mock(RequestStateService.class);
     private final QueryArtifactRepository queryArtifactRepository = mock(QueryArtifactRepository.class);
     private final QueryCacheService queryCacheService = mock(QueryCacheService.class);
+    private final SensitiveEventService sensitiveEventService = mock(SensitiveEventService.class);
+    private final com.ontos.module.system.service.approval.ApprovalService approvalService =
+            mock(com.ontos.module.system.service.approval.ApprovalService.class);
 
     @BeforeEach
     void setUp() {
         RequestContextHolder.set(new RequestContext(
                 "tenant-1", "user-1", "session-1", 1, null, "trace-1", Set.of(), true));
+        // M4/W1/W2：策略放行统一返回 internal（L0，不记账）；敏感记账用例在 SensitiveEventServiceTest
+        when(policyService.check(any(), any(), any()))
+                .thenReturn(PolicySnapshotService.SensitivityClass.INTERNAL);
+        when(policyService.checkIndividual(any(), any(), any()))
+                .thenReturn(PolicySnapshotService.SensitivityClass.INTERNAL);
+        // 敏感记账默认不触发
+        when(sensitiveEventService.recordAndEvaluate(any(), anyString(), any()))
+                .thenReturn(SensitiveEventService.SensitiveDecision.notTriggered());
     }
 
     @AfterEach
@@ -94,7 +108,8 @@ class QueryServiceImplTest {
         return new QueryServiceImpl(manifestService, new DslValidator(TestFixtures.queryProperties()),
                 policyService, sqlCompiler, queryExecutor, auditService, requestStateService, resolver,
                 new JoinPathResolver(() -> Set.of()), queryArtifactRepository, queryCacheService,
-                new SkillRegistry(List.of(new EntityLookupSkill())));
+                new SkillRegistry(List.of(new EntityLookupSkill())), sensitiveEventService,
+                approvalService);
     }
 
     private static PublishedManifest manifestWithPatterns() {

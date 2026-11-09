@@ -99,7 +99,7 @@ for (let round = 1; round <= ROUNDS; round += 1) {
   }
   // M4/W1：跨租户请求会被策略快照边界先拒（foreign 租户无快照 → 1003000003）。
   // 策略拒绝 = 边界前移，数据同样零返回，与「RLS 过滤 0 行」同为未泄露形态。
-  const POLICY_CODES = [1003000003, 1003000004, 1003000005];
+  const POLICY_CODES = [1003000003, 1003000004, 1003000005, 1003000008];
   if (foreign.code !== 0 && !POLICY_CODES.includes(foreign.code)) {
     violations.push({ round, kind: "foreign_failed", code: foreign.code, msg: foreign.msg });
   } else if (foreign.code === 0 && foreign.data.rowCount !== 0) {
@@ -113,11 +113,15 @@ for (let round = 1; round <= ROUNDS; round += 1) {
 const ownerLookup = await post("/api/v1/query/execute", LOOKUP_DSL, OWNER_TENANT, `rls-${runId}-lookup-owner`);
 const foreignLookup = await post("/api/v1/query/execute", LOOKUP_DSL, FOREIGN_TENANT, `rls-${runId}-lookup-foreign`);
 
-if (ownerLookup.code !== 0 || !ownerLookup.data?.lookupRows?.[0]?.available) {
-  violations.push({ kind: "owner_lookup_unavailable", code: ownerLookup.code });
-}
+// M4/W2：owner 侧单行 pii lookup 在强制快照模式下会触发个体探针转审批（1003000008）——
+  // 数据同样未返回，与正常返回（dev 模式）同为安全形态；available 断言仅在 code=0 时适用
+  if (ownerLookup.code !== 0 && ownerLookup.code !== 1003000008) {
+    violations.push({ kind: "owner_lookup_unavailable", code: ownerLookup.code });
+  } else if (ownerLookup.code === 0 && !ownerLookup.data?.lookupRows?.[0]?.available) {
+    violations.push({ kind: "owner_lookup_unavailable", code: ownerLookup.code });
+  }
 const foreignRow = foreignLookup.data?.lookupRows?.[0];
-if (foreignLookup.code !== 0 && ![1003000003, 1003000004, 1003000005].includes(foreignLookup.code)) {
+if (foreignLookup.code !== 0 && ![1003000003, 1003000004, 1003000005, 1003000008].includes(foreignLookup.code)) {
   violations.push({ kind: "foreign_lookup_failed", code: foreignLookup.code, msg: foreignLookup.msg });
 } else if (foreignLookup.code === 0 && (foreignRow?.available || Object.keys(foreignRow?.values ?? {}).length > 0)) {
   violations.push({ kind: "existence_leak", foreignRow });

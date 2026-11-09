@@ -14,10 +14,17 @@ public record RequestContext(
         String manifestId,
         String traceId,
         Set<String> roles,
-        boolean devMode) {
+        boolean devMode,
+        String approvalId) {
 
     public RequestContext {
         roles = roles == null ? Set.of() : Set.copyOf(roles);
+    }
+
+    /** 兼容旧构造（无审批令牌）：现有调用点渐进迁移。 */
+    public RequestContext(String tenantId, String userId, String sessionId, int turnIndex,
+                          String manifestId, String traceId, Set<String> roles, boolean devMode) {
+        this(tenantId, userId, sessionId, turnIndex, manifestId, traceId, roles, devMode, null);
     }
 
     public String sessionKey() {

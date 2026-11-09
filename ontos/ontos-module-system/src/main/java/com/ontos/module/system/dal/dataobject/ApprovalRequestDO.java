@@ -20,5 +20,9 @@ public class ApprovalRequestDO {
     private String requestedAt;
     private String decidedAt;
     private String decidedBy;
+    /** 放行目标指纹（APPROVED 时生成；换 filters 不放行）。 */
+    private String grantFingerprint;
+    /** 令牌消费时间（null=未消费，单次有效）。 */
+    private String grantConsumedAt;
 
 }

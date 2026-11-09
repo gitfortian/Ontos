@@ -120,11 +120,15 @@ const CASES = [
   },
 ];
 
+// request_id 必须随运行变化：request_state 以 request_id 为幂等键（ADR-0004），
+// 固定 ID 会让同进程内第二次运行撞 REQUEST_TERMINAL(1002000032)——M3 收口后首次复跑即暴露
+const RUN = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+
 async function compileOnce(dsl, requestId) {
   const body = { ...dsl, manifestId: MANIFEST_ID };
   const response = await fetch(`${BASE}/api/v1/query/compile`, {
     method: "POST",
-    headers: { ...HEADERS, "X-Request-Id": requestId },
+    headers: { ...HEADERS, "X-Request-Id": `m3-gold-${RUN}-${requestId}` },
     body: JSON.stringify(body),
   });
   const payload = await response.json();
@@ -142,8 +146,8 @@ async function main() {
   if (MODE === "backfill") {
     const gold = { manifestId: MANIFEST_ID, generatedAt: new Date().toISOString(), cases: [] };
     for (const testCase of CASES) {
-      const first = await compileOnce(testCase.dsl, `m3-gold-${testCase.id}-a`);
-      const second = await compileOnce(testCase.dsl, `m3-gold-${testCase.id}-b`);
+      const first = await compileOnce(testCase.dsl, `${testCase.id}-a`);
+      const second = await compileOnce(testCase.dsl, `${testCase.id}-b`);
       if (first.errorCode) {
         gold.cases.push({
           id: testCase.id,
