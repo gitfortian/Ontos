@@ -330,9 +330,11 @@ public class SensitiveEventService {
             return JsonUtils.toJsonString(payload);
         } catch (RuntimeException ex) {
             // payload 序列化失败不应让记账事务回滚（审批单仍需落库），降级为最小负载
-            log.warn("[approvalPayload][序列化失败，降级最小负载: {}]", ex.toString());
+            log.warn("[approvalPayload][序列化失败，降级最小负载（关键字段手工拼接，"
+                    + "缺 filtersHash 会让审批单无法生成放行指纹）: {}]", ex.toString());
             return "{\"requestId\":\"" + requestId + "\",\"sensitiveKey\":\""
-                    + sensitiveKey(draft) + "\"}";
+                    + sensitiveKey(draft) + "\",\"filtersHash\":\"" + draft.filtersHash()
+                    + "\"}";
         }
     }
 

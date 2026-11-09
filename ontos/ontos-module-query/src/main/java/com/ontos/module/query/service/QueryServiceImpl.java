@@ -183,9 +183,9 @@ public class QueryServiceImpl implements QueryService {
             requestStateService.transition(context, requestId, RequestStatus.PROPOSED, "编译完成");
             QueryResult result = queryExecutor.execute(compiled, context);
             assembleLookupRows(queryDsl, manifest, compiled, result);
-            requestStateService.transition(context, requestId, RequestStatus.EXECUTED, "执行完成");
-            requestStateService.recordRowCount(requestId, result.getRowCount());
-            // M4/W2（规格 §3.2）：执行成功后同事务记账 + 窗口判定；触发即不放行结果、不回写缓存
+            // M4/W2（规格 §3.2）：执行成功后同事务记账 + 窗口判定；触发即不放行结果、不回写缓存。
+            // EXECUTED 是终态（M4 收口审核 G-4）：先判定后转移——触发拒绝走 PROPOSED→REJECTED
+            // 合法迁移，放行/未触发才置 EXECUTED，避免「结果未交付却停在 EXECUTED」的回放假象
             SensitiveEventService.SensitiveDecision decision = recordSensitiveEvents(
                     context, queryDsl, sensitivity, manifest, result.getRowCount());
             SensitiveEventService.SensitiveDecision sensitiveAudit = null;
@@ -200,6 +200,9 @@ public class QueryServiceImpl implements QueryService {
                 auditService.record(triggerAudit);
                 throw exception(SENSITIVE_QUERY_SEQUENCE, decision.approvalId());
             }
+            // 放行（含令牌放行）与未触发：此时才置终态 EXECUTED 并记录交付行数
+            requestStateService.transition(context, requestId, RequestStatus.EXECUTED, "执行完成");
+            requestStateService.recordRowCount(requestId, result.getRowCount());
             if (decision.triggered()) {
                 // 令牌放行（T2.3）：审计行关联审批单，回放时可追到放行依据（W3/T3.2）
                 AuditLogCreateReqDTO grantAudit = buildAudit(context, "EXECUTE", queryDsl,

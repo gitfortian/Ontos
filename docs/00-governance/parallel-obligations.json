@@ -9,13 +9,18 @@
       "stage": "M4",
       "clause": "roadmap §1 阶段总览 M4 依赖列「可与 M1–M3 并行」；§4.3「安全与评测不许后置」",
       "startStage": "M1",
-      "status": "deferred",
+      "status": "done",
       "triggerStage": "M5",
       "owner": "项目负责人",
-      "reason": "M1/M2/M3 均已通过验收而 M4 仍为待启动，属「自 M1 起并行」硬约束未同步执行。按 roadmap 依赖 M5 = M3 + M4，M4 必须在 M5 启动前完成，否则 M5 不得放行；不得把 M4 顺延成主线最后一环。",
+      "reason": "M4 已于 2026-11-09 完成并验收通过（《M4 验收报告 v1》E1–E6 全满足，无附条件项）：策略快照产品化（W1）、RLS 回归与探针入基线（T4.2）、审批/审计/脱敏链路（W2/W3）、跨轮累计防护与 PoC #7 集成复验（W2/W4，32/32）全部交付。「M5 启动前完成 M4」的触发条件已满足，OBL-M4 闭环；后续 M5 编排接入须遵守 M4 验收报告 §5 移交前置（F-5 编排缓存绑定 policy_version 等）。",
       "evidence": [
         "docs/01-decisions/ADR-0014-并行义务纪律与M7同步建设偏离.md",
-        "docs/05-progress/2026/2026-11-09.md"
+        "docs/05-progress/2026/2026-11-09.md",
+        "docs/06-verification/checklists/M4-验收报告-v1.md",
+        "docs/06-verification/checklists/M4-W1-深度审核-v1.md",
+        "docs/06-verification/checklists/M4-W2-深度审核-v1.md",
+        "docs/06-verification/checklists/M4-W3-深度审核-v1.md",
+        "docs/06-verification/checklists/M4-W4-深度审核-v1.md"
       ],
       "deliverables": [
         "策略快照产品化",
