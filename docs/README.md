@@ -205,7 +205,7 @@ node docs/00-governance/check-docs.mjs
 | M2 收口后深度审核 | 验证 | 已归档 | v1 | [`06-verification/checklists/M2-收口后深度审核-v1.md`](06-verification/checklists/M2-收口后深度审核-v1.md) |
 | M3 实施规格 | 计划 | 已冻结 | v1.0 | [`03-plans/stages/M3/M3-简单问法最小闭环-实施规格-v1.md`](03-plans/stages/M3/M3-简单问法最小闭环-实施规格-v1.md) |
 | M3 验收报告 | 验证 | 已冻结 | v1 | [`06-verification/checklists/M3-验收报告-v1.md`](06-verification/checklists/M3-验收报告-v1.md) |
-| M5 实施规格 | 计划 | **已冻结**（v1.2 三轮自审闭环，编码放行待负责人确认） | v1.2 | [`03-plans/stages/M5/M5-会话意图编排与AG-UI链路-实施规格-v1.2.md`](03-plans/stages/M5/M5-会话意图编排与AG-UI链路-实施规格-v1.2.md)（[v0.1](99-archive/plans/M5-会话意图编排与AG-UI链路-实施规格-v0.1.md) / [v0.2](99-archive/plans/M5-会话意图编排与AG-UI链路-实施规格-v0.2.md) / [v1.0](99-archive/plans/M5-会话意图编排与AG-UI链路-实施规格-v1.0.md) / [v1.1](99-archive/plans/M5-会话意图编排与AG-UI链路-实施规格-v1.1.md) 已归档） |
+| M5 实施规格 | 计划 | **已执行并验收**（v1.2 冻结后 W1–W5 全部完成，[验收报告 v1](06-verification/checklists/M5-验收报告-v1.md) E1–E7 满足） | v1.2 | [`03-plans/stages/M5/M5-会话意图编排与AG-UI链路-实施规格-v1.2.md`](03-plans/stages/M5/M5-会话意图编排与AG-UI链路-实施规格-v1.2.md)（[v0.1](99-archive/plans/M5-会话意图编排与AG-UI链路-实施规格-v0.1.md) / [v0.2](99-archive/plans/M5-会话意图编排与AG-UI链路-实施规格-v0.2.md) / [v1.0](99-archive/plans/M5-会话意图编排与AG-UI链路-实施规格-v1.0.md) / [v1.1](99-archive/plans/M5-会话意图编排与AG-UI链路-实施规格-v1.1.md) 已归档） |
 | M4 实施规格 | 计划 | 已冻结 | v1.1 | [`03-plans/stages/M4/M4-身份权限与安全治理-实施规格-v1.md`](03-plans/stages/M4/M4-身份权限与安全治理-实施规格-v1.md) |
 | M3 Golden 增量 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/M3-Golden-v1.json`](06-verification/evaluation/M3-Golden-v1.json) |
 | M2 基线自检归档输出 | 验证 | 已归档 | — | [`06-verification/checklists/M2-基线自检-2026-11-08.txt`](06-verification/checklists/M2-基线自检-2026-11-08.txt) |

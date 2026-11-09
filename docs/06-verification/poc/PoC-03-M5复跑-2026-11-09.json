@@ -1,6 +1,6 @@
 {
   "setId": "PoC-03-M5复跑",
-  "ranAt": "2026-11-09T11:03:38.152Z",
+  "ranAt": "2026-11-09T12:25:28.820Z",
   "baseUrl": "http://127.0.0.1:8081",
   "agentMode": "deterministic-only (ontos.agent.enabled=false，T3.1 降级口径)",
   "total": 20,

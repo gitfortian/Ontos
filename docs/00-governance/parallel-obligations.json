@@ -38,7 +38,7 @@
       "status": "deferred",
       "triggerStage": "M6",
       "owner": "项目负责人",
-      "reason": "ADR-0014 登记的静默未执行已由最小框架补起：三件交付物经《M7 最小框架验收记录 v1》按 M4 规格 E6 三条判据验收通过（本地 PG18 真实复跑 14 pass / 0 fail / 6 skip，哈希四方复算一致）。按 ADR-0015 决策，M4 触发点对应的最小框架目标已闭环，触发阶段重定为 M6，与 roadmap「M6 后收敛」的剩余全量交付物对齐；status 维持 deferred，test 集 0 题 / 消融 / 失败看板 / 追踪 / 压测等欠账不得视为完成。",
+      "reason": "ADR-0014 登记的静默未执行已由最小框架补起：三件交付物经《M7 最小框架验收记录 v1》按 M4 规格 E6 三条判据验收通过（本地 PG18 真实复跑 14 pass / 0 fail / 6 skip，哈希四方复算一致）。按 ADR-0015 决策，M4 触发点对应的最小框架目标已闭环，触发阶段重定为 M6，与 roadmap「M6 后收敛」的剩余全量交付物对齐；status 维持 deferred，test 集 0 题 / 消融 / 失败看板 / 追踪 / 压测等欠账不得视为完成。；M7 全量交付物中的「中文提及样本 300 条回填」已提前于 M5/W2 T2.4 落地并达标（非拼音 Top-5 召回 98.82% ≥95%、模糊候选进 DSL=0，证据见新增 evidence 条目），M6 核对时此项可直接确认。",
       "evidence": [
         "docs/01-decisions/ADR-0014-并行义务纪律与M7同步建设偏离.md",
         "docs/01-decisions/ADR-0015-M7最小框架验收与触发阶段重定.md",
@@ -46,7 +46,8 @@
         "docs/06-verification/checklists/M7-最小框架验收记录-v1.md",
         "docs/06-verification/evaluation/正式评测集-v1.md",
         "docs/06-verification/evaluation/评测统计口径-v1.md",
-        "docs/06-verification/evaluation/零号冒烟-评测证据-v1.json"
+        "docs/06-verification/evaluation/零号冒烟-评测证据-v1.json",
+        "docs/06-verification/evaluation/提及样本回填-M5W2证据-v1.json"
       ],
       "deliverables": [
         "正式评测集另立文档（收编存量题集，带版本哈希）",

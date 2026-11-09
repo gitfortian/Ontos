@@ -378,14 +378,15 @@ public class AskOrchestrationService {
 
         eventService.emit(runId, AskEventService.TOOL_CALL,
                 Map.of("toolName", "execute_query", "argsScope", "server_assembled"));
-        var result = executeWithHitl(context, runId, dsl);
+        ExecutedQuery executed = executeWithHitl(context, runId, dsl);
 
-        // 会话投影（F-1：每轮全量覆盖）
-        sessionStateService.project(context, SessionProjection.of(dsl), "query", context.traceId());
+        // 会话投影（F-1：每轮全量覆盖）；requestId 与审计行同源（HITL 放行重放是 -replay 新 ID）
+        sessionStateService.project(context, SessionProjection.of(dsl), "query",
+                executed.requestId());
 
-        Map<String, Object> terminal = terminalAssembler.query(context.traceId(),
-                result == null ? 0 : result.getRowCount(),
-                result == null ? List.of() : result.getRows(),
+        Map<String, Object> terminal = terminalAssembler.query(executed.requestId(),
+                executed.result() == null ? 0 : executed.result().getRowCount(),
+                executed.result() == null ? List.of() : executed.result().getRows(),
                 Boolean.TRUE.equals(proposal.get("degraded")));
         terminalAssembler.emitTerminal(eventService, runId, terminal);
         return terminal;
@@ -396,10 +397,14 @@ public class AskOrchestrationService {
      * WAITING_APPROVAL + INTERRUPT 事件（复用 M4 HitlNotifier）→ DB 轮询审批状态
      * （1s 间隔 / TTL 上限）→ APPROVED 携令牌重放同一查询 → 放行；REJECTED / 超时收尾。
      */
-    private com.ontos.module.query.core.executor.QueryResult executeWithHitl(
-            RequestContext context, String runId, QueryDsl dsl) {
+    /** 执行结果 + 实际生效的 request_id（HITL 放行重放是新执行，ID 与首次触发不同）。 */
+    private record ExecutedQuery(com.ontos.module.query.core.executor.QueryResult result,
+                                 String requestId) {
+    }
+
+    private ExecutedQuery executeWithHitl(RequestContext context, String runId, QueryDsl dsl) {
         try {
-            return queryService.execute(dsl);
+            return new ExecutedQuery(queryService.execute(dsl), context.traceId());
         } catch (ServiceException ex) {
             if (ex.getCode() != SENSITIVE_SEQUENCE_CODE) {
                 throw ex;
@@ -422,7 +427,7 @@ public class AskOrchestrationService {
         return matcher.find() ? matcher.group(0) : null;
     }
 
-    private com.ontos.module.query.core.executor.QueryResult awaitApprovalAndReplay(
+    private ExecutedQuery awaitApprovalAndReplay(
             RequestContext context, String runId, QueryDsl dsl, String approvalId) {
         // 敏感触发：run → WAITING_APPROVAL（先判定后转移，状态机校验迁移合法性）
         runStateService.transition(runId, AskRunDO.RUNNING, AskRunDO.WAITING_APPROVAL);
@@ -477,8 +482,9 @@ public class AskOrchestrationService {
         com.ontos.framework.web.core.context.RequestContextHolder.set(granted);
         try {
             var result = queryService.execute(dsl);
-            // 放行的审计（SENSITIVE_APPROVED_GRANT 由 QueryService 审计链路承载）
-            return result;
+            // 放行的审计（SENSITIVE_APPROVED_GRANT 由 QueryService 审计链路承载）；
+            // requestId 返回 -replay 新 ID：投影/planRef 与审计行同源（回放链路不打断）
+            return new ExecutedQuery(result, granted.traceId());
         } finally {
             com.ontos.framework.web.core.context.RequestContextHolder.clear();
         }
