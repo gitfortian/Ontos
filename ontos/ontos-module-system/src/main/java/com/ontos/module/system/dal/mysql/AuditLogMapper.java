@@ -20,6 +20,7 @@ public class AuditLogMapper {
             SELECT id, request_id, parent_request_id, sub_intent_id, tenant_id, user_id,
                    session_id, turn_index, manifest_id, action, metric_id,
                    dsl::text AS dsl, sql_text, row_count, reason_code, trace_id, policy_version,
+                   approval_id, sensitive_counters_delta,
                    created_at::text AS created_at
             FROM audit_log
             """;
@@ -42,6 +43,8 @@ public class AuditLogMapper {
         item.setRowCount((Integer) rs.getObject("row_count"));
         item.setReasonCode(rs.getString("reason_code"));
         item.setPolicyVersion(rs.getString("policy_version"));
+        item.setApprovalId(rs.getString("approval_id"));
+        item.setSensitiveCountersDelta(rs.getString("sensitive_counters_delta"));
         item.setTraceId(rs.getString("trace_id"));
         item.setCreatedAt(rs.getString("created_at"));
         return item;

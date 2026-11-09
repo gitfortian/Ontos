@@ -24,6 +24,8 @@ public class AuditLogRespVO {
     private Integer rowCount;
     private String reasonCode;
     private String policyVersion;
+    private String approvalId;
+    private String sensitiveCountersDelta;
     private String traceId;
     private String createdAt;
 

@@ -29,7 +29,8 @@ import static org.mockito.Mockito.when;
 class ApprovalServiceTest {
 
     private final ApprovalRequestMapper mapper = mock(ApprovalRequestMapper.class);
-    private final ApprovalService service = new ApprovalService(mapper);
+    private final ApprovalService service =
+            new ApprovalService(mapper, new ApprovalProperties());
 
     private static final String PAYLOAD = """
             {"requestId":"req-1","sensitiveKey":"property.customer.email#pii",
@@ -99,6 +100,20 @@ class ApprovalServiceTest {
         ServiceException ex = assertThrows(ServiceException.class, () -> service.decide(
                 "apr-1", "demo", "MAYBE", null, "approver-1"));
         assertEquals(ErrorCodeConstants.APPROVAL_DECISION_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldExpireStaleWithConfiguredTtl() {
+        // T3.1：惰性过期把配置的 TTL 透传给 mapper（默认 PT15M）
+        service.expireStale();
+        verify(mapper).expireStale(java.time.Duration.ofMinutes(15));
+    }
+
+    @Test
+    void shouldScanOnStartupWithSameTtl() {
+        // T3.1：启动扫描与惰性过期共用同一 TTL 口径
+        service.scanOnStartup();
+        verify(mapper).expireStale(java.time.Duration.ofMinutes(15));
     }
 
     @Test

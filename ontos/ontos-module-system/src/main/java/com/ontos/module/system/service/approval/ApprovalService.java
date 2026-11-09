@@ -13,6 +13,7 @@ import com.ontos.framework.common.util.json.JsonUtils;
 import com.ontos.module.system.controller.admin.approval.vo.ApprovalRespVO;
 import com.ontos.module.system.dal.dataobject.ApprovalRequestDO;
 import com.ontos.module.system.dal.mysql.ApprovalRequestMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;
@@ -28,8 +29,11 @@ import static com.ontos.module.system.enums.ErrorCodeConstants.APPROVAL_SELF_DEC
  *
  * <p>M4/W2：创建入口（{@link #create}，敏感累计触发方调用，与事件记账同事务）+
  * 放行令牌（{@link #decide} APPROVED 时生成目标指纹、{@link #consumeGrant} 单次消费）。
- * 惰性过期与启动扫描归 W3/T3.1。
+ *
+ * <p>M4/W3/T3.1 超时失效：PENDING 单超 {@code ontos.approval.ttl}（默认 PT15M）置 EXPIRED——
+ * 惰性过期（列表查询前）+ 启动扫描兜底（{@link #scanOnStartup}）；恰好等于 TTL 按已过期处理。
  */
+@Slf4j
 @Service
 public class ApprovalService {
 
@@ -39,9 +43,32 @@ public class ApprovalService {
     private static final Set<String> VALID_DECISIONS = Set.of("APPROVED", "REJECTED");
 
     private final ApprovalRequestMapper mapper;
+    private final ApprovalProperties properties;
 
-    public ApprovalService(ApprovalRequestMapper mapper) {
+    public ApprovalService(ApprovalRequestMapper mapper, ApprovalProperties properties) {
         this.mapper = mapper;
+        this.properties = properties;
+    }
+
+    /**
+     * 启动扫描兜底（T3.1）：进程启动时把遗留 PENDING 单统一过期——
+     * 惰性过期依赖访问触发，无人访问的租户遗留单据在这里收口。
+     */
+    @org.springframework.context.event.EventListener(
+            org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    public void scanOnStartup() {
+        int expired = expireStale();
+        if (expired > 0) {
+            log.info("[scanOnStartup][启动扫描过期 PENDING 审批单 {} 张]", expired);
+        }
+    }
+
+    /**
+     * 惰性过期（T3.1）：把超 TTL 的 PENDING 单置 EXPIRED。
+     * 幂等（重复执行无副作用），调用点：列表查询前 / 令牌消费前。
+     */
+    public int expireStale() {
+        return mapper.expireStale(properties.getTtl());
     }
 
     /**
@@ -128,6 +155,8 @@ public class ApprovalService {
     }
 
     public PageResult<ApprovalRespVO> page(String tenantId, String status, Integer pageNo, Integer pageSize) {
+        // 惰性过期（T3.1）：列表先收口超时 PENDING，用户看到的过期态与真实状态一致
+        expireStale();
         int size = pageSize == null ? 20 : Math.min(Math.max(pageSize, 1), 200);
         int no = pageNo == null ? 1 : Math.max(pageNo, 1);
         int offset = (no - 1) * size;

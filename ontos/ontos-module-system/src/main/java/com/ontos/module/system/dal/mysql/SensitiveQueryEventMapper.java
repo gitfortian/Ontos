@@ -68,6 +68,17 @@ public class SensitiveQueryEventMapper {
                 params, ROW_MAPPER).stream().findFirst().orElse(null);
     }
 
+    /** 计数器哈希化增量回填（W3/T3.2）：事件行与审计行同值同源（同事务内）。 */
+    public void updateContextDelta(String requestId, String countersDelta) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("requestId", requestId);
+        params.put("countersDelta", countersDelta);
+        jdbcTemplate.update(
+                "UPDATE sensitive_query_event SET context_delta = :countersDelta"
+                        + " WHERE request_id = :requestId",
+                params);
+    }
+
     /** session 级窗口计数（会话生命周期 = 只按 session_id 过滤，不加时间上界）。 */
     public int countSessionWindow(String tenantId, String userId, String sessionId,
                                   String sensitiveKey) {

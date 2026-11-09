@@ -206,6 +206,46 @@ const otherTrigger = await grantLookup2(
 note("T5", "换查询（不同 filters）重新触发审批", otherTrigger?.code === SEQ_CODE,
   { code: otherTrigger?.code });
 
+// ---------- T6 审计回放与恰好过期（W3/T3.2 + T3.1） ----------
+// 6.1 审计回放：触发请求的审计行关联审批单 + 计数器哈希增量，与事件行同值同源
+const triggeredRequestId = sql(
+  "SELECT request_id FROM sensitive_query_event WHERE tenant_id='demo' AND pattern_tag='individual_probe'"
+  + " ORDER BY id DESC LIMIT 1");
+const auditRow = sql(
+  "SELECT approval_id IS NOT NULL, sensitive_counters_delta IS NOT NULL"
+  + " FROM audit_log WHERE tenant_id='demo' AND request_id='" + triggeredRequestId + "'"
+  + " AND reason_code LIKE 'SENSITIVE%' LIMIT 1");
+note("T6", "触发审计行关联 approval_id + counters_delta", auditRow === "t|t", { row: auditRow });
+const eventDelta = sql(
+  "SELECT context_delta FROM sensitive_query_event WHERE request_id='" + triggeredRequestId + "'"
+  + " AND context_delta IS NOT NULL LIMIT 1");
+const auditDelta = sql(
+  "SELECT sensitive_counters_delta FROM audit_log WHERE request_id='" + triggeredRequestId + "'"
+  + " AND sensitive_counters_delta IS NOT NULL LIMIT 1");
+note("T6", "事件行 context_delta 与审计行同值同源",
+  eventDelta.length === 64 && eventDelta === auditDelta,
+  { eventDelta: eventDelta.slice(0, 12), auditDelta: auditDelta.slice(0, 12) });
+
+// 6.2 恰好过期边界（T3.1，`<=`）：requested_at = now()-TTL 置 EXPIRED；差 1 秒未过期保留 PENDING
+sql("DELETE FROM approval_request WHERE user_id LIKE 'boundary-%'");
+sql("INSERT INTO approval_request (tenant_id, user_id, kind, payload, requested_at)"
+  + " VALUES ('demo','boundary-exact','SENSITIVE_SEQUENCE','{}'::jsonb,"
+  + " now() - interval '15 minutes')");
+sql("INSERT INTO approval_request (tenant_id, user_id, kind, payload, requested_at)"
+  + " VALUES ('demo','boundary-fresh','SENSITIVE_SEQUENCE','{}'::jsonb,"
+  + " now() - interval '14 minutes 59 seconds')");
+sql("UPDATE approval_request SET status='PENDING' WHERE user_id LIKE 'boundary-%'");
+// 惰性过期经服务端点触发（page 是 GET，前置 expireStale）
+await fetch(BASE + "/api/v1/approvals?pageNo=1&pageSize=1", {
+  headers: headers("demo", "approver-main", "probe-session", 1),
+});
+const exactStatus = sql("SELECT status FROM approval_request WHERE user_id='boundary-exact'");
+const freshStatus = sql("SELECT status FROM approval_request WHERE user_id='boundary-fresh'");
+note("T6", "恰好等于 TTL(15m) 的 PENDING 单被置 EXPIRED", exactStatus === "EXPIRED",
+  { exactStatus });
+note("T6", "TTL 前 1 秒的单据保留 PENDING", freshStatus === "PENDING", { freshStatus });
+sql("DELETE FROM approval_request WHERE user_id LIKE 'boundary-%'");
+
 // ---------- 汇总 ----------
 const failures = results.filter((item) => !item.pass);
 const evidence = {

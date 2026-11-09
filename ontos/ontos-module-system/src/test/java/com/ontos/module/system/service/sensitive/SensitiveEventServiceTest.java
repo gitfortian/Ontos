@@ -42,7 +42,8 @@ class SensitiveEventServiceTest {
 
     private final SensitiveQueryEventMapper eventMapper = mock(SensitiveQueryEventMapper.class);
     private final ApprovalRequestMapper approvalMapper = mock(ApprovalRequestMapper.class);
-    private final ApprovalService approvalService = new ApprovalService(approvalMapper);
+    private final ApprovalService approvalService =
+            new ApprovalService(approvalMapper, new com.ontos.module.system.service.approval.ApprovalProperties());
 
     private SensitiveEventService service;
 

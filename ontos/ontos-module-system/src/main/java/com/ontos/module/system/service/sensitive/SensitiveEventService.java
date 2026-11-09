@@ -80,10 +80,11 @@ public class SensitiveEventService {
     public record SensitiveDecision(boolean triggered, boolean blocked, String approvalId,
                                     String auditReasonCode, String triggeredClass,
                                     String sessionLayer, int sessionCount, int userCount,
-                                    int threshold, String grantFingerprint) {
+                                    int threshold, String grantFingerprint,
+                                    String countersDelta) {
 
         public static SensitiveDecision notTriggered() {
-            return new SensitiveDecision(false, false, null, null, null, null, 0, 0, 0, null);
+            return new SensitiveDecision(false, false, null, null, null, null, 0, 0, 0, null, null);
         }
     }
 
@@ -145,22 +146,26 @@ public class SensitiveEventService {
 
         // 2. 两层窗口聚合判定（每层独立计数、独立比较，互不累加；刚插入的行同事务可见）
         Map<String, LayerCounts> countsByClass = aggregateByClass(context, drafts);
+        // 计数器哈希化增量（§4.8 / W3-T3.2）：本次访问后各层计数的哈希，事件行与审计行同值同源
+        String countersDelta = countersDeltaHash(countsByClass);
+        eventMapper.updateContextDelta(requestId, countersDelta);
         ThresholdBreach breach = firstBreach(countsByClass);
 
         // 3. 触发动作：即时动作 > 拒答（≥2T 或 L2/L3 ≥T）> 转审批（L1 ≥T）；同事务建审批单
         InstantTrigger instant = instantTriggers.isEmpty() ? null : instantTriggers.get(0);
         if (instant != null) {
             return createApproval(context, requestId, instant.draft(), instant.auditCode(),
-                    countsByClass.get(instant.draft().sensitivityClass()));
+                    countsByClass.get(instant.draft().sensitivityClass()), countersDelta);
         }
         if (breach != null) {
             boolean blocked = breach.blocked();
             String auditCode = properties.isUserWindowEnabled()
                     ? (blocked ? AUDIT_BLOCKED : AUDIT_APPROVAL) : AUDIT_WINDOW_DEGRADED;
             return createApproval(context, requestId, breach.draft(), auditCode,
-                    countsByClass.get(breach.draft().sensitivityClass()));
+                    countsByClass.get(breach.draft().sensitivityClass()), countersDelta);
         }
-        return SensitiveDecision.notTriggered();
+        return new SensitiveDecision(false, false, null, null, null, null, 0, 0, 0, null,
+                countersDelta);
     }
 
     /**
@@ -262,7 +267,7 @@ public class SensitiveEventService {
     /** 同事务创建审批单（§4.8.3：转审批/拒答都建单留痕，拒答仅不放行）。 */
     private SensitiveDecision createApproval(RequestContext context, String requestId,
                                              DraftEvent draft, String auditCode,
-                                             LayerCounts counts) {
+                                             LayerCounts counts, String countersDelta) {
         String key = sensitiveKey(draft);
         String scope = scopeHash(context);
         String payload = approvalPayload(requestId, draft, counts, scope);
@@ -285,7 +290,7 @@ public class SensitiveEventService {
                 : CLASS_EXISTENCE.equals(draft.sensitivityClass()) ? "L2" : "L3",
                 counts == null ? 0 : counts.sessionCount(),
                 counts == null ? 0 : counts.userCount(),
-                counts == null ? 0 : counts.threshold(), fingerprint);
+                counts == null ? 0 : counts.threshold(), fingerprint, countersDelta);
     }
 
     private String approvalPayload(String requestId, DraftEvent draft, LayerCounts counts,
@@ -361,6 +366,20 @@ public class SensitiveEventService {
                 throw exception(SENSITIVE_EVENT_INVALID, String.valueOf(draft));
             }
         }
+    }
+
+    /**
+     * 计数器哈希化增量（§4.8「计数器哈希化后写入审计」）：
+     * sha256(JSON{ sensitiveKey: {"s": session计数, "u": user窗口计数} })——
+     * 明文计数只在审批 payload 与安全看板口径，事件行 context_delta 与审计行只留哈希。
+     */
+    static String countersDeltaHash(Map<String, LayerCounts> countsByClass) {
+        Map<String, Map<String, Integer>> snapshot = new LinkedHashMap<>();
+        for (LayerCounts counts : countsByClass.values()) {
+            snapshot.put(sensitiveKey(counts.draft()),
+                    Map.of("s", counts.sessionCount(), "u", Math.max(counts.userCount(), 0)));
+        }
+        return sha256(JsonUtils.toJsonString(snapshot));
     }
 
     private record InstantTrigger(DraftEvent draft, String auditCode) {

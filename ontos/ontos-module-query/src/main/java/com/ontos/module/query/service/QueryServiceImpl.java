@@ -155,13 +155,20 @@ public class QueryServiceImpl implements QueryService {
                     QueryResult hit = cached.get();
                     SensitiveEventService.SensitiveDecision hitDecision = recordSensitiveEvents(
                             context, queryDsl, sensitivity, manifest, hit.getRowCount());
-                    if (hitDecision.triggered()) {
+                    if (hitDecision.triggered() && !consumeGrantOrReject(context, hitDecision)) {
                         AuditLogCreateReqDTO hitAudit = buildCacheHitAudit(context, queryDsl,
                                 manifest, hit.getRowCount(), hitDecision.auditReasonCode());
+                        hitAudit.setApprovalId(hitDecision.approvalId());
+                        hitAudit.setSensitiveCountersDelta(hitDecision.countersDelta());
                         auditService.record(hitAudit);
                         requestStateService.transition(context, requestId, RequestStatus.REJECTED,
                                 "敏感累计触发（缓存命中路径）");
                         throw exception(SENSITIVE_QUERY_SEQUENCE, hitDecision.approvalId());
+                    }
+                    if (hitDecision.triggered()) {
+                        auditService.record(buildCacheHitAudit(context, queryDsl, manifest,
+                                hit.getRowCount(), "SENSITIVE_APPROVED_GRANT",
+                                hitDecision.approvalId(), hitDecision.countersDelta()));
                     }
                     requestStateService.transition(context, requestId, RequestStatus.PROPOSED, "缓存命中");
                     requestStateService.transition(context, requestId, RequestStatus.EXECUTED,
@@ -181,19 +188,43 @@ public class QueryServiceImpl implements QueryService {
             // M4/W2（规格 §3.2）：执行成功后同事务记账 + 窗口判定；触发即不放行结果、不回写缓存
             SensitiveEventService.SensitiveDecision decision = recordSensitiveEvents(
                     context, queryDsl, sensitivity, manifest, result.getRowCount());
+            SensitiveEventService.SensitiveDecision sensitiveAudit = null;
             if (decision.triggered() && !consumeGrantOrReject(context, decision)) {
                 // 触发请求全量审计（细分分支码只在审计，对外统一 SENSITIVE_QUERY_SEQUENCE）；
                 // 状态 REJECTED 交由下方 catch 统一转移，避免重复迁移
                 AuditLogCreateReqDTO triggerAudit = buildAudit(context, "EXECUTE", queryDsl,
                         compiled, result.getRowCount());
                 triggerAudit.setReasonCode(decision.auditReasonCode());
+                triggerAudit.setApprovalId(decision.approvalId());
+                triggerAudit.setSensitiveCountersDelta(decision.countersDelta());
                 auditService.record(triggerAudit);
                 throw exception(SENSITIVE_QUERY_SEQUENCE, decision.approvalId());
+            }
+            if (decision.triggered()) {
+                // 令牌放行（T2.3）：审计行关联审批单，回放时可追到放行依据（W3/T3.2）
+                AuditLogCreateReqDTO grantAudit = buildAudit(context, "EXECUTE", queryDsl,
+                        compiled, result.getRowCount());
+                grantAudit.setReasonCode("SENSITIVE_APPROVED_GRANT");
+                grantAudit.setApprovalId(decision.approvalId());
+                grantAudit.setSensitiveCountersDelta(decision.countersDelta());
+                auditService.record(grantAudit);
+                if (cacheKey != null) {
+                    queryCacheService.put(cacheKey, manifest.getManifestId(),
+                            manifest.getContentHash(), String.valueOf(queryDsl.getMode()), result);
+                }
+                return result;
+            }
+            if (decision.countersDelta() != null) {
+                sensitiveAudit = decision;
             }
             AuditLogCreateReqDTO audit = buildAudit(context, "EXECUTE", queryDsl, compiled,
                     result.getRowCount());
             if (cacheKey != null) {
                 audit.setReasonCode("CACHE_MISS");
+            }
+            if (sensitiveAudit != null) {
+                // 计数器哈希化增量（W3/T3.2）：未触发的敏感访问同样留审计增量
+                audit.setSensitiveCountersDelta(sensitiveAudit.countersDelta());
             }
             auditService.record(audit);
             if (cacheKey != null) {
@@ -682,6 +713,13 @@ public class QueryServiceImpl implements QueryService {
     private AuditLogCreateReqDTO buildCacheHitAudit(RequestContext context, QueryDsl queryDsl,
                                                     PublishedManifest manifest, int rowCount,
                                                     String reasonCode) {
+        return buildCacheHitAudit(context, queryDsl, manifest, rowCount, reasonCode, null, null);
+    }
+
+    private AuditLogCreateReqDTO buildCacheHitAudit(RequestContext context, QueryDsl queryDsl,
+                                                    PublishedManifest manifest, int rowCount,
+                                                    String reasonCode, String approvalId,
+                                                    String countersDelta) {
         AuditLogCreateReqDTO audit = new AuditLogCreateReqDTO();
         audit.setRequestId(context.traceId());
         audit.setTenantId(context.tenantId());
@@ -694,6 +732,8 @@ public class QueryServiceImpl implements QueryService {
         audit.setDslJson(JsonUtils.toJsonString(queryDsl));
         audit.setRowCount(rowCount);
         audit.setReasonCode(reasonCode);
+        audit.setApprovalId(approvalId);
+        audit.setSensitiveCountersDelta(countersDelta);
         audit.setTraceId(context.traceId());
         audit.setDevMode(context.devMode());
         return audit;

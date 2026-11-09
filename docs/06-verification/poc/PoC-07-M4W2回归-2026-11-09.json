@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-11-09T05:21:10.387Z",
+  "generatedAt": "2026-11-09T05:41:56.562Z",
   "manifestId": "2026.11.08-eighth",
   "devAllowAll": false,
-  "total": 21,
+  "total": 25,
   "failures": 0,
   "results": [
     {
@@ -127,7 +127,7 @@
       "pass": true,
       "detail": {
         "code": 1003000008,
-        "approvalId": "7762f054-7cad-4d13-8d13-e965b39bc6db"
+        "approvalId": "d303d129-c1df-49a0-9b8f-a42f95dc6e2d"
       }
     },
     {
@@ -176,6 +176,39 @@
       "pass": true,
       "detail": {
         "code": 1003000008
+      }
+    },
+    {
+      "phase": "T6",
+      "name": "触发审计行关联 approval_id + counters_delta",
+      "pass": true,
+      "detail": {
+        "row": "t|t"
+      }
+    },
+    {
+      "phase": "T6",
+      "name": "事件行 context_delta 与审计行同值同源",
+      "pass": true,
+      "detail": {
+        "eventDelta": "077f0b4b1292",
+        "auditDelta": "077f0b4b1292"
+      }
+    },
+    {
+      "phase": "T6",
+      "name": "恰好等于 TTL(15m) 的 PENDING 单被置 EXPIRED",
+      "pass": true,
+      "detail": {
+        "exactStatus": "EXPIRED"
+      }
+    },
+    {
+      "phase": "T6",
+      "name": "TTL 前 1 秒的单据保留 PENDING",
+      "pass": true,
+      "detail": {
+        "freshStatus": "PENDING"
       }
     }
   ]

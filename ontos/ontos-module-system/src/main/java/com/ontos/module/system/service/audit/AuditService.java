@@ -19,11 +19,13 @@ public class AuditService {
             INSERT INTO audit_log (
                 request_id, parent_request_id, sub_intent_id, tenant_id, user_id, session_id,
                 turn_index, manifest_id, action, metric_id, dsl, sql_text, row_count, reason_code, trace_id,
-                dev_mode, from_state, to_state, state_reason, policy_version
+                dev_mode, from_state, to_state, state_reason, policy_version,
+                approval_id, sensitive_counters_delta
             ) VALUES (
                 :requestId, :parentRequestId, :subIntentId, :tenantId, :userId, :sessionId,
                 :turnIndex, :manifestId, :action, :metricId, cast(:dsl as jsonb), :sqlText,
-                :rowCount, :reasonCode, :traceId, :devMode, :fromState, :toState, :stateReason, :policyVersion
+                :rowCount, :reasonCode, :traceId, :devMode, :fromState, :toState, :stateReason, :policyVersion,
+                :approvalId, :sensitiveCountersDelta
             )
             """;
 
@@ -60,6 +62,8 @@ public class AuditService {
         // 生效策略版本由审计统一解析（规格 v1.1 §3.1「生效版本进审计」）：
         // dev 放行 / 快照缺失容错为 NULL（缺失时授权层早已拒绝，审计不重复报错）
         params.put("policyVersion", policyService.auditVersion(createReqDTO.getTenantId()));
+        params.put("approvalId", createReqDTO.getApprovalId());
+        params.put("sensitiveCountersDelta", createReqDTO.getSensitiveCountersDelta());
         jdbcTemplate.update(INSERT_SQL, params);
     }
 

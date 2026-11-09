@@ -143,6 +143,23 @@ public class ApprovalRequestMapper {
     }
 
     /**
+     * 惰性过期（M4/W3/T3.1）：PENDING 且超 TTL 的单据批量置 EXPIRED。
+     * 恰好等于 TTL 按「已过期」处理（`>=` 边界）。
+     *
+     * @return 本次置为 EXPIRED 的单据数
+     */
+    public int expireStale(java.time.Duration ttl) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("ttlSeconds", ttl.toSeconds());
+        return jdbcTemplate.update(
+                "UPDATE approval_request SET status = 'EXPIRED',"
+                        + " reason = COALESCE(reason, '超时未决策，自动失效（TTL）')"
+                        + " WHERE status = 'PENDING'"
+                        + " AND requested_at <= now() - make_interval(secs => :ttlSeconds)",
+                params);
+    }
+
+    /**
      * 放行令牌单次消费（M4/W2/T2.3）：指纹逐字段比对 + 消费原子置位。
      *
      * @return true=令牌有效且本次消费成功；false=单据不存在 / 已消费 / 指纹不符（换 filters 不放行）
