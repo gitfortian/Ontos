@@ -27,7 +27,7 @@ import com.ontos.module.query.core.time.TimeExpressionParser;
 public final class QueryCacheKey {
 
     /** 键结构版本：任何字段语义变化都必须升这里，旧键随之失效（禁止原地改口径）。 */
-    public static final String SCHEMA_VERSION = "cache-key-1.0";
+    public static final String SCHEMA_VERSION = "cache-key-1.1";
 
     private static final String NONE = "none";
 
@@ -37,9 +37,11 @@ public final class QueryCacheKey {
     /**
      * @param appliedLimit 生效行数上限（校验器写回后的值），属于 §4.9 的 batch_size
      * @param anchorDate   时间基准日（Asia/Shanghai）：跨日即换键，防止「近 7 天」跨日复用旧结果
+     * @param runtimePolicyVersion 运行时生效策略快照版本（M4/W1 审核 F-2：prepare 先行已保证不越权，
+     *                             入键是防御纵深——快照激活/降权即换键，旧条目天然失配）
      */
     public static String of(RequestContext context, PublishedManifest manifest, QueryDsl queryDsl,
-                            int appliedLimit, LocalDate anchorDate) {
+                            int appliedLimit, LocalDate anchorDate, String runtimePolicyVersion) {
         Map<String, Object> input = new TreeMap<>();
         input.put("schema", SCHEMA_VERSION);
         // 版本全量入键：任一资产版本变化都不得复用旧结果
@@ -48,6 +50,7 @@ public final class QueryCacheKey {
         input.put("ontologyVersion", text(manifest.getOntologyVersion()));
         input.put("semanticVersion", text(manifest.getSemanticVersion()));
         input.put("policyVersion", text(manifest.getPolicyVersion()));
+        input.put("runtimePolicyVersion", text(runtimePolicyVersion));
         input.put("ruleVersion", text(manifest.getRuleVersion()));
         input.put("timeParserVersion", text(manifest.getTimeParserVersion()));
         input.put("copyTemplateVersion", text(manifest.getCopyTemplateVersion()));

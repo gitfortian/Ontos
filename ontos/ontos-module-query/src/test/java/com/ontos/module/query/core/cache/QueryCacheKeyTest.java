@@ -22,7 +22,11 @@ class QueryCacheKeyTest {
     }
 
     private static String key(RequestContext context, QueryDsl dsl, int limit) {
-        return QueryCacheKey.of(context, TestFixtures.manifest(), dsl, limit, ANCHOR);
+        return key(context, dsl, limit, null);
+    }
+
+    private static String key(RequestContext context, QueryDsl dsl, int limit, String runtimePolicyVersion) {
+        return QueryCacheKey.of(context, TestFixtures.manifest(), dsl, limit, ANCHOR, runtimePolicyVersion);
     }
 
     @Test
@@ -50,11 +54,25 @@ class QueryCacheKeyTest {
     void shouldDifferByTimeAnchor() {
         QueryDsl dsl = TestFixtures.query();
         String today = QueryCacheKey.of(context("t1", "u1", Set.of()), TestFixtures.manifest(), dsl, 500,
-                ANCHOR);
+                ANCHOR, null);
         String tomorrow = QueryCacheKey.of(context("t1", "u1", Set.of()), TestFixtures.manifest(), dsl, 500,
-                ANCHOR.plusDays(1));
+                ANCHOR.plusDays(1), null);
 
         assertNotEquals(today, tomorrow, "跨日时间基准必须换键，防止相对时间复用旧结果");
+    }
+
+    @Test
+    void shouldDifferByRuntimePolicyVersion() {
+        // M4/W1 审核 F-2：运行时生效快照版本入键（cache-key-1.1）——快照激活/降权后旧条目天然失配
+        QueryDsl dsl = TestFixtures.query();
+        String before = key(context("t1", "u1", Set.of()), dsl, 500, "seed-2026.11.09-v1");
+        String after = key(context("t1", "u1", Set.of()), dsl, 500, "seed-2026.11.09-v2");
+        String devNull = key(context("t1", "u1", Set.of()), dsl, 500, null);
+
+        assertNotEquals(before, after, "策略快照版本变化必须换键");
+        assertNotEquals(before, devNull, "快照版本与 none 占位必须不同键");
+        assertEquals(before, key(context("t1", "u1", Set.of()), dsl, 500, "seed-2026.11.09-v1"),
+                "同版本必须稳定同键");
     }
 
     @Test

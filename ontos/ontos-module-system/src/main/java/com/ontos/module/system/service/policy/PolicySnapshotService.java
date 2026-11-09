@@ -149,7 +149,10 @@ public class PolicySnapshotService {
                         "UPDATE policy_snapshot SET active = TRUE WHERE tenant_id = :tenantId AND policy_version = :version",
                         Map.of("tenantId", tenantId, "version", policyVersion));
             } catch (RuntimeException ex) {
-                // 部分唯一索引冲突等：回滚整个事务（旧 active 也在本事务被取消，必须一起回滚）
+                // 部分唯一索引冲突等：回滚整个事务（旧 active 也在本事务被取消，必须一起回滚）；
+                // 原始异常必须留日志——连接故障/死锁与真正的版本冲突对外同码，但排查依赖这里的堆栈
+                log.warn("[activate][tenant={} version={} 激活失败，事务回滚: {}]",
+                        tenantId, policyVersion, ex.toString());
                 throw exception(POLICY_SNAPSHOT_VERSION_CONFLICT, policyVersion);
             }
             if (activated != 1) {

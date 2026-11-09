@@ -510,8 +510,10 @@ public class QueryServiceImpl implements QueryService {
             return null;
         }
         int appliedLimit = queryDsl.getLimit() == null ? 0 : queryDsl.getLimit();
+        // 运行时生效快照版本入键（M4/W1 审核 F-2）：快照激活/降权即换键（容错 null → none 占位）
         return QueryCacheKey.of(context, manifest, queryDsl, appliedLimit,
-                LocalDate.now(ZoneId.of(TimeExpressionParser.ZONE)));
+                LocalDate.now(ZoneId.of(TimeExpressionParser.ZONE)),
+                policyService.cacheVersion(context.tenantId()));
     }
 
     /** 缓存命中审计：没有新编译产物，因此不写 sql_text；reasonCode 标 CACHE_HIT 便于统计命中率。 */

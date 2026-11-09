@@ -88,6 +88,15 @@ public class PolicyService {
         }
     }
 
+    /**
+     * 缓存键用的运行时生效快照版本（规格 v1.1 §1「M4 保证策略版本进缓存键与审计」）：
+     * 与 {@link #auditVersion} 同源同容错（dev/缺失 → null，键记 none 占位）——
+     * 快照激活/降权即换键，旧租户缓存条目天然失配（防御纵深，权限判定仍由 prepare 先行保障）。
+     */
+    public String cacheVersion(String tenantId) {
+        return auditVersion(tenantId);
+    }
+
     private boolean devAllowed() {
         return !prodProfile && properties.isDevAllowAll();
     }
