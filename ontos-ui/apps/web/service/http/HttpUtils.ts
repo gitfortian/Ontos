@@ -68,6 +68,27 @@ class HttpUtils {
     return HttpUtils.post<T>(url, body, withRejectedBusinessErrors(options)).then(HttpUtils.unwrap);
   }
 
+  /**
+   * POST 并附带响应头元信息（当前只有 X-Request-Id）。
+   * 服务端按该头生成请求 ID，/plan/{requestId} 回放与审计查询都依赖它，
+   * 业务错误同样 reject（与 postData 一致），调用方拿 BizError 自行分支。
+   */
+  static postWithMeta<T>(
+    url: string,
+    body?: unknown,
+    options?: HttpRequestOptions,
+  ): Promise<{ data: T; requestId: string | null }> {
+    return request<{ data: ApiResponse<T>; response: Response }>(url, {
+      method: "POST",
+      data: body,
+      getResponse: true,
+      ...withRejectedBusinessErrors(options),
+    }).then(({ data, response }) => ({
+      data: HttpUtils.unwrap(data),
+      requestId: response.headers.get("X-Request-Id"),
+    }));
+  }
+
   static put<T>(
     url: string,
     body?: unknown,

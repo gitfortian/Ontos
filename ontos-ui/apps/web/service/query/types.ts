@@ -25,6 +25,8 @@ export interface QueryDsl {
   timeRange?: { field: string; from?: string; to?: string };
   /** 相对时间表达，由服务端解析器换算；客户端不得提交绝对日期（校验器 1002000009）。 */
   timeExpressionRaw?: string;
+  /** 口径变体（M3/W2）：多口径指标必填，缺失服务端返回 1002000033 并带候选。 */
+  caliberVariantId?: string;
   limit?: number;
 }
 
@@ -36,6 +38,8 @@ export interface DslDraft {
   timeExpression: string;
   /** 时间维度资产 ID，相对时间解析与时间过滤都靠它；留空则不带时间窗。 */
   timeField: string;
+  /** 口径澄清卡片回填（M3/W2/T5.2）；留空则不带。 */
+  caliberVariantId: string;
   limit: number;
 }
 
@@ -70,8 +74,9 @@ export interface PlanVO {
   appliedLimit: number;
   joins: ResolvedJoin[];
   planJson: string | null;
-  estimatedCost: number;
-  estimatedRows: number;
+  /** null = 只做过编译、没有 EXPLAIN（D59：不再把默认 0 当成真实成本）。 */
+  estimatedCost: number | null;
+  estimatedRows: number | null;
   /** OK / BLOCKED；null 表示只做过编译、没有 EXPLAIN。 */
   status: string | null;
   blockReason: string | null;
@@ -90,6 +95,37 @@ export interface DryRunVO extends PlanVO {
   cached?: boolean;
 }
 
+/** 能力槽位契约（GET /skills）。 */
+export interface SkillSlot {
+  name: string;
+  required: boolean;
+  description: string;
+}
+
+export interface SkillDescriptor {
+  skillId: string;
+  name: string;
+  summary: string;
+  slots: SkillSlot[];
+}
+
+/** 文案模板渲染结果（GET /copy-templates/{reasonCode}）。 */
+export interface CopyTemplateVO {
+  reasonCode: string;
+  locale: string;
+  text: string;
+  /** true 表示走了 GENERIC 兜底（原因码缺失或占位符缺值）。 */
+  fallback: boolean;
+  version: string | null;
+}
+
+/** lookup / lookup_batch 逐行可用性（按请求顺序对齐；缺失行 available=false 且 values 为空）。 */
+export interface LookupRowVO {
+  identity: string | null;
+  available: boolean;
+  values: Record<string, unknown> | null;
+}
+
 export interface ExecuteVO {
   manifestId: string;
   contentHash: string;
@@ -100,4 +136,6 @@ export interface ExecuteVO {
   elapsedMs: number;
   /** true 表示结果来自 query_cache，未重新编译执行。 */
   cached?: boolean;
+  /** lookup / lookup_batch 逐行可用性；聚合模式为 null。 */
+  lookupRows?: LookupRowVO[];
 }

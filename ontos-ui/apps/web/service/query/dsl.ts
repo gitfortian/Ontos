@@ -18,12 +18,16 @@ export const buildQueryDsl = (draft: DslDraft): QueryDsl => {
       ? { timeExpressionRaw: timeExpression, timeRange: { field: timeField } }
       : {};
 
+  // 口径澄清卡片回填的变体 ID：空值不带字段，避免「无变体指标带空变体」在服务端被拒。
+  const caliberVariantId = draft.caliberVariantId.trim();
+
   return {
     manifestId: draft.manifestId,
     mode: "QUERY",
     metricId: draft.metricId,
     dimensions,
     limit: draft.limit,
+    ...(caliberVariantId ? { caliberVariantId } : {}),
     ...timeWindow,
   };
 };

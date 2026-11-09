@@ -183,6 +183,12 @@ export default async function request<T>(url: string, options: RequestOptions = 
     }
   }
 
+  // getResponse 与 blob 分支同语义：调用方需要响应头（如 X-Request-Id）时由它取，
+  // fetch 依然只在这里发——service 层不直接持有 Response。
+  if (getResponse) {
+    return { data: payload, response } as T;
+  }
+
   return payload as T;
 }
 
