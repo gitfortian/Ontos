@@ -41,5 +41,6 @@ public interface ErrorCodeConstants {
     ErrorCode ARTIFACT_NOT_FOUND = new ErrorCode(1_002_000_031, "该请求没有可回放的编译产物（或不属于当前租户/用户）: {}");
     ErrorCode REQUEST_TERMINAL = new ErrorCode(1_002_000_032, "请求已处于终态（{}），请使用新的 request_id 重试: {}");
     ErrorCode CALIBER_AMBIGUOUS = new ErrorCode(1_002_000_033, "该指标存在多个口径，请指定 caliberVariantId（候选: {}）");
+    ErrorCode COPY_TEMPLATE_MISSING = new ErrorCode(1_002_000_034, "没有可用的文案模板（原因码与通用兜底均缺失）: {}");
 
 }

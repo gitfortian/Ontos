@@ -60,6 +60,7 @@
 - 基线：`mvn test` **269 例**（30 类）；`pnpm check` exit 0；`check-docs.mjs` 60 文档 / 467 链接。
 - **M3 规格已冻结（v1.0）**：能力注册落 query `core/skill`（不新建 agent 模块）；口径变体由新增 `metric.paid_gmv` 承载（不改 gmv）；文案模板走独立端点。
 - **M3/W1 已完成**：清单 v8（2026.11.08-eighth，hash 2720fb36）生效——paid_gmv 双口径变体（dim.channel 同表）、上季度模式、文案模板 9 条（带 reasonCode/占位符白名单/version）；结构校验与解析器同步落地。W2 待启动（caliberVariantId 门禁 + 编译下推 + CALIBER_AMBIGUOUS）。
+- **M3/W4 已完成**：CopyTemplateService + GET /api/v1/copy-templates/{reasonCode}；渲染只按发布期白名单，声明未给值回退 GENERIC（1002000034 兜底缺失报错）；R-26 关闭（未声明花括号按字面量）。
 - **M3/W3 已完成**：core/skill 包（SkillHandler/SkillRegistry/entity_lookup）；GET /skills + POST /skills/{skillId}；能力层只组装 DSL（校验全复用 execute）；SKILL_EXECUTE 审计；R-20 关闭（rows 剥离 __identity）。
 - **M3/W2 已完成**：caliberVariantId 进 DSL；多口径指标缺变体 → 1002000033 CALIBER_AMBIGUOUS（候选带别名，禁止 LLM 二选一）；变体条件下推 QUERY WHERE 与 YOY 两个 CTE。R-27：复合子意图暂不支持变体。
 - **后续不得破坏**：变体条件只允许与指标同表（跨表拒绝）；文案模板占位符必须白名单声明；「上季度」按 patternId=tep.last_quarter 解析（不按粒度回退）；多口径指标缺变体必须澄清不得默认。

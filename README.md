@@ -169,7 +169,8 @@ DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、F
 
 - **M3 进行中**（规格 v1.0 冻结）：W1 资产与清单 v8、W2 口径变体闭环（`caliberVariantId` +
   `CALIBER_AMBIGUOUS` 1002000033）、W3 能力注册与 lookup 产品化（`skill.entity_lookup`、
-  `rows` 不再携带内部列 `__identity`）已完成；W4 文案模板服务与 W5 前端未启动。
+  `rows` 不再携带内部列 `__identity`）、W4 文案模板服务（`GET /api/v1/copy-templates/{reasonCode}`，
+  占位符白名单渲染 + GENERIC 兜底）已完成；W5 前端未启动。
 
 实测基线（2026-11-08）：`mvn test` 全绿、`pnpm check` 通过、`vite build` 通过（新输出目录）、
 文档治理检查通过。进度与状态口径以 `docs/05-progress/2026/` 和
