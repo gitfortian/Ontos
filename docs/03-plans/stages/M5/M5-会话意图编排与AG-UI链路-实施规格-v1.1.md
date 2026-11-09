@@ -2,11 +2,11 @@
 
 | 字段 | 内容 |
 |---|---|
-| **状态** | 已冻结（v1.0，负责人 2026-11-09 确认六项决策定档） |
-| **版本** | v1.0 |
+| **状态** | 已冻结（v1.1，两轮内部自审闭环；编码放行待负责人确认） |
+| **版本** | v1.1 |
 | **日期** | 2026-11-09 |
 | **负责人** | 项目负责人（待确认） |
-| **上游依据** | [roadmap M5](../../../03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md) · [v1.4 方案 §7](../../../02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md) · [技术选型 §7 PoC #3/#5/#10 / §11 冻结项](../../../02-solutions/architecture/智能问数系统技术选型方案-v1.1.md) · [ADR-0004](../../../01-decisions/ADR-0004-首发业务域与Scenario范围.md) · [ADR-0006 G2 口径](../../../01-decisions/ADR-0006-G2有条件关闭与重开口径.md) · [M4 验收报告 §5 移交前置](../../../06-verification/checklists/M4-验收报告-v1.md) · [M4 W4 审核（注入检查点冻结）](../../../06-verification/checklists/M4-W4-深度审核-v1.md) |
+| **上游依据** | [roadmap M5](../../03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md) · [v1.4 方案 §7](../../02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md) · [技术选型 §7 PoC #3/#5/#10 / §11 冻结项](../../02-solutions/architecture/智能问数系统技术选型方案-v1.1.md) · [ADR-0004](../../01-decisions/ADR-0004-首发业务域与Scenario范围.md) · [ADR-0006 G2 口径](../../01-decisions/ADR-0006-G2有条件关闭与重开口径.md) · [M4 验收报告 §5 移交前置](../../06-verification/checklists/M4-验收报告-v1.md) · [M4 W4 审核（注入检查点冻结）](../../06-verification/checklists/M4-W4-深度审核-v1.md) |
 | **适用范围** | M5 阶段全部工作；本规格经负责人决策定档并冻结前**不得编码**；退出按 §6 逐条给证据 |
 | **历史版本** | [v0.1](../../../99-archive/plans/M5-会话意图编排与AG-UI链路-实施规格-v0.1.md)（已归档：初稿） |
 
@@ -31,6 +31,24 @@
 | R-B6 | 修正 | `ReActAgent` 表述与现状不符——统一为 `HarnessAgent`（`OntosAgentFactory` 已验证形态，M0/M1 底座） |
 | R-C1 | 决策 | 新增决策 4（HITL 内联等待机制：轮询 vs 挂起）、决策 5（run 事件重放：事件表 vs 内存 ring） |
 | R-C2 | 决策 | 决策 2（澄清回传形态）结论保持，但补「HITL interrupt 仅用于审批类等待，澄清走终态」的分工边界 |
+
+---
+
+## 0. v1.1 两轮内部自审摘要（8 项发现全部采纳）
+
+| # | 级别 | 发现与修订 |
+|---|---|---|
+| F-5 | **P0** | **tools 设计错误**：v1.0「tools 固定 `propose_intent` 与 `execute_query`」——若 `execute_query` 暴露为 LLM 可调工具，「LLM 只产出候选与参数」的目标被破坏（LLM 自主触发执行/组装参数）。**修正：LLM 唯一工具为 `propose_intent`；查询执行是编排代码在 Proposal 过闸门后的内部步骤，对 LLM 不可见** |
+| F-1 | P1 | **会话合并模型澄清**：v1.0 的「增量合并四规则」是 NL 级语义操作，服务端无法可判定地执行。**修正：服务端状态 = 本轮已采纳 DSL 的实体投影（每轮全量覆盖）+ 显式澄清选择的追加；四规则是 LLM 在 prompt 会话上下文中完成的行为**；纠正回退随之简化（本轮 DSL 即纠正后语义，无需 correction_of_turn 字段） |
+| F-2 | P1 | L3 受限模糊误写「PG pg_trgm」——与 v0.1/技术选型（模糊召回有收益前不引 DB 扩展）冲突。**修正：Java 内存编辑距离 + 子串**（首发清单 35 资产规模无性能问题） |
+| F-3 | P2 | L2 词典「分词倒排」隐含引入中文分词器——**修正：别名/业务名的子串包含匹配内存索引**（不引分词依赖） |
+| F-4 | P1 | 检索瀑布需批量授权视图，现有 `PolicySnapshotService.check()` 是单资产判定——**新增 `authorizedAssetIds(tenant)` 批量接口**（快照 assetIndex 视图，缓存内直接取） |
+| F-6 | P2 | `recent_turns` 深度可配：`ontos.session.recent-turns`（默认 5） |
+| F-7 | P2 | **composite 透传语义澄清**：LLM 可输出 composite 终态与子意图候选（合同字段已有），服务端**逐子走全链闸门执行**；「拆分质量验收 / 依赖编排 / 部分失败语义」归 M6 PoC #8——消解与「拆分归 M6」的边界歧义 |
+| F-8 | P2 | HITL 轮询占线程：run 执行线程池大小可配（`ontos.agent.run-executor-pool`），登记实现注意 |
+
+两轮自审方法：第一轮逐节对照（roadmap 硬约束 / v1.4 §7 / M4 移交 / 可判定性 / fail-closed）产出
+F-1~F-8；第二轮对修订稿复扫（状态机迁移表 / afterSeq 鉴权 / 事件表增长 / E1–E7 与任务对齐）无新增发现。
 
 ---
 
@@ -66,8 +84,11 @@ ask_run_event:      run_id + seq + type + payload(JSONB) + created_at   —— �
 ```
 
 - 绑定 `tenant + user + session`；**跨会话清空**（新 session 一律空态，不存在「接着上次的会话」）。
-- 增量合并四规则：显式新增同类条件 → 覆盖；「再加上/只看」→ 追加；「去掉/不算」→ 清除；未提及 → 沿用。
-- **纠正回退**：`USER_REJECTED` → 回退澄清；被纠正轮实体作废、本轮为准（单点覆盖，可判定）。
+- **合并模型（v1.1 F-1 修正）**：服务端状态 = 本轮已采纳 DSL 的实体投影（**每轮全量覆盖**）+
+  显式澄清选择的追加；「覆盖/追加/清除/沿用」四规则是 **LLM 在 prompt 会话上下文中完成的行为**
+  （服务端只投影结果，不做 NL 级增量合并）——可判定、可测试。纠正（「不对，我说的是华东」）=
+  本轮 DSL 即纠正后语义，投影自然覆盖，无需 correction_of_turn 字段。
+- **纠正回退**：`USER_REJECTED` → 回退澄清；被纠正实体由本轮投影覆盖作废（F-1 简化口径）。
 - 每轮合并后**必须重新走完整 DSL 校验与权限编译**，不得复用上一轮编译结果；`context_delta` 进审计。
 - 上一轮条件因权限/清单变化不可用时显式提示「上轮的 X 已不可用」，不静默丢弃或保留。
 - 客户端请求 DTO 白名单：只允许 `(sessionId, 文本, 澄清选择)`；任何上下文字段出现在请求体一律拒绝（M4 T8.1 同思路）。
@@ -78,8 +99,8 @@ ask_run_event:      run_id + seq + type + payload(JSONB) + created_at   —— �
 ```
 授权过滤（复用 PolicyService 快照 allowlist ∩ authorizedDomains；无快照租户瀑布不可用，fail-closed）
   → L1 精确（assetId/名称/aliases 精确命中）
-  → L2 词典（aliases/summary 分词倒排，清单激活时重建内存索引）
-  → L3 受限模糊（编辑距离 + 子串，仅澄清候选）
+  → L2 词典（**别名/业务名的子串包含匹配内存索引**，清单激活时重建；不引分词器）
+  → L3 受限模糊（**Java 内存编辑距离 + 子串**，仅澄清候选；不引 DB 扩展与分词器）
   → 候选集 + context_hash（内容 SHA-256）
 ```
 
@@ -90,7 +111,7 @@ ask_run_event:      run_id + seq + type + payload(JSONB) + created_at   —— �
 
 ### 3.3 LLM 编排与 Proposal 来源完整性（`ontos-module-agent`）
 
-- **HarnessAgent** 装配（工厂已有）：system prompt 注入能力边界 + 候选集 + 会话状态摘要 + 授权域 + turn_index；tools 固定 `propose_intent`（结构化候选输出）与 `execute_query`（确定性链路）。
+- **HarnessAgent** 装配（工厂已有）：system prompt 注入能力边界 + 候选集 + 会话状态摘要 + 授权域 + turn_index；**LLM 唯一工具 `propose_intent`（结构化候选输出）——查询执行是编排代码在 Proposal 过闸门后的内部步骤，对 LLM 不可见（v1.1 F-5 P0 修正，硬边界）**。
 - 输出过 `IntentProposalContract`（5 终态 + 澄清四要素 + 禁 SQL + 候选集白名单硬边界；G2 修复项 `outputValidation=true`、修复超限确定性拒答）。
 - **Proposal 来源完整性**：输出每个 ID 必须能在本轮候选集找到（按 `context_hash` 对账）；候选集外 ID / 自创 `scenario_id/skill_id/analysis_mode/rule_id/variant` / 异常话术（自称管理员、要求忽略规则）→ **`InjectionCheckpoint.onSuspected(..., SOURCE_CANDIDATE_OUT_OF_SET|SOURCE_PROMPT_TEXT, ...)`**（M4 冻结接口第一次真实接入）→ 澄清或拒答 + 完整审计。
 - LLM 不输出物理 Join、绝对日期、口径变体选择（规划器/时间解析器/用户澄清决定）。
@@ -141,6 +162,7 @@ ask_run 状态机（终态不可回退；先判定后转移——M4 G-4 教训�
 - 执行路径敏感触发（execute 返回 1003000008）→ run 置 `WAITING_APPROVAL` + INTERRUPT 事件（复用 `HitlNotifier`）→ 前端审批卡片 → REST 决策（M4 端点）→ **编排层继续该 run**：轮询审批状态（1s 间隔、TTL 15min 上限）→ APPROVED 后携 M4 令牌（`X-Ontos-Approval`）重放查询 → 令牌放行 → run FINISHED。
 - 决策拒绝 / TTL 超时 → run 以结构化终态收尾（`SENSITIVE_QUERY_REJECTED/EXPIRED` 文案），**不悬挂**。
 - `WAITING_APPROVAL` 期间 run 的会话状态不推进（turn 持有），避免审批期间上下文漂移。
+- 轮询在 run 执行线程内进行：执行线程池大小可配（`ontos.agent.run-executor-pool`，v1.1 F-8）。
 
 ## 4. 任务分解
 
