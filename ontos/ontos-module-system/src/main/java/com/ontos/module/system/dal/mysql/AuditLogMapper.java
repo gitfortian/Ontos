@@ -19,7 +19,7 @@ public class AuditLogMapper {
     private static final String SELECT_FIELDS = """
             SELECT id, request_id, parent_request_id, sub_intent_id, tenant_id, user_id,
                    session_id, turn_index, manifest_id, action, metric_id,
-                   dsl::text AS dsl, sql_text, row_count, reason_code, trace_id,
+                   dsl::text AS dsl, sql_text, row_count, reason_code, trace_id, policy_version,
                    created_at::text AS created_at
             FROM audit_log
             """;
@@ -41,6 +41,7 @@ public class AuditLogMapper {
         item.setSqlText(rs.getString("sql_text"));
         item.setRowCount((Integer) rs.getObject("row_count"));
         item.setReasonCode(rs.getString("reason_code"));
+        item.setPolicyVersion(rs.getString("policy_version"));
         item.setTraceId(rs.getString("trace_id"));
         item.setCreatedAt(rs.getString("created_at"));
         return item;

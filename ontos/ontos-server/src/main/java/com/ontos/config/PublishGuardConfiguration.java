@@ -21,7 +21,9 @@ public class PublishGuardConfiguration {
         return new PublishGuard() {
             @Override
             public void requirePublishAllowed(String assetId) {
-                policyService.check(RequestContextHolder.require(), assetId);
+                // M4：发布是管理动作，不属于业务资产 allowlist（AssetType 无对应类型），
+                // 走管理面闸门（语义与 M0 一致：仅 dev 放行，其余 403）；管理角色模型归 M6/M8。
+                policyService.checkManagementAllowed(RequestContextHolder.require());
             }
 
             @Override

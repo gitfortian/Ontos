@@ -3,7 +3,7 @@
  * 零号冒烟 runner（OBL-M7 最小框架第 2 件，关闭 M0 T1.4 脚本欠账）。
  *
  * 判据口径：
- * - 三件套版本一致：题目文档 v1 / gold v1 / 本 runner；gold 文件 sha256 与文档声明、gold 内嵌 hash 三方比对；
+ * - 三件套版本一致：题目文档 v2 / gold v2 / 本 runner；gold 的 contentHash 与文件声明、重算值三方比对；
  * - 只跑「确定性链路已上线」的题目（M4 阶段 14/20）；LLM 编排依赖题（澄清/注入/跨租户文本/discovery/多轮）
  *   一律 skip 且逐题写明依赖里程碑，skip 不算通过（评测统计口径 v1 §2）；
  * - 分层按 gold 的 expectedTerminal / riskType 分列，附 Wilson 95% 区间；

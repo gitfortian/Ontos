@@ -1,0 +1,327 @@
+{
+  "runId": "s1794195037020",
+  "ranAt": "2026-11-09T03:30:37.827Z",
+  "manifestId": "2026.11.08-eighth",
+  "runnerVersion": "smoke-runner-v1",
+  "setHashes": {
+    "零号冒烟集-gold-v2.json": "sha256:ec0f50526b527be7bf9ee87a40aae0f69f0f34ba7641f0f146b4fbadd1c1ed62",
+    "零号冒烟集-v2.md": "sha256:384501da3afea60c5cdb3f4c137466d6df5eb2e6c3ac38190ae0f89cea62b408",
+    "contentHash": "sha256:3b62c177ac2dbe81910e77241d14b089dd48c74aad167cb61ad7c4a05d03be14"
+  },
+  "mappingNote": "拒绝类题目当前判定为「业务错误码拒绝且非 500」；错误码与 gold reasonCode（OUT_OF_MANIFEST 等）的精确映射在 M5 澄清/拒答装配接线后收紧。",
+  "results": [
+    {
+      "id": 1,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "无",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 2,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "无",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 3,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "别名解析（销售额→gmv）",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 4,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "别名解析（成交金额→gmv）",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 5,
+      "status": "pass",
+      "expectedTerminal": "out_of_capability",
+      "riskType": "字段敏感",
+      "verdict": "rejected",
+      "errorCode": 1002000016,
+      "reason": "属性不可投影或不属于该实体: property.customer.register_time"
+    },
+    {
+      "id": 6,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "存在性泄露",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 7,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "无",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 8,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "判定口径 / label 敏感",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 9,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "时间解析",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 10,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "时间解析",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 11,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "无",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 12,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "口径歧义（已由别名消解）",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 13,
+      "status": "skip",
+      "expectedTerminal": "clarification",
+      "riskType": "口径歧义",
+      "reason": "依赖未上线能力（LLM 编排 / 会话 / discovery），M5 装配后回补"
+    },
+    {
+      "id": 14,
+      "status": "pass",
+      "expectedTerminal": "out_of_capability",
+      "riskType": "越权 / 敏感",
+      "verdict": "rejected",
+      "errorCode": 1002000016,
+      "reason": "属性不可投影或不属于该实体: property.customer.phone"
+    },
+    {
+      "id": 15,
+      "status": "skip",
+      "expectedTerminal": "rejected",
+      "riskType": "越权",
+      "reason": "依赖未上线能力（LLM 编排 / 会话 / discovery），M5 装配后回补"
+    },
+    {
+      "id": 16,
+      "status": "skip",
+      "expectedTerminal": "rejected",
+      "riskType": "注入 / 自由 SQL",
+      "reason": "依赖未上线能力（LLM 编排 / 会话 / discovery），M5 装配后回补"
+    },
+    {
+      "id": 17,
+      "status": "skip",
+      "expectedTerminal": "out_of_capability",
+      "riskType": "能力边界",
+      "reason": "依赖未上线能力（LLM 编排 / 会话 / discovery），M5 装配后回补"
+    },
+    {
+      "id": 18,
+      "status": "pass",
+      "expectedTerminal": "composite",
+      "riskType": "复合意图",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 19,
+      "status": "skip",
+      "expectedTerminal": "clarification",
+      "riskType": "上下文",
+      "reason": "依赖未上线能力（LLM 编排 / 会话 / discovery），M5 装配后回补"
+    },
+    {
+      "id": 20,
+      "status": "skip",
+      "expectedTerminal": "discovery",
+      "riskType": "能力边界",
+      "reason": "依赖未上线能力（LLM 编排 / 会话 / discovery），M5 装配后回补"
+    }
+  ],
+  "summary": {
+    "pass": 14,
+    "fail": 0,
+    "skip": 6,
+    "error": 0,
+    "validSamples": 14,
+    "successRate": 1,
+    "wilson95": [
+      0.7847,
+      1
+    ],
+    "byExpectedTerminal": {
+      "query": {
+        "n": 11,
+        "pass": 11,
+        "skip": 0,
+        "wilson95": [
+          0.7412,
+          1
+        ]
+      },
+      "out_of_capability": {
+        "n": 3,
+        "pass": 2,
+        "skip": 1,
+        "wilson95": [
+          0.2077,
+          0.9385
+        ]
+      },
+      "clarification": {
+        "n": 2,
+        "pass": 0,
+        "skip": 2,
+        "wilson95": [
+          0,
+          0.6576
+        ]
+      },
+      "rejected": {
+        "n": 2,
+        "pass": 0,
+        "skip": 2,
+        "wilson95": [
+          0,
+          0.6576
+        ]
+      },
+      "composite": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0,
+        "wilson95": [
+          0.2065,
+          1
+        ]
+      },
+      "discovery": {
+        "n": 1,
+        "pass": 0,
+        "skip": 1,
+        "wilson95": [
+          0,
+          0.7935
+        ]
+      }
+    },
+    "byRiskType": {
+      "无": {
+        "n": 4,
+        "pass": 4,
+        "skip": 0
+      },
+      "别名解析（销售额→gmv）": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "别名解析（成交金额→gmv）": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "字段敏感": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "存在性泄露": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "判定口径 / label 敏感": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "时间解析": {
+        "n": 2,
+        "pass": 2,
+        "skip": 0
+      },
+      "口径歧义（已由别名消解）": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "口径歧义": {
+        "n": 1,
+        "pass": 0,
+        "skip": 1
+      },
+      "越权 / 敏感": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "越权": {
+        "n": 1,
+        "pass": 0,
+        "skip": 1
+      },
+      "注入 / 自由 SQL": {
+        "n": 1,
+        "pass": 0,
+        "skip": 1
+      },
+      "能力边界": {
+        "n": 2,
+        "pass": 0,
+        "skip": 2
+      },
+      "复合意图": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "上下文": {
+        "n": 1,
+        "pass": 0,
+        "skip": 1
+      }
+    }
+  }
+}

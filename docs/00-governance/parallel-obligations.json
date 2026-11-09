@@ -31,15 +31,17 @@
       "startStage": "M1",
       "convergeStage": "M6",
       "status": "deferred",
-      "triggerStage": "M4",
+      "triggerStage": "M6",
       "owner": "项目负责人",
-      "reason": "M1/M2/M3 已通过而 M7 无任何以 M7 名义的交付物（无实施规格 / 无 ADR / 无进度条目 / 无 ontos-module-eval / 无失败看板 / 无消融与压测），且此前从未有顺延说明或重排计划。按 ADR-0014 决策：roadmap 硬约束不降级，M4 启动前先补最小评测框架三件，M4 收口逐项验收，M6 后按原口径收敛。",
+      "reason": "ADR-0014 登记的静默未执行已由最小框架补起：三件交付物经《M7 最小框架验收记录 v1》按 M4 规格 E6 三条判据验收通过（本地 PG18 真实复跑 14 pass / 0 fail / 6 skip，哈希四方复算一致）。按 ADR-0015 决策，M4 触发点对应的最小框架目标已闭环，触发阶段重定为 M6，与 roadmap「M6 后收敛」的剩余全量交付物对齐；status 维持 deferred，test 集 0 题 / 消融 / 失败看板 / 追踪 / 压测等欠账不得视为完成。",
       "evidence": [
         "docs/01-decisions/ADR-0014-并行义务纪律与M7同步建设偏离.md",
+        "docs/01-decisions/ADR-0015-M7最小框架验收与触发阶段重定.md",
         "docs/05-progress/2026/2026-11-09.md",
+        "docs/06-verification/checklists/M7-最小框架验收记录-v1.md",
         "docs/06-verification/evaluation/正式评测集-v1.md",
         "docs/06-verification/evaluation/评测统计口径-v1.md",
-        "docs/06-verification/evaluation/零号冒烟-run-latest.json"
+        "docs/06-verification/evaluation/零号冒烟-评测证据-v1.json"
       ],
       "deliverables": [
         "正式评测集另立文档（收编存量题集，带版本哈希）",
@@ -49,7 +51,7 @@
         "失败看板 5 维下钻与纠正样本回流",
         "追踪（trace 关联问题 → DSL → SQL → 结果）与性能安全压测"
       ],
-      "minimalFrameworkDone": "2026-11-09：最小框架三件落地（正式评测集收编 / 零号冒烟 runner / 分层统计口径）；全量交付物仍按原口径 M6 后收敛"
+      "minimalFrameworkDone": "2026-11-09 已验收（有条件通过）：三件交付物与 M4 规格 E6 三条判据全部满足；真实复跑 14 pass / 0 fail / 6 skip / 0 error，gold / 题目文档 / contentHash 四方哈希复算一致，证据固化于 零号冒烟-评测证据-v1.json；结论与四类欠账见《M7 最小框架验收记录 v1》。全量交付物仍按原口径 M6 后收敛。"
     }
   ]
 }

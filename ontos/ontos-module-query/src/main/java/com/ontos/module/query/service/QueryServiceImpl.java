@@ -34,6 +34,7 @@ import com.ontos.module.query.service.cache.QueryCacheService;
 import com.ontos.module.system.service.audit.AuditLogCreateReqDTO;
 import com.ontos.module.system.service.audit.AuditService;
 import com.ontos.module.system.service.policy.PolicyService;
+import com.ontos.module.system.service.policy.PolicySnapshotService;
 import com.ontos.module.system.service.request.RequestStateService;
 import com.ontos.module.system.service.request.RequestStatus;
 import lombok.extern.slf4j.Slf4j;
@@ -627,8 +628,41 @@ public class QueryServiceImpl implements QueryService {
             }
         }
         dslValidator.validate(queryDsl, manifest);
-        // lookup 系列以实体为授权资产（没有 metricId）；其余模式仍以指标为锚点。
-        policyService.check(context, isLookup(queryDsl) ? queryDsl.getEntityId() : queryDsl.getMetricId());
+        // M4/W1 策略判定（规格 v1.1 §3.1）：DSL 校验之后（资产存在性已由清单证明），
+        // 错误码优先级：清单存在性 1001000003 → 策略授权 1003000005。
+        // 主资产：lookup 以实体为授权资产；funnel 以事件主体为入口（无 metric，M2 语义），
+        // 其授权由下方维度/属性引用面与事件映射承担；其余模式以指标为锚点。
+        if (isLookup(queryDsl)) {
+            policyService.check(context, PolicySnapshotService.AssetType.ENTITY, queryDsl.getEntityId());
+        } else if (queryDsl.getMode() != QueryDsl.AnalysisMode.FUNNEL) {
+            policyService.check(context, PolicySnapshotService.AssetType.METRIC, queryDsl.getMetricId());
+        }
+        // 引用面逐项判定：分组/过滤/时间维度走 DIMENSION，属性投影走 PROPERTY（用户×资产第二道闸门；
+        // 清单级授权已由 requireAllowedDimension 证明资产在指标白名单内）。
+        if (queryDsl.getDimensions() != null) {
+            for (String dimensionId : queryDsl.getDimensions()) {
+                policyService.check(context, PolicySnapshotService.AssetType.DIMENSION, dimensionId);
+            }
+        }
+        if (queryDsl.getFilters() != null) {
+            for (QueryDsl.Filter filter : queryDsl.getFilters()) {
+                policyService.check(context, PolicySnapshotService.AssetType.DIMENSION, filter.getFieldId());
+            }
+        }
+        if (queryDsl.getTimeRange() != null && queryDsl.getTimeRange().getField() != null) {
+            policyService.check(context, PolicySnapshotService.AssetType.DIMENSION,
+                    queryDsl.getTimeRange().getField());
+        }
+        if (queryDsl.getAttributes() != null) {
+            for (String propertyId : queryDsl.getAttributes()) {
+                policyService.check(context, PolicySnapshotService.AssetType.PROPERTY, propertyId);
+            }
+        }
+        if (queryDsl.getBooleanMetricId() != null) {
+            // 布尔判定走个体闸门：label 级判定结果拒绝个体返回（聚合分布 M4 不可达已登记）
+            policyService.checkIndividual(context, PolicySnapshotService.AssetType.METRIC,
+                    queryDsl.getBooleanMetricId());
+        }
         return manifest;
     }
 

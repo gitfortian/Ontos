@@ -1,6 +1,6 @@
 {
-  "runId": "s1794192689668",
-  "ranAt": "2026-11-09T02:51:30.878Z",
+  "runId": "s1794196552524",
+  "ranAt": "2026-11-09T03:55:52.927Z",
   "manifestId": "2026.11.08-eighth",
   "runnerVersion": "smoke-runner-v1",
   "setHashes": {
@@ -323,6 +323,5 @@
         "skip": 1
       }
     }
-  },
-  "parallelObligation": "OBL-M7：零号冒烟 runner 为 ADR-0014 决策 2（M4 启动前最小评测框架第 2 件），并关闭 M0 T1.4 脚本欠账；M7 全量交付物仍按原口径 M6 后收敛"
+  }
 }

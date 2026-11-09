@@ -23,6 +23,7 @@ public class AuditLogDO {
     private String sqlText;
     private Integer rowCount;
     private String reasonCode;
+    private String policyVersion;
     private String traceId;
     private String createdAt;
 

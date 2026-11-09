@@ -22,6 +22,8 @@ public class AuditLogCreateReqDTO {
     private String sqlText;
     private Integer rowCount;
     private String reasonCode;
+    /** 写入该审计行时的生效策略快照版本（M4/W1）；由 AuditService 统一解析填充，调用方不传。 */
+    private String policyVersion;
     private String traceId;
     /** 状态迁移起点/终点与触发原因（action=STATE_TRANSITION 行，M1/T6.3）。 */
     private String fromState;

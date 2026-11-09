@@ -540,7 +540,8 @@ class QueryServiceImplTest {
         when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
         when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
         when(queryExecutor.execute(any(), any())).thenReturn(rows(1));
-        doThrow(exception(ARTIFACT_NOT_FOUND, "denied")).when(policyService).check(any(), any());
+        doThrow(exception(ARTIFACT_NOT_FOUND, "denied")).when(policyService)
+                .check(any(), any(), any());
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service(new TimeWindowResolver()).executeComposite(compositeDsl(2)));
