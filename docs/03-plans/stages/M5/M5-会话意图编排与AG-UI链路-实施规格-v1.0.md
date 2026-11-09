@@ -6,7 +6,7 @@
 | **版本** | v1.0 |
 | **日期** | 2026-11-09 |
 | **负责人** | 项目负责人（待确认） |
-| **上游依据** | [roadmap M5](../../03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md) · [v1.4 方案 §7](../../../02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md) · [技术选型 §7 PoC #3/#5/#10 / §11 冻结项](../../../02-solutions/architecture/智能问数系统技术选型方案-v1.1.md) · [ADR-0004](../../../01-decisions/ADR-0004-首发业务域与Scenario范围.md) · [ADR-0006 G2 口径](../../../01-decisions/ADR-0006-G2有条件关闭与重开口径.md) · [M4 验收报告 §5 移交前置](../../../06-verification/checklists/M4-验收报告-v1.md) · [M4 W4 审核（注入检查点冻结）](../../../06-verification/checklists/M4-W4-深度审核-v1.md) |
+| **上游依据** | [roadmap M5](../../../03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md) · [v1.4 方案 §7](../../../02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md) · [技术选型 §7 PoC #3/#5/#10 / §11 冻结项](../../../02-solutions/architecture/智能问数系统技术选型方案-v1.1.md) · [ADR-0004](../../../01-decisions/ADR-0004-首发业务域与Scenario范围.md) · [ADR-0006 G2 口径](../../../01-decisions/ADR-0006-G2有条件关闭与重开口径.md) · [M4 验收报告 §5 移交前置](../../../06-verification/checklists/M4-验收报告-v1.md) · [M4 W4 审核（注入检查点冻结）](../../../06-verification/checklists/M4-W4-深度审核-v1.md) |
 | **适用范围** | M5 阶段全部工作；本规格经负责人决策定档并冻结前**不得编码**；退出按 §6 逐条给证据 |
 | **历史版本** | [v0.1](../../../99-archive/plans/M5-会话意图编排与AG-UI链路-实施规格-v0.1.md)（已归档：初稿） |
 
