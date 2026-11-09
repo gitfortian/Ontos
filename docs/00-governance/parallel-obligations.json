@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-09",
+  "source": "docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md",
+  "note": "并行义务登记台账（治理用，非阶段定义）。阶段编号、依赖与硬约束的唯一定义处仍是 roadmap；本文件只登记「谁在跟踪、当前状态、何时必须闭环、证据在哪」。状态仅允许 done / deferred，禁止 skipped 或 n/a。由 docs/00-governance/check-parallel-obligations.mjs 强制校验，并接入 scripts/verify-baseline.mjs。",
+  "obligations": [
+    {
+      "id": "OBL-M4",
+      "stage": "M4",
+      "clause": "roadmap §1 阶段总览 M4 依赖列「可与 M1–M3 并行」；§4.3「安全与评测不许后置」",
+      "startStage": "M1",
+      "status": "deferred",
+      "triggerStage": "M5",
+      "owner": "项目负责人",
+      "reason": "M1/M2/M3 均已通过验收而 M4 仍为待启动，属「自 M1 起并行」硬约束未同步执行。按 roadmap 依赖 M5 = M3 + M4，M4 必须在 M5 启动前完成，否则 M5 不得放行；不得把 M4 顺延成主线最后一环。",
+      "evidence": [
+        "docs/01-decisions/ADR-0014-并行义务纪律与M7同步建设偏离.md",
+        "docs/05-progress/2026/2026-11-09.md"
+      ],
+      "deliverables": [
+        "策略快照产品化",
+        "RLS 终态与真实域策略",
+        "审批 / 审计 / 脱敏",
+        "跨轮累计防护与 M0 #1 #7 集成复验"
+      ]
+    },
+    {
+      "id": "OBL-M7",
+      "stage": "M7",
+      "clause": "roadmap §1 阶段总览 M7 依赖列「自 M1 起同步建设，M6 后收敛」；§1 并行支线「不允许最后补」；§4.3；风险台账 R7",
+      "startStage": "M1",
+      "convergeStage": "M6",
+      "status": "deferred",
+      "triggerStage": "M4",
+      "owner": "项目负责人",
+      "reason": "M1/M2/M3 已通过而 M7 无任何以 M7 名义的交付物（无实施规格 / 无 ADR / 无进度条目 / 无 ontos-module-eval / 无失败看板 / 无消融与压测），且此前从未有顺延说明或重排计划。按 ADR-0014 决策：roadmap 硬约束不降级，M4 启动前先补最小评测框架三件，M4 收口逐项验收，M6 后按原口径收敛。",
+      "evidence": [
+        "docs/01-decisions/ADR-0014-并行义务纪律与M7同步建设偏离.md",
+        "docs/05-progress/2026/2026-11-09.md"
+      ],
+      "deliverables": [
+        "正式评测集另立文档（收编存量题集，带版本哈希）",
+        "零号冒烟 runner（补齐 M0 T1.4 未关闭的脚本项）",
+        "分层统计与置信区间口径",
+        "消融 / 对照实验",
+        "失败看板 5 维下钻与纠正样本回流",
+        "追踪（trace 关联问题 → DSL → SQL → 结果）与性能安全压测"
+      ]
+    }
+  ]
+}

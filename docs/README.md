@@ -1,13 +1,13 @@
 # Ontos 文档规范与总索引
 
 > **状态**：已冻结
-> **版本**：v1.8
+> **版本**：v1.9
 > **类型**：规范 / 索引
 > **负责人**：项目负责人
 > **最后更新**：2026-11-09
 > **适用范围**：`docs/` 下全部文档，以及仓库内所有引用 `docs/` 的代码与配置
 > **上游依据**：v1.4 完整可落地方案 §16 引用边界、v1.1 技术选型 §10 事实台账
-> **修订记录**：2026-11-06 v1.0 首次发布；建立分层、命名、生命周期与单一事实源规则；2026-11-07 v1.1 索引维护——M0 验收报告 v2 勘误版、ADR-0006、版本事实台账、基线自检归档入索引；2026-11-08 v1.2 M2 阶段索引维护——补登记 M2 实施规格、funnel/yoy_mom 规格、ADR-0009~0011、Golden 集 v2 案例设计、冒烟集 gold、11-08 进度快照；2026-11-08 v1.3 补登记 ADR-0012（EventDef 事件判定映射扩展与清单 v2）；2026-11-08 v1.4 M2 收口索引维护——补登记 M2 验收报告 v1（已冻结，E1 按 ADR-0013 附条件关闭）、ADR-0013、M2 基线自检、Golden v2 gold、复合意图 M2 回填、PoC-01 M2 回归与 M2 E5 对抗探针（本文件路径固定为唯一入口，升版以修订记录承载，不迁移归档）；2026-11-09 v1.5 M2 收口后深度审核入索引——补登记《M2 收口后深度审核 v1》（12 项发现闭环、R-18 关闭、M2 判定不变）；2026-11-09 v1.6 M3 开工——补登记《M3 简单问法最小闭环 实施规格 v0.1》（草稿，待确认三个设计决策）；2026-11-09 v1.7 M3 规格冻结——三项决策确认，升 v1.0 并把 v0.1 移入 99-archive；2026-11-09 v1.8 M3 收口——补登记《M3 验收报告 v1》（E1–E6 满足，M5 放行）与 M3 Golden 增量
+> **修订记录**：2026-11-06 v1.0 首次发布；建立分层、命名、生命周期与单一事实源规则；2026-11-07 v1.1 索引维护——M0 验收报告 v2 勘误版、ADR-0006、版本事实台账、基线自检归档入索引；2026-11-08 v1.2 M2 阶段索引维护——补登记 M2 实施规格、funnel/yoy_mom 规格、ADR-0009~0011、Golden 集 v2 案例设计、冒烟集 gold、11-08 进度快照；2026-11-08 v1.3 补登记 ADR-0012（EventDef 事件判定映射扩展与清单 v2）；2026-11-08 v1.4 M2 收口索引维护——补登记 M2 验收报告 v1（已冻结，E1 按 ADR-0013 附条件关闭）、ADR-0013、M2 基线自检、Golden v2 gold、复合意图 M2 回填、PoC-01 M2 回归与 M2 E5 对抗探针（本文件路径固定为唯一入口，升版以修订记录承载，不迁移归档）；2026-11-09 v1.5 M2 收口后深度审核入索引——补登记《M2 收口后深度审核 v1》（12 项发现闭环、R-18 关闭、M2 判定不变）；2026-11-09 v1.6 M3 开工——补登记《M3 简单问法最小闭环 实施规格 v0.1》（草稿，待确认三个设计决策）；2026-11-09 v1.7 M3 规格冻结——三项决策确认，升 v1.0 并把 v0.1 移入 99-archive；2026-11-09 v1.8 M3 收口——补登记《M3 验收报告 v1》（E1–E6 满足，M5 放行）与 M3 Golden 增量；2026-11-09 v1.9 M5 开工——补登记《M5 会话意图编排与 AG-UI 链路 实施规格 v0.1》（草稿，待确认三个设计决策）；2026-11-09 v1.9 并行义务纪律落地——补登记 ADR-0014、并行义务台账与强制检查脚本，新增 §7.8 硬条款
 
 本文件是 `docs/` 的**唯一入口**，同时是文档治理规范。任何 agent 在新增、修改、查找文档前必须先读本文件。
 
@@ -167,6 +167,9 @@ docs/
 5. **完成即记进度**：任何实质性工作（方案、代码、验证、决策）在收尾时向 `05-progress/<年>/` 追加一条快照。
 6. **移动即改引用**：迁移文档后必须跑 `node docs/00-governance/check-docs.mjs`，修复全部失效引用。
 7. **模板起稿**：方案/计划/规格/ADR/验证报告从 `00-governance/templates/` 复制，不凭记忆写结构。
+8. **并行义务同步**：新增或调整 `03-plans/roadmap` 的并行 / 同步建设约束时，必须同步
+   `00-governance/parallel-obligations.json` 并重跑 `check-parallel-obligations.mjs`；
+   每个阶段收口的进度快照必须逐项点名未闭环义务（见 `../AGENTS.md` §6.4）。只改计划不改台账视为未完成。
 
 ---
 
@@ -202,6 +205,7 @@ node docs/00-governance/check-docs.mjs
 | M2 收口后深度审核 | 验证 | 已归档 | v1 | [`06-verification/checklists/M2-收口后深度审核-v1.md`](06-verification/checklists/M2-收口后深度审核-v1.md) |
 | M3 实施规格 | 计划 | 已冻结 | v1.0 | [`03-plans/stages/M3/M3-简单问法最小闭环-实施规格-v1.md`](03-plans/stages/M3/M3-简单问法最小闭环-实施规格-v1.md) |
 | M3 验收报告 | 验证 | 已冻结 | v1 | [`06-verification/checklists/M3-验收报告-v1.md`](06-verification/checklists/M3-验收报告-v1.md) |
+| M5 实施规格 | 计划 | 草稿（待确认） | v0.1 | [`03-plans/stages/M5/M5-会话意图编排与AG-UI链路-实施规格-v0.1.md`](03-plans/stages/M5/M5-会话意图编排与AG-UI链路-实施规格-v0.1.md) |
 | M3 Golden 增量 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/M3-Golden-v1.json`](06-verification/evaluation/M3-Golden-v1.json) |
 | M2 基线自检归档输出 | 验证 | 已归档 | — | [`06-verification/checklists/M2-基线自检-2026-11-08.txt`](06-verification/checklists/M2-基线自检-2026-11-08.txt) |
 | M2 E5 对抗探针证据 | 验证 | 已归档 | — | [`06-verification/checklists/M2-E5-对抗探针-2026-11-08.json`](06-verification/checklists/M2-E5-对抗探针-2026-11-08.json) |
@@ -231,6 +235,9 @@ node docs/00-governance/check-docs.mjs
 | ADR-0011 · M2 实施规格状态修订与 T3.0 归位 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0011-M2实施规格状态修订.md`](01-decisions/ADR-0011-M2实施规格状态修订.md) |
 | ADR-0012 · EventDef 事件判定映射扩展与清单 v2 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0012-EventDef事件判定映射扩展.md`](01-decisions/ADR-0012-EventDef事件判定映射扩展.md) |
 | ADR-0013 · Golden 集 v2 不可构造案例处置口径 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0013-Golden不可构造案例处置口径.md`](01-decisions/ADR-0013-Golden不可构造案例处置口径.md) |
+| ADR-0014 · 并行义务纪律与 M7 同步建设偏离处置 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0014-并行义务纪律与M7同步建设偏离.md`](01-decisions/ADR-0014-并行义务纪律与M7同步建设偏离.md) |
+| 并行义务登记台账 | 治理 | 生效中 | schemaVersion 1 | [`00-governance/parallel-obligations.json`](00-governance/parallel-obligations.json) |
+| 并行义务与阶段状态检查 | 治理 | 生效中 | — | [`00-governance/check-parallel-obligations.mjs`](00-governance/check-parallel-obligations.mjs) |
 | PoC-01 · RLS 最终边界报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-01-RLS最终边界.md`](06-verification/poc/PoC-01-RLS最终边界.md) |
 | PoC-02 · 发布快照可复现报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-02-发布快照可复现.md`](06-verification/poc/PoC-02-发布快照可复现.md) |
 | PoC-03 · AgentScope 准入报告 | 验证 | 已冻结 | v1 | [`06-verification/poc/PoC-03-AgentScope准入.md`](06-verification/poc/PoC-03-AgentScope准入.md) |
