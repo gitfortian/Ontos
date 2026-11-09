@@ -90,7 +90,9 @@ java -jar ontos-server/target/ontos-server-0.1.0-SNAPSHOT.jar --spring.profiles.
 ```
 
 > **在 IntelliJ IDEA 里 Run `OntosApplication` 时必须显式激活 `local`**：
-> `Run/Debug Configurations` → Spring Boot → **Active profiles** 填 `local`；等价做法是
+> 仓库自带共享运行配置 `.run/OntosApplication-local.run.xml`（已含 `Active profiles=local`
+> 与 UTF-8 VM 参数），IDEA 打开项目后在运行配置下拉里直接选 **`OntosApplication (local)`** 即可；
+> 未识别到该配置时手动设置：`Run/Debug Configurations` → Spring Boot → **Active profiles** 填 `local`；等价做法是
 > VM options 加 `-Dspring.profiles.active=local`、环境变量加 `SPRING_PROFILES_ACTIVE=local`、
 > 或 Program arguments 加 `--spring.profiles.active=local`（也可直接用 `scripts/run-local-backend.sh`，脚本已带该参数）。
 >
@@ -99,7 +101,7 @@ java -jar ontos-server/target/ontos-server-0.1.0-SNAPSHOT.jar --spring.profiles.
 > `SQL State 28000 / 未指定 PostgreSQL 用户名`，随后 `systemJdbcTemplate` → `ManifestServiceImpl`
 > 整条装配链失败、应用启动中止。**不要**为了让 IDEA 能启动而把默认凭据写回 `application.yml`；
 > 若确实不用 `local`，需显式提供 `ONTOS_SYSTEM_DB_USER/PASSWORD`、`ONTOS_QUERY_DB_USER/PASSWORD`。
-> Windows 控制台里 PostgreSQL 的中文报错显示为乱码只是 GBK 解码问题，不是另一个故障。
+> 该报错在 Windows 本机 PG18 上可能显示为乱码，成因与处理见下方「本地日志编码」。
 
 Flyway 会在启动时创建 System DB 的表。首次联调再灌一份演示清单：
 
@@ -112,6 +114,27 @@ docker compose exec -T postgres psql -U ontos_admin -d ontos_system \
 > 重新打包并设置 `DASHSCOPE_API_KEY` / `OPENAI_API_KEY`。未配置时确定性链路 `/api/v1/**` 完全可用，
 > 只有调用 `/agent/ontos` 才会在请求期报错——模型解析已延迟到请求期，不会阻止应用启动。
 > 只想跑确定性链路时可加 `--ontos.agent.enabled=false`。
+
+**本地日志编码（Windows + 本机 PostgreSQL）**
+
+JDK 21 在中文 Windows 上是 `file.encoding=UTF-8` 而 `stdout.encoding/stderr.encoding=GBK`；
+本机 PG18 若用中文 locale（`lc_messages = Chinese (Simplified)_China.936`），
+**连接握手阶段**（认证失败时 `client_encoding` 尚未协商）服务端会直接发送 GBK 字节的中文错误，
+pgjdbc 按 UTF-8 解码后字符串本身已损坏，日志表现为 `SQL State 28000` 旁的乱码。
+此时调 IDEA 控制台编码没用；连接建立后的普通 SQL 错误反而是正常 UTF-8，业务中文日志也正常。
+
+一次性把本机开发库的服务端消息改为英文（只改消息语言，不动数据、角色与权限）：
+
+```bash
+psql -h localhost -U postgres -d ontos -c "ALTER SYSTEM SET lc_messages = 'C'" -c "SELECT pg_reload_conf()"
+```
+
+回退：`psql -h localhost -U postgres -d ontos -c "ALTER SYSTEM RESET lc_messages" -c "SELECT pg_reload_conf()"`。
+两条语句必须分开 `-c` 传（`ALTER SYSTEM` 不能在事务块内执行）；reload 后新连接即生效，
+报错变 `FATAL: no PostgreSQL user name specified in startup packet`。
+若 IDEA 里业务中文日志仍异常，把 `Settings → Editor → General → Console → Default Encoding`
+设为 `UTF-8`，并在 Run Configuration 的 VM options 加
+`-Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8`。
 
 **3) 启动前端**
 

@@ -39,6 +39,8 @@
 ## 环境注意
 - 用户级 `~/.npmrc` 写死失效代理 `http://127.0.0.1:7897`，会让 `npm/pnpm install` 静默卡死；用 `NPM_CONFIG_USERCONFIG=/dev/null pnpm install --registry=https://registry.npmmirror.com` 绕过。
 - **本地 PG18 可用**（用户 2026-11-06 确认）：Windows 服务 `postgresql-x64-18`，安装目录 `D:\pg`（18.6-5），超管 `postgres/123456`，`psql` 不在 PATH 用绝对路径 `D:/pg/bin/psql.exe`。双库 `ontos`（System DB）/ `ontos_queryds`（Query DS），只读角色 `ontos_query_ro/ontos_query_ro`。`docker` 命令不在 PATH，compose 未使用。
+- **PG 错误消息已固定为英文（2026-11-09）**：原 `lc_messages = Chinese (Simplified)_China.936`，握手期服务端发 GBK 中文字节被 pgjdbc 按 UTF-8 解码 → 不可恢复的日志乱码；已 `ALTER SYSTEM SET lc_messages='C'` + `pg_reload_conf()`（持久于 `postgresql.auto.conf`），回退用 `ALTER SYSTEM RESET lc_messages` + reload。此问题与控制台编码无关。
+- **IDEA 启动必带 `local` profile**（Active profiles / `SPRING_PROFILES_ACTIVE` / `--spring.profiles.active=local`）：不带则 DB 凭据为空 → PG `28000` → Flyway 初始化失败 → 启动中止；切勿为图省事把默认弱口令写回 `application.yml`（破坏 fail-closed）。仓库已带共享运行配置 `.run/OntosApplication-local.run.xml`（含 profile + UTF-8 VM 参数），IDEA 下拉直接选 `OntosApplication (local)`。
 - **Spring Boot 4 坑**：Flyway 自动配置拆到 `spring-boot-flyway` 模块，仅依赖 `flyway-core` 不会执行迁移；`ontos-server/pom.xml` 必须保留 `spring-boot-starter-flyway`，否则生产部署静默缺表。
 - `pnpm` 11.5.1 已装；前端已按 ADR-0001 切 pnpm workspaces（根 `pnpm-workspace.yaml`，`packageManager: pnpm@11.5.1`）。
   pnpm 10+ 默认禁跑依赖安装脚本，`esbuild` 需在 `pnpm-workspace.yaml` 的 `allowBuilds` 放行，否则 vite 起不来。

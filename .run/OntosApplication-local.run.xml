@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="OntosApplication (local)" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <option name="ACTIVE_PROFILES" value="local" />
+    <module name="ontos-server" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.ontos.OntosApplication" />
+    <option name="VM_PARAMETERS" value="-Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
