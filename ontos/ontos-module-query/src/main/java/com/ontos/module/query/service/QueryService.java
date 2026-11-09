@@ -40,6 +40,12 @@ public interface QueryService {
     QueryPlan replayPlan(String requestId);
 
     /**
+     * 能力调用（M3/W3）：按 skillId 组装 DSL 后走正式执行通道（校验/授权/审计/状态机/幂等全部不变）；
+     * 另写一条 SKILL_EXECUTE 审计记录「这次查询由哪个能力发起」。
+     */
+    QueryResult executeSkill(String skillId, java.util.Map<String, Object> slots);
+
+    /**
      * 复合意图执行（M2 只支持无依赖子集）：逐子独立校验 → 编译 → 授权 → 执行 → 审计，
      * 子间不合并 SQL、不共享中间结果。任一子失败整单拒绝（fail-closed，不返回部分结果）；
      * 结果依赖类子意图（dependsOn 非空）直接拒绝转澄清，全链路归 M6。

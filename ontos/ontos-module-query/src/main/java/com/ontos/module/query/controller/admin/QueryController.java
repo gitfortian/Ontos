@@ -1,6 +1,7 @@
 package com.ontos.module.query.controller.admin;
 
 import java.util.List;
+import java.util.Map;
 
 import com.ontos.framework.common.pojo.CommonResult;
 import com.ontos.module.query.controller.admin.vo.QueryCompileRespVO;
@@ -8,6 +9,9 @@ import com.ontos.module.query.controller.admin.vo.QueryCompositeRespVO;
 import com.ontos.module.query.controller.admin.vo.QueryDryRunRespVO;
 import com.ontos.module.query.controller.admin.vo.QueryExecuteRespVO;
 import com.ontos.module.query.controller.admin.vo.QueryPlanRespVO;
+import com.ontos.module.query.controller.admin.vo.SkillDescriptorVO;
+import com.ontos.module.query.core.skill.SkillDescriptor;
+import com.ontos.module.query.core.skill.SkillRegistry;
 import com.ontos.module.query.core.compiler.CompiledQuery;
 import com.ontos.module.query.core.dsl.DslCodec;
 import com.ontos.module.query.core.dsl.QueryDsl;
@@ -26,7 +30,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.ontos.framework.common.pojo.CommonResult.success;
+import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
 
 /**
  * 确定性查询入口。请求体是类型化 DSL，不接受自然语言或自由 SQL。
@@ -39,10 +45,12 @@ public class QueryController {
 
     private final QueryService queryService;
     private final DslCodec dslCodec;
+    private final SkillRegistry skillRegistry;
 
-    public QueryController(QueryService queryService, DslCodec dslCodec) {
+    public QueryController(QueryService queryService, DslCodec dslCodec, SkillRegistry skillRegistry) {
         this.queryService = queryService;
         this.dslCodec = dslCodec;
+        this.skillRegistry = skillRegistry;
     }
 
     @PostMapping("/compile")
@@ -68,7 +76,40 @@ public class QueryController {
     @Operation(summary = "编译并执行 DSL")
     public CommonResult<QueryExecuteRespVO> execute(@RequestBody JsonNode body) {
         QueryDsl queryDsl = dslCodec.decode(body);
-        QueryResult result = queryService.execute(queryDsl);
+        return success(toExecuteVO(queryService.execute(queryDsl)));
+    }
+
+    @GetMapping("/skills")
+    @Operation(summary = "列出已注册能力与槽位契约（只读）")
+    public CommonResult<List<SkillDescriptorVO>> skills() {
+        return success(skillRegistry.list().stream().map(QueryController::toSkillVO).toList());
+    }
+
+    @PostMapping("/skills/{skillId}")
+    @Operation(summary = "能力调用：槽位 → DSL → 正式执行通道（审计/状态机/幂等不变）")
+    public CommonResult<QueryExecuteRespVO> executeSkill(@PathVariable String skillId,
+                                                         @RequestBody(required = false) JsonNode body) {
+        return success(toExecuteVO(queryService.executeSkill(skillId, parseSlots(body))));
+    }
+
+    /** 能力调用请求体契约固定为 {"slots": {...}}（缺省视为无槽位）；其他顶层字段一律拒绝（fail-closed）。 */
+    private static Map<String, Object> parseSlots(JsonNode body) {
+        if (body == null || body.isNull() || !body.isObject() || body.isEmpty()) {
+            return Map.of();
+        }
+        if (body.size() != 1 || !body.has("slots") || !body.get("slots").isObject()) {
+            throw exception(DSL_INVALID, "能力调用请求体必须是 {\"slots\": {...}}");
+        }
+        Object slots = com.ontos.framework.common.util.json.JsonUtils.parseMap(body.toString()).get("slots");
+        if (!(slots instanceof Map<?, ?> slotMap)) {
+            throw exception(DSL_INVALID, "slots 必须是对象");
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = (Map<String, Object>) slotMap;
+        return result;
+    }
+
+    private static QueryExecuteRespVO toExecuteVO(QueryResult result) {
         QueryExecuteRespVO vo = new QueryExecuteRespVO();
         vo.setManifestId(result.getManifestId());
         vo.setContentHash(result.getContentHash());
@@ -79,7 +120,22 @@ public class QueryController {
         vo.setElapsedMs(result.getElapsedMs());
         vo.setCached(result.isCached());
         vo.setLookupRows(toLookupRowVOs(result.getLookupRows()));
-        return success(vo);
+        return vo;
+    }
+
+    private static SkillDescriptorVO toSkillVO(SkillDescriptor descriptor) {
+        SkillDescriptorVO vo = new SkillDescriptorVO();
+        vo.setSkillId(descriptor.skillId());
+        vo.setName(descriptor.name());
+        vo.setSummary(descriptor.summary());
+        vo.setSlots(descriptor.slots().stream().map(slot -> {
+            SkillDescriptorVO.SlotVO slotVO = new SkillDescriptorVO.SlotVO();
+            slotVO.setName(slot.name());
+            slotVO.setRequired(slot.required());
+            slotVO.setDescription(slot.description());
+            return slotVO;
+        }).toList());
+        return vo;
     }
 
     @PostMapping("/dry-plan")

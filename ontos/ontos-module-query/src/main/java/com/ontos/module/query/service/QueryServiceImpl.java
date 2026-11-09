@@ -24,6 +24,8 @@ import com.ontos.module.query.core.executor.DryRunOutcome;
 import com.ontos.module.query.core.executor.QueryExecutor;
 import com.ontos.module.query.core.executor.QueryPlan;
 import com.ontos.module.query.core.executor.QueryResult;
+import com.ontos.module.query.core.skill.SkillHandler;
+import com.ontos.module.query.core.skill.SkillRegistry;
 import com.ontos.module.query.core.time.TimeExpressionParser;
 import com.ontos.module.query.core.time.TimeWindowResolver;
 import com.ontos.module.query.dal.dataobject.QueryArtifactDO;
@@ -39,6 +41,7 @@ import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;
 
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.MANIFEST_MISMATCH;
+import static com.ontos.module.ontology.enums.ErrorCodeConstants.MANIFEST_NOT_FOUND;
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ARTIFACT_NOT_FOUND;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
@@ -65,6 +68,7 @@ public class QueryServiceImpl implements QueryService {
     private final JoinPathResolver joinPathResolver;
     private final QueryArtifactRepository queryArtifactRepository;
     private final QueryCacheService queryCacheService;
+    private final SkillRegistry skillRegistry;
 
     public QueryServiceImpl(ManifestService manifestService,
                             DslValidator dslValidator,
@@ -76,7 +80,8 @@ public class QueryServiceImpl implements QueryService {
                             TimeWindowResolver timeWindowResolver,
                             JoinPathResolver joinPathResolver,
                             QueryArtifactRepository queryArtifactRepository,
-                            QueryCacheService queryCacheService) {
+                            QueryCacheService queryCacheService,
+                            SkillRegistry skillRegistry) {
         this.manifestService = manifestService;
         this.dslValidator = dslValidator;
         this.policyService = policyService;
@@ -88,6 +93,7 @@ public class QueryServiceImpl implements QueryService {
         this.joinPathResolver = joinPathResolver;
         this.queryArtifactRepository = queryArtifactRepository;
         this.queryCacheService = queryCacheService;
+        this.skillRegistry = skillRegistry;
     }
 
     @Override
@@ -162,6 +168,42 @@ public class QueryServiceImpl implements QueryService {
             safeTransition(context, requestId, RequestStatus.FAILED, truncate(String.valueOf(ex)));
             throw ex;
         }
+    }
+
+    /**
+     * 能力调用（M3/W3）：能力层只负责「槽位 → 类型化 DSL」，资产存在性、授权、时间窗等
+     * 全部走 {@link #execute} 的统一闸门；manifestId 由服务层注入当前生效清单，
+     * 调用方不感知清单版本。能力来源以 SKILL_EXECUTE 审计行单独留痕。
+     */
+    @Override
+    public QueryResult executeSkill(String skillId, Map<String, Object> slots) {
+        RequestContext context = RequestContextHolder.require();
+        SkillHandler handler = skillRegistry.byId(skillId)
+                .orElseThrow(() -> exception(DSL_INVALID, "未知能力: " + skillId));
+        PublishedManifest active = manifestService.getActiveManifestOrNull();
+        if (active == null) {
+            // 没有生效清单时业务必然不可用：fail-closed，与 validateManifest 的空态口径一致
+            throw exception(MANIFEST_NOT_FOUND);
+        }
+        QueryDsl dsl = handler.build(slots == null ? Map.of() : slots, active.getManifestId());
+        auditSkill(context, skillId, slots);
+        return execute(dsl);
+    }
+
+    /** 能力来源审计：与 EXECUTE 行分开，回答「这次查询是由哪个能力、带什么槽位发起的」。 */
+    private void auditSkill(RequestContext context, String skillId, Map<String, Object> slots) {
+        AuditLogCreateReqDTO audit = new AuditLogCreateReqDTO();
+        audit.setRequestId(context.traceId());
+        audit.setTenantId(context.tenantId());
+        audit.setUserId(context.userId());
+        audit.setSessionId(context.sessionId());
+        audit.setTurnIndex(context.turnIndex());
+        audit.setAction("SKILL_EXECUTE");
+        audit.setDslJson(JsonUtils.toJsonString(Map.of("skillId", skillId, "slots",
+                slots == null ? Map.of() : slots)));
+        audit.setTraceId(context.traceId());
+        audit.setDevMode(context.devMode());
+        auditService.record(audit);
     }
 
     /**
@@ -616,8 +658,6 @@ public class QueryServiceImpl implements QueryService {
             applyMask(manifest, compiled, safe);
             safeRows.add(safe);
         }
-        result.setRows(safeRows);
-
         List<QueryResult.LookupRow> lookupRows = new java.util.ArrayList<>();
         if (dsl.getMode() == QueryDsl.AnalysisMode.LOOKUP) {
             String identity = dsl.getIdentity() == null ? null : dsl.getIdentity().getValue();
@@ -640,6 +680,10 @@ public class QueryServiceImpl implements QueryService {
             }
         }
         result.setLookupRows(lookupRows);
+        // R-20 收口（M3/W3）：__identity 是批量对齐用的服务端内部列，
+        // lookupRows 里已带 identity 与可用性，对外 rows 一律剥离，不给前端暴露内部约定。
+        safeRows.forEach(row -> row.remove(IDENTITY_ALIAS));
+        result.setRows(safeRows);
     }
 
     /** 只保留投影属性与布尔判定列（不含 __identity 等内部列）。 */

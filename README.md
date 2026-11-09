@@ -167,6 +167,10 @@ DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、F
   dry-plan/dry-run 与成本闸门、复合意图两阶段逐子编译、编译产物持久化与 `/plan/{id}` 回放、
   query_cache 与激活失效钩子、编译调试页。当前生效清单 `2026.11.08-eighth`（M3/W1：新增带两个口径变体的 `metric.paid_gmv`、「上季度」时间模式与 9 条原因码文案模板）。
 
+- **M3 进行中**（规格 v1.0 冻结）：W1 资产与清单 v8、W2 口径变体闭环（`caliberVariantId` +
+  `CALIBER_AMBIGUOUS` 1002000033）、W3 能力注册与 lookup 产品化（`skill.entity_lookup`、
+  `rows` 不再携带内部列 `__identity`）已完成；W4 文案模板服务与 W5 前端未启动。
+
 实测基线（2026-11-08）：`mvn test` 全绿、`pnpm check` 通过、`vite build` 通过（新输出目录）、
 文档治理检查通过。进度与状态口径以 `docs/05-progress/2026/` 和
 `docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md` 为准。

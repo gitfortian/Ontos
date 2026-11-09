@@ -101,6 +101,14 @@ class DslCodecTest {
     }
 
     @Test
+    void shouldRejectInlineRuleExpressionField() {
+        // M3/T3.4：DSL 不允许携带任何表达式——自由阈值只能走已发布 Rule
+        assertRejected("{\"manifestId\":\"m\",\"metricId\":\"gmv\",\"mode\":\"QUERY\","
+                + "\"expression\":{\"metricId\":\"gmv\",\"operator\":\"GT\",\"threshold\":1}}",
+                DSL_UNKNOWN_FIELD.getCode());
+    }
+
+    @Test
     void shouldDecodeCaliberVariantId() {
         QueryDsl dsl = codec.decode(json(
                 "{\"manifestId\":\"m\",\"metricId\":\"gmv\",\"mode\":\"QUERY\","

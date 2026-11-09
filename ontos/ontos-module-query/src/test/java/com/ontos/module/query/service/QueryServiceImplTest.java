@@ -28,6 +28,8 @@ import com.ontos.module.query.core.executor.DryRunOutcome;
 import com.ontos.module.query.core.executor.QueryExecutor;
 import com.ontos.module.query.core.executor.QueryPlan;
 import com.ontos.module.query.core.executor.QueryResult;
+import com.ontos.module.query.core.skill.EntityLookupSkill;
+import com.ontos.module.query.core.skill.SkillRegistry;
 import com.ontos.module.query.core.time.TimeWindowResolver;
 import com.ontos.module.query.dal.dataobject.QueryArtifactDO;
 import com.ontos.module.query.dal.mysql.QueryArtifactRepository;
@@ -91,7 +93,8 @@ class QueryServiceImplTest {
     private QueryServiceImpl service(TimeWindowResolver resolver) {
         return new QueryServiceImpl(manifestService, new DslValidator(TestFixtures.queryProperties()),
                 policyService, sqlCompiler, queryExecutor, auditService, requestStateService, resolver,
-                new JoinPathResolver(() -> Set.of()), queryArtifactRepository, queryCacheService);
+                new JoinPathResolver(() -> Set.of()), queryArtifactRepository, queryCacheService,
+                new SkillRegistry(List.of(new EntityLookupSkill())));
     }
 
     private static PublishedManifest manifestWithPatterns() {
@@ -181,6 +184,44 @@ class QueryServiceImplTest {
         assertTrue(lookupRows.get(2).available());
         assertEquals("z***@example.com", result.getRows().get(0).get(TestFixtures.CUSTOMER_EMAIL_PROPERTY),
                 "rows 是另一条返回通道，必须同步掩码，否则掩码形同虚设");
+        // M3/W3 R-20 收口：__identity 是内部列，rows 一律剥离
+        assertTrue(!result.getRows().get(0).containsKey("__identity"),
+                "rows 不得携带内部别名 __identity");
+    }
+
+    @Test
+    void shouldExecuteSkillThroughUnifiedChannel() {
+        // lookup 需要 customer 实体与可投影属性，用 ruleManifest（含实体/属性/已发布 Rule）
+        when(manifestService.getActiveManifestOrNull()).thenReturn(TestFixtures.ruleManifest());
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.ruleManifest());
+        when(requestStateService.findState(any())).thenReturn(java.util.Optional.empty());
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
+        when(queryExecutor.execute(any(), any())).thenReturn(rows(1));
+
+        QueryResult result = service(new TimeWindowResolver()).executeSkill("entity_lookup",
+                Map.of("entityId", TestFixtures.CUSTOMER_CONCEPT,
+                        "attributes", List.of(TestFixtures.CUSTOMER_EMAIL_PROPERTY),
+                        "identity", Map.of("propertyId", TestFixtures.CUSTOMER_ID_PROPERTY,
+                                "value", "c-1")));
+
+        assertEquals(1, result.getRowCount());
+        // 能力层只组装 DSL；manifestId 注入 + 正式通道（编译/授权/审计）必须复用
+        ArgumentCaptor<QueryDsl> dslCaptor = ArgumentCaptor.forClass(QueryDsl.class);
+        verify(sqlCompiler).compile(dslCaptor.capture(), any());
+        assertEquals("manifest-001", dslCaptor.getValue().getManifestId(), "manifestId 由服务层注入");
+        assertEquals(QueryDsl.AnalysisMode.LOOKUP, dslCaptor.getValue().getMode());
+        ArgumentCaptor<AuditLogCreateReqDTO> auditCaptor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);
+        verify(auditService, times(2)).record(auditCaptor.capture());
+        assertEquals("SKILL_EXECUTE", auditCaptor.getAllValues().get(0).getAction(),
+                "能力来源必须单独留痕");
+    }
+
+    @Test
+    void shouldRejectUnknownSkill() {
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).executeSkill("nope", Map.of()));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+        verify(queryExecutor, never()).execute(any(), any());
     }
 
     @Test
