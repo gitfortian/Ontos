@@ -15,6 +15,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -169,6 +171,31 @@ class PolicySnapshotServiceTest {
         ServiceException ex = assertThrows(ServiceException.class, () -> service().check(
                 context("u-dev", Set.of()), PolicySnapshotService.AssetType.PROPERTY, "property.customer.email"));
         assertEquals(ErrorCodeConstants.POLICY_SNAPSHOT_INVALID.getCode(), ex.getCode());
+    }
+
+    // ---------- 批量授权视图（M5/W1 F-4） ----------
+
+    @Test
+    void shouldReturnRoleIntersectedAssetIds() {
+        // authorizedAssetIds = effect=allow ∧ 用户角色交集——瀑布候选范围预过滤
+        java.util.Set<String> visible = service().authorizedAssetIds(
+                context("u-dev", Set.of()));
+        assertTrue(visible.contains("metric|metric.gmv"));
+        assertTrue(visible.contains("property|property.customer.email"), "通配 assignment 命中 analyst → email 可见");
+        assertTrue(visible.contains("metric|metric.secret_cohort"));
+    }
+
+    @Test
+    void shouldFilterAssetsByGatewayRolesInView() {
+        // 无通配 assignment：网关角色决定可见范围（并集模型在视图中同样生效）
+        when(mapper.selectActive("demo")).thenReturn(java.util.Optional.of(snapshot(PAYLOAD.replace(
+                "{\"userId\": \"*\", \"roleId\": \"role.analyst\"}",
+                "{\"userId\": \"u-other\", \"roleId\": \"role.analyst\"}"))));
+        java.util.Set<String> visible = service().authorizedAssetIds(
+                context("u-audit", Set.of("role.auditor")));
+        assertFalse(visible.contains("metric|metric.gmv"), "analyst 资产对纯 auditor 用户不可见");
+        // PAYLOAD 中无 auditor 专属资产 → 空集
+        assertTrue(visible.isEmpty());
     }
 
     // ---------- TTL 缓存（D-λ） ----------

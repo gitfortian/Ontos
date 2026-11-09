@@ -118,6 +118,25 @@ public class PolicySnapshotService {
     }
 
     /**
+     * 批量授权视图（M5/W1 F-4）：当前租户生效快照中「effect=allow ∧ 用户角色有交集」的资产 ID
+     * 集合（按 `type|assetId` 键），供检索瀑布的授权子图过滤——快照内存直取，无额外查询。
+     * 这是瀑布候选范围的**预过滤**；执行路径的逐资产 {@link #check}（同码拒绝）仍完整生效，
+     * 两者语义不同（瀑布定候选范围，执行放行）。
+     */
+    public java.util.Set<String> authorizedAssetIds(RequestContext context) {
+        CachedSnapshot snapshot = requireActive(context.tenantId());
+        Set<String> userRoles = resolveUserRoles(context, snapshot.payload());
+        Set<String> visible = new java.util.HashSet<>();
+        for (PolicySnapshotPayload.Asset asset : snapshot.payload().assets()) {
+            if ("allow".equals(asset.effect()) && asset.roles() != null
+                    && userRoles.stream().anyMatch(asset.roles()::contains)) {
+                visible.add(key(asset.assetType(), asset.assetId()));
+            }
+        }
+        return java.util.Set.copyOf(visible);
+    }
+
+    /**
      * label 型判定结果的个体返回闸门（v1.4 §10.5 第 3 类）：默认拒绝。
      * 聚合分布路径 M4 不可达（rule 型指标无聚合能力，登记不实现）；个体判定走 M4/W2 审批联动。
      */

@@ -8,6 +8,7 @@
 
 **当前文档**
 
+- [M5 W1 深度审核记录 v1](checklists/M5-W1-深度审核-v1.md)（已归档：会话状态机落地——投影模型/turn 占用/澄清候选校验/键隔离，真库语义验证全过；实施期 2 缺陷修复；基线 365 例全绿）
 - [M4 收口后深度审核 v1](checklists/M4-收口后深度审核-v1.md)（已归档：全局复核 4 项发现全部当场修复复验——OBL-M4 台账闭环、审批降级负载补 filtersHash、roadmap M4 状态同步、触发拒绝停在 EXECUTED 终态的时序修正（DB 实证 55 条新请求 REJECTED 无行数）；M4 判定不变：通过）
 - [M4 验收报告 v1](checklists/M4-验收报告-v1.md)（已冻结，E1–E6 全部满足，M5 放行；OBL-M4 闭环，OBL-M7 按 ADR-0015 归 M6 核对）
 - [M4 W4 深度审核记录 v1](checklists/M4-W4-深度审核-v1.md)（已归档：T4.1–T4.4 落地——PoC #7 回归 32/32（域组合如实登记归 M5/M6）、PoC #1 接入基线（--live 7 PASS）、HITL 最小通道（SSE INTERRUPT 事务提交后下发）、E5 扩充 5 探针全拒、注入检查点接口冻结）

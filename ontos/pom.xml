@@ -23,6 +23,7 @@
     <module>ontos-module-ontology</module>
     <module>ontos-module-query</module>
     <module>ontos-module-system</module>
+    <module>ontos-module-session</module>
     <module>ontos-server</module>
   </modules>
 
@@ -73,6 +74,11 @@
       <dependency>
         <groupId>com.ontos</groupId>
         <artifactId>ontos-module-system</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.ontos</groupId>
+        <artifactId>ontos-module-session</artifactId>
         <version>${project.version}</version>
       </dependency>
 

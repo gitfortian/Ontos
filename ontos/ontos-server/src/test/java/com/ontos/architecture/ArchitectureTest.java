@@ -10,6 +10,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * 多模块依赖方向守护。
  *
  * <p>允许方向：server → module / framework；module-query → module-ontology / module-system；
+ * module-session → module-query / module-ontology / module-system；module-agent（W3）→ module-session 等；
  * 所有模块 → framework。framework 不得反向依赖任何业务模块，业务模块之间不得出现环形依赖。
  */
 @AnalyzeClasses(packages = "com.ontos")
@@ -32,8 +33,23 @@ class ArchitectureTest {
     static final ArchRule system_must_not_depend_on_other_modules =
             noClasses().that().resideInAPackage("com.ontos.module.system..")
                     .should().dependOnClassesThat()
-                    .resideInAnyPackage("com.ontos.module.query..", "com.ontos.module.ontology..")
+                    .resideInAnyPackage("com.ontos.module.query..", "com.ontos.module.ontology..",
+                            "com.ontos.module.session..")
                     .because("system 提供策略与审计，不得反向依赖业务域");
+
+    @ArchTest
+    static final ArchRule session_must_not_depend_on_agent =
+            noClasses().that().resideInAPackage("com.ontos.module.session..")
+                    .should().dependOnClassesThat()
+                    .resideInAPackage("com.ontos.module.agent..")
+                    .because("编排（agent）依赖会话（session），反向会成环；session 允许依赖 query/ontology/system");
+
+    @ArchTest
+    static final ArchRule ontology_must_not_depend_on_session =
+            noClasses().that().resideInAPackage("com.ontos.module.ontology..")
+                    .should().dependOnClassesThat()
+                    .resideInAPackage("com.ontos.module.session..")
+                    .because("ontology 是底层资产域，不感知会话");
 
     @ArchTest
     static final ArchRule controllers_must_not_touch_dal =
