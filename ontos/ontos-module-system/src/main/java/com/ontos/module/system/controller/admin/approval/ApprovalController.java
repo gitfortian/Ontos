@@ -26,9 +26,12 @@ import static com.ontos.framework.common.pojo.CommonResult.success;
 public class ApprovalController {
 
     private final ApprovalService approvalService;
+    private final com.ontos.module.system.service.approval.HitlNotifier hitlNotifier;
 
-    public ApprovalController(ApprovalService approvalService) {
+    public ApprovalController(ApprovalService approvalService,
+                             com.ontos.module.system.service.approval.HitlNotifier hitlNotifier) {
         this.approvalService = approvalService;
+        this.hitlNotifier = hitlNotifier;
     }
 
     @GetMapping
@@ -39,6 +42,13 @@ public class ApprovalController {
             @RequestParam(required = false, defaultValue = "20") Integer pageSize) {
         RequestContext context = RequestContextHolder.require();
         return success(approvalService.page(context.tenantId(), status, pageNo, pageSize));
+    }
+
+    @GetMapping(value = "/hitl-events", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "订阅审批 HITL 事件流（SSE）：敏感触发时下发 INTERRUPT 事件（M4 最小通道）")
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter hitlEvents() {
+        RequestContext context = RequestContextHolder.require();
+        return hitlNotifier.subscribe(context);
     }
 
     @PostMapping("/{id}/decide")

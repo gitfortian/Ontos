@@ -117,4 +117,24 @@ check("docs 治理检查", ".", "node docs/00-governance/check-docs.mjs");
 check("并行义务与阶段状态检查", ".", "node docs/00-governance/check-parallel-obligations.mjs");
 await bootProbe();
 
+// T4.2（M4 规格 E4）：PoC #1（RLS 探针）纳入自动化基线回归——
+// 需要运行中的完整服务（local profile + PG），用 --live --base-url 显式开启；
+// 无 --live 时按 SKIP 登记（不静默略过，跳过不算通过的原则不变）
+const liveIndex = process.argv.indexOf("--live");
+if (liveIndex > -1) {
+  const baseUrl = process.argv[liveIndex + 1]?.startsWith("http")
+    ? process.argv[liveIndex + 1] : "http://127.0.0.1:8080";
+  check("PoC #1 RLS 探针（T4.2，30 轮跨租户/存在性）", ".",
+    `node scripts/verify/rls-probe.mjs --base-url ${baseUrl} --rounds 30`);
+  check("PoC #7 敏感累计探针（W4 回归，含差分/冻结/令牌/对抗）", ".",
+    `node scripts/verify/sensitive-probe.mjs --base-url ${baseUrl}`);
+} else {
+  results.push({
+    name: "PoC #1 / PoC #7 探针（T4.2）",
+    ok: false,
+    skipped: true,
+    detail: "未指定 --live <base-url>（需运行中的完整服务）；显式跳过，不计入通过",
+  });
+}
+
 process.exit(report());

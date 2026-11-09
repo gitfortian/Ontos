@@ -92,16 +92,19 @@ public class SensitiveEventService {
     private final ApprovalService approvalService;
     private final SensitiveProperties properties;
     private final TransactionTemplate transactionTemplate;
+    private final com.ontos.module.system.service.approval.HitlNotifier hitlNotifier;
 
     @Autowired
     public SensitiveEventService(SensitiveQueryEventMapper eventMapper,
                                  ApprovalService approvalService,
                                  SensitiveProperties properties,
-                                 TransactionTemplate transactionTemplate) {
+                                 TransactionTemplate transactionTemplate,
+                                 com.ontos.module.system.service.approval.HitlNotifier hitlNotifier) {
         this.eventMapper = eventMapper;
         this.approvalService = approvalService;
         this.properties = properties;
         this.transactionTemplate = transactionTemplate;
+        this.hitlNotifier = hitlNotifier;
     }
 
     /**
@@ -277,6 +280,22 @@ public class SensitiveEventService {
         // 放行目标指纹（T2.3）：与决策侧共用同一公式，消费时逐字段比对
         String fingerprint = ApprovalService.fingerprint(context.userId(), context.tenantId(),
                 key, scope, draft.filtersHash());
+        // HITL 最小通道（T4.3）：事务提交后再下发 INTERRUPT 事件（审批单已确保可见）；
+        // 无活动事务同步时（理论不可达——本服务始终在事务模板内）降级为立即下发
+        if (org.springframework.transaction.support.TransactionSynchronizationManager
+                .isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager
+                    .registerSynchronization(new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            hitlNotifier.notifyInterrupt(context.tenantId(), context.userId(),
+                                    approvalId, auditCode, key);
+                        }
+                    });
+        } else {
+            hitlNotifier.notifyInterrupt(context.tenantId(), context.userId(), approvalId,
+                    auditCode, key);
+        }
         log.info("[recordAndEvaluate][sensitive sequence triggered: tenant={} user={} key={} "
                         + "session={} userWindow={} threshold={} approval={} audit={}]",
                 context.tenantId(), context.userId(), key,

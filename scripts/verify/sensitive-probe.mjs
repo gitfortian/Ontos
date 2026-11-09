@@ -246,6 +246,153 @@ note("T6", "恰好等于 TTL(15m) 的 PENDING 单被置 EXPIRED", exactStatus ==
 note("T6", "TTL 前 1 秒的单据保留 PENDING", freshStatus === "PENDING", { freshStatus });
 sql("DELETE FROM approval_request WHERE user_id LIKE 'boundary-%'");
 
+// ---------- T7 HITL interrupt 最小通道（T4.3，规格 §3.3 判据） ----------
+// SSE 订阅 → 触发 → 收到 INTERRUPT 事件（含审批单 ID）→ 判据链前端可见
+const hitlUser = `probe-hitl-${Date.now() % 100000}`;
+const eventsPromise = (async () => {
+  const response = await fetch(BASE + "/api/v1/approvals/hitl-events", {
+    headers: headers("demo", hitlUser, "probe-session", 1),
+  });
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const received = [];
+  const deadline = Date.now() + 8000;
+  while (Date.now() < deadline && !received.some((item) => item.includes("INTERRUPT"))) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    for (const block of buffer.split("\n\n")) {
+      if (block.includes("INTERRUPT")) received.push(block);
+    }
+    buffer = buffer.slice(buffer.lastIndexOf("\n\n") + 2);
+  }
+  reader.cancel().catch(() => {});
+  return received;
+})();
+// 订阅握手稍等再触发（SSE 注册是同步的，但 fetch 完成有网络延迟）
+await new Promise((resolve) => setTimeout(resolve, 500));
+const t7Trigger = await postWithApproval("/api/v1/query/execute", {
+  manifestId, mode: "LOOKUP", entityId: "concept.customer",
+  attributes: ["property.customer.email"],
+  identity: { propertyId: "property.customer.customer_id", value: "c-1001" },
+}, "demo", hitlUser, "probe-session", 1);
+const t7Events = await eventsPromise;
+note("T7", "前端经 SSE 收到 INTERRUPT 事件（审批入口）",
+  t7Trigger?.code === SEQ_CODE && t7Events.length > 0,
+  { code: t7Trigger?.code, events: t7Events.length });
+const t7Payload = t7Events[0] ?? "";
+const t7ApprovalId = (t7Payload.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/) || [])[0];
+note("T7", "INTERRUPT 事件携带审批单 ID（可直连决策端点）",
+  Boolean(t7ApprovalId) && t7Payload.includes("/api/v1/approvals/"),
+  { sample: t7Payload.replace(/\n/g, " ⏎ ").slice(0, 220) });
+
+// ---------- T8 对抗扩充（T4.4，≥4 新增探针全拒） ----------
+// 前置清理：上轮 probe 快照残留（快照内容不可变 → 修正只能发新版本；V10 触发器拦 UPDATE 不拦 DELETE）
+sql("DELETE FROM policy_snapshot WHERE tenant_id='demo'"
+  + " AND policy_version IN ('probe-revoke-v1', 'probe-label-v1')");
+sql("UPDATE policy_snapshot SET active=TRUE WHERE tenant_id='demo'"
+  + " AND policy_version='seed-2026.11.09-v2'");
+const injectionTrigger = await postWithApproval("/api/v1/query/execute", {
+  manifestId, mode: "LOOKUP", entityId: "concept.customer",
+  attributes: ["property.customer.email"],
+  identity: { propertyId: "property.customer.customer_id", value: "c-1001" },
+  // 身份声明注入：body 携带身份字段——DslCodec fail-closed 白名单直接拒绝
+  tenantId: "other-tenant", userId: "hacker", roles: ["role.auditor"],
+}, "demo", "probe-inject", "probe-session", 1);
+note("T8", "身份声明注入被 DSL 白名单拒绝（身份只来自认证头）",
+  [1002000000, 1002000011].includes(injectionTrigger?.code),
+  { code: injectionTrigger?.code });
+
+// T8.2 跨用户令牌：申请人 A 的 APPROVED 单，用户 B 携带 → 指纹公式含 userId 不匹配
+sql("DELETE FROM approval_request WHERE user_id = 'attacker-owner'");
+const crossFingerprintInput = sql(
+  "SELECT encode(sha256('attacker-owner|demo|property.customer.email#pii|"
+  + "placeholder|placeholder'), 'hex')");
+sql(`INSERT INTO approval_request (tenant_id, user_id, kind, payload, status, grant_fingerprint)
+  VALUES ('demo', 'attacker-owner', 'SENSITIVE_SEQUENCE', '{}'::jsonb, 'APPROVED',
+  '${crossFingerprintInput}')`);
+const crossUserId = sql("SELECT id::text FROM approval_request WHERE user_id = 'attacker-owner' LIMIT 1");
+const crossUse = await postWithApproval("/api/v1/query/execute", {
+  manifestId, mode: "LOOKUP", entityId: "concept.customer",
+  attributes: ["property.customer.email"],
+  identity: { propertyId: "property.customer.customer_id", value: "c-1001" },
+}, "demo", "attacker-other", "probe-session", 1, crossUserId);
+note("T8", "跨用户令牌被拒（指纹绑定申请人，他人携带无效）",
+  crossUse?.code === SEQ_CODE, { code: crossUse?.code });
+
+// T8.3 已消费令牌重放
+sql("DELETE FROM approval_request WHERE user_id = 'attacker-consumed'");
+sql(`INSERT INTO approval_request (tenant_id, user_id, kind, payload, status,
+  grant_fingerprint, grant_consumed_at)
+  VALUES ('demo', 'attacker-consumed', 'SENSITIVE_SEQUENCE', '{}'::jsonb, 'APPROVED',
+  '${crossFingerprintInput}', now())`);
+const consumedId = sql("SELECT id::text FROM approval_request WHERE user_id = 'attacker-consumed' LIMIT 1");
+const replay = await postWithApproval("/api/v1/query/execute", {
+  manifestId, mode: "LOOKUP", entityId: "concept.customer",
+  attributes: ["property.customer.email"],
+  identity: { propertyId: "property.customer.customer_id", value: "c-1001" },
+}, "demo", "attacker-consumed", "probe-session", 1, consumedId);
+note("T8", "已消费令牌重放被拒（单次有效）", replay?.code === SEQ_CODE, { code: replay?.code });
+
+// T8.4 降权后旧令牌：有效 APPROVED 单（聚合 gmv 查询指纹）→ 收紧快照（去 gmv）激活 → 携令牌仍被策略层拒
+sql("DELETE FROM approval_request WHERE user_id = 'attacker-gmv'");
+const gmvFingerprint = sql(
+  "SELECT encode(sha256('attacker-gmv|demo|metric.gmv#pii|"
+  + "placeholder|gmvh'), 'hex')");
+sql(`INSERT INTO approval_request (tenant_id, user_id, kind, payload, status, grant_fingerprint)
+  VALUES ('demo', 'attacker-gmv', 'SENSITIVE_SEQUENCE',
+  '{"sensitiveKey":"metric.gmv#pii","filtersHash":"gmvh","scopeHash":"placeholder"}'::jsonb,
+  'APPROVED', '${gmvFingerprint}')`);
+const gmvTokenId = sql("SELECT id::text FROM approval_request WHERE user_id = 'attacker-gmv' LIMIT 1");
+sql(`INSERT INTO policy_snapshot (tenant_id, policy_version, payload, active, created_by)
+  SELECT 'demo', 'probe-revoke-v1',
+    jsonb_set(jsonb_set(s.payload, '{policyVersion}', to_jsonb('probe-revoke-v1'::text)),
+      '{assets}',
+      (SELECT jsonb_agg(a) FROM jsonb_array_elements(s.payload->'assets') a
+        WHERE a->>'assetId' <> 'metric.gmv')),
+    FALSE, 'w4-probe'
+  FROM policy_snapshot s WHERE s.tenant_id='demo' AND s.policy_version='seed-2026.11.09-v2'`);
+sql("UPDATE policy_snapshot SET active=FALSE WHERE tenant_id='demo' AND active=TRUE");
+sql("UPDATE policy_snapshot SET active=TRUE WHERE tenant_id='demo' AND policy_version='probe-revoke-v1'");
+await new Promise((resolve) => setTimeout(resolve, 61000)); // 越过 60s 快照缓存 TTL
+const gmvQuery = {
+  manifestId, mode: "QUERY", metricId: "metric.gmv", dimensions: ["dim.region"],
+  timeExpressionRaw: "近 3650 天", timeRange: { field: "dim.order_date" },
+};
+const revokedUse = await postWithApproval("/api/v1/query/execute", gmvQuery,
+  "demo", "attacker-gmv", "probe-session", 1, gmvTokenId);
+note("T8", "降权后旧令牌被策略层拒绝（策略先于令牌，1003000005）",
+  revokedUse?.code === 1003000005, { code: revokedUse?.code });
+sql("UPDATE policy_snapshot SET active=FALSE WHERE tenant_id='demo' AND policy_version='probe-revoke-v1'");
+sql("UPDATE policy_snapshot SET active=TRUE WHERE tenant_id='demo' AND policy_version='seed-2026.11.09-v2'");
+await new Promise((resolve) => setTimeout(resolve, 61000)); // 快照缓存 TTL 内不误判后续探针
+
+// T8.5 label 快照切换：布尔指标标 label → 个体判定拒绝（1003000006），聚合放行
+sql(`INSERT INTO policy_snapshot (tenant_id, policy_version, payload, active, created_by)
+  SELECT 'demo', 'probe-label-v1',
+    jsonb_set(s.payload, '{policyVersion}', to_jsonb('probe-label-v1'::text))
+    || jsonb_build_object('assets',
+      (SELECT jsonb_agg(CASE WHEN a->>'assetId' = 'metric.high_value_customer'
+        THEN jsonb_set(a, '{sensitivityClass}', to_jsonb('label'::text)) ELSE a END)
+        FROM jsonb_array_elements(s.payload->'assets') a)),
+    FALSE, 'w4-probe'
+  FROM policy_snapshot s WHERE s.tenant_id='demo' AND s.policy_version='seed-2026.11.09-v2'`);
+sql("UPDATE policy_snapshot SET active=FALSE WHERE tenant_id='demo' AND active=TRUE");
+sql("UPDATE policy_snapshot SET active=TRUE WHERE tenant_id='demo' AND policy_version='probe-label-v1'");
+await new Promise((resolve) => setTimeout(resolve, 61000));
+const labelIndividual = await postWithApproval("/api/v1/query/execute", {
+  manifestId, mode: "LOOKUP", entityId: "concept.customer",
+  attributes: ["property.customer.tier"],
+  identity: { propertyId: "property.customer.customer_id", value: "c-1001" },
+  booleanMetricId: "metric.high_value_customer",
+}, "demo", "probe-label", "probe-session", 1);
+note("T8", "label 级布尔判定个体返回被拒（1003000006）",
+  labelIndividual?.code === 1003000006, { code: labelIndividual?.code });
+sql("UPDATE policy_snapshot SET active=FALSE WHERE tenant_id='demo' AND policy_version='probe-label-v1'");
+sql("UPDATE policy_snapshot SET active=TRUE WHERE tenant_id='demo' AND policy_version='seed-2026.11.09-v2'");
+await new Promise((resolve) => setTimeout(resolve, 61000));
+
 // ---------- 汇总 ----------
 const failures = results.filter((item) => !item.pass);
 const evidence = {

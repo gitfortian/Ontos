@@ -65,7 +65,8 @@ class SensitiveEventServiceTest {
                         (TransactionStatus) null));
         SensitiveProperties properties = new SensitiveProperties();
         properties.setUserWindowEnabled(userWindowEnabled);
-        return new SensitiveEventService(eventMapper, approvalService, properties, template);
+        return new SensitiveEventService(eventMapper, approvalService, properties, template,
+                mock(com.ontos.module.system.service.approval.HitlNotifier.class));
     }
 
     private static SensitiveEventService.DraftEvent draft(String assetId, String sensitivityClass,

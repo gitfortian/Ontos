@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-11-09T05:41:56.562Z",
+  "generatedAt": "2026-11-09T06:27:03.812Z",
   "manifestId": "2026.11.08-eighth",
   "devAllowAll": false,
-  "total": 25,
+  "total": 32,
   "failures": 0,
   "results": [
     {
@@ -127,7 +127,7 @@
       "pass": true,
       "detail": {
         "code": 1003000008,
-        "approvalId": "d303d129-c1df-49a0-9b8f-a42f95dc6e2d"
+        "approvalId": "3758a274-e878-4ad6-aaaa-56e3ea12ae6f"
       }
     },
     {
@@ -191,8 +191,8 @@
       "name": "事件行 context_delta 与审计行同值同源",
       "pass": true,
       "detail": {
-        "eventDelta": "077f0b4b1292",
-        "auditDelta": "077f0b4b1292"
+        "eventDelta": "b96263730493",
+        "auditDelta": "b96263730493"
       }
     },
     {
@@ -209,6 +209,63 @@
       "pass": true,
       "detail": {
         "freshStatus": "PENDING"
+      }
+    },
+    {
+      "phase": "T7",
+      "name": "前端经 SSE 收到 INTERRUPT 事件（审批入口）",
+      "pass": true,
+      "detail": {
+        "code": 1003000008,
+        "events": 1
+      }
+    },
+    {
+      "phase": "T7",
+      "name": "INTERRUPT 事件携带审批单 ID（可直连决策端点）",
+      "pass": true,
+      "detail": {
+        "sample": "event:INTERRUPT ⏎ data:{\"type\":\"INTERRUPT\",\"reasonCode\":\"SENSITIVE_INDIVIDUAL_PROBE\",\"approvalId\":\"ee584664-3814-4fc0-9327-b58300d90900\",\"sensitiveKey\":\"property.customer.email#pii\",\"decideEndpoint\":\"/api/v1/approvals/ee"
+      }
+    },
+    {
+      "phase": "T8",
+      "name": "身份声明注入被 DSL 白名单拒绝（身份只来自认证头）",
+      "pass": true,
+      "detail": {
+        "code": 1002000011
+      }
+    },
+    {
+      "phase": "T8",
+      "name": "跨用户令牌被拒（指纹绑定申请人，他人携带无效）",
+      "pass": true,
+      "detail": {
+        "code": 1003000008
+      }
+    },
+    {
+      "phase": "T8",
+      "name": "已消费令牌重放被拒（单次有效）",
+      "pass": true,
+      "detail": {
+        "code": 1003000008
+      }
+    },
+    {
+      "phase": "T8",
+      "name": "降权后旧令牌被策略层拒绝（策略先于令牌，1003000005）",
+      "pass": true,
+      "detail": {
+        "code": 1003000005
+      }
+    },
+    {
+      "phase": "T8",
+      "name": "label 级布尔判定个体返回被拒（1003000006）",
+      "pass": true,
+      "detail": {
+        "code": 1003000006
       }
     }
   ]
