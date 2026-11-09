@@ -15,7 +15,7 @@ const DEFAULT_ROOT = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const ROADMAP = "docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md";
 const LEDGER = "docs/00-governance/parallel-obligations.json";
 const CHECKLISTS = "docs/06-verification/checklists";
-const PROGRESS = "docs/05-progress/2026";
+const PROGRESS_ROOT = "docs/05-progress";
 const REQUIRED_TEXTS = ["并行支线", "不允许最后补", "安全与评测不许后置"];
 
 function mentions(text, stage) {
@@ -124,14 +124,25 @@ export function evaluate(root = DEFAULT_ROOT) {
       fail(`${item.id} 缺少 reason / triggerStage / owner`);
       state = "INVALID";
     }
+    if (item.triggerStage && !stageStates[item.triggerStage]) {
+      fail(`${item.id} 触发阶段 ${item.triggerStage} 不在 roadmap 阶段总览中（无法判定是否过期）`);
+      state = "INVALID";
+    }
     const evidences = Array.isArray(item.evidence) ? item.evidence : [];
     if (evidences.length === 0) {
       fail(`${item.id} 未提供任何证据文件`);
       state = "INVALID";
     }
+    // 证据分两类：运行产物（.json / .mjs / .txt 等）只要求真实存在；
+    // 但必须至少有一份 Markdown 登记（ADR / 进度快照 / 验收报告）明确点名该义务，
+    // 否则「有产物、没人负责」仍算漏做。禁止绝对路径与路径穿越。
+    let hasNamedDoc = false;
     for (const path of evidences) {
-      if (typeof path !== "string" || !path.startsWith("docs/")) {
-        fail(`${item.id} 证据路径必须以 docs/ 开头：${path}`);
+      const unsafe = typeof path !== "string" || !path
+        || path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path)
+        || path.split(/[\\/]/).includes("..");
+      if (unsafe) {
+        fail(`${item.id} 证据路径必须是仓库内相对路径（禁止绝对路径 / 路径穿越）：${path}`);
         state = "INVALID";
         continue;
       }
@@ -141,13 +152,14 @@ export function evaluate(root = DEFAULT_ROOT) {
         state = "INVALID";
         continue;
       }
-      if (!mentions(text, stage)) {
-        fail(`${item.id} 证据未点名该并行义务 ${stage}：${path}`);
-        state = "INVALID";
-      }
+      if (path.endsWith(".md") && mentions(text, stage)) hasNamedDoc = true;
     }
-    if (item.triggerStage && stageStates[item.triggerStage] === "passed") {
-      fail(`${item.id} 触发阶段 ${item.triggerStage} 已通过验收，义务仍为 ${item.status}；必须闭环或新发 ADR 重定触发点`);
+    if (!hasNamedDoc) {
+      fail(`${item.id} 缺少「点名该并行义务 ${stage} 的 Markdown 登记证据」（ADR / 进度快照 / 验收报告等）`);
+      state = "INVALID";
+    }
+    if (item.status === "deferred" && stageStates[item.triggerStage] === "passed") {
+      fail(`${item.id} 触发阶段 ${item.triggerStage} 已通过验收，义务仍为 deferred；必须闭环或新发 ADR 重定触发点`);
       state = "OVERDUE";
     }
     if (!roadmapObligations.has(stage)) state = "MISSING";
@@ -168,15 +180,21 @@ export function evaluate(root = DEFAULT_ROOT) {
   }
 
   // 5. 最近一次进度快照必须点名所有未闭环义务（阶段收口强制核对）
-  const progressDir = abs(PROGRESS);
-  const progressFiles = existsSync(progressDir)
-    ? readdirSync(progressDir).filter((name) => /^\d{4}-\d{2}-\d{2}\.md$/.test(name)).sort()
+  //    按「年份目录/日期文件」全局取最新，跨年后不会仍盯着旧年份目录。
+  const progressRoot = abs(PROGRESS_ROOT);
+  const progressFiles = existsSync(progressRoot)
+    ? readdirSync(progressRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && /^\d{4}$/.test(entry.name))
+      .flatMap((entry) => readdirSync(join(progressRoot, entry.name))
+        .filter((name) => /^\d{4}-\d{2}-\d{2}\.md$/.test(name))
+        .map((name) => `${entry.name}/${name}`))
+      .sort()
     : [];
   if (progressFiles.length === 0) {
-    fail(`缺少进度快照目录或文件：${PROGRESS}`);
+    fail(`缺少进度快照目录或文件：${PROGRESS_ROOT}/<年>/`);
   } else {
     latestProgress = progressFiles[progressFiles.length - 1];
-    const text = read(`${PROGRESS}/${latestProgress}`);
+    const text = read(`${PROGRESS_ROOT}/${latestProgress}`);
     if (!/并行义务/.test(text || "")) {
       fail(`最近一次进度快照 ${latestProgress} 未点名「并行义务」（阶段收口必须逐项核对）`);
     }

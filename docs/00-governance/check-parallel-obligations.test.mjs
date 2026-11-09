@@ -95,6 +95,8 @@ function fixture(t, options = {}) {
   put(LEDGER, JSON.stringify(options.ledger ?? baseLedger(), null, 2));
   put(ADR, options.adr ?? "# ADR-0014\nM4 与 M7 两条并行义务的偏离处置。\n");
   put(SNAPSHOT, options.progress ?? DEFAULT_PROGRESS);
+  for (const [path, content] of options.extraProgress ?? []) put(path, content);
+  for (const [path, content] of options.extraFiles ?? []) put(path, content);
   for (const report of REPORTS) put(`${CHECKLISTS}/${report}`, "# 验收报告\n");
   for (const extra of options.extraReports ?? []) put(`${CHECKLISTS}/${extra}`, "# 验收报告\n");
   if (options.removeAdr) rmSync(join(root, ADR));
@@ -112,7 +114,7 @@ test("基线：两条义务均登记、证据齐备、触发未过期 → 无违
   assert.equal(result.stageStates.M3, "passed");
   assert.equal(result.stageStates.M7, "pending");
   assert.equal(result.hardClauses.length, 3);
-  assert.equal(result.latestProgress, "2026-11-09.md");
+  assert.equal(result.latestProgress, "2026/2026-11-09.md");
 });
 
 test("漏登一条并行义务 → FAIL（核心防线）", (t) => {
@@ -128,9 +130,14 @@ test("证据文件不存在 → FAIL", (t) => {
   has(result.violations, "证据文件不存在");
 });
 
-test("证据文件未点名该阶段 → FAIL", (t) => {
-  const result = evaluate(fixture(t, { adr: "# ADR-0014\n只讲别的事情，没有阶段号。\n" }));
-  has(result.violations, "证据未点名该并行义务");
+test("缺少点名该义务的 Markdown 登记证据 → FAIL", (t) => {
+  const ledger = baseLedger();
+  for (const item of ledger.obligations) item.evidence = [ADR];
+  const result = evaluate(fixture(t, {
+    ledger,
+    adr: "# ADR-0014\n只讲别的事情，没有阶段号。\n",
+  }));
+  has(result.violations, "缺少「点名该并行义务 M4 的 Markdown 登记证据」");
 });
 
 test("触发阶段已通过而义务仍未闭环 → FAIL", (t) => {
@@ -183,6 +190,60 @@ test("已通过阶段缺验收报告 → FAIL", (t) => {
   const roadmap = ROADMAP_TEXT.replace("| **M2** | 编译 | x | M1 | **已通过** |", "| **M9** | 编译 | x | M1 | **已通过** |");
   const result = evaluate(fixture(t, { roadmap }));
   has(result.violations, "M9 标记「已通过」但缺少");
+});
+
+const RUN_ARTIFACT = "docs/06-verification/evaluation/零号冒烟-run-latest.json";
+
+test("运行产物（非 md）可作为证据，只校验存在 → 不违规", (t) => {
+  const ledger = baseLedger();
+  for (const item of ledger.obligations) item.evidence.push(RUN_ARTIFACT);
+  const result = evaluate(fixture(t, {
+    ledger,
+    extraFiles: [[RUN_ARTIFACT, '{"total":20,"passed":20}\n']],
+  }));
+  assert.deepEqual(result.violations, []);
+});
+
+test("证据使用绝对路径或路径穿越 → FAIL", (t) => {
+  const ledger = baseLedger();
+  ledger.obligations[0].evidence.push("../outside.md");
+  ledger.obligations[1].evidence.push("/etc/passwd");
+  const result = evaluate(fixture(t, { ledger }));
+  has(result.violations, "证据路径必须是仓库内相对路径");
+});
+
+test("证据全是运行产物、无点名义务的文档登记 → FAIL", (t) => {
+  const ledger = baseLedger();
+  for (const item of ledger.obligations) item.evidence = [RUN_ARTIFACT];
+  const result = evaluate(fixture(t, {
+    ledger,
+    extraFiles: [[RUN_ARTIFACT, '{"total":20}\n']],
+  }));
+  has(result.violations, "缺少「点名该并行义务");
+});
+
+test("触发阶段不在 roadmap 阶段总览 → FAIL（防止写错阶段导致静默失效）", (t) => {
+  const ledger = baseLedger();
+  ledger.obligations[1].triggerStage = "M99";
+  const result = evaluate(fixture(t, { ledger }));
+  has(result.violations, "触发阶段 M99 不在 roadmap 阶段总览中");
+});
+
+test("done 义务不因触发阶段已通过被误判过期", (t) => {
+  const ledger = baseLedger();
+  ledger.obligations[1].status = "done";
+  ledger.obligations[1].triggerStage = "M3";
+  const result = evaluate(fixture(t, { ledger }));
+  assert.deepEqual(result.violations, []);
+  assert.ok(result.obligations.some((item) => item.stage === "M7" && item.state === "DONE"));
+});
+
+test("跨年后取全局最新进度快照，不被旧年份目录遮住", (t) => {
+  const result = evaluate(fixture(t, {
+    extraProgress: [["docs/05-progress/2027/2027-01-02.md", "# 2027 快照\n只写了主线任务。\n"]],
+  }));
+  assert.equal(result.latestProgress, "2027/2027-01-02.md");
+  has(result.violations, "未点名「并行义务」");
 });
 
 test("evaluate 不因被测目录缺失文件而抛异常", (t) => {
