@@ -165,7 +165,7 @@ DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、F
   W1–W6 全部完成：DSL 来源标记与 fail-closed 白名单、时间解析器与「今年」模式、UNIQUE 路径 → 结构化 Join、
   5 模式构造器（query/lookup/lookup_batch/funnel/yoy_mom）、Rule 求值、敏感资产 guardrail、
   dry-plan/dry-run 与成本闸门、复合意图两阶段逐子编译、编译产物持久化与 `/plan/{id}` 回放、
-  query_cache 与激活失效钩子、编译调试页。当前生效清单 `2026.11.08-seventh`（含跨表维度、时间维度与 YOY_MOM 授权）。
+  query_cache 与激活失效钩子、编译调试页。当前生效清单 `2026.11.08-eighth`（M3/W1：新增带两个口径变体的 `metric.paid_gmv`、「上季度」时间模式与 9 条原因码文案模板）。
 
 实测基线（2026-11-08）：`mvn test` 全绿、`pnpm check` 通过、`vite build` 通过（新输出目录）、
 文档治理检查通过。进度与状态口径以 `docs/05-progress/2026/` 和

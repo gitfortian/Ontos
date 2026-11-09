@@ -208,4 +208,135 @@ class ManifestStructureValidatorTest {
         assertTrue(validator.validate(null).size() == 1);
     }
 
+    // ---------- M3/W1：文案模板与口径变体 ----------
+
+    private ManifestPayload.CopyTemplate template(String id, String reasonCode, String text,
+                                                  List<String> allowed) {
+        ManifestPayload.CopyTemplate template = new ManifestPayload.CopyTemplate();
+        template.setTemplateId(id);
+        template.setReasonCode(reasonCode);
+        template.setLocale("zh-CN");
+        template.setText(text);
+        template.setAllowedPlaceholders(allowed);
+        if (reasonCode != null) {
+            template.setVersion("1.0.0");
+        }
+        return template;
+    }
+
+    @Test
+    void shouldAcceptVersionedCopyTemplateWithDeclaredPlaceholder() {
+        ManifestPayload payload = validPayload();
+        payload.setCopyTemplates(List.of(template("template.reason.CALIBER_AMBIGUOUS",
+                "CALIBER_AMBIGUOUS", "这个指标有多个口径：{variant_aliases}。请选择。",
+                List.of("variant_aliases"))));
+        assertTrue(validator.validate(payload).isEmpty(),
+                () -> "合法文案模板不应有违规: " + validator.validate(payload));
+    }
+
+    @Test
+    void shouldAcceptLegacyCopyTemplateWithoutReasonCode() {
+        // v7 及以前没有 reasonCode / version：按 templateId 前缀派生，旧清单必须继续可加载
+        ManifestPayload payload = validPayload();
+        payload.setCopyTemplates(List.of(template("template.reason.OUT_OF_SCOPE", null,
+                "这个问题超出了问数的能力范围。", List.of())));
+        assertTrue(validator.validate(payload).isEmpty(),
+                () -> "历史模板应兼容: " + validator.validate(payload));
+    }
+
+    @Test
+    void shouldRejectUndeclaredPlaceholderInCopyTemplate() {
+        ManifestPayload payload = validPayload();
+        payload.setCopyTemplates(List.of(template("template.reason.CALIBER_AMBIGUOUS",
+                "CALIBER_AMBIGUOUS", "候选口径：{variant_aliases}", List.of())));
+        assertTrue(codes(payload).stream().anyMatch(code ->
+                code.contains("未在 allowedPlaceholders 声明")));
+    }
+
+    @Test
+    void shouldRejectForbiddenPlaceholderInCopyTemplate() {
+        ManifestPayload payload = validPayload();
+        payload.setCopyTemplates(List.of(template("template.reason.OUT_OF_SCOPE",
+                "OUT_OF_SCOPE", "涉及资产：{asset_names}", List.of("asset_names"))));
+        assertTrue(codes(payload).stream().anyMatch(code -> code.contains("禁止的占位符")));
+    }
+
+    @Test
+    void shouldRejectDuplicateReasonCodeAndLocale() {
+        ManifestPayload payload = validPayload();
+        payload.setCopyTemplates(List.of(
+                template("template.reason.A", "OUT_OF_SCOPE", "文案一", List.of()),
+                template("template.reason.B", "OUT_OF_SCOPE", "文案二", List.of())));
+        assertTrue(codes(payload).stream().anyMatch(code -> code.contains("只能有一个模板")));
+    }
+
+    private SemanticManifest.CaliberVariant variant(String id, String fieldId, String operator,
+                                                    List<String> values) {
+        SemanticManifest.VariantCondition condition = new SemanticManifest.VariantCondition();
+        condition.setFieldId(fieldId);
+        condition.setOperator(operator);
+        condition.setValues(values);
+        SemanticManifest.CaliberVariant variant = new SemanticManifest.CaliberVariant();
+        variant.setVariantId(id);
+        variant.setAlias(List.of("测试口径"));
+        variant.setCondition(condition);
+        variant.setVersion("1.0.0");
+        return variant;
+    }
+
+    @Test
+    void shouldAcceptSameTableCaliberVariant() {
+        ManifestPayload payload = validPayload();
+        payload.getSemantic().getMetrics().get(0).setAllowedDimensions(List.of("dim.region"));
+        payload.getSemantic().getMetrics().get(0)
+                .setCaliberVariants(List.of(variant("metric.gmv.online", "dim.region", "EQ",
+                        List.of("华东"))));
+        assertTrue(validator.validate(payload).isEmpty(),
+                () -> "同表变体应合法: " + validator.validate(payload));
+    }
+
+    @Test
+    void shouldRejectVariantConditionOutsideAllowedDimensions() {
+        ManifestPayload payload = validPayload();
+        // allowedDimensions 为空：条件字段未授权
+        payload.getSemantic().getMetrics().get(0)
+                .setCaliberVariants(List.of(variant("metric.gmv.online", "dim.region", "EQ",
+                        List.of("华东"))));
+        assertTrue(codes(payload).stream().anyMatch(code ->
+                code.contains("不在指标允许维度内")));
+    }
+
+    @Test
+    void shouldRejectCrossTableVariantCondition() {
+        ManifestPayload payload = validPayload();
+        SemanticManifest.Dimension other = new SemanticManifest.Dimension();
+        other.setId("dim.customer");
+        other.setName("客户");
+        other.setSummary("下单客户");
+        other.setAliases(List.of("买家"));
+        other.setTable("customer");
+        other.setColumn("tier");
+        var dimensions = new java.util.ArrayList<>(payload.getSemantic().getDimensions());
+        dimensions.add(other);
+        payload.getSemantic().setDimensions(dimensions);
+        payload.getSemantic().getMetrics().get(0)
+                .setAllowedDimensions(List.of("dim.region", "dim.customer"));
+        payload.getSemantic().getMetrics().get(0)
+                .setCaliberVariants(List.of(variant("metric.gmv.gold", "dim.customer", "EQ",
+                        List.of("gold"))));
+        assertTrue(codes(payload).stream().anyMatch(code -> code.contains("同表")));
+    }
+
+    @Test
+    void shouldRejectVariantWithUnknownOperatorAndDuplicateId() {
+        ManifestPayload payload = validPayload();
+        payload.getSemantic().getMetrics().get(0).setAllowedDimensions(List.of("dim.region"));
+        payload.getSemantic().getMetrics().get(0).setCaliberVariants(List.of(
+                variant("metric.gmv.bad", "dim.region", "LIKE", List.of("华东")),
+                variant("metric.gmv.bad", "dim.region", "EQ", List.of("华东"))));
+        Set<String> codes = codes(payload);
+        assertTrue(codes.stream().anyMatch(code -> code.contains("封闭枚举")));
+        assertTrue(codes.stream().anyMatch(code -> code.contains("variantId 必填且在同一指标内唯一")));
+    }
+
 }

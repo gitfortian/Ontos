@@ -32,7 +32,14 @@ class TimeExpressionParserTest {
         thisMonth.setPattern("这个月");
         thisMonth.setGranularity("MONTH");
 
-        return List.of(lastNDays, lastMonth, thisMonth);
+        TimeExpressionPattern lastQuarter = new TimeExpressionPattern();
+        lastQuarter.setPatternId("tep.last_quarter");
+        lastQuarter.setPattern("上季度");
+        lastQuarter.setGranularity("QUARTER");
+        lastQuarter.setOffsetUnit("QUARTER");
+        lastQuarter.setOffsetAmount(-1);
+
+        return List.of(lastNDays, lastMonth, thisMonth, lastQuarter);
     }
 
     private final TimeExpressionParser parser = new TimeExpressionParser(patterns());
@@ -79,7 +86,7 @@ class TimeExpressionParserTest {
 
     @Test
     void shouldFailOnUnmatchedExpression() {
-        ParseResult result = parser.parse("上季度", today);
+        ParseResult result = parser.parse("未来三个月", today);
         assertNull(result.resolved());
         assertTrue(result.failReason().contains("未命中"));
     }
@@ -100,6 +107,28 @@ class TimeExpressionParserTest {
     void shouldFailWhenNoPatternsPublished() {
         TimeExpressionParser empty = new TimeExpressionParser(List.of());
         assertNull(empty.parse("上个月", today).resolved());
+    }
+
+    @Test
+    void shouldResolveLastQuarterAcrossYearBoundary() {
+        java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+        java.time.ZoneId shanghai = java.time.ZoneId.of("Asia/Shanghai");
+
+        // 2026-11 的上季度 = 2026Q3
+        ParseResult nov = parser.parse("上季度", LocalDate.of(2026, 11, 8));
+        assertEquals("2026-07-01T00:00:00+08:00", nov.resolved().from().atZone(shanghai).format(fmt));
+        assertEquals("2026-10-01T00:00:00+08:00", nov.resolved().to().atZone(shanghai).format(fmt));
+
+        // 跨年：2026-01 的上季度 = 2025Q4
+        ParseResult jan = parser.parse("上季度", LocalDate.of(2026, 1, 15));
+        assertEquals("2025-10-01T00:00:00+08:00", jan.resolved().from().atZone(shanghai).format(fmt));
+        assertEquals("2026-01-01T00:00:00+08:00", jan.resolved().to().atZone(shanghai).format(fmt));
+
+        // 季度首日：2026-04-01 的上季度 = 2026Q1（不是本季度）
+        ParseResult apr = parser.parse("上季度", LocalDate.of(2026, 4, 1));
+        assertEquals("2026-01-01T00:00:00+08:00", apr.resolved().from().atZone(shanghai).format(fmt));
+        assertEquals("2026-04-01T00:00:00+08:00", apr.resolved().to().atZone(shanghai).format(fmt));
+        assertEquals("tep.last_quarter", apr.resolved().patternId());
     }
 
     @Test

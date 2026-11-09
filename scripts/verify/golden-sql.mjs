@@ -28,7 +28,7 @@ const argOf = (name, fallback) => {
 };
 const repo = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const BASE = argOf("--base-url", "http://127.0.0.1:8080");
-const MANIFEST_ID = argOf("--manifest-id", "2026.11.08-sixth");
+let MANIFEST_ID = argOf("--manifest-id", null);
 const MODE = argOf("--mode", "check");
 const CASES_PATH = resolve(repo, "docs/06-verification/evaluation/Golden集-v2-案例设计.json");
 const GOLD_PATH = resolve(repo, "docs/06-verification/evaluation/Golden集-v2-gold-v1.json");
@@ -40,6 +40,19 @@ const HEADERS = {
   "X-Ontos-Session": "golden",
   "X-Ontos-Turn": "1",
 };
+
+// 请求在 M1 口径下被钉在「当前生效清单」上：未显式指定时默认取 active，
+// 否则清单一升级，回填时的 manifestId 就会让 check 全军覆没（1001000001）。
+if (!MANIFEST_ID) {
+  const current = await fetch(BASE + "/api/v1/ontology/manifests/current", { headers: HEADERS })
+    .then((response) => response.json());
+  MANIFEST_ID = current?.data?.manifestId;
+  if (!MANIFEST_ID) {
+    console.error("无法取得当前生效清单，请用 --manifest-id 显式指定");
+    process.exit(1);
+  }
+  console.log(`使用当前生效清单: ${MANIFEST_ID}`);
+}
 
 /** 时间维度固定用 dim.order_date：它是首发清单里唯一 DAY 粒度的日期维度。 */
 const TIME_FIELD = "dim.order_date";
@@ -333,6 +346,9 @@ async function check(cases) {
       continue;
     }
     if (expected.kind === "negative") {
+      // gold 固化的 DSL 带「回填当时的 manifestId」；清单升级后旧 ID 会被 1001000001 拦住，
+      // 这里对齐到本次运行清单再编译——SQL/错误码比对不依赖 manifestId 本身。
+      expected.dsl.manifestId = MANIFEST_ID;
       const actual = await compileOnce(expected.dsl, `gold-chk-${testCase.id}`);
       const ok = actual.errorCode === expected.expectedErrorCode;
       outcomes.push({
@@ -345,6 +361,7 @@ async function check(cases) {
       continue;
     }
 
+    expected.dsl.manifestId = MANIFEST_ID;
     const first = await compileOnce(expected.dsl, `gold-chk-${testCase.id}-a`);
     const second = await compileOnce(expected.dsl, `gold-chk-${testCase.id}-b`);
     if (first.errorCode || second.errorCode) {

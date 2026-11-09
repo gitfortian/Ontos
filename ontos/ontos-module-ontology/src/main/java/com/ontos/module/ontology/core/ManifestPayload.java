@@ -41,8 +41,31 @@ public class ManifestPayload {
     @Data
     public static class CopyTemplate {
         private String templateId;
+        /**
+         * 原因码（M3）。历史清单（v7 及以前）没有该字段，运行时按 templateId 的
+         * `template.reason.<CODE>` 前缀派生，保证旧清单可继续加载。
+         */
+        private String reasonCode;
         private String locale;
         private String text;
+        /** 允许出现在 text 中的占位符名；未声明的 `{x}` 一律拒绝发布。 */
+        private List<String> allowedPlaceholders = List.of();
+        private String version;
+
+        /**
+         * 生效原因码：显式字段优先；历史清单（v7 及以前）没有该字段，
+         * 按 templateId 的 `template.reason.<CODE>` 前缀派生，保证旧清单继续可加载。
+         */
+        public String effectiveReasonCode() {
+            if (reasonCode != null && !reasonCode.isBlank()) {
+                return reasonCode;
+            }
+            String prefix = "template.reason.";
+            if (templateId != null && templateId.startsWith(prefix)) {
+                return templateId.substring(prefix.length());
+            }
+            return null;
+        }
     }
 
     /** 相对时间表达模式（v1.4 §5.12），M1 只冻结结构，解析器归 M2。 */

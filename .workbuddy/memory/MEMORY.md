@@ -58,5 +58,7 @@
 - 当前生效清单 `2026.11.08-seventh`（hash 471cc654）；Golden 30 条中 27 可构造逐字一致 0 失败；复合可表达子集 14/14；RLS 100 轮 0 越权。
 - **后续改动不得破坏的口径**：YOY_MOM 的 Join 与 filters 必须同时进入「聚合」与「维度枚举」两个 CTE；FUNNEL 在 M2 不接受 filters（拒绝而非忽略）；时间窗绑定统一按上海墙钟（会话时区固定 Asia/Shanghai）；模式授权 `validateMode` 必须先于路径规划；聚合模式拒绝 lookup 字段；YOY_MOM 不允许时间维度自身作分组维度。
 - 基线：`mvn test` **269 例**（30 类）；`pnpm check` exit 0；`check-docs.mjs` 60 文档 / 467 链接。
-- **M3 规格已冻结（v1.0）**：能力注册落 query `core/skill`（不新建 agent 模块）；口径变体由新增 `metric.paid_gmv` 承载（不改 gmv）；文案模板走独立端点。W1 待启动（负责人要求先冻结）。
+- **M3 规格已冻结（v1.0）**：能力注册落 query `core/skill`（不新建 agent 模块）；口径变体由新增 `metric.paid_gmv` 承载（不改 gmv）；文案模板走独立端点。
+- **M3/W1 已完成**：清单 v8（2026.11.08-eighth，hash 2720fb36）生效——paid_gmv 双口径变体（dim.channel 同表）、上季度模式、文案模板 9 条（带 reasonCode/占位符白名单/version）；结构校验与解析器同步落地。W2 待启动（caliberVariantId 门禁 + 编译下推 + CALIBER_AMBIGUOUS）。
+- **后续不得破坏**：变体条件只允许与指标同表（跨表拒绝）；文案模板占位符必须白名单声明；「上季度」按 patternId=tep.last_quarter 解析（不按粒度回退）。
 - M3 范围：lookup 产品化、布尔判定闭环、口径变体、上季度时间模式、文案模板、`__identity` 收口；并行偿还 R-20/R-23/R-25。

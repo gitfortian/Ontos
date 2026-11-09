@@ -38,6 +38,13 @@ public final class ManifestStructureValidator {
     /** 分析模式封闭枚举（与编译器 AnalysisMode 对应，小写形态）。 */
     private static final Set<String> ANALYSIS_MODES = Set.of(
             "query", "lookup", "lookup_batch", "funnel", "yoy_mom", "attribution", "retention", "discovery");
+    /** 口径变体条件的算子（与 DSL Filter 的封闭枚举一致）。 */
+    private static final Set<String> VARIANT_OPERATORS = Set.of(
+            "EQ", "IN", "NOT_IN", "GTE", "LTE", "BETWEEN");
+    /** 文案模板禁止出现的占位符（v1.4 §5.12：不得泄露资产名 / 物理表 / SQL / 字段名）。 */
+    private static final Set<String> FORBIDDEN_PLACEHOLDERS = Set.of(
+            "asset_names", "asset_ids", "physical_tables", "tables", "columns", "field_names", "sql");
+    private static final Pattern PLACEHOLDER = Pattern.compile("\\{([a-zA-Z0-9_]+)}");
 
     public List<Violation> validate(ManifestPayload payload) {
         List<Violation> violations = new ArrayList<>();
@@ -68,6 +75,12 @@ public final class ManifestStructureValidator {
             violations.add(new Violation("semantic", "缺少 semanticVersion"));
         }
         Set<String> metricIds = new HashSet<>();
+        Map<String, SemanticManifest.Dimension> dimensionById = new java.util.HashMap<>();
+        for (SemanticManifest.Dimension dimension : orEmpty(semantic.getDimensions())) {
+            if (!blank(dimension.getId())) {
+                dimensionById.put(dimension.getId(), dimension);
+            }
+        }
         for (SemanticManifest.Metric metric : orEmpty(semantic.getMetrics())) {
             String at = "metric." + metric.getId();
             requireId(metric.getId(), at, violations);
@@ -89,6 +102,7 @@ public final class ManifestStructureValidator {
             if (orEmpty(metric.getAllowedModes()).isEmpty()) {
                 violations.add(new Violation(at, "allowedModes 不能为空"));
             }
+            validateCaliberVariants(metric, dimensionById, violations);
             metricIds.add(metric.getId());
         }
         if (metricIds.isEmpty()) {
@@ -100,6 +114,69 @@ public final class ManifestStructureValidator {
             requireBusinessFields(dimension.getName(), dimension.getSummary(), dimension.getAliases(), at, violations);
             requirePhysicalName(dimension.getTable(), at + ".table", violations);
             requirePhysicalName(dimension.getColumn(), at + ".column", violations);
+        }
+    }
+
+    /**
+     * 口径变体校验（M3/W1，v1.4 §5.4）：变体只允许「同表 + 指标已授权维度」的声明式条件。
+     *
+     * <p>跨表条件会把简单问法拖回复合链路（需要 Join 与粒度校验），M3 明确不允许；
+     * 变体 ID 全局唯一性由 DSL 侧的归属校验保证，这里保证同一指标内不重复。
+     */
+    private void validateCaliberVariants(SemanticManifest.Metric metric,
+                                         Map<String, SemanticManifest.Dimension> dimensionById,
+                                         List<Violation> violations) {
+        List<SemanticManifest.CaliberVariant> variants = orEmpty(metric.getCaliberVariants());
+        if (variants.isEmpty()) {
+            return;
+        }
+        Set<String> variantIds = new HashSet<>();
+        for (SemanticManifest.CaliberVariant variant : variants) {
+            String at = "metric." + metric.getId() + ".caliberVariant";
+            if (blank(variant.getVariantId()) || !variantIds.add(variant.getVariantId())) {
+                violations.add(new Violation(at, "variantId 必填且在同一指标内唯一"));
+                continue;
+            }
+            at = "metric." + metric.getId() + ".caliberVariant." + variant.getVariantId();
+            if (orEmpty(variant.getAlias()).isEmpty()) {
+                violations.add(new Violation(at, "alias 至少 1 条（澄清候选需要展示）"));
+            }
+            if (blank(variant.getVersion())) {
+                violations.add(new Violation(at, "version 必填（变体版本化，进审计）"));
+            }
+            SemanticManifest.VariantCondition condition = variant.getCondition();
+            if (condition == null || blank(condition.getFieldId()) || blank(condition.getOperator())) {
+                violations.add(new Violation(at, "condition 缺少 fieldId / operator"));
+                continue;
+            }
+            if (!VARIANT_OPERATORS.contains(condition.getOperator())) {
+                violations.add(new Violation(at, "condition.operator 不在封闭枚举内: " + condition.getOperator()));
+            }
+            SemanticManifest.Dimension dimension = dimensionById.get(condition.getFieldId());
+            if (dimension == null) {
+                violations.add(new Violation(at, "condition.fieldId 引用不存在的维度: " + condition.getFieldId()));
+                continue;
+            }
+            if (!orEmpty(metric.getAllowedDimensions()).contains(condition.getFieldId())) {
+                violations.add(new Violation(at,
+                        "condition.fieldId 不在指标允许维度内: " + condition.getFieldId()));
+            }
+            if (!java.util.Objects.equals(dimension.getTable(), metric.getTable())) {
+                violations.add(new Violation(at,
+                        "M3 只允许与指标同表的变体条件: " + condition.getFieldId()));
+            }
+            int expected = switch (condition.getOperator()) {
+                case "EQ", "GTE", "LTE" -> 1;
+                case "BETWEEN" -> 2;
+                default -> -1;
+            };
+            int size = orEmpty(condition.getValues()).size();
+            if (size == 0) {
+                violations.add(new Violation(at, "condition.values 不能为空"));
+            } else if (expected > 0 && size != expected) {
+                violations.add(new Violation(at,
+                        "condition.operator " + condition.getOperator() + " 需要 " + expected + " 个值"));
+            }
         }
     }
 
@@ -309,11 +386,53 @@ public final class ManifestStructureValidator {
         }
     }
 
+    /**
+     * 文案模板校验（M3/W1，v1.4 §5.12）：
+     * 原因码可派生（兼容 v7 及以前）、(reasonCode, locale) 唯一、占位符必须白名单声明，
+     * 且禁止出现资产名 / 物理表 / SQL / 字段名这类占位符。
+     */
     private void validateCopyTemplates(ManifestPayload payload, List<Violation> violations) {
+        Set<String> templateIds = new HashSet<>();
+        Set<String> reasonLocales = new HashSet<>();
         for (ManifestPayload.CopyTemplate template : orEmpty(payload.getCopyTemplates())) {
             String at = "copyTemplate." + template.getTemplateId();
             if (blank(template.getTemplateId()) || blank(template.getLocale()) || blank(template.getText())) {
                 violations.add(new Violation(at, "templateId / locale / text 均必填"));
+                continue;
+            }
+            if (!templateIds.add(template.getTemplateId())) {
+                violations.add(new Violation(at, "templateId 重复"));
+            }
+            String reasonCode = template.effectiveReasonCode();
+            if (blank(reasonCode)) {
+                violations.add(new Violation(at,
+                        "reasonCode 必填，或 templateId 形如 template.reason.<CODE>"));
+            } else {
+                String key = reasonCode + "|" + template.getLocale();
+                if (!reasonLocales.add(key)) {
+                    violations.add(new Violation(at,
+                            "同一原因码 + locale 只能有一个模板: " + key));
+                }
+            }
+            if (!blank(template.getReasonCode()) && blank(template.getVersion())) {
+                violations.add(new Violation(at, "显式 reasonCode 时必须提供 version"));
+            }
+            List<String> allowed = orEmpty(template.getAllowedPlaceholders());
+            for (String placeholder : allowed) {
+                if (FORBIDDEN_PLACEHOLDERS.contains(placeholder)) {
+                    violations.add(new Violation(at, "禁止的占位符: " + placeholder));
+                }
+            }
+            var matcher = PLACEHOLDER.matcher(template.getText());
+            while (matcher.find()) {
+                String placeholder = matcher.group(1);
+                if (!allowed.contains(placeholder)) {
+                    violations.add(new Violation(at,
+                            "占位符未在 allowedPlaceholders 声明: " + placeholder));
+                }
+                if (FORBIDDEN_PLACEHOLDERS.contains(placeholder)) {
+                    violations.add(new Violation(at, "禁止的占位符: " + placeholder));
+                }
             }
         }
     }

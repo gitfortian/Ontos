@@ -58,6 +58,30 @@ public class SemanticManifest {
         private List<String> allowedModes = List.of();
         private List<String> allowedDimensions = List.of();
         private boolean sensitive;
+        /**
+         * 口径变体（v1.4 §5.4）：同一指标下的声明式细分口径。
+         * 变体只追加确定性过滤条件，不覆盖聚合与物理列；跨表条件在 M3 明确拒绝。
+         */
+        private List<CaliberVariant> caliberVariants = List.of();
+    }
+
+    /** 口径变体：ID 进 DSL 与审计，condition 复用「字段 + 算子 + 值」三元组。 */
+    @Data
+    public static class CaliberVariant {
+        private String variantId;
+        /** 口径别名，用于澄清候选展示与检索提示。 */
+        private List<String> alias = List.of();
+        private VariantCondition condition;
+        private String version;
+    }
+
+    /** 声明式条件：算子为封闭枚举，禁止内联表达式。 */
+    @Data
+    public static class VariantCondition {
+        private String fieldId;
+        /** EQ / IN / NOT_IN / GTE / LTE / BETWEEN */
+        private String operator;
+        private List<String> values = List.of();
     }
 
     @Data

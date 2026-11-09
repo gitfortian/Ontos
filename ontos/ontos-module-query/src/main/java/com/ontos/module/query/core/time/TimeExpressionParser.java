@@ -106,6 +106,8 @@ public class TimeExpressionParser {
         return switch (pattern.getPatternId()) {
             case "tep.last_month" -> monthRange(today.minusMonths(1), 1);
             case "tep.this_month" -> monthRange(today, 1);
+            // 上季度：以「三个月前所在季度」为准，跨年与季度首日都成立
+            case "tep.last_quarter" -> quarterRange(today.minusMonths(3));
             default -> switch (pattern.getGranularity()) {
                 case "YEAR" -> yearRange(today);
                 case "QUARTER" -> quarterRange(today);
