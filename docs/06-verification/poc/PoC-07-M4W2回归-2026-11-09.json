@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-09T06:50:56.892Z",
-  "manifestId": "2026.11.08-eighth",
+  "generatedAt": "2026-11-09T08:23:14.230Z",
+  "manifestId": "2026.11.09-ninth",
   "devAllowAll": false,
   "total": 32,
   "failures": 0,
@@ -127,7 +127,7 @@
       "pass": true,
       "detail": {
         "code": 1003000008,
-        "approvalId": "2820b09b-10ea-4fad-8107-f5ca7ee98cf9"
+        "approvalId": "79249c36-7ab7-442b-b1f9-5c9da1d14574"
       }
     },
     {
@@ -191,8 +191,8 @@
       "name": "事件行 context_delta 与审计行同值同源",
       "pass": true,
       "detail": {
-        "eventDelta": "b96263730493",
-        "auditDelta": "b96263730493"
+        "eventDelta": "077f0b4b1292",
+        "auditDelta": "077f0b4b1292"
       }
     },
     {
@@ -225,7 +225,7 @@
       "name": "INTERRUPT 事件携带审批单 ID（可直连决策端点）",
       "pass": true,
       "detail": {
-        "sample": "event:INTERRUPT ⏎ data:{\"decideEndpoint\":\"/api/v1/approvals/d5bfcd0a-9ca0-4e4c-8299-12d2780bab7e/decide\",\"sensitiveKey\":\"property.customer.email#pii\",\"approvalId\":\"d5bfcd0a-9ca0-4e4c-8299-12d2780bab7e\",\"reasonCode\":\"SENS"
+        "sample": "event:INTERRUPT ⏎ data:{\"sensitiveKey\":\"property.customer.email#pii\",\"decideEndpoint\":\"/api/v1/approvals/c4fd4064-f8f2-4e55-a681-daeb65079cb0/decide\",\"type\":\"INTERRUPT\",\"reasonCode\":\"SENSITIVE_INDIVIDUAL_PROBE\",\"approval"
       }
     },
     {

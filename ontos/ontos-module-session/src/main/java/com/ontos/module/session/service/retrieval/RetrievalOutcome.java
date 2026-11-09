@@ -1,0 +1,52 @@
+package com.ontos.module.session.service.retrieval;
+
+import java.util.List;
+
+/**
+ * 检索瀑布的单轮产出。
+ *
+ * <p>分层语义（「模糊候选进 DSL=0」硬断言的数据基础）：
+ * <ul>
+ *   <li>{@code dslReady}：L1/L2 命中（fuzzy=false），允许作为本轮 DSL 组装的实体输入；</li>
+ *   <li>{@code fuzzyOnly}：仅 L3 命中的候选（fuzzy=true），**只能**出现在澄清候选里，
+ *       任何路径不得进入 DSL；</li>
+ *   <li>{@code prevTurn}：本轮无显式提及、由会话投影（resolved_entities）给出的指代候选——
+ *       已按授权与清单存在性复核，失效投影不会出现在这里（失效走 {@code projectionStale}）。</li>
+ * </ul>
+ *
+ * @param dslReady         可直接进 DSL 的候选（L1/L2，已授权）
+ * @param fuzzyOnly        仅模糊层命中（不得进 DSL，仅澄清候选）
+ * @param prevTurn         指代消解候选（来自会话投影，已复核有效）
+ * @param clarifications   概念歧义澄清（四要素；空 = 本轮无需澄清）
+ * @param projectionStale  会话投影失效（资产被降权/清单变化）——需要向用户澄清或重新发现
+ * @param contextHash      候选集内容 SHA-256（清单 contentHash + 授权集合 + 词表），供
+ *                         Proposal 来源对账（候选集外 ID → InjectionCheckpoint）
+ */
+public record RetrievalOutcome(List<RetrievedCandidate> dslReady,
+                               List<RetrievedCandidate> fuzzyOnly,
+                               List<RetrievedCandidate> prevTurn,
+                               List<ClarificationPayload> clarifications,
+                               boolean projectionStale,
+                               String contextHash) {
+
+    public RetrievalOutcome {
+        dslReady = dslReady == null ? List.of() : List.copyOf(dslReady);
+        fuzzyOnly = fuzzyOnly == null ? List.of() : List.copyOf(fuzzyOnly);
+        prevTurn = prevTurn == null ? List.of() : List.copyOf(prevTurn);
+        clarifications = clarifications == null ? List.of() : List.copyOf(clarifications);
+    }
+
+    /** Top-5 候选视图（PoC #5 口径）：dslReady + fuzzyOnly 合并排序后的前 5。 */
+    public List<RetrievedCandidate> top5() {
+        List<RetrievedCandidate> merged = new java.util.ArrayList<>(dslReady);
+        merged.addAll(fuzzyOnly);
+        java.util.Collections.sort(merged);
+        return merged.stream().limit(5).toList();
+    }
+
+    /** 是否完全无候选（连模糊/指代都没有）——编排层据此走能力发现或拒答。 */
+    public boolean isEmpty() {
+        return dslReady.isEmpty() && fuzzyOnly.isEmpty() && prevTurn.isEmpty();
+    }
+
+}

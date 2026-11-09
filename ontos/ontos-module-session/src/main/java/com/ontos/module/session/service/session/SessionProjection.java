@@ -55,4 +55,10 @@ public record SessionProjection(
         json.put("time", timeExpressionRaw == null ? "" : timeExpressionRaw);
         return json;
     }
+
+    /** 投影是否为空（首轮或清空后）：指代消解仅在非空投影上生效。 */
+    public boolean isEmpty() {
+        return metricIds.isEmpty() && dimensionIds.isEmpty() && propertyIds.isEmpty()
+                && (entityId == null || entityId.isBlank());
+    }
 }

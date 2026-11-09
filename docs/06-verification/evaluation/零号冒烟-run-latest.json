@@ -1,7 +1,7 @@
 {
-  "runId": "s1794202933846",
-  "ranAt": "2026-11-09T05:42:14.091Z",
-  "manifestId": "2026.11.08-eighth",
+  "runId": "s1794212326677",
+  "ranAt": "2026-11-09T08:18:47.366Z",
+  "manifestId": "2026.11.09-ninth",
   "runnerVersion": "smoke-runner-v1",
   "setHashes": {
     "零号冒烟集-gold-v2.json": "sha256:ec0f50526b527be7bf9ee87a40aae0f69f0f34ba7641f0f146b4fbadd1c1ed62",
