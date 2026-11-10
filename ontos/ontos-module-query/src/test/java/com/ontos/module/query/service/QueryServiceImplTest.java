@@ -109,7 +109,7 @@ class QueryServiceImplTest {
                 (context, scenarioId, mode, timeRangeField, referencedAssetIds) -> { },
                 policyService, sqlCompiler, queryExecutor, auditService, requestStateService, resolver,
                 new JoinPathResolver(() -> Set.of()), queryArtifactRepository, queryCacheService,
-                new SkillRegistry(List.of(new EntityLookupSkill())), sensitiveEventService,
+                new SkillRegistry(List.of(new EntityLookupSkill()), manifestService), sensitiveEventService,
                 approvalService);
     }
 
@@ -233,7 +233,52 @@ class QueryServiceImplTest {
     }
 
     @Test
+    void shouldRejectSkillWhenCapabilityNotSatisfied() {
+        // T3.2 编译期校验 ①：required_capabilities 未被受控工具注册表满足 → 拒绝路由
+        PublishedManifest manifest = TestFixtures.ruleManifest();
+        manifest.getSkills().get(0).setRequiredCapabilities(
+                List.of("semantic.query", "custom.unregistered"));
+        when(manifestService.getActiveManifestOrNull()).thenReturn(manifest);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).executeSkill("entity_lookup", Map.of()));
+        assertEquals(1_002_000_041, ex.getCode());
+        verify(queryExecutor, never()).execute(any(), any());
+    }
+
+    @Test
+    void shouldRejectSkillOutsideAllowedScenarios() {
+        // T3.2 编译期校验 ②：allowed_scenario_ids 非空且当前会话不在列 → 拒绝（no-op guard 返回 null）
+        PublishedManifest manifest = TestFixtures.ruleManifest();
+        manifest.getSkills().get(0).setAllowedScenarioIds(List.of("scenario.sales"));
+        when(manifestService.getActiveManifestOrNull()).thenReturn(manifest);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).executeSkill("entity_lookup", Map.of()));
+        assertEquals(1_002_000_042, ex.getCode());
+    }
+
+    @Test
+    void shouldRejectBatchExceedingManifestMaxBatchSize() {
+        // T3.2 编译期校验 ④：max_batch_size 是清单硬上界（limit 200 > 100）
+        PublishedManifest manifest = TestFixtures.ruleManifest();
+        manifest.getSkills().get(0).setAnalysisMode("LOOKUP_BATCH");
+        manifest.getSkills().get(0).setImplementationRef("builtin.LOOKUP_BATCH.batch@1.1.0");
+        manifest.getSkills().get(0).setMaxBatchSize(100);
+        when(manifestService.getActiveManifestOrNull()).thenReturn(manifest);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).executeSkill("entity_lookup",
+                        Map.of("entityId", TestFixtures.CUSTOMER_CONCEPT,
+                                "attributes", List.of(TestFixtures.CUSTOMER_EMAIL_PROPERTY),
+                                "mode", "lookup_batch",
+                                "identityPropertyId", TestFixtures.CUSTOMER_ID_PROPERTY,
+                                "identities", List.of("c-1", "c-2", "c-3"),
+                                "limit", 200)));
+        assertEquals(1_002_000_043, ex.getCode());
+        verify(queryExecutor, never()).execute(any(), any());
+    }
+
+    @Test
     void shouldRejectUnknownSkill() {
+        when(manifestService.getActiveManifestOrNull()).thenReturn(TestFixtures.ruleManifest());
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> service(new TimeWindowResolver()).executeSkill("nope", Map.of()));
         assertEquals(DSL_INVALID.getCode(), ex.getCode());

@@ -1134,7 +1134,7 @@
       "reviewedAt": "2026-11-10"
     },
     {
-      "skillId": "skill.entity_lookup",
+      "skillId": "entity_lookup",
       "name": "实体属性直查/布尔判定",
       "owner": "platform-data",
       "version": "1.0.0",

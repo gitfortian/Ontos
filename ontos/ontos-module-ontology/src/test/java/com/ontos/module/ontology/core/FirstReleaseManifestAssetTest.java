@@ -159,8 +159,8 @@ class FirstReleaseManifestAssetTest {
         assertEquals(7, payload.getSkills().size());
         var skillIds = payload.getSkills().stream()
                 .map(ManifestPayload.SkillMeta::getSkillId).toList();
-        assertTrue(skillIds.contains("skill.entity_lookup"),
-                "M3 entity_lookup 迁移注册制，既有 skillId 保留");
+        assertTrue(skillIds.contains("entity_lookup"),
+                "M3 entity_lookup 迁移注册制，运行时 skillId 无前缀（T32-2 对齐实际命名）");
         // 每条 published Skill 必有审核人（生命周期 + T3.1 审核记录）
         assertTrue(payload.getSkills().stream().allMatch(
                 skill -> "project-team".equals(skill.getReviewer())));

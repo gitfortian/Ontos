@@ -36,6 +36,8 @@ public class PublishedManifest {
     private List<ManifestPayload.TimeExpressionPattern> timeExpressionPatterns = List.of();
     /** 业务场景元数据，M6 路由消费。 */
     private List<ManifestPayload.ScenarioMeta> scenarios = List.of();
+    /** Skill 资产（M6/T3.2）：运行时注册表按清单段解析 implementation_ref。 */
+    private List<ManifestPayload.SkillMeta> skills = List.of();
     private LocalDateTime createdAt;
 
     public boolean hashMatches() {

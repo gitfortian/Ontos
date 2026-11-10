@@ -53,6 +53,14 @@ public class ScenarioRouteGuardImpl implements ScenarioRouteGuard {
     }
 
     @Override
+    public String currentScenarioId(RequestContext context) {
+        // in_scenario 才返回场景 ID；free / pending_confirm / 无状态一律 null
+        //（pending 态尚未生效，allowed_scenario_ids 判定按「不在场景内」处理）
+        ScenarioSessionService.ScenarioSessionView view = scenarioSessionService.read(context);
+        return view.state() == ScenarioRouteState.IN_SCENARIO ? view.scenarioId() : null;
+    }
+
+    @Override
     public void adjudicate(RequestContext context, String scenarioId, String mode,
                            String timeRangeField, java.util.Collection<String> referencedAssetIds) {
         if (scenarioId == null || scenarioId.isBlank()) {

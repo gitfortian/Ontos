@@ -16,6 +16,15 @@ public interface SkillHandler {
     SkillDescriptor descriptor();
 
     /**
+     * 内置实现命名空间（M6/W3/T3.2）：{@code builtin.<MODE>.<impl>} 列表（不带版本——版本随清单演进，
+     * handler 绑定到命名空间而非精确版本）。注册表按清单 skills 段的 implementation_ref
+     * 去版本前缀解析到本映射；返回空 = 该 handler 未纳入注册制（M3 直挂兼容态）。
+     */
+    default java.util.List<String> builtinRefs() {
+        return java.util.List.of();
+    }
+
+    /**
      * 槽位 → DSL。manifestId 由服务层注入（取当前生效清单），调用方不感知清单版本。
      */
     QueryDsl build(Map<String, Object> slots, String manifestId);

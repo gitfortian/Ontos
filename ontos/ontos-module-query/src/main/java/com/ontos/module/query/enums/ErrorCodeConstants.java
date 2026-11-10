@@ -50,5 +50,11 @@ public interface ErrorCodeConstants {
     ErrorCode ATTRIBUTION_EVENT_NOT_FOUND = new ErrorCode(1_002_000_038, "归因事件找不到唯一已发布定义或映射不完整: {}");
     ErrorCode ATTRIBUTION_DIMENSION_UNSUPPORTED = new ErrorCode(1_002_000_039, "归因维度必须是渠道（dim.channel）或指标同表已发布维度: {}");
     ErrorCode ATTRIBUTION_MODEL_NOT_IMPLEMENTED = new ErrorCode(1_002_000_040, "归因模型尚未实现（首发仅 last_touch）: {}");
+    ErrorCode SKILL_CAPABILITY_MISSING = new ErrorCode(1_002_000_041,
+            "Skill 依赖的能力未被受控工具注册表满足: {} 缺少 {}");
+    ErrorCode SKILL_SCENARIO_FORBIDDEN = new ErrorCode(1_002_000_042,
+            "Skill 不允许在当前场景调用: {} 仅限 {}");
+    ErrorCode SKILL_BATCH_LIMIT_EXCEEDED = new ErrorCode(1_002_000_043,
+            "批量参数超出 Skill 上界: {} > {}");
 
 }

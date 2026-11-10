@@ -29,4 +29,13 @@ public interface ScenarioRouteGuard {
      */
     void adjudicate(RequestContext context, String scenarioId, String mode, String timeRangeField,
                     java.util.Collection<String> referencedAssetIds);
+
+    /**
+     * 当前会话的场景 ID（in_scenario 态返回场景 ID；free / pending_confirm / 无状态返回 null）。
+     * T3.2 编译期校验第 2 条（allowed_scenario_ids 语义）消费；default null 兜底——
+     * 无场景实现的装配（单测 no-op 桩）按「不在任何场景内」处理，fail-closed。
+     */
+    default String currentScenarioId(RequestContext context) {
+        return null;
+    }
 }

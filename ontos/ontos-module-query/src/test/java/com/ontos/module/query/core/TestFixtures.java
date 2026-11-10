@@ -427,7 +427,28 @@ public final class TestFixtures {
         rule.setStatus("published");
         rule.setExpression(Map.of("metricId", RULE_METRIC_ID, "operator", "GTE", "threshold", 50000));
         manifest.setRules(List.of(rule));
+
+        // M6/T3.2 注册制：entity_lookup 进清单 skills 段（published + 审核记录），
+        // 编译期校验与注册表解析共用此 fixture（rule.evaluate 由上面 published 规则满足）
+        manifest.setSkills(List.of(entityLookupSkillMeta()));
         return manifest;
+    }
+
+    /** 清单 skills 段的 entity_lookup 元数据（M3 运行时 skillId 保留，无 skill. 前缀）。 */
+    public static ManifestPayload.SkillMeta entityLookupSkillMeta() {
+        ManifestPayload.SkillMeta skill = new ManifestPayload.SkillMeta();
+        skill.setSkillId("entity_lookup");
+        skill.setName("实体查询");
+        skill.setOwner("platform-data");
+        skill.setVersion("1.1.0");
+        skill.setStatus("published");
+        skill.setAnalysisMode("LOOKUP");
+        skill.setImplementationRef("builtin.LOOKUP.entity@1.1.0");
+        skill.setRequiredCapabilities(List.of("semantic.query", "rule.evaluate"));
+        skill.setAllowedScenarioIds(List.of());
+        skill.setReviewer("project-team");
+        skill.setReviewedAt("2026-11-10");
+        return skill;
     }
 
     public static QueryDsl ruleLookupDsl() {

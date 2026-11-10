@@ -39,6 +39,12 @@ public class EntityLookupSkill implements SkillHandler {
             "identityPropertyId", "booleanMetricId", "limit");
 
     @Override
+    public java.util.List<String> builtinRefs() {
+        // 单实体（LOOKUP.entity）与批量（LOOKUP_BATCH.batch）共用同一构造器——批量是 mode 槽位
+        return java.util.List.of("builtin.LOOKUP.entity", "builtin.LOOKUP_BATCH.batch");
+    }
+
+    @Override
     public SkillDescriptor descriptor() {
         return new SkillDescriptor(SKILL_ID, "实体查询", "按唯一标识直查实体属性，支持单实体与批量",
                 List.of(

@@ -10,6 +10,7 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Optional;
 import java.util.TreeSet;
 
@@ -31,6 +32,8 @@ import com.ontos.module.query.core.executor.QueryExecutor;
 import com.ontos.module.query.core.executor.QueryPlan;
 import com.ontos.module.query.core.executor.QueryResult;
 import com.ontos.module.query.core.scenario.ScenarioRouteGuard;
+import com.ontos.module.ontology.core.ManifestPayload;
+import com.ontos.module.query.core.skill.ControlledCapabilities;
 import com.ontos.module.query.core.skill.SkillHandler;
 import com.ontos.module.query.core.skill.SkillRegistry;
 import com.ontos.module.query.core.time.TimeExpressionParser;
@@ -54,6 +57,9 @@ import static com.ontos.module.ontology.enums.ErrorCodeConstants.MANIFEST_NOT_FO
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ARTIFACT_NOT_FOUND;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
+import static com.ontos.module.query.enums.ErrorCodeConstants.SKILL_BATCH_LIMIT_EXCEEDED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.SKILL_CAPABILITY_MISSING;
+import static com.ontos.module.query.enums.ErrorCodeConstants.SKILL_SCENARIO_FORBIDDEN;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_NOT_UNIQUE;
 import static com.ontos.module.query.enums.ErrorCodeConstants.PLAN_COST_BLOCKED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.REQUEST_ALREADY_EXECUTED;
@@ -343,14 +349,37 @@ public class QueryServiceImpl implements QueryService {
     @Override
     public QueryResult executeSkill(String skillId, Map<String, Object> slots) {
         RequestContext context = RequestContextHolder.require();
-        SkillHandler handler = skillRegistry.byId(skillId)
-                .orElseThrow(() -> exception(DSL_INVALID, "未知能力: " + skillId));
         PublishedManifest active = manifestService.getActiveManifestOrNull();
         if (active == null) {
             // 没有生效清单时业务必然不可用：fail-closed，与 validateManifest 的空态口径一致
             throw exception(MANIFEST_NOT_FOUND);
         }
+        // M6/W3/T3.2 编译期校验（注册制四条，全部先于 handler 解析——fail-closed 不泄露存在性）：
+        // 未发布 / 不存在 / 注册但无内置映射同码拒绝
+        ManifestPayload.SkillMeta meta = skillRegistry.manifestSkill(skillId)
+                .orElseThrow(() -> exception(DSL_INVALID, "未知能力: " + skillId));
+        // ① required_capabilities ⊆ 受控工具注册表满足集
+        Set<String> missing = ControlledCapabilities.unsatisfiedOf(meta, active);
+        if (!missing.isEmpty()) {
+            throw exception(SKILL_CAPABILITY_MISSING, skillId, String.join(", ", missing));
+        }
+        // ② allowed_scenario_ids：空 = 全局可用；非空 = 当前会话必须在列（pending/free 视为不在）
+        List<String> allowedScenarios = meta.getAllowedScenarioIds();
+        if (allowedScenarios != null && !allowedScenarios.isEmpty()) {
+            String currentScenario = scenarioRouteGuard.currentScenarioId(context);
+            if (currentScenario == null || !allowedScenarios.contains(currentScenario)) {
+                throw exception(SKILL_SCENARIO_FORBIDDEN, skillId, String.join(", ", allowedScenarios));
+            }
+        }
+        // ③ rule.evaluate 能力随 ① 按受控注册表判定（Rule 注册中心可用且规则已发布才满足）
+        SkillHandler handler = skillRegistry.byId(skillId)
+                .orElseThrow(() -> exception(DSL_INVALID, "未知能力: " + skillId));
         QueryDsl dsl = handler.build(slots == null ? Map.of() : slots, active.getManifestId());
+        // ④ max_batch_size 必须被 DSL 批量参数遵守（清单声明是硬上界）
+        if (meta.getMaxBatchSize() != null && dsl.getLimit() != null
+                && dsl.getLimit() > meta.getMaxBatchSize()) {
+            throw exception(SKILL_BATCH_LIMIT_EXCEEDED, dsl.getLimit(), meta.getMaxBatchSize());
+        }
         auditSkill(context, skillId, slots);
         return execute(dsl);
     }
