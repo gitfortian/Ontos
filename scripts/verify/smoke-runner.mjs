@@ -348,6 +348,36 @@ const summary = (() => {
   };
 })();
 
+// ── 失败样本落库（失败看板数据流：runner → 管理面 API → 五维下钻，T5.1 交付物 ④）──
+const failureRows = results
+  .filter((item) => item.status === "fail")
+  .map((item) => ({
+    questionId: `smoke-#${item.id}`,
+    scenarioEntryMode: "none",
+    queryShape: item.expectedTerminal,
+    turnType: item.via === "ask" ? "single" : "single",
+    isComposite: item.expectedTerminal === "composite",
+    riskType: item.riskType,
+    expectedTerminal: item.expectedTerminal,
+    actualTerminal: item.terminal ?? (item.errorCode ? `code:${item.errorCode}` : item.verdict ?? null),
+    errorCode: item.errorCode ?? null,
+    reason: item.reason ?? null,
+  }));
+let pushResult = { pushed: 0, skipped: true, note: "无失败样本（看板空态）" };
+if (failureRows.length > 0) {
+  try {
+    const pushResponse = await fetch(`${BASE}/api/v1/evaluation/failure-samples`, {
+      method: "POST",
+      headers: { ...HEADERS },
+      body: JSON.stringify({ setId: "smoke-v3", runId, samples: failureRows }),
+    });
+    const pushPayload = await pushResponse.json();
+    pushResult = { pushed: pushPayload.data?.inserted ?? 0, skipped: false };
+  } catch (error) {
+    pushResult = { pushed: 0, skipped: true, note: `落库失败（看板不可达，评测结论不受影响）: ${error.message}` };
+  }
+}
+
 const evidence = {
   runId,
   ranAt: new Date().toISOString(),
@@ -362,6 +392,7 @@ const evidence = {
   mappingNote:
     "v2 收敛（G-9）：6 条 skip 题经 /api/v1/ask/runs 实测（via=ask），拒绝类映射收紧为逐题精确终态 + reasonCode 断言；" +
     "#16 断言 PROMPT_INJECTION_SUSPECTED；#15/#17 按安全底线判据校准（gold v3 逐题写明）；DSL 题 14 题口径与 v1 一致。",
+  dashboardPush: pushResult,
   results,
   summary,
 };

@@ -503,6 +503,40 @@ const passCount = results.filter((r) => r.status === "pass").length;
 const failCount = results.filter((r) => r.status === "fail").length;
 const valid = passCount + failCount;
 
+// ── 失败样本落库（失败看板数据流：runner → 管理面 API → 五维下钻，T5.1 交付物 ④）──
+const failureRows = results
+  .filter((r) => r.status === "fail")
+  .map((r) => ({
+    questionId: r.id,
+    scenarioEntryMode: r.scenario_entry_mode,
+    queryShape: r.query_shape,
+    turnType: r.turn_type,
+    isComposite: r.is_composite,
+    riskType: r.risk_type,
+    expectedTerminal: r.terminal ?? null,
+    actualTerminal: r.errorCode ? `code:${r.errorCode}` : (r.verdict ?? null),
+    errorCode: r.errorCode ?? null,
+    reason: r.reason ?? null,
+  }));
+let pushResult = { pushed: 0, skipped: true, note: "无失败样本（看板空态）" };
+if (failureRows.length > 0) {
+  try {
+    const pushResponse = await fetch(`${BASE}/api/v1/evaluation/failure-samples`, {
+      method: "POST",
+      headers: { ...HEADERS },
+      body: JSON.stringify({
+        setId: SET_PATH.split("/").pop().replace(/\.json$/, "").replace(/test集-/, "test-"),
+        runId,
+        samples: failureRows,
+      }),
+    });
+    const pushPayload = await pushResponse.json();
+    pushResult = { pushed: pushPayload.data?.inserted ?? 0, skipped: false };
+  } catch (error) {
+    pushResult = { pushed: 0, skipped: true, note: `落库失败（看板不可达，评测结论不受影响）: ${error.message}` };
+  }
+}
+
 const evidence = {
   runId,
   ranAt: new Date().toISOString(),
@@ -532,6 +566,7 @@ const evidence = {
     analysis_mode: layer("analysis_mode"),
   },
   failures: results.filter((r) => r.status === "fail" || r.status === "error"),
+  dashboardPush: pushResult,
   results,
 };
 writeFileSync(EVIDENCE_PATH, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");

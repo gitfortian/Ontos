@@ -1,9 +1,10 @@
 import { API_PREFIX } from "@/config/api";
 import HttpUtils from "@/service/http/HttpUtils";
 
-import type { AuditLogVO, PageResult } from "./types";
+import type { AuditLogVO, FailureDashboardVO, PageResult } from "./types";
 
 const AUDIT_API = `${API_PREFIX}/audit-logs`;
+const FAILURE_API = `${API_PREFIX}/evaluation/failure-samples`;
 
 export const listAuditLogs = (
   action: string,
@@ -15,4 +16,14 @@ export const listAuditLogs = (
   return HttpUtils.getData<PageResult<AuditLogVO>>(`${AUDIT_API}?${query}`, { signal });
 };
 
-export type { AuditLogVO, PageResult } from "./types";
+/** 失败看板：五维下钻（G-5）+ 最近样本明细。 */
+export const getFailureDashboard = (
+  setId: string,
+  recentLimit = 50,
+  signal?: AbortSignal,
+): Promise<FailureDashboardVO> => {
+  const query = new URLSearchParams({ setId, recentLimit: String(recentLimit) });
+  return HttpUtils.getData<FailureDashboardVO>(`${FAILURE_API}/dashboard?${query}`, { signal });
+};
+
+export type { AuditLogVO, FailureDashboardVO, PageResult } from "./types";

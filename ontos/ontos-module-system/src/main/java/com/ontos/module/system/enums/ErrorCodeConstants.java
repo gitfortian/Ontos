@@ -22,4 +22,6 @@ public interface ErrorCodeConstants {
     ErrorCode APPROVAL_SELF_DECISION = new ErrorCode(1_003_000_010, "决策人不能审批自己发起的单据");
     ErrorCode APPROVAL_PAYLOAD_INVALID = new ErrorCode(1_003_000_011, "审批单 payload 缺少放行指纹所需字段");
 
+    ErrorCode FAILURE_SAMPLE_INVALID = new ErrorCode(1_003_000_012, "评测失败样本登记非法: {}");
+
 }

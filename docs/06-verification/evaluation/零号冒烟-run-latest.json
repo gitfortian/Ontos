@@ -1,6 +1,6 @@
 {
-  "runId": "s1794319783353",
-  "ranAt": "2026-11-10T14:09:44.879Z",
+  "runId": "s1794322903040",
+  "ranAt": "2026-11-10T15:01:44.140Z",
   "manifestId": "2026.11.10-sixteenth",
   "runnerVersion": "smoke-runner-v2",
   "agentMode": "ontos.agent.enabled=false（确定性降级路径）",
@@ -10,6 +10,11 @@
     "contentHash": "sha256:77e4394ac3a449fe621610793ae3314068f8c285ecf636c14729ab38bd07f89d"
   },
   "mappingNote": "v2 收敛（G-9）：6 条 skip 题经 /api/v1/ask/runs 实测（via=ask），拒绝类映射收紧为逐题精确终态 + reasonCode 断言；#16 断言 PROMPT_INJECTION_SUSPECTED；#15/#17 按安全底线判据校准（gold v3 逐题写明）；DSL 题 14 题口径与 v1 一致。",
+  "dashboardPush": {
+    "pushed": 0,
+    "skipped": true,
+    "note": "无失败样本（看板空态）"
+  },
   "results": [
     {
       "id": 1,

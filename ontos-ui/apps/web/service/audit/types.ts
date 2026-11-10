@@ -22,3 +22,28 @@ export interface PageResult<T> {
   total: number;
   list: T[];
 }
+
+export interface FailureSampleVO {
+  id: number;
+  setId: string;
+  questionId: string;
+  runId: string;
+  scenarioEntryMode: string;
+  queryShape: string;
+  turnType: string;
+  isComposite: boolean;
+  riskType: string;
+  expectedTerminal?: string;
+  actualTerminal?: string;
+  errorCode?: number;
+  reason?: string;
+  createdAt?: string;
+}
+
+export interface FailureDashboardVO {
+  setId: string;
+  total: number;
+  dimensions: Record<string, Array<{ value: string; count: number }>>;
+  recentSamples: FailureSampleVO[];
+  recentLimit: number;
+}
