@@ -233,6 +233,25 @@ class QueryServiceImplTest {
     }
 
     @Test
+    void shouldFallBackToLegacyWhenManifestLacksSkillsSection() {
+        // T32-6：清单**没有** skills 段（v13 及更早存量清单）= M3 直挂兼容态——entity_lookup 仍可执行
+        PublishedManifest manifest = TestFixtures.ruleManifest();
+        manifest.setSkills(java.util.List.of());
+        when(manifestService.getActiveManifestOrNull()).thenReturn(manifest);
+        when(manifestService.validateManifest("manifest-001")).thenReturn(manifest);
+        when(requestStateService.findState(any())).thenReturn(java.util.Optional.empty());
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
+        when(queryExecutor.execute(any(), any())).thenReturn(rows(1));
+
+        QueryResult result = service(new TimeWindowResolver()).executeSkill("entity_lookup",
+                Map.of("entityId", TestFixtures.CUSTOMER_CONCEPT,
+                        "attributes", List.of(TestFixtures.CUSTOMER_EMAIL_PROPERTY),
+                        "identity", Map.of("propertyId", TestFixtures.CUSTOMER_ID_PROPERTY,
+                                "value", "c-1")));
+        assertEquals(1, result.getRowCount(), "兼容态 = M3 行为不回退");
+    }
+
+    @Test
     void shouldRejectSkillWhenCapabilityNotSatisfied() {
         // T3.2 编译期校验 ①：required_capabilities 未被受控工具注册表满足 → 拒绝路由
         PublishedManifest manifest = TestFixtures.ruleManifest();

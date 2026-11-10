@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.core.PublishedManifest;
@@ -29,7 +30,9 @@ public class SkillRegistry {
 
     /** implementation_ref 去版本前缀（builtin.<MODE>.<impl>）→ handler。 */
     private final Map<String, SkillHandler> handlersByBuiltinRef;
-    /** M3 直挂兼容态：未声明 builtinRef 的 handler 按 descriptor skillId 直挂（回归保护）。 */
+    /** 全量 descriptor skillId 视图：legacy 兼容与 list() 去重的统一底表。 */
+    private final Map<String, SkillHandler> handlersBySkillId;
+    /** 未纳入注册制（无 builtinRefs 声明）的直挂 handler。 */
     private final Map<String, SkillHandler> legacyHandlersBySkillId;
 
     private final ManifestService manifestService;
@@ -49,6 +52,11 @@ public class SkillRegistry {
             }
         }
         this.handlersByBuiltinRef = Map.copyOf(byRef);
+        // 全量 descriptor skillId 视图：legacy 兼容与 list() 去重的统一底表
+        this.handlersBySkillId = handlerList.stream()
+                .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                        handler -> handler.descriptor().skillId(), Function.identity(),
+                        (first, second) -> first));
         this.legacyHandlersBySkillId = Map.copyOf(legacy);
     }
 
@@ -114,6 +122,20 @@ public class SkillRegistry {
             carriers.add(skill);
         }
         return List.copyOf(carriers);
+    }
+
+    /**
+     * 当前清单是否处于注册制形态（T32-6 修复）：清单**有** skills 段 = 严格注册制（段里没有即拒绝）；
+     * 清单**没有** skills 段（v13 及更早的存量清单）= M3 直挂兼容态——byId/manifestSkill 回退
+     * legacy 表，保证「注册制升级不破坏存量行为」的验收口径。
+     */
+    public boolean isRegistrationMode(PublishedManifest manifest) {
+        return manifest != null && manifest.getSkills() != null && !manifest.getSkills().isEmpty();
+    }
+
+    /** M3 直挂兼容查询（仅注册制判定为 false 时可走）——查**全量** skillId 视图。 */
+    public Optional<SkillHandler> legacyById(String skillId) {
+        return Optional.ofNullable(handlersBySkillId.get(skillId));
     }
 
     private Optional<SkillHandler> resolve(String implementationRef) {

@@ -354,10 +354,23 @@ public class QueryServiceImpl implements QueryService {
             // 没有生效清单时业务必然不可用：fail-closed，与 validateManifest 的空态口径一致
             throw exception(MANIFEST_NOT_FOUND);
         }
+        // T32-6 修复：清单**没有** skills 段（v13 及更早存量清单）= M3 直挂兼容态，
+        // 按 M3 行为执行（闸门随清单声明走——无声明即无约束）；有 skills 段才进入严格注册制。
+        boolean registrationMode = skillRegistry.isRegistrationMode(active);
+        ManifestPayload.SkillMeta meta = registrationMode
+                ? skillRegistry.manifestSkill(skillId)
+                        .orElseThrow(() -> exception(DSL_INVALID, "未知能力: " + skillId))
+                : new ManifestPayload.SkillMeta();
+        if (!registrationMode) {
+            SkillHandler legacyHandler = skillRegistry.legacyById(skillId)
+                    .orElseThrow(() -> exception(DSL_INVALID, "未知能力: " + skillId));
+            QueryDsl legacyDsl = legacyHandler.build(slots == null ? Map.of() : slots,
+                    active.getManifestId());
+            auditSkill(context, skillId, slots);
+            return execute(legacyDsl);
+        }
         // M6/W3/T3.2 编译期校验（注册制四条，全部先于 handler 解析——fail-closed 不泄露存在性）：
-        // 未发布 / 不存在 / 注册但无内置映射同码拒绝
-        ManifestPayload.SkillMeta meta = skillRegistry.manifestSkill(skillId)
-                .orElseThrow(() -> exception(DSL_INVALID, "未知能力: " + skillId));
+        // 未发布 / 不存在 / 注册但无内置映射同码拒绝；兼容态 meta 为空壳（闸门全放行 = M3 行为）
         // ① required_capabilities ⊆ 受控工具注册表满足集
         Set<String> missing = ControlledCapabilities.unsatisfiedOf(meta, active);
         if (!missing.isEmpty()) {

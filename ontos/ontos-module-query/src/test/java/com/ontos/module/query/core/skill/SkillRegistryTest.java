@@ -66,6 +66,22 @@ class SkillRegistryTest {
                 "rule.evaluate 要求 Rule 注册中心可用且规则已发布");
     }
 
+    @Test
+    void registrationModeDistinguishedBySkillsSectionPresence() {
+        // T32-6：有 skills 段 = 严格注册制；无段 = M3 直挂兼容态
+        PublishedManifest withSection = manifest();
+        when(manifestService.getActiveManifestOrNull()).thenReturn(withSection);
+        assertTrue(registry().isRegistrationMode(withSection), "有 skills 段 → 注册制");
+
+        PublishedManifest legacyManifest = new PublishedManifest();
+        legacyManifest.setManifestId("legacy");
+        when(manifestService.getActiveManifestOrNull()).thenReturn(legacyManifest);
+        org.junit.jupiter.api.Assertions.assertFalse(registry().isRegistrationMode(legacyManifest),
+                "无 skills 段 → 兼容态");
+        assertTrue(registry().legacyById("entity_lookup").isPresent(),
+                "兼容态直挂查询命中（全量 skillId 视图）");
+    }
+
     private SkillRegistry registry() {
         return new SkillRegistry(List.of(new EntityLookupSkill()), manifestService);
     }
