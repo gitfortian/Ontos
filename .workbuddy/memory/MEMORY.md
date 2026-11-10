@@ -9,37 +9,31 @@
 ## 用户明确偏好（必须遵守）
 - **功能代码介绍**：任务结束回复必须附「主要核心类逻辑与功能」段——核心类职责、关键链路、整体功能；简短、与审核结论分开。
 - **深度审核铁律**：每完成一个任务立即深度审核；大任务结束再全局审核。查：规格一致、fail-closed、测试真跑、文档同步、提交范围；发现问题当场修复，未闭环不得宣告完成；结论留痕。自动推进 ≠ 跳过审核。
-- 代码风格参考 yudao-boot-mini；通用/工具类直接抄 yudao（标注来源与 Jackson2→3/javax→jakarta 适配）。
-- 后端按功能拆多模块，模块内 controller/service/dal/core/enums 分层。
+- 代码风格参考 yudao-boot-mini；通用/工具类直接抄 yudao（标注 Jackson2→3/javax→jakarta 适配）。后端按功能拆多模块，模块内 controller/service/dal/core/enums 分层。
 
 ## 前端规范
-- `ontos-ui/FRONTEND_RULES.md` 只约束工程规范；框架组件以技术选型附录 A 为权威（shadcn/ui+Radix、TanStack、Zod 等），不得用来源项目组件库。请求方向 app/<域>→service/<域>→service/http，fetch 只在 service/http。规范由 ontos-ui/scripts 强制。
+- `ontos-ui/FRONTEND_RULES.md` 只约束工程规范；框架组件以技术选型附录 A 为权威（shadcn/ui+Radix、TanStack、Zod 等）。请求方向 app/<域>→service/<域>→service/http，fetch 只在 service/http。
 
 ## 文档规范
-- 唯一入口 docs/README.md；分层 00-governance…99-archive；起稿用模板；**冻结文档不得原地改**（升版+归档+改索引）；进度 append-only；冻结方案修订用 ADR；归档去编号前缀；提交前跑 check-docs.mjs。版本/锁定项只在 02-solutions，M0–M8 只在 roadmap。
+- 唯一入口 docs/README.md；分层 00-governance…99-archive；**冻结文档不得原地改**（升版+归档+改索引）；进度 append-only；归档文档链接指向归档副本；提交前跑 `docs/00-governance/check-docs.mjs`。版本/锁定项只在 02-solutions，M0–M8 只在 roadmap。
 
 ## 环境注意
-- `~/.npmrc` 失效代理会卡死安装：`NPM_CONFIG_USERCONFIG=/dev/null pnpm install --registry=https://registry.npmmirror.com`。
-- 本地 PG18：`D:/pg/bin/psql.exe`（不在 PATH），超管 postgres/123456，双库 ontos/ontos_queryds；psql 子进程必须传完整 os.environ。
-- IDEA 启动必带 local profile（`.run/OntosApplication (local).run.xml`）；java -jar 必须显式 `--server.port=8080`（环境注入 SERVER__PORT=51719）。
-- Spring Boot 4：flyway 迁移需 `spring-boot-starter-flyway` 依赖；pnpm 10+ 需 allowBuilds 放行 esbuild。
-- 批量删除>50 文件被环境拦截，分批处理；改 src/main 后全量验证必须 `mvn clean test`（增量会 NoClassDefFoundError）；后台起服务后提交前要停（8080 进程锁 target）。
+- 本地 PG18：`D:/pg/bin/psql.exe`（不在 PATH），超管 postgres/123456，双库 ontos/ontos_queryds。
+- java -jar 必须显式 `--server.port=8080`（环境注入 SERVER__PORT=51719）；Maven 根在 `ontos/` 子目录；后台服务锁 target——`mvn clean` 前必须停服务（MojoExecutionException 陷阱）；改 src/main 后必须 `mvn clean test`（增量 NoClassDefFoundError 陷阱 4 次出现）；`mvn clean test` 会删 jar，重启服务前需重新 package。
+- jsonb 列 substring 要 `::text`；dry-run 审计 action 是 `DRY_RUN`；FUNNEL 顶层不能带 timeRange（时间窗只走 analysisParams.cohortWindow）、ATTRIBUTION 带 timeExpressionRaw 不带 timeRange。
 
 ## 不得破坏的口径（M2/M3 冻结）
-YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路径规划；聚合模式拒绝 lookup 字段；rows 不带 __identity；lookup 缺失行同形；文案不透 {x} 原文；变体条件与指标同表；多口径缺变体必须澄清；「上季度」按 tep.last_quarter；FUNNEL 顶层 filters=全局过滤（字段须映射主体表，cohort 与每步 CTE 同时过滤）。
+YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路径规划；聚合模式拒绝 lookup 字段；rows 不带 __identity；lookup 缺失行同形；变体条件与指标同表；多口径缺变体必须澄清；「上季度」按 tep.last_quarter；FUNNEL filters=全局过滤。
 
 ## 并行义务纪律
-roadmap 并行项与主线同等跟踪；阶段收口必须逐项点名欠账（触发点/负责人/证据），未点名不得关闭。机器强制：`parallel-obligations.json` + check-parallel-obligations.mjs。OBL-M4 触发 M5；OBL-M7 触发 M6（ADR-0015），test≥200 题已闭环（test集 v2，241 题，sha 556e564c…，正式评测集 v3）。
+阶段收口必须逐项点名欠账（触发点/负责人/证据）。机器强制：`docs/00-governance/parallel-obligations.json` + check-parallel-obligations.mjs。OBL-M7 触发 M6，status=deferred（2026-11-10 W5/T5.1 数据面 6/8 子件后仍欠失败看板+M7 报告）。
 
 ## M6 进度（进行中，2026-11-10）
-- 规格 v1.0 冻结（`03-plans/stages/M6/`）；ADR-0017 决策 D1–D7 定档。W1 完成（T1.1–T1.6：RETENTION/ATTRIBUTION 构造器、funnel filters、DISCOVERY 边界声明）；Golden M6 23/0。
-- W2 完成：T2.1 catalog 模块+V15（ArchUnit：catalog 只管理面）；T2.2 ScenarioMeta 完整模型+§5.7 发布校验；T2.3 五态路由状态机；T2.4 Router 接入瀑布+scope 裁剪+直传裁决 D1 四步+V16 demo 场景授权；ADR-0004 核对 v2 3/3 放行。
-- W3 进行中：T3.1 SkillMeta+生命周期（审核人）✅；T3.2 SkillRegistry 清单驱动注册制+四条闸门（T32-6 P1 双态兼容修复）✅；T3.3 近似降级闭环+T32-8（P1）场景确认断链修复 ✅。**下一步 T3.4**：VQR 模型+生命周期+入库七条件（D4 证据外置）+自动失效+vqrs 段进清单 v16。
-- **当前生效清单 v15 = `2026.11.10-fifteenth`**（skills 8 条、scenario.sales、近似样例）；激活走 publish + POST /manifests/{id}/activate。
-- 关键教训：审计列名是 `dsl` 不是 dsl_json；审计行 tenant/user 是执行线程默认值（按 user 过滤会漏查）；TerminalAssembler.persistClarification 与场景通道写同一 JSONB（须按类型分流+空早退）；裁剪按当前态（决策只影响下一轮）；兼容纪律覆盖全部消费路径，端到端是回归唯一可靠证明；Golden 逐字比对测不出 SQL 语义错——每模式人工审阅产物+真库执行；E-5 缺口：Order 1:N OrderItem 使品类维度×订单指标 fail-closed（ADR-0016 首发不提供）。
-- 基线：`mvn clean test` 59 类/562 例；docs 120/1054。后续：T3.4 → W4 复合意图（D2 先冻结《结果引用规格 v1》）→ W5 OBL-M7 收敛 + M6 收口。
-- **T3.4 完成（2026-11-10，M6/W3，commit `5cd2f67`）**：VQR 模型+生命周期+入库七条件+自动失效+vqrs 段进清单 v16。要点：①`ManifestPayload.VqrMeta`（questionPattern/dslTemplate/paramsSchema/goldenRef/resultCheckRef/freshnessLimitHours/invalidationConditions/reviewer）+ PublishedRefs.of(payload) 自建 vqrIds——**ScenarioValidator 的 defaultVqrIds/coldStartSamples 引用校验自此生效**；②VqrValidator 七条件清单侧判定（占位符必须声明/资产绑定按目标清单/证据引用必填 D4 外置/失效条件死声明拦截），validateStructure 免绑定供草稿期（T34-1）；③VqrLifecycleService.admissionChecks 带条件编号，点赞不可直达发布；④VqrInvalidationAnalyzer 六族失效（废弃/定义 JSON 不一致保守判定/Rule·Skill 失效/Skill 主版本·结构变更/场景模式收窄/声明式条件）接入 PublishServiceImpl 结构校验**前**，PublishReportVO.invalidatedVqrs 不静默；⑤**T34-8（P2，真服务 dryRun 抓到）**：失效移除 VQR 后场景 defaultVqrIds/coldStartSamples 悬空卡死后续发布 → `apply` 级联清理；⑥清单 v16 首发样例（vqr.sales.daily_gmv_by_channel）**未激活**（T3.5 命中通道消费后统一激活）。教训：admissionChecks 必须消费 targetPayload（T34-2）；skill 测试 definition 同步断言被夹具掩盖（T34-5）；探针前必须确认「当前实例=当前 jar」（端口占用静默退出打旧实例）。基线 **62 类/590 例**、docs 121/1057。**下一步 T3.5**：VQR 命中通道（瀑布第 7 步候选 + Proposal 引用 vqrId + 八步重校验 + vqrId 进审计/缓存键）+ v16 激活。
-- **T3.5 完成（2026-11-10，M6/W3，commit `3c7479f`）**：VQR 命中通道闭环，**W3 收口**。要点：①`VqrCandidateMatcher` 瀑布第 7 步——questionPattern `{x}` 槽正则**全串匹配**+参数提取，in_scenario 限场景引用集（defaultVqrIds∪coldStartSamples）、free 全部 published，`RetrievalOutcome.vqrCandidates` 独立字段（不混 dslReady）；②提案 `terminal=query + sub_intents[0].vqr_id+params`（合同词表不动），integrity 对账纳入 vqrId（伪造 → ID_NOT_IN_SET），词表补 published VQR；③`QueryService.executeVqr`：published 同形拒绝 → 模板绑定（必填缺失/未知参数/未声明占位符结构化拒绝）→ **既有 execute 全链零旁路**；审计 `VQR_HIT`（vqrId/version/params）；④`QueryCacheKey` 升 **cache-key-1.2**（+scenarioVersion/vqrId/vqrVersion；skill 版本随清单 contentHash 失效）；⑤**T35-2（P2）**：模板完整命中优先于资产级歧义澄清（模板已消歧，与 T24-4 同原则）；**T35-3（P2）**：模板词表增 `time_dimension`（query 相对时间解析前置 timeRange.field）；**T35-1（否决）**：v17 移除 concept.channel 被场景 allowedRelations 端点校验拒（归因关系一条不减——ADR-0004）；⑥v16 激活（**sixteenth**），Golden 零回退（M6 23/0、M3 6/0、M2 27/0）；⑦E2E 命中 PASS（rows=2+VQR_HIT 真库）；越权判据 demo 租户级快照不可构造（环境限制），机制单测承载。基线 **63 类/600 例**、docs 122/1060。**下一步 W4**：复合意图（T4.1 拓扑排序先行，**D2 编码前冻结《结果引用规格 v1》**）。
-- **T4.1+T4.2 完成（2026-11-10，M6/W4，commit `95af293`）**：《结果引用规格 v1》冻结（D2 编码前置，`docs/04-specs/composite-resultRef-规格-v1.md`）+ 依赖拓扑 + 结果注入。要点：①**resultRef Schema**：fromSubIntentId ∈ dependsOn（依赖必须携带 resultRef——自由文本洞封死）；selector 闭枚举 **single_row（至多 1 行，≥2 行→1_002_000_046 歧义）/ ordered_top（按服务端返回序取第 row 行，1 起=决策 6）分立**；inject 首发仅 filter_value 且目标 filter operator=EQ；失败码 044（环/自依赖/缺失）/045（G-6 取值缺失）/046 只追加；②`CompositeDependencyPlanner`（JGraphT）：**CycleDetector.findCycles() 显式环检测**（TopologicalOrderIterator 对环抛库异常而非业务码的坑；getCycleVertices 不存在）；无依赖复合返回原提交序（M2 回归零变化）；③`executeComposite` 双路径：无依赖走 M2 两阶段原路径（阶段一全编译+阶段二统一执行）；有依赖按拓扑序逐子「注入→prepareWith 授权重校验→编译→执行」——依赖子无法先全量编译（阶段一原子性只对无依赖形状成立）；④`injectDependencyValue`：父结果**Map 行形状**按列名取值写入子 filter.values（参数化绑定，值不进 SQL 文本）；失败子 → SubResult(errorCode/message, result=null) 结构化失败不阻断其它子；⑤DslCodec SUB_INTENT+RESULT_REF/SELECTOR/INJECT 三层键校验。**教训**：Filter 实际形状是 operator/values 不是 op/value（规格冻结前对齐）；JGraphT 1.5.3 API 是 findCycles()；**增量编译陷阱再现**——改 src/main 后 -am test 跑旧行为，必须 clean test。基线 **64 类/610 例**、docs 123/1063。**下一步**：T4.4（R-27 子意图变体 + R-29 variantHint 排序）→ T4.3 收口 E2E → T4.5 PoC #8 复跑 30 题。
-- **T4.4 完成（2026-11-10，M6/W4）**：R-27 子意图口径变体 + R-29 variantHint 排序。要点：①`validateCaliberVariant` 参数化为 `(variantId, semantic, metric, at)` 单一判定源（M3 顶层调 `dsl.getCaliberVariantId()`，W4 子意图调 `sub.getCaliberVariantId()`，at 带子意图定位）；缺变体 CALIBER_AMBIGUOUS 带候选清单与子意图定位；容器级变体拒绝独立（无指标归属）；toChildDsl 下推后子 DSL 走 M3 既有下推链路；②R-29：ask `variantHint` → executeTurn 4 参重载 → resolve 4 参 → `applyVariantHintBoost`（matchedTerm/assetId 词面命中 +100 分重排，**只重排不增删**、层级非降序、模糊/prevTurn 不加）；③教训：`Stream.toList()` 不可变——applyVariantHintBoost 就地 clear 抛 uoe，改返回新列表；「层级不跨越」断言应为「层级非降序」（瀑布输出本就是多层级混合）。基线 **64 类/614 例**。**下一步**：T4.3 收口（E2E 单子失败）→ T4.5 PoC #8 复跑 30 题 → W4 收口审核。
-- **W4 收口（2026-11-10，M6/W4，commit 后续）**：T4.3 E2E + T4.5 PoC #8 复跑 30 题全部符合预期。要点：①**T45-1（P1）**：toCompositeVO 假定 result 非空——失败子（result=null）500 NPE → SubResultVO 增 errorCode/errorMessage + 装配分支；②**T45-2（P1）**：无依赖路径 M2「阶段一全编译+整单拒绝」与规格 §3.5 部分失败冲突 → executeCompositeIndependent 重写逐子单循环（任一 ServiceException 该子结构化失败）；③T4.5 脚本 `composite-poc-m6.mjs`（M6 深度）：依赖题构造 dependsOn+resultRef（derive 文本不进 DSL——时间表达同）、失败注入用 dim.nonexistent_injection、非 QUERY 按题面 intent 构造；**30/30 符合预期**（pass 20 / 决策 7 拒绝 6 / 部分失败 4 / 粒度 3），证据 `复合意图题集-v2-M6复跑.json`（M2 回填冻结证据不动——M2 脚本重跑会覆盖冻结证据，别再跑 composite-poc.mjs）；④T45-4（P3）：请求级形状错误（BOOLEAN_RULE mode 反序列化）整单拒在部分失败之前——规格下次升版写边界；⑤**脚本判据教训**：响应 VO 是平铺的（无 result 键），失败子以 errorCode 识别；增量编译陷阱三次出现——一律 clean test。基线 **64 类/614 例**、docs 124/1066。**下一步 W5**：T5.1 OBL-M7 收敛 / T5.2 对抗扩充 ≥7 / T5.3 运维面 / T5.4 移交核对 / T5.5 基线全绿 + M6 验收报告。
+- W1–W3 完成：模式构造器（Golden M6 23/0）；Scenario 资产化+五态路由（ADR-0004 核对放行）；SkillRegistry 注册制+近似降级+VQR 全链（v16=sixteenth 激活：8 skills+1 vqr+scenario.sales）。
+- W4 完成（commit `4d57c5c`）：《结果引用规格 v1》冻结+JGraphT 拓扑+resultRef 注入+部分失败语义（T45-1/T45-2 P1 修复）+PoC #8 复跑 30/30。
+- **W5/T5.1 评测数据面收敛（commit `406c2b0`，6/8 子件）**：smoke v2 20/20（G-9 六 skip 转 ask 实测+拒绝映射收紧）；test 集 v3 271 题（E-1 场景 15+E-2 增量 30 闭环）；test-runner v1 首轮 269/0/2/0 成功率 1.0；消融 6 组+10 N/A；PoC #9 11/11；压测 P95 259ms@并发16 SLO 全满足。正式评测集 v4。
+- **T51 修复（真服务评测驱动）**：T51-1(P1) 场景确认误设 consumed→契约拒答（确认只迁移状态）；T51-2(P2) 注入审计冗余双写 JSONB 失败（统一走 checkpoint）；T51-3(P1) 中文注入启发 10 题仅 1 中（正则逐族扩充+空格容差+误伤兜底）。
+- 关键教训：端到端是回归唯一可靠证明（T32-6/T45-1/T51-1/T51-3 均单测全绿下真服务抓到）；评测执行路径固定确定性降级（E-7 LLM 评测登记 M7）；auto 入口需 auto_if_confident 场景资产（E-6）。
+- 基线：`mvn clean test` **617 例/0 失败**；docs 128/1124。
+- **欠账**：T5.1 残——失败看板 5 维下钻+纠正样本回流（表+API+前端 audit 域）、M7 验收报告+OBL-M7 置 done；E-6 auto 题；E-7 LLM 评测。
+- **下一步**：T5.1 残项 → T5.2 对抗扩充 ≥7（Scenario 越界/DSL scenarioId 直传 G-2/VQR 越权/Skill capabilities 缺失/未声明近似/冷启动注入/dependsOn 篡改）→ T5.3 运维面（ask_run_event 保留策略 G-5+run 线程池；拒绝映射已随 G-9 完成）→ T5.4 移交核对（CopilotKit 复查 ADR-0010/R-31 边界声明）→ T5.5 基线全绿+M6 验收报告。
