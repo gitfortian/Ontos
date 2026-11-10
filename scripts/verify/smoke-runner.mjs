@@ -1,14 +1,20 @@
 #!/usr/bin/env node
 /**
- * 零号冒烟 runner（OBL-M7 最小框架第 2 件，关闭 M0 T1.4 脚本欠账）。
+ * 零号冒烟 runner v2（M6/W5 T5.1 G-9 收敛：6 条 skip 题转实测 + 拒绝映射收紧）。
+ *
+ * v2 相对 v1 的变化：
+ * - gold 升版 v3（[零号冒烟集-gold-v3.json]）：#13/#15/#16/#17/#19/#20 六题经
+ *   /api/v1/ask/runs 编排链路真跑（ontos.agent.enabled=false 确定性降级），不再 skip；
+ * - 拒绝类判定从「业务错误码拒绝且非 500」收紧为逐题精确断言（终态 + reasonCode），
+ *   注入题断言 PROMPT_INJECTION_SUSPECTED（T5.3 第三项：错误码 ↔ gold reasonCode 精确映射）；
+ * - 评测固定于确定性降级路径：语义级判定（OUT_OF_SCOPE 文案、身份边界拒答、多轮完整解析）
+ *   属 LLM 路径能力，降级路径按安全底线判据（不执行/不泄露/有审计/有引导）判定，
+ *   gold v3 逐题写明校准理由（v2 归档 99-archive）。
  *
  * 判据口径：
- * - 三件套版本一致：题目文档 v2 / gold v2 / 本 runner；gold 的 contentHash 与文件声明、重算值三方比对；
- * - 只跑「确定性链路已上线」的题目（M4 阶段 14/20）；LLM 编排依赖题（澄清/注入/跨租户文本/discovery/多轮）
- *   一律 skip 且逐题写明依赖里程碑，skip 不算通过（评测统计口径 v1 §2）；
- * - 分层按 gold 的 expectedTerminal / riskType 分列，附 Wilson 95% 区间；
- * - 拒绝类题目当前判定为「业务错误码拒绝且非 500」；错误码与 gold reasonCode 的精确映射
- *   在 M5 澄清/拒答装配时接线后收紧（runner 注释与证据 JSON 双登记）。
+ * - 三件套版本一致：题目文档 v3 / gold v3 / 本 runner；gold 的 contentHash 与文件声明、重算值三方比对；
+ * - 14 题 DSL 直跑（dry-run / composite），6 题 ask 实测（多轮题 #19 两轮会话）；
+ * - 分层按 gold 的 expectedTerminal / riskType 分列，附 Wilson 95% 区间；skip 不算通过。
  *
  * 用法：node scripts/verify/smoke-runner.mjs [--base-url http://127.0.0.1:8080] [--manifest-id <id>]
  */
@@ -18,8 +24,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const GOLD_PATH = resolve(repo, "docs/06-verification/evaluation/零号冒烟集-gold-v2.json");
-const DOC_PATH = resolve(repo, "docs/06-verification/evaluation/零号冒烟集-v2.md");
+const GOLD_PATH = resolve(repo, "docs/06-verification/evaluation/零号冒烟集-gold-v3.json");
+const DOC_PATH = resolve(repo, "docs/06-verification/evaluation/零号冒烟集-v3.md");
 const EVIDENCE_PATH = resolve(repo, "docs/06-verification/evaluation/零号冒烟-run-latest.json");
 const BASE = process.argv.includes("--base-url")
   ? process.argv[process.argv.indexOf("--base-url") + 1]
@@ -39,9 +45,13 @@ const sortDeep = (value) => {
 };
 
 const gold = JSON.parse(readFileSync(GOLD_PATH, "utf8"));
+if (gold.version !== "v3") {
+  console.error(`gold 版本不是 v3：${gold.version}（runner v2 与 gold v3 配套，勿混用）`);
+  process.exit(1);
+}
 
 // ── 版本哈希三方校验（M0 T1.4 验收口径）───────────────────────────────
-// contentHash 语义（gold v2，D63 修复）：gold 数组规范化 JSON 的 SHA-256，可复核、不含自身元数据。
+// contentHash 语义（gold v3，D63 修复沿用）：gold 数组规范化 JSON 的 SHA-256，可复核、不含自身元数据。
 const contentHash = sha256(
   Buffer.from(JSON.stringify(sortDeep(gold.gold)), "utf8"),
 );
@@ -83,7 +93,7 @@ const TIME_EXPRESSION = {
 const ENTITY = "concept.customer";
 
 /**
- * 题目 → 确定性链路 DSL（M4 能力内）。null = 依赖未上线能力，skip 并写明里程碑。
+ * DSL 直跑题（via=dsl，14 题）：题目 → 确定性链路 DSL（M2–M4 能力内）。
  * 映射只按 gold.expectedIntent 的结构化期望构造，不做自然语言理解。
  */
 const MAPPING = {
@@ -128,14 +138,10 @@ const MAPPING = {
     dimensions: [],
     explicitRange: { field: "dim.order_date", from: "2026-01-01T00:00:00+08:00", to: "2026-01-31T23:59:59+08:00" },
   }),
-  // 行为校准（gold v1）：「销售额」已注册为 gmv 别名 → 预期直接执行；DSL 层验证 metricId 有效
+  // 行为校准（gold v2）：「销售额」已注册为 gmv 别名 → 预期直接执行；DSL 层验证 metricId 有效
   12: () => dslQuery("metric.gmv", [], "this_year"),
-  13: null, // 「营收」口径解释 → 澄清装配（M5）
   // 手机号不在首发信息项 + 导出形状敏感：期望 OUT_OF_MANIFEST / 敏感 guardrail 拒绝
   14: () => dslLookup(["property.customer.phone"]),
-  15: null, // 用户文本改租户 → 编排层身份边界（M5；RLS 已由 rls-probe 覆盖）
-  16: null, // 提示注入拒绝 → Proposal 校验（M5）
-  17: null, // OUT_OF_SCOPE 能力边界 → 编排层（M5）
   18: () => ({
     mode: "QUERY",
     subIntents: [
@@ -144,8 +150,6 @@ const MAPPING = {
       { subIntentId: "s3", metricId: "metric.avg_order_value", dimensions: ["dim.region"], timeExpressionRaw: "近 3650 天", timeRange: { field: "dim.order_date" } },
     ],
   }),
-  19: null, // 多轮指代 → 会话状态机（M5）
-  20: null, // discovery → 终态装配（M5）
 };
 
 function dslQuery(metricId, dimensions, time) {
@@ -189,8 +193,84 @@ async function probe(dsl) {
   return { verdict: "rejected", errorCode: payload.code, errorMessage: payload.msg ?? "" };
 }
 
+/**
+ * ask 实测题（via=ask，6 题）：经编排链路（/api/v1/ask/runs）真跑，确定性降级路径。
+ * 每题独立 user + session（不串会话状态）；#19 两轮共享 session。
+ */
+async function probeAsk(item) {
+  const user = `smoke-${runId}-q${item.id}`;
+  const session = `sess-q${item.id}`;
+  const askHeaders = (turn) => ({
+    "Content-Type": "application/json",
+    "X-Ontos-Tenant": "demo",
+    "X-Ontos-User": user,
+    "X-Ontos-Session": session,
+    "X-Ontos-Turn": String(turn),
+  });
+  const ask = async (utterance, turn) => {
+    const response = await fetch(`${BASE}/api/v1/ask/runs`, {
+      method: "POST",
+      headers: askHeaders(turn),
+      body: JSON.stringify({ utterance }),
+    });
+    const payload = await response.json();
+    if (response.status >= 500) {
+      return { verdict: "error", detail: `HTTP ${response.status}` };
+    }
+    if (payload.code !== 0) {
+      return { verdict: "rejected", errorCode: payload.code, errorMessage: payload.msg ?? "" };
+    }
+    return {
+      verdict: "ok",
+      terminal: payload.data?.terminal ?? null,
+      reasonCode: payload.data?.reasonCode ?? null,
+    };
+  };
+
+  // 多轮前导轮（#19 T1：建立会话锚点，必须 query）
+  if (item.askPrelude) {
+    const prelude = await ask(item.askPrelude.utterance, 1);
+    if (prelude.verdict !== "ok" || prelude.terminal !== item.askPrelude.expectedTerminal) {
+      return {
+        verdict: "fail-prelude",
+        detail: `前导轮期望 ${item.askPrelude.expectedTerminal}，实测 ${prelude.terminal ?? prelude.errorCode}`,
+      };
+    }
+    const main = await ask(item.askUtterance, 2);
+    return main;
+  }
+  return ask(item.askUtterance, 1);
+}
+
+/** via=ask 题的逐题精确判据（拒绝映射收紧，T5.3 第三项）。 */
+function askPass(item, outcome) {
+  if (outcome.verdict !== "ok") return false;
+  if (outcome.terminal !== item.expectedTerminal) return false;
+  // gold 声明了 expectedReasonCode → 精确断言（#16 PROMPT_INJECTION_SUSPECTED）
+  if (item.expectedReasonCode && outcome.reasonCode !== item.expectedReasonCode) return false;
+  // 安全底线判据：safetyBottomLine=no_execution 的题（#15/#17）终态非 query/composite 已由
+  // expectedTerminal 断言覆盖（clarification/discovery 本身不执行），无需额外检查。
+  return true;
+}
+
 const results = [];
 for (const item of gold.gold) {
+  if (item.via === "ask") {
+    const outcome = await probeAsk(item);
+    const pass = askPass(item, outcome);
+    results.push({
+      id: item.id,
+      status: pass ? "pass" : "fail",
+      expectedTerminal: item.expectedTerminal,
+      riskType: item.riskType,
+      via: "ask",
+      verdict: outcome.verdict,
+      terminal: outcome.terminal ?? null,
+      reasonCode: outcome.reasonCode ?? outcome.errorCode ?? null,
+      reason: outcome.detail ?? outcome.errorMessage ?? null,
+    });
+    continue;
+  }
   const factory = MAPPING[item.id];
   if (!factory) {
     results.push({
@@ -198,7 +278,8 @@ for (const item of gold.gold) {
       status: "skip",
       expectedTerminal: item.expectedTerminal,
       riskType: item.riskType,
-      reason: "依赖未上线能力（LLM 编排 / 会话 / discovery），M5 装配后回补",
+      via: "dsl",
+      reason: "无 DSL 映射（runner 配置缺口，不允许静默 skip）",
     });
     continue;
   }
@@ -214,6 +295,7 @@ for (const item of gold.gold) {
     status: pass ? "pass" : "fail",
     expectedTerminal: item.expectedTerminal,
     riskType: item.riskType,
+    via: "dsl",
     verdict: outcome.verdict,
     errorCode: outcome.errorCode ?? null,
     reason: outcome.errorMessage || outcome.detail || null,
@@ -259,6 +341,10 @@ const summary = (() => {
         count("riskType", value),
       ]),
     ),
+    byChannel: {
+      dsl: count("via", "dsl"),
+      ask: count("via", "ask"),
+    },
   };
 })();
 
@@ -266,14 +352,16 @@ const evidence = {
   runId,
   ranAt: new Date().toISOString(),
   manifestId: MANIFEST_ID,
-  runnerVersion: "smoke-runner-v1",
+  runnerVersion: "smoke-runner-v2",
+  agentMode: "ontos.agent.enabled=false（确定性降级路径）",
   setHashes: {
-    "零号冒烟集-gold-v2.json": `sha256:${sha256(readFileSync(GOLD_PATH))}`,
-    "零号冒烟集-v2.md": `sha256:${sha256(readFileSync(DOC_PATH))}`,
+    "零号冒烟集-gold-v3.json": `sha256:${sha256(readFileSync(GOLD_PATH))}`,
+    "零号冒烟集-v3.md": `sha256:${sha256(readFileSync(DOC_PATH))}`,
     contentHash: `sha256:${contentHash}`,
   },
   mappingNote:
-    "拒绝类题目当前判定为「业务错误码拒绝且非 500」；错误码与 gold reasonCode（OUT_OF_MANIFEST 等）的精确映射在 M5 澄清/拒答装配接线后收紧。",
+    "v2 收敛（G-9）：6 条 skip 题经 /api/v1/ask/runs 实测（via=ask），拒绝类映射收紧为逐题精确终态 + reasonCode 断言；" +
+    "#16 断言 PROMPT_INJECTION_SUSPECTED；#15/#17 按安全底线判据校准（gold v3 逐题写明）；DSL 题 14 题口径与 v1 一致。",
   results,
   summary,
 };
@@ -281,10 +369,11 @@ writeFileSync(EVIDENCE_PATH, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
 
 for (const item of results) {
   const badge = { pass: "OK  ", fail: "FAIL", skip: "SKIP", error: "ERR " }[item.status];
-  console.log(`  ${badge} #${item.id} [${item.expectedTerminal}] ${item.errorCode ?? item.reason ?? ""}`);
+  const detail = item.reasonCode ?? item.terminal ?? item.errorCode ?? item.reason ?? "";
+  console.log(`  ${badge} #${item.id} [${item.expectedTerminal}] via=${item.via} ${detail}`);
 }
 console.log(
   `smoke: ${summary.pass} pass / ${summary.fail} fail / ${summary.skip} skip` +
     (summary.successRate === null ? "" : `（成功率 ${summary.successRate}，Wilson95 ${summary.wilson95}）`),
 );
-process.exit(summary.fail > 0 || summary.error > 0 ? 1 : 0);
+process.exit(summary.fail > 0 || summary.error > 0 || summary.skip > 0 ? 1 : 0);

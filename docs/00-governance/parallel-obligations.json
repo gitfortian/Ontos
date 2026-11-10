@@ -38,7 +38,7 @@
       "status": "deferred",
       "triggerStage": "M6",
       "owner": "项目负责人",
-      "reason": "ADR-0014 登记的静默未执行已由最小框架补起：三件交付物经《M7 最小框架验收记录 v1》按 M4 规格 E6 三条判据验收通过（本地 PG18 真实复跑 14 pass / 0 fail / 6 skip，哈希四方复算一致）。按 ADR-0015 决策，M4 触发点对应的最小框架目标已闭环，触发阶段重定为 M6，与 roadmap「M6 后收敛」的剩余全量交付物对齐；status 维持 deferred，test 集 0 题 / 消融 / 失败看板 / 追踪 / 压测等欠账不得视为完成。；M7 全量交付物中的「中文提及样本 300 条回填」已提前于 M5/W2 T2.4 落地并达标（非拼音 Top-5 召回 98.82% ≥95%、模糊候选进 DSL=0，证据见新增 evidence 条目），M6 核对时此项可直接确认。【2026-11-09 M6 阶段中深度审核 D-3 欠账登记】M6 规格 §8 决策 8 定档「test 集 ≥200 题自 W1 起模板化并行编写」，但 W1 已完成 T1.1/T1.2 而题目编写尚未启动、进度快照未点名；触发点=M6 收口（E6），负责人=项目负责人，证据=test 集四集合冻结哈希；自 T1.3 起并行推进并在每次进度快照逐项点名，M6 通过验收前必须闭环。【2026-11-10 D-3 部分闭环】test 集 v1 已冻结（241 题，全部新增，四维分层 + analysis_mode 附加维度，sha256 ee382619…），《正式评测集 v2》登记并存档 v1，≥200 题欠账关闭；剩余缺口 E-1（scenario_mode 0 题，T2.5 后补 ≥15）、E-2（增量/风险分层 <30，W5 前补）与消融、失败看板、追踪、压测、M7 验收报告仍未完成，status 维持 deferred、触发 M6 不变。【2026-11-10 再次深度审核更正】test 集 v1 经逐题复审发现 7 类缺陷（shape/mode 按题族批量套错、分析模式缺必填 analysisParams、订单/品类取值超出 seed、时间表达未命中已发布模式、过滤缺 operator、布尔 lookup 缺投影属性、哈希按内存字符串计算），已按资产契约升 test 集 v2（241 题 / skip 2 / 有效 239，sha256 556e564c…），《正式评测集 v3》登记新哈希；新增缺口 E-5（品类维度 × 订单事实指标粒度扩散 1002000014）。上文「v1 已冻结、ee382619…」为历史记录，以 v2/v3 为准。",
+      "reason": "ADR-0014 登记的静默未执行已由最小框架补起：三件交付物经《M7 最小框架验收记录 v1》按 M4 规格 E6 三条判据验收通过（本地 PG18 真实复跑 14 pass / 0 fail / 6 skip，哈希四方复算一致）。按 ADR-0015 决策，M4 触发点对应的最小框架目标已闭环，触发阶段重定为 M6，与 roadmap「M6 后收敛」的剩余全量交付物对齐；status 维持 deferred，test 集 0 题 / 消融 / 失败看板 / 追踪 / 压测等欠账不得视为完成。；M7 全量交付物中的「中文提及样本 300 条回填」已提前于 M5/W2 T2.4 落地并达标（非拼音 Top-5 召回 98.82% ≥95%、模糊候选进 DSL=0，证据见新增 evidence 条目），M6 核对时此项可直接确认。【2026-11-09 M6 阶段中深度审核 D-3 欠账登记】M6 规格 §8 决策 8 定档「test 集 ≥200 题自 W1 起模板化并行编写」，但 W1 已完成 T1.1/T1.2 而题目编写尚未启动、进度快照未点名；触发点=M6 收口（E6），负责人=项目负责人，证据=test 集四集合冻结哈希；自 T1.3 起并行推进并在每次进度快照逐项点名，M6 通过验收前必须闭环。【2026-11-10 D-3 部分闭环】test 集 v1 已冻结（241 题，全部新增，四维分层 + analysis_mode 附加维度，sha256 ee382619…），《正式评测集 v2》登记并存档 v1，≥200 题欠账关闭；剩余缺口 E-1（scenario_mode 0 题，T2.5 后补 ≥15）、E-2（增量/风险分层 <30，W5 前补）与消融、失败看板、追踪、压测、M7 验收报告仍未完成，status 维持 deferred、触发 M6 不变。【2026-11-10 再次深度审核更正】test 集 v1 经逐题复审发现 7 类缺陷（shape/mode 按题族批量套错、分析模式缺必填 analysisParams、订单/品类取值超出 seed、时间表达未命中已发布模式、过滤缺 operator、布尔 lookup 缺投影属性、哈希按内存字符串计算），已按资产契约升 test 集 v2（241 题 / skip 2 / 有效 239，sha256 556e564c…），《正式评测集 v3》登记新哈希；新增缺口 E-5（品类维度 × 订单事实指标粒度扩散 1002000014）。上文「v1 已冻结、ee382619…」为历史记录，以 v2/v3 为准。【2026-11-10 W5/T5.1 评测数据面收敛（6/8 子件）】test 集升 v3（271 题 / 有效 269，sha256 f60c366d…，E-1 场景入口 15 题 + E-2 增量补至 30 闭环）；smoke-runner 升 v2 完成 G-9 全量复跑（6 skip 转 ask 实测 + 拒绝映射收紧，20/20）；test-runner v1 分层统计接线（首轮 269/0/2/0，Wilson95 [0.9859,1]，四维 + scenario_entry_mode 分层）；消融 §13.3 6 组真实配对 + 10 项 N/A 声明；追踪 PoC #9 11/11；压测 SLO 全满足（P95 259ms @并发16）；过程中修复 T51-1/T51-3（P1）与 T51-2（P2）。《正式评测集 v4》登记，审核记录《M6-W5-T5.1 深度审核 v1》。剩余欠账点名：失败看板 5 维下钻 + 纠正样本回流（表/API/前端）与 M7 验收报告（OBL-M7 置 done）未完成，status 维持 deferred、触发 M6 不变。",
       "evidence": [
         "docs/01-decisions/ADR-0014-并行义务纪律与M7同步建设偏离.md",
         "docs/01-decisions/ADR-0015-M7最小框架验收与触发阶段重定.md",
@@ -47,10 +47,17 @@
         "docs/06-verification/evaluation/评测统计口径-v1.md",
         "docs/06-verification/evaluation/零号冒烟-评测证据-v1.json",
         "docs/06-verification/evaluation/提及样本回填-M5W2证据-v1.json",
-        "docs/06-verification/evaluation/正式评测集-v3.md",
-        "docs/06-verification/evaluation/test集-v2.md",
-        "docs/06-verification/evaluation/test集-v2.json",
-        "docs/06-verification/checklists/M6-W5-D3-再次深度审核-v1.md"
+        "docs/06-verification/evaluation/正式评测集-v4.md",
+        "docs/06-verification/evaluation/test集-v3.md",
+        "docs/06-verification/evaluation/test集-v3.json",
+        "docs/06-verification/evaluation/test集-M6收敛评测证据-v1.json",
+        "docs/06-verification/evaluation/零号冒烟集-gold-v3.json",
+        "docs/06-verification/evaluation/零号冒烟-评测证据-v2.json",
+        "docs/06-verification/evaluation/消融对照-M6证据-v1.json",
+        "docs/06-verification/evaluation/PoC9-追踪证据-v1.json",
+        "docs/06-verification/evaluation/压测-M6证据-v1.json",
+        "docs/06-verification/checklists/M6-W5-D3-再次深度审核-v1.md",
+        "docs/06-verification/checklists/M6-W5-T5.1-深度审核-v1.md"
       ],
       "deliverables": [
         "正式评测集另立文档（收编存量题集，带版本哈希）",

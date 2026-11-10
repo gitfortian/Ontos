@@ -22,8 +22,8 @@
 | [M0 硬阻断结论 v1](verification/M0-硬阻断结论-v1.md) | `06-verification/poc/M0-硬阻断结论-v1.md` | [v2](../06-verification/poc/M0-硬阻断结论-v2.md) |
 | [M3 实施规格 v0.1](plans/M3-简单问法最小闭环-实施规格-v0.1.md) | `03-plans/stages/M3/M3-简单问法最小闭环-实施规格-v0.1.md` | [v1.0](../03-plans/stages/M3/M3-简单问法最小闭环-实施规格-v1.md) |
 | [analysis-mode · retention 与 attribution 规格 v1](specs/analysis-mode-retention-attribution-规格-v1.md) | `04-specs/analysis-mode-retention-attribution-规格-v1.md` | [v1.1](../04-specs/analysis-mode-retention-attribution-规格-v1.1.md) |
-| [正式评测集 v1](verification/正式评测集-v1.md) | `06-verification/evaluation/正式评测集-v1.md` | [v3](../06-verification/evaluation/正式评测集-v3.md) |
-| [正式评测集 v2](verification/正式评测集-v2.md) | `06-verification/evaluation/正式评测集-v2.md` | [v3](../06-verification/evaluation/正式评测集-v3.md) |
-| [test 集 v1](verification/test集-v1.md) + [json](verification/test集-v1.json) | `06-verification/evaluation/test集-v1.*` | [v2](../06-verification/evaluation/test集-v2.md) |
+| [正式评测集 v1](verification/正式评测集-v1.md) | `06-verification/evaluation/正式评测集-v1.md` | [v3](verification/正式评测集-v3.md) |
+| [正式评测集 v2](verification/正式评测集-v2.md) | `06-verification/evaluation/正式评测集-v2.md` | [v3](verification/正式评测集-v3.md) |
+| [test 集 v1](verification/test集-v1.md) + [json](verification/test集-v1.json) | `06-verification/evaluation/test集-v1.*` | [v2](verification/test集-v2.md) |
 
 本目录遵循 `../README.md`（文档规范与总索引）：统一头块、生命周期、单一事实源与相对链接规则。

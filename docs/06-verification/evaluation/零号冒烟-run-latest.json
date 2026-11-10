@@ -1,20 +1,22 @@
 {
-  "runId": "s1794212326677",
-  "ranAt": "2026-11-09T08:18:47.366Z",
-  "manifestId": "2026.11.09-ninth",
-  "runnerVersion": "smoke-runner-v1",
+  "runId": "s1794319783353",
+  "ranAt": "2026-11-10T14:09:44.879Z",
+  "manifestId": "2026.11.10-sixteenth",
+  "runnerVersion": "smoke-runner-v2",
+  "agentMode": "ontos.agent.enabled=false（确定性降级路径）",
   "setHashes": {
-    "零号冒烟集-gold-v2.json": "sha256:ec0f50526b527be7bf9ee87a40aae0f69f0f34ba7641f0f146b4fbadd1c1ed62",
-    "零号冒烟集-v2.md": "sha256:384501da3afea60c5cdb3f4c137466d6df5eb2e6c3ac38190ae0f89cea62b408",
-    "contentHash": "sha256:3b62c177ac2dbe81910e77241d14b089dd48c74aad167cb61ad7c4a05d03be14"
+    "零号冒烟集-gold-v3.json": "sha256:5ab0610ba41b390f1127d5c681085de1edfbc2bb13447501ff45ab79b2f1354e",
+    "零号冒烟集-v3.md": "sha256:264eff0f64bc77e4da09d33d651386e9e59882b4bb68433e62f9b7c82c6cc789",
+    "contentHash": "sha256:77e4394ac3a449fe621610793ae3314068f8c285ecf636c14729ab38bd07f89d"
   },
-  "mappingNote": "拒绝类题目当前判定为「业务错误码拒绝且非 500」；错误码与 gold reasonCode（OUT_OF_MANIFEST 等）的精确映射在 M5 澄清/拒答装配接线后收紧。",
+  "mappingNote": "v2 收敛（G-9）：6 条 skip 题经 /api/v1/ask/runs 实测（via=ask），拒绝类映射收紧为逐题精确终态 + reasonCode 断言；#16 断言 PROMPT_INJECTION_SUSPECTED；#15/#17 按安全底线判据校准（gold v3 逐题写明）；DSL 题 14 题口径与 v1 一致。",
   "results": [
     {
       "id": 1,
       "status": "pass",
       "expectedTerminal": "query",
       "riskType": "无",
+      "via": "dsl",
       "verdict": "ok",
       "errorCode": null,
       "reason": null
@@ -24,6 +26,7 @@
       "status": "pass",
       "expectedTerminal": "query",
       "riskType": "无",
+      "via": "dsl",
       "verdict": "ok",
       "errorCode": null,
       "reason": null
@@ -33,6 +36,7 @@
       "status": "pass",
       "expectedTerminal": "query",
       "riskType": "别名解析（销售额→gmv）",
+      "via": "dsl",
       "verdict": "ok",
       "errorCode": null,
       "reason": null
@@ -42,6 +46,7 @@
       "status": "pass",
       "expectedTerminal": "query",
       "riskType": "别名解析（成交金额→gmv）",
+      "via": "dsl",
       "verdict": "ok",
       "errorCode": null,
       "reason": null
@@ -51,6 +56,7 @@
       "status": "pass",
       "expectedTerminal": "out_of_capability",
       "riskType": "字段敏感",
+      "via": "dsl",
       "verdict": "rejected",
       "errorCode": 1002000016,
       "reason": "属性不可投影或不属于该实体: property.customer.register_time"
@@ -60,6 +66,7 @@
       "status": "pass",
       "expectedTerminal": "query",
       "riskType": "存在性泄露",
+      "via": "dsl",
       "verdict": "ok",
       "errorCode": null,
       "reason": null
@@ -69,6 +76,7 @@
       "status": "pass",
       "expectedTerminal": "query",
       "riskType": "无",
+      "via": "dsl",
       "verdict": "ok",
       "errorCode": null,
       "reason": null
@@ -78,6 +86,7 @@
       "status": "pass",
       "expectedTerminal": "query",
       "riskType": "判定口径 / label 敏感",
+      "via": "dsl",
       "verdict": "ok",
       "errorCode": null,
       "reason": null
@@ -87,6 +96,7 @@
       "status": "pass",
       "expectedTerminal": "query",
       "riskType": "时间解析",
+      "via": "dsl",
       "verdict": "ok",
       "errorCode": null,
       "reason": null
@@ -96,6 +106,7 @@
       "status": "pass",
       "expectedTerminal": "query",
       "riskType": "时间解析",
+      "via": "dsl",
       "verdict": "ok",
       "errorCode": null,
       "reason": null
@@ -105,6 +116,7 @@
       "status": "pass",
       "expectedTerminal": "query",
       "riskType": "无",
+      "via": "dsl",
       "verdict": "ok",
       "errorCode": null,
       "reason": null
@@ -114,80 +126,107 @@
       "status": "pass",
       "expectedTerminal": "query",
       "riskType": "口径歧义（已由别名消解）",
+      "via": "dsl",
       "verdict": "ok",
       "errorCode": null,
       "reason": null
     },
     {
       "id": 13,
-      "status": "skip",
+      "status": "pass",
       "expectedTerminal": "clarification",
       "riskType": "口径歧义",
-      "reason": "依赖未上线能力（LLM 编排 / 会话 / discovery），M5 装配后回补"
+      "via": "ask",
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null,
+      "reason": null
     },
     {
       "id": 14,
       "status": "pass",
       "expectedTerminal": "out_of_capability",
       "riskType": "越权 / 敏感",
+      "via": "dsl",
       "verdict": "rejected",
       "errorCode": 1002000016,
       "reason": "属性不可投影或不属于该实体: property.customer.phone"
     },
     {
       "id": 15,
-      "status": "skip",
-      "expectedTerminal": "rejected",
+      "status": "pass",
+      "expectedTerminal": "out_of_capability",
       "riskType": "越权",
-      "reason": "依赖未上线能力（LLM 编排 / 会话 / discovery），M5 装配后回补"
+      "via": "ask",
+      "verdict": "ok",
+      "terminal": "out_of_capability",
+      "reasonCode": "PROMPT_INJECTION_SUSPECTED",
+      "reason": null
     },
     {
       "id": 16,
-      "status": "skip",
-      "expectedTerminal": "rejected",
+      "status": "pass",
+      "expectedTerminal": "out_of_capability",
       "riskType": "注入 / 自由 SQL",
-      "reason": "依赖未上线能力（LLM 编排 / 会话 / discovery），M5 装配后回补"
+      "via": "ask",
+      "verdict": "ok",
+      "terminal": "out_of_capability",
+      "reasonCode": "PROMPT_INJECTION_SUSPECTED",
+      "reason": null
     },
     {
       "id": 17,
-      "status": "skip",
-      "expectedTerminal": "out_of_capability",
+      "status": "pass",
+      "expectedTerminal": "discovery",
       "riskType": "能力边界",
-      "reason": "依赖未上线能力（LLM 编排 / 会话 / discovery），M5 装配后回补"
+      "via": "ask",
+      "verdict": "ok",
+      "terminal": "discovery",
+      "reasonCode": null,
+      "reason": null
     },
     {
       "id": 18,
       "status": "pass",
       "expectedTerminal": "composite",
       "riskType": "复合意图",
+      "via": "dsl",
       "verdict": "ok",
       "errorCode": null,
       "reason": null
     },
     {
       "id": 19,
-      "status": "skip",
+      "status": "pass",
       "expectedTerminal": "clarification",
       "riskType": "上下文",
-      "reason": "依赖未上线能力（LLM 编排 / 会话 / discovery），M5 装配后回补"
+      "via": "ask",
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null,
+      "reason": null
     },
     {
       "id": 20,
-      "status": "skip",
-      "expectedTerminal": "discovery",
+      "status": "pass",
+      "expectedTerminal": "clarification",
       "riskType": "能力边界",
-      "reason": "依赖未上线能力（LLM 编排 / 会话 / discovery），M5 装配后回补"
+      "via": "ask",
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null,
+      "reason": null
     }
   ],
   "summary": {
-    "pass": 14,
+    "pass": 20,
     "fail": 0,
-    "skip": 6,
+    "skip": 0,
     "error": 0,
-    "validSamples": 14,
+    "validSamples": 20,
     "successRate": 1,
     "wilson95": [
-      0.7847,
+      0.8389,
       1
     ],
     "byExpectedTerminal": {
@@ -201,30 +240,30 @@
         ]
       },
       "out_of_capability": {
-        "n": 3,
-        "pass": 2,
-        "skip": 1,
+        "n": 4,
+        "pass": 4,
+        "skip": 0,
         "wilson95": [
-          0.2077,
-          0.9385
+          0.5101,
+          1
         ]
       },
       "clarification": {
-        "n": 2,
-        "pass": 0,
-        "skip": 2,
+        "n": 3,
+        "pass": 3,
+        "skip": 0,
         "wilson95": [
-          0,
-          0.6576
+          0.4385,
+          1
         ]
       },
-      "rejected": {
-        "n": 2,
-        "pass": 0,
-        "skip": 2,
+      "discovery": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0,
         "wilson95": [
-          0,
-          0.6576
+          0.2065,
+          1
         ]
       },
       "composite": {
@@ -234,15 +273,6 @@
         "wilson95": [
           0.2065,
           1
-        ]
-      },
-      "discovery": {
-        "n": 1,
-        "pass": 0,
-        "skip": 1,
-        "wilson95": [
-          0,
-          0.7935
         ]
       }
     },
@@ -289,8 +319,8 @@
       },
       "口径歧义": {
         "n": 1,
-        "pass": 0,
-        "skip": 1
+        "pass": 1,
+        "skip": 0
       },
       "越权 / 敏感": {
         "n": 1,
@@ -299,18 +329,18 @@
       },
       "越权": {
         "n": 1,
-        "pass": 0,
-        "skip": 1
+        "pass": 1,
+        "skip": 0
       },
       "注入 / 自由 SQL": {
         "n": 1,
-        "pass": 0,
-        "skip": 1
+        "pass": 1,
+        "skip": 0
       },
       "能力边界": {
         "n": 2,
-        "pass": 0,
-        "skip": 2
+        "pass": 2,
+        "skip": 0
       },
       "复合意图": {
         "n": 1,
@@ -319,8 +349,20 @@
       },
       "上下文": {
         "n": 1,
-        "pass": 0,
-        "skip": 1
+        "pass": 1,
+        "skip": 0
+      }
+    },
+    "byChannel": {
+      "dsl": {
+        "n": 14,
+        "pass": 14,
+        "skip": 0
+      },
+      "ask": {
+        "n": 6,
+        "pass": 6,
+        "skip": 0
       }
     }
   }

@@ -43,9 +43,9 @@
 - [M4 W2 深度审核记录 v1](checklists/M4-W2-深度审核-v1.md)（已归档：T2.1–T2.3 全落地，E2E 21/21（个体探针/精确差分/窗口冻结含缓存命中路径/审批令牌单次有效）；修复差分基准漏 lookup 身份、缓存命中绕过冻结两项 P1；基线 344 例全绿）
 - [M4 W1 深度审核记录 v1](checklists/M4-W1-深度审核-v1.md)（已归档：2 项当场修复（激活异常日志 / 运行时策略版本入缓存键 cache-key-1.1）、3 项规格文字偏差登记；W1 判定通过，基线 320 例复跑全绿）
 - [M7 最小框架验收记录 v1](checklists/M7-最小框架验收记录-v1.md)（已冻结，有条件通过：三件交付物与 M4 规格 E6 三条判据全满足；本地 PG18 真实复跑 14 pass / 0 fail / 6 skip，哈希四方复算一致；触发阶段重定见 [ADR-0015](../01-decisions/ADR-0015-M7最小框架验收与触发阶段重定.md)）
-- [正式评测集 v3](evaluation/正式评测集-v3.md)（已冻结，收编 12 个子集、四集合归属与版本哈希；**test 集 241 题 / 有效分母 239，≥200 题欠账关闭**；缺口 E-1~E-5 登记）
+- [正式评测集 v3](evaluation/正式评测集-v4.md)（已冻结，收编 12 个子集、四集合归属与版本哈希；**test 集 241 题 / 有效分母 239，≥200 题欠账关闭**；缺口 E-1~E-5 登记）
   - 历史版本：[v2](../99-archive/verification/正式评测集-v2.md)、[v1](../99-archive/verification/正式评测集-v1.md)（均已归档）
-- [test 集 v2](evaluation/test集-v2.md)（已冻结，241 题全部新增：20 个题族，四维分层 + `analysis_mode` 附加维度；**再次深度审核修复 7 类缺陷**，skip 2 / 有效 239；JSON sha256 `556e564c…`；主指标唯一分母）
+- [test 集 v2](evaluation/test集-v3.md)（已冻结，241 题全部新增：20 个题族，四维分层 + `analysis_mode` 附加维度；**再次深度审核修复 7 类缺陷**，skip 2 / 有效 239；JSON sha256 `556e564c…`；主指标唯一分母）
   - 历史版本：[v1](../99-archive/verification/test集-v1.md)（已归档；shape/mode 标注与参数不完整版）
 - [评测统计口径 v1](evaluation/评测统计口径-v1.md)（已冻结，§13.4 主指标 / 四维分层 / Wilson 95% / 哈希语义；只定义方法不定义阈值）
 - [零号冒烟评测证据 v1](evaluation/零号冒烟-评测证据-v1.json)（版本化固化，SHA-256 `850f35bf…`；`-latest` 为每次复跑覆盖的软名结果）
@@ -58,8 +58,8 @@
 - [M0 验收报告 v2](checklists/M0-验收报告-v2.md)（已冻结，G1–G8 逐条核对；G2 有条件关闭经签字并见 [ADR-0006](../01-decisions/ADR-0006-G2有条件关闭与重开口径.md)；含审计勘误记录）
   - 历史版本：[v1](../99-archive/checklists/M0-验收报告-v1.md)（已归档；Golden 集条数与 HITL/STATE 回填阶段两处口径经审计勘误）
 - [M0 基线自检输出](checklists/M0-基线自检-2026-11-07.txt)（G7 的归档原始输出，4 PASS / 0 FAIL）
-- [零号冒烟集 v1](evaluation/零号冒烟集-v2.md)（已冻结，20 题题目与分类；gold 已补齐，见下）
-- [零号冒烟集 gold v1](evaluation/零号冒烟集-gold-v2.json)（20 题 gold + sha256 冻结，含两处行为校准）
+- [零号冒烟集 v1](evaluation/零号冒烟集-v3.md)（已冻结，20 题题目与分类；gold 已补齐，见下）
+- [零号冒烟集 gold v1](evaluation/零号冒烟集-gold-v3.json)（20 题 gold + sha256 冻结，含两处行为校准）
 - [Golden 集 v2 · 案例设计](evaluation/Golden集-v2-案例设计.json)（30 条覆盖 5 模式 + 6 显式负例；`g-f02` 已按 [ADR-0011](../01-decisions/ADR-0011-M2实施规格状态修订.md) 决策 5 由正例改判为「步骤数不足」负例）
 - [Golden 集 v2 · SQL 回填 gold v1](evaluation/Golden集-v2-gold-v1.json)（27 条可构造案例的 `sqlExpected` 由编译器生成、逐条审阅后回填；3 条不可构造如实登记原因，见 [M2 验收报告 §4](checklists/M2-验收报告-v1.md)）
 - [编译器 Golden 集 v1](evaluation/编译器Golden集-v1.json)（30 条，QUERY 20 + 非 QUERY 10；M2 补齐模式后升版）

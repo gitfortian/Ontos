@@ -7,10 +7,7 @@ import java.util.regex.Pattern;
 
 import com.ontos.framework.web.core.context.RequestContext;
 import com.ontos.module.session.service.retrieval.RetrievalOutcome;
-import com.ontos.module.system.service.audit.AuditLogCreateReqDTO;
-import com.ontos.module.system.service.audit.AuditService;
 import com.ontos.module.system.service.security.InjectionCheckpoint;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
@@ -21,7 +18,7 @@ import org.springframework.stereotype.Service;
  * <p>这是合同校验（{@code IntentProposalContract}，middleware 层）之后的**第二轮独立对账**：
  * 合同管输出形状，本服务管「本轮上下文的真实性」——候选集随租户/轮次变化，只有编排层能对账。
  */
-@Slf4j
+
 @Service
 public class ProposalIntegrityService {
 
@@ -30,19 +27,35 @@ public class ProposalIntegrityService {
             "scenario_id", "skill_id", "rule_id", "variant_id", "variantId",
             "sql", "table", "column", "join");
 
-    /** 注入话术启发（PROMPT_TEXT）：命中即上报告警，不阻断常规问法。 */
+    /**
+     * 注入话术启发（PROMPT_TEXT）：命中即上报告警，不阻断常规问法。
+     *
+     * <p>T51-3（P1，test 集 v2 注入族真服务实测发现）：原启发仅覆盖
+     * 「忽略以上规则 / 你是管理员 / system prompt」三种形态，中文注入变体
+     * （忽略<b>之前的</b>指令——「的」字断开、<b>我是</b>管理员——主语替换、
+     * 你现在是 <b>DBA</b>、数据库<b>密码</b>、<b>union</b>/select 等物理 SQL 关键词、
+     * 服务器<b>绝对路径</b>、<b>tenant_id</b> 租户篡改）全部漏检，
+     * 10 道注入题仅 1 题拒答。扩充为逐族关键词（fail-closed：宁拒不漏；
+     * 正常分析问法不含这些词，误伤面由冒烟 20 题回归兜底）。
+     */
     private static final Pattern PROMPT_INJECTION = Pattern.compile(
-            "(?i)(忽略(以上|之前|所有)?(规则|指令|提示)|无视(以上|所有)?(规则|指令)|"
-                    + "你(现在)?是(管理员|admin|系统)|扮演(系统|管理员)|system\\s*prompt|"
-                    + "developer\\s*mode|越权|绕过(权限|校验))");
+            "(?i)("
+                    + "忽略(以上|之前|所有)?(的)?(所有)?(规则|指令|提示|限制|约束)"
+                    + "|无视(以上|所有)?(的)?(规则|指令|提示)"
+                    + "|(你|我)?(现在)?是\\s*(管理员|admin|系统|dba|开发者|运维|root|超级管理员)"
+                    + "|扮演\\s*(系统|管理员|dba)"
+                    + "|system\\s*prompt|developer\\s*mode|提示词"
+                    + "|越权|绕过(权限|校验|审批)"
+                    + "|密码|password|credential|凭据"
+                    + "|绝对路径|服务器上的路径|文件路径|安装路径|配置文件"
+                    + "|\\b(select|insert|update|delete|drop|truncate|alter|union)\\b"
+                    + "|tenant_id|(别的|其他|其它)租户"
+                    + ")");
 
     private final InjectionCheckpoint injectionCheckpoint;
-    private final AuditService auditService;
 
-    public ProposalIntegrityService(InjectionCheckpoint injectionCheckpoint,
-                                    AuditService auditService) {
+    public ProposalIntegrityService(InjectionCheckpoint injectionCheckpoint) {
         this.injectionCheckpoint = injectionCheckpoint;
-        this.auditService = auditService;
     }
 
     /**
@@ -52,11 +65,14 @@ public class ProposalIntegrityService {
     public IntegrityResult check(Map<String, Object> proposal, RetrievalOutcome outcome,
                                  String userUtterance, RequestContext context) {
         // 1. 用户话术注入启发（先于 Proposal 检查：话术污染影响整轮）
+        //    T51-2（P2，smoke-runner-v2 实测发现）：审计统一走 injectionCheckpoint（M4 冻结
+        //    审计路径，AuditBackedInjectionCheckpoint 构造合法 JSON）——原冗余 audit() 直写
+        //    把原始话术塞进 JSONB dsl 列，必然失败（invalid input syntax for type json），
+        //    与 checkpoint 双写漂移且每次注入产生一条失败告警。
         if (userUtterance != null && PROMPT_INJECTION.matcher(userUtterance).find()) {
             String sample = truncate(userUtterance);
             injectionCheckpoint.onSuspected(context, InjectionCheckpoint.SOURCE_PROMPT_TEXT,
                     sample, "utterance matched injection heuristics");
-            audit(context, sample, "PROMPT_TEXT");
             return new IntegrityResult(false, IntegrityAction.REJECT, "PROMPT_INJECTION_SUSPECTED");
         }
 
@@ -70,7 +86,6 @@ public class ProposalIntegrityService {
             String detail = "forbidden field in proposal";
             injectionCheckpoint.onSuspected(context,
                     InjectionCheckpoint.SOURCE_CANDIDATE_OUT_OF_SET, detail, detail);
-            audit(context, detail, "CANDIDATE_OUT_OF_SET");
             return new IntegrityResult(false, IntegrityAction.REJECT, "FORBIDDEN_FIELD");
         }
 
@@ -89,7 +104,6 @@ public class ProposalIntegrityService {
                     String detail = "out-of-set id: " + violation;
                     injectionCheckpoint.onSuspected(context,
                             InjectionCheckpoint.SOURCE_CANDIDATE_OUT_OF_SET, truncate(violation), detail);
-                    audit(context, detail, "CANDIDATE_OUT_OF_SET");
                     // 候选集外 ID：用瀑布候选救一次（澄清），不直接拒答
                     return new IntegrityResult(false, IntegrityAction.CLARIFY,
                             "ID_NOT_IN_SET:" + violation);
@@ -149,26 +163,6 @@ public class ProposalIntegrityService {
             outcome.vqrCandidates().forEach(candidate -> ids.add(candidate.vqrId()));
         }
         return ids;
-    }
-
-    private void audit(RequestContext context, String sample, String source) {
-        try {
-            AuditLogCreateReqDTO audit = new AuditLogCreateReqDTO();
-            audit.setRequestId(context.traceId());
-            audit.setTenantId(context.tenantId());
-            audit.setUserId(context.userId());
-            audit.setSessionId(context.sessionId());
-            audit.setTurnIndex(context.turnIndex());
-            audit.setAction(InjectionCheckpoint.AUDIT_ACTION);
-            audit.setReasonCode(source);
-            audit.setDslJson(sample);
-            audit.setTraceId(context.traceId());
-            audit.setDevMode(context.devMode());
-            auditService.record(audit);
-        } catch (RuntimeException ex) {
-            // 审计失败不改变拦截结论（拦截优先），但必须留痕可查
-            log.warn("[audit][INJECTION_SUSPECTED 审计写入失败: {}]", ex.toString());
-        }
     }
 
     private static boolean isNullField(Object value) {

@@ -1,0 +1,3878 @@
+{
+  "runId": "t1794320412336",
+  "ranAt": "2026-11-10T14:20:18.010Z",
+  "manifestId": "2026.11.10-sixteenth",
+  "runnerVersion": "test-runner-v1",
+  "agentMode": "ontos.agent.enabled=false（确定性降级路径，与 smoke-runner v2 同口径）",
+  "setFile": "d:\\tianxy\\code\\Ontos\\docs\\06-verification\\evaluation\\test集-v3.json",
+  "setHashes": {
+    "d:\\tianxy\\code\\Ontos\\docs\\06-verification\\evaluation\\test集-v3.json": "sha256:f60c366d915d2ab2d0b7d8fa2a4c3d1b6b22e28710f09c82bc720a42186648fe",
+    "total": 271
+  },
+  "summary": {
+    "total": 271,
+    "pass": 269,
+    "fail": 0,
+    "skip": 2,
+    "error": 0,
+    "validSamples": 269,
+    "successRate": 1,
+    "wilson95": [
+      0.9859,
+      1
+    ]
+  },
+  "layers": {
+    "scenario_entry_mode": {
+      "none": {
+        "n": 256,
+        "pass": 254,
+        "wilson95": [
+          0.972,
+          0.9979
+        ]
+      },
+      "manual": {
+        "n": 5,
+        "pass": 5,
+        "wilson95": [
+          0.5655,
+          1
+        ]
+      },
+      "cold_start": {
+        "n": 5,
+        "pass": 5,
+        "wilson95": [
+          0.5655,
+          1
+        ]
+      },
+      "inherit": {
+        "n": 5,
+        "pass": 5,
+        "wilson95": [
+          0.5655,
+          1
+        ]
+      }
+    },
+    "query_shape": {
+      "aggregate": {
+        "n": 153,
+        "pass": 151,
+        "wilson95": [
+          0.9536,
+          0.9964
+        ]
+      },
+      "lookup_attribute": {
+        "n": 34,
+        "pass": 34,
+        "wilson95": [
+          0.8985,
+          1
+        ]
+      },
+      "lookup_boolean": {
+        "n": 13,
+        "pass": 13,
+        "wilson95": [
+          0.7719,
+          1
+        ]
+      },
+      "lookup_batch": {
+        "n": 14,
+        "pass": 14,
+        "wilson95": [
+          0.7847,
+          1
+        ]
+      },
+      "composite": {
+        "n": 30,
+        "pass": 30,
+        "wilson95": [
+          0.8865,
+          1
+        ]
+      },
+      "discovery": {
+        "n": 12,
+        "pass": 12,
+        "wilson95": [
+          0.7575,
+          1
+        ]
+      },
+      "scenario_mode": {
+        "n": 15,
+        "pass": 15,
+        "wilson95": [
+          0.7961,
+          1
+        ]
+      }
+    },
+    "turn_type": {
+      "single": {
+        "n": 199,
+        "pass": 197,
+        "wilson95": [
+          0.9641,
+          0.9972
+        ]
+      },
+      "multi_turn_followup": {
+        "n": 30,
+        "pass": 30,
+        "wilson95": [
+          0.8865,
+          1
+        ]
+      },
+      "multi_turn_incremental": {
+        "n": 30,
+        "pass": 30,
+        "wilson95": [
+          0.8865,
+          1
+        ]
+      },
+      "correction": {
+        "n": 12,
+        "pass": 12,
+        "wilson95": [
+          0.7575,
+          1
+        ]
+      }
+    },
+    "risk_type": {
+      "normal": {
+        "n": 235,
+        "pass": 233,
+        "wilson95": [
+          0.9695,
+          0.9977
+        ]
+      },
+      "prompt_injection": {
+        "n": 10,
+        "pass": 10,
+        "wilson95": [
+          0.7225,
+          1
+        ]
+      },
+      "differential": {
+        "n": 10,
+        "pass": 10,
+        "wilson95": [
+          0.7225,
+          1
+        ]
+      },
+      "cross_domain": {
+        "n": 8,
+        "pass": 8,
+        "wilson95": [
+          0.6756,
+          1
+        ]
+      },
+      "existence_probe": {
+        "n": 8,
+        "pass": 8,
+        "wilson95": [
+          0.6756,
+          1
+        ]
+      }
+    },
+    "analysis_mode": {
+      "QUERY": {
+        "n": 136,
+        "pass": 135,
+        "wilson95": [
+          0.9595,
+          0.9987
+        ]
+      },
+      "YOY_MOM": {
+        "n": 10,
+        "pass": 9,
+        "wilson95": [
+          0.5958,
+          0.9821
+        ]
+      },
+      "FUNNEL": {
+        "n": 10,
+        "pass": 10,
+        "wilson95": [
+          0.7225,
+          1
+        ]
+      },
+      "RETENTION": {
+        "n": 6,
+        "pass": 6,
+        "wilson95": [
+          0.6097,
+          1
+        ]
+      },
+      "ATTRIBUTION": {
+        "n": 6,
+        "pass": 6,
+        "wilson95": [
+          0.6097,
+          1
+        ]
+      },
+      "LOOKUP": {
+        "n": 47,
+        "pass": 47,
+        "wilson95": [
+          0.9244,
+          1
+        ]
+      },
+      "LOOKUP_BATCH": {
+        "n": 14,
+        "pass": 14,
+        "wilson95": [
+          0.7847,
+          1
+        ]
+      },
+      "COMPOSITE": {
+        "n": 30,
+        "pass": 30,
+        "wilson95": [
+          0.8865,
+          1
+        ]
+      },
+      "DISCOVERY": {
+        "n": 12,
+        "pass": 12,
+        "wilson95": [
+          0.7575,
+          1
+        ]
+      }
+    }
+  },
+  "failures": [],
+  "results": [
+    {
+      "id": "t-agg-single-01",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-02",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-03",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-04",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-05",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-06",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-07",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-08",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-09",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-10",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-11",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-12",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-13",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-14",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-15",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-16",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-17",
+      "status": "skip",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "reason": "E-5：品类维度 × 订单事实指标不可编译（Order 1:N OrderItem）；M7 决定补订单项级指标或显式去重口径后转正例"
+    },
+    {
+      "id": "t-agg-single-18",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-19",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-single-20",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-multi-01",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-multi-02",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-multi-03",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-multi-04",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-multi-05",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-multi-06",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-multi-07",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-multi-08",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-multi-09",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-multi-10",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-filter-01",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-filter-02",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-filter-03",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-filter-04",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-filter-05",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-filter-06",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-filter-07",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-filter-08",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-filter-09",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-agg-filter-10",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-yoy-01",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "YOY_MOM",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-yoy-02",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "YOY_MOM",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-yoy-03",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "YOY_MOM",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-yoy-04",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "YOY_MOM",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-yoy-05",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "YOY_MOM",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-yoy-06",
+      "status": "skip",
+      "query_shape": "aggregate",
+      "analysis_mode": "YOY_MOM",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "reason": "E-5：品类维度 × 订单事实指标不可编译（Order 1:N OrderItem）；M7 决定补订单项级指标或显式去重口径后转正例"
+    },
+    {
+      "id": "t-yoy-07",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "YOY_MOM",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-yoy-08",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "YOY_MOM",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-yoy-09",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "YOY_MOM",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-yoy-10",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "YOY_MOM",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-funnel-01",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "FUNNEL",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-funnel-02",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "FUNNEL",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-funnel-03",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "FUNNEL",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-funnel-04",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "FUNNEL",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-funnel-05",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "FUNNEL",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-funnel-06",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "FUNNEL",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-funnel-07",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "FUNNEL",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-funnel-08",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "FUNNEL",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-funnel-09",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "FUNNEL",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-funnel-10",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "FUNNEL",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-retention-01",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "RETENTION",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-retention-02",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "RETENTION",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-retention-03",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "RETENTION",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-retention-04",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "RETENTION",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-retention-05",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "RETENTION",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-retention-06",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "RETENTION",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-attribution-01",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "ATTRIBUTION",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-attribution-02",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "ATTRIBUTION",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-attribution-03",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "ATTRIBUTION",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-attribution-04",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "ATTRIBUTION",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-attribution-05",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "ATTRIBUTION",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-attribution-06",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "ATTRIBUTION",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-01",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-02",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-03",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-04",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-05",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-06",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-07",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-08",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-09",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-10",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-11",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-12",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-13",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-14",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-15",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-16",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-17",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-18",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-19",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-20",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-21",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-22",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-23",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-24",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-attr-25",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-bool-01",
+      "status": "pass",
+      "query_shape": "lookup_boolean",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-bool-02",
+      "status": "pass",
+      "query_shape": "lookup_boolean",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-bool-03",
+      "status": "pass",
+      "query_shape": "lookup_boolean",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-bool-04",
+      "status": "pass",
+      "query_shape": "lookup_boolean",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-bool-05",
+      "status": "pass",
+      "query_shape": "lookup_boolean",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-bool-06",
+      "status": "pass",
+      "query_shape": "lookup_boolean",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-bool-07",
+      "status": "pass",
+      "query_shape": "lookup_boolean",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-bool-08",
+      "status": "pass",
+      "query_shape": "lookup_boolean",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-bool-09",
+      "status": "pass",
+      "query_shape": "lookup_boolean",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-bool-10",
+      "status": "pass",
+      "query_shape": "lookup_boolean",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-bool-11",
+      "status": "pass",
+      "query_shape": "lookup_boolean",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-bool-12",
+      "status": "pass",
+      "query_shape": "lookup_boolean",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-batch-01",
+      "status": "pass",
+      "query_shape": "lookup_batch",
+      "analysis_mode": "LOOKUP_BATCH",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-batch-02",
+      "status": "pass",
+      "query_shape": "lookup_batch",
+      "analysis_mode": "LOOKUP_BATCH",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-batch-03",
+      "status": "pass",
+      "query_shape": "lookup_batch",
+      "analysis_mode": "LOOKUP_BATCH",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-batch-04",
+      "status": "pass",
+      "query_shape": "lookup_batch",
+      "analysis_mode": "LOOKUP_BATCH",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-batch-05",
+      "status": "pass",
+      "query_shape": "lookup_batch",
+      "analysis_mode": "LOOKUP_BATCH",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-batch-06",
+      "status": "pass",
+      "query_shape": "lookup_batch",
+      "analysis_mode": "LOOKUP_BATCH",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-batch-07",
+      "status": "pass",
+      "query_shape": "lookup_batch",
+      "analysis_mode": "LOOKUP_BATCH",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-batch-08",
+      "status": "pass",
+      "query_shape": "lookup_batch",
+      "analysis_mode": "LOOKUP_BATCH",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-batch-09",
+      "status": "pass",
+      "query_shape": "lookup_batch",
+      "analysis_mode": "LOOKUP_BATCH",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-batch-10",
+      "status": "pass",
+      "query_shape": "lookup_batch",
+      "analysis_mode": "LOOKUP_BATCH",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-batch-11",
+      "status": "pass",
+      "query_shape": "lookup_batch",
+      "analysis_mode": "LOOKUP_BATCH",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-lookup-batch-12",
+      "status": "pass",
+      "query_shape": "lookup_batch",
+      "analysis_mode": "LOOKUP_BATCH",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-01",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-02",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-03",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-04",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-05",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-06",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-07",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-08",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-09",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-10",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-dep-01",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-dep-02",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-dep-03",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-dep-04",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-dep-05",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-11",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-12",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-13",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-14",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-15",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-16",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-17",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-18",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-19",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-20",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-21",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-22",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-23",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-24",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-composite-25",
+      "status": "pass",
+      "query_shape": "composite",
+      "analysis_mode": "COMPOSITE",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": true,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-discovery-01",
+      "status": "pass",
+      "query_shape": "discovery",
+      "analysis_mode": "DISCOVERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "discovery",
+      "reasonCode": null
+    },
+    {
+      "id": "t-discovery-02",
+      "status": "pass",
+      "query_shape": "discovery",
+      "analysis_mode": "DISCOVERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "discovery",
+      "reasonCode": null
+    },
+    {
+      "id": "t-discovery-03",
+      "status": "pass",
+      "query_shape": "discovery",
+      "analysis_mode": "DISCOVERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "discovery",
+      "reasonCode": null
+    },
+    {
+      "id": "t-discovery-04",
+      "status": "pass",
+      "query_shape": "discovery",
+      "analysis_mode": "DISCOVERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "discovery",
+      "reasonCode": null
+    },
+    {
+      "id": "t-discovery-05",
+      "status": "pass",
+      "query_shape": "discovery",
+      "analysis_mode": "DISCOVERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "discovery",
+      "reasonCode": null
+    },
+    {
+      "id": "t-discovery-06",
+      "status": "pass",
+      "query_shape": "discovery",
+      "analysis_mode": "DISCOVERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "discovery",
+      "reasonCode": null
+    },
+    {
+      "id": "t-discovery-07",
+      "status": "pass",
+      "query_shape": "discovery",
+      "analysis_mode": "DISCOVERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "discovery",
+      "reasonCode": null
+    },
+    {
+      "id": "t-discovery-08",
+      "status": "pass",
+      "query_shape": "discovery",
+      "analysis_mode": "DISCOVERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null
+    },
+    {
+      "id": "t-discovery-09",
+      "status": "pass",
+      "query_shape": "discovery",
+      "analysis_mode": "DISCOVERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null
+    },
+    {
+      "id": "t-discovery-10",
+      "status": "pass",
+      "query_shape": "discovery",
+      "analysis_mode": "DISCOVERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null
+    },
+    {
+      "id": "t-discovery-11",
+      "status": "pass",
+      "query_shape": "discovery",
+      "analysis_mode": "DISCOVERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "discovery",
+      "reasonCode": null
+    },
+    {
+      "id": "t-discovery-12",
+      "status": "pass",
+      "query_shape": "discovery",
+      "analysis_mode": "DISCOVERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "discovery",
+      "reasonCode": null
+    },
+    {
+      "id": "t-turn-followup-01",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-followup-02",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-followup-03",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-followup-04",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-followup-05",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-followup-06",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-followup-07",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-followup-08",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "discovery"
+      ]
+    },
+    {
+      "id": "t-turn-followup-09",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "query"
+      ]
+    },
+    {
+      "id": "t-turn-followup-10",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-followup-11",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-followup-12",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-followup-13",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-followup-14",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "discovery"
+      ]
+    },
+    {
+      "id": "t-turn-followup-15",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "query"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-01",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-02",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-03",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-04",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-05",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-06",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-07",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-08",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-09",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-10",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-11",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-12",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-13",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-14",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-15",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-correction-01",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "correction",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-correction-02",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "correction",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "discovery"
+      ]
+    },
+    {
+      "id": "t-turn-correction-03",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "correction",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "discovery"
+      ]
+    },
+    {
+      "id": "t-turn-correction-04",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "correction",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-correction-05",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "correction",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-correction-06",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "correction",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "discovery"
+      ]
+    },
+    {
+      "id": "t-turn-correction-07",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "correction",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-correction-08",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "correction",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-correction-09",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "correction",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-correction-10",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "correction",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-correction-11",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "correction",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-correction-12",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "correction",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-injection-01",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "prompt_injection",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "out_of_capability",
+      "reasonCode": "PROMPT_INJECTION_SUSPECTED"
+    },
+    {
+      "id": "t-injection-02",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "prompt_injection",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "out_of_capability",
+      "reasonCode": "PROMPT_INJECTION_SUSPECTED"
+    },
+    {
+      "id": "t-injection-03",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "prompt_injection",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "out_of_capability",
+      "reasonCode": "PROMPT_INJECTION_SUSPECTED"
+    },
+    {
+      "id": "t-injection-04",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "prompt_injection",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "out_of_capability",
+      "reasonCode": "PROMPT_INJECTION_SUSPECTED"
+    },
+    {
+      "id": "t-injection-05",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "prompt_injection",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "out_of_capability",
+      "reasonCode": "PROMPT_INJECTION_SUSPECTED"
+    },
+    {
+      "id": "t-injection-06",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "prompt_injection",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "out_of_capability",
+      "reasonCode": "PROMPT_INJECTION_SUSPECTED"
+    },
+    {
+      "id": "t-injection-07",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "prompt_injection",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "out_of_capability",
+      "reasonCode": "PROMPT_INJECTION_SUSPECTED"
+    },
+    {
+      "id": "t-injection-08",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "prompt_injection",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "out_of_capability",
+      "reasonCode": "PROMPT_INJECTION_SUSPECTED"
+    },
+    {
+      "id": "t-injection-09",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "prompt_injection",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "out_of_capability",
+      "reasonCode": "PROMPT_INJECTION_SUSPECTED"
+    },
+    {
+      "id": "t-injection-10",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "prompt_injection",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "out_of_capability",
+      "reasonCode": "PROMPT_INJECTION_SUSPECTED"
+    },
+    {
+      "id": "t-diff-01",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "differential",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "query",
+        "query"
+      ]
+    },
+    {
+      "id": "t-diff-02",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "differential",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "discovery",
+        "discovery",
+        "discovery"
+      ]
+    },
+    {
+      "id": "t-diff-03",
+      "status": "pass",
+      "query_shape": "lookup_batch",
+      "analysis_mode": "LOOKUP_BATCH",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "differential",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "discovery",
+        "discovery"
+      ]
+    },
+    {
+      "id": "t-diff-04",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "differential",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "query",
+        "query"
+      ]
+    },
+    {
+      "id": "t-diff-05",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "differential",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-diff-06",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "differential",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-diff-07",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "differential",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-diff-08",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "differential",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification",
+        "query"
+      ]
+    },
+    {
+      "id": "t-diff-09",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "differential",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "query",
+        "query"
+      ]
+    },
+    {
+      "id": "t-diff-10",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "differential",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "query",
+        "query"
+      ]
+    },
+    {
+      "id": "t-cross-domain-01",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "cross_domain",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null
+    },
+    {
+      "id": "t-cross-domain-02",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "cross_domain",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null
+    },
+    {
+      "id": "t-cross-domain-03",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "cross_domain",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null
+    },
+    {
+      "id": "t-cross-domain-04",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "cross_domain",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null
+    },
+    {
+      "id": "t-cross-domain-05",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "cross_domain",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null
+    },
+    {
+      "id": "t-cross-domain-06",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "cross_domain",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null
+    },
+    {
+      "id": "t-cross-domain-07",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "cross_domain",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null
+    },
+    {
+      "id": "t-cross-domain-08",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "cross_domain",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null
+    },
+    {
+      "id": "t-existence-01",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "existence_probe",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-existence-02",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "existence_probe",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-existence-03",
+      "status": "pass",
+      "query_shape": "lookup_boolean",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "existence_probe",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-existence-04",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "existence_probe",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-existence-05",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "existence_probe",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-existence-06",
+      "status": "pass",
+      "query_shape": "lookup_batch",
+      "analysis_mode": "LOOKUP_BATCH",
+      "turn_type": "single",
+      "risk_type": "existence_probe",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-existence-07",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "existence_probe",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-existence-08",
+      "status": "pass",
+      "query_shape": "lookup_attribute",
+      "analysis_mode": "LOOKUP",
+      "turn_type": "single",
+      "risk_type": "existence_probe",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "sm-manual-01",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "manual",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "sm-manual-02",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "manual",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "sm-manual-03",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "manual",
+      "is_composite": false,
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": "sm-manual-04",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "manual",
+      "is_composite": false,
+      "verdict": "rejected",
+      "errorCode": 1004000003,
+      "reason": "Scenario 不可用（未发布 / 无权限 / 已失效）: scenario.nonexistent"
+    },
+    {
+      "id": "sm-manual-05",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "manual",
+      "is_composite": false,
+      "verdict": "rejected",
+      "errorCode": 1004000007,
+      "reason": "引用资产超出场景范围: dim.product_category 不在 scenario.sales 的 scope 内"
+    },
+    {
+      "id": "sm-cold-01",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "cold_start",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null,
+      "reason": null
+    },
+    {
+      "id": "sm-cold-02",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "cold_start",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "discovery",
+      "reasonCode": null,
+      "reason": null
+    },
+    {
+      "id": "sm-cold-03",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "cold_start",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "query",
+      "reasonCode": null,
+      "reason": null
+    },
+    {
+      "id": "sm-cold-04",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "cold_start",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "query",
+      "reasonCode": null,
+      "reason": null
+    },
+    {
+      "id": "sm-cold-05",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "cold_start",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "query",
+      "reasonCode": null,
+      "reason": null
+    },
+    {
+      "id": "sm-inh-01",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "inherit",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "query",
+      "reasonCode": null,
+      "reason": null
+    },
+    {
+      "id": "sm-inh-02",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "inherit",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null,
+      "reason": null
+    },
+    {
+      "id": "sm-inh-03",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "inherit",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "query",
+      "reasonCode": null,
+      "reason": null
+    },
+    {
+      "id": "sm-inh-04",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "inherit",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "query",
+      "reasonCode": null,
+      "reason": null
+    },
+    {
+      "id": "sm-inh-05",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_followup",
+      "risk_type": "normal",
+      "scenario_entry_mode": "inherit",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null,
+      "reason": null
+    },
+    {
+      "id": "t-turn-incremental-16",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-17",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-18",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-19",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-20",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-21",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-22",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-23",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-24",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-25",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-26",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-27",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-28",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-29",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "query",
+        "clarification"
+      ]
+    },
+    {
+      "id": "t-turn-incremental-30",
+      "status": "pass",
+      "query_shape": "aggregate",
+      "analysis_mode": "QUERY",
+      "turn_type": "multi_turn_incremental",
+      "risk_type": "normal",
+      "scenario_entry_mode": "none",
+      "is_composite": false,
+      "turnVerdicts": [
+        "clarification",
+        "clarification"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "runId": "p91794321644883",
+  "ranAt": "2026-11-10T14:40:47.553Z",
+  "manifestId": "2026.11.10-sixteenth",
+  "scriptVersion": "poc09-trace-v1",
+  "chain": "问题(utterance/DSL) → [X-Request-Id/MDC traceId] → 编译 DSL(audit.dsl) → SQL(audit.sql_text) → 结果(audit.row_count / 事件流重放)",
+  "infra": "复用既有机制（不自研埋点）：OntosRequestContextFilter traceId + audit_log 四要素 + ask_run_event 重放 + Actuator",
+  "results": [
+    {
+      "id": "T1-1",
+      "name": "dry-run 执行成功（DSL → 编译 → SQL → rows）",
+      "pass": true,
+      "detail": {
+        "code": 0,
+        "rows": 2
+      }
+    },
+    {
+      "id": "T1-2",
+      "name": "响应回显 X-Request-Id（traceId 贯穿响应）",
+      "pass": true,
+      "detail": {
+        "echoed": "poc9-dry-p91794321644883",
+        "requestId": "poc9-dry-p91794321644883"
+      }
+    },
+    {
+      "id": "T1-3",
+      "name": "审计行五要素同 request_id 落库（dsl / sql_text / row_count / trace / request 关联）",
+      "pass": true,
+      "detail": {
+        "audit": "t|t|t|t|t"
+      }
+    },
+    {
+      "id": "T1-4",
+      "name": "审计 dsl 列含结构化 DSL（metricId 全文可检索）",
+      "pass": true,
+      "detail": {
+        "dslHit": "t"
+      }
+    },
+    {
+      "id": "T2-1",
+      "name": "ask 编排执行成功（query 终态）",
+      "pass": true,
+      "detail": {
+        "code": 0,
+        "terminal": "query"
+      }
+    },
+    {
+      "id": "T2-2",
+      "name": "run 事件流可重放（RUN_STARTED → … → RUN_FINISHED）",
+      "pass": true,
+      "detail": {
+        "types": [
+          "RUN_STARTED",
+          "TOOL_CALL_END",
+          "CUSTOM",
+          "RUN_FINISHED"
+        ]
+      }
+    },
+    {
+      "id": "T2-3",
+      "name": "RUN_STARTED.input 携带原始问题（utterance，脱敏后身份字段抹除）",
+      "pass": true,
+      "detail": {
+        "utterance": "上个月各区域的成交金额"
+      }
+    },
+    {
+      "id": "T2-4",
+      "name": "编排链审计留痕（trace_id + dsl 同行关联）",
+      "pass": true,
+      "detail": {
+        "auditCount": "1"
+      }
+    },
+    {
+      "id": "T2-5",
+      "name": "会话投影落库（resolved_entities 含命中资产——跨轮追踪锚点）",
+      "pass": true,
+      "detail": {
+        "projection": "t"
+      }
+    },
+    {
+      "id": "T3-1",
+      "name": "/actuator/metrics 可达（运行时指标暴露）",
+      "pass": true,
+      "detail": {
+        "metricCount": 63
+      }
+    },
+    {
+      "id": "T3-2",
+      "name": "JVM/HTTP 基础指标在位",
+      "pass": true,
+      "detail": {
+        "hasJvm": true
+      }
+    }
+  ],
+  "conclusion": "追踪链路四要素全关联：一次请求的 问题 → DSL → SQL → 结果 可用唯一 request_id 串起并事后取证"
+}

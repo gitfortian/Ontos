@@ -294,7 +294,12 @@ public class AskOrchestrationService {
             } else if (clarificationChoice.startsWith("scenario:")) {
                 scenarioSessionService.confirm(context, clarificationChoice,
                         scenariosById(), authorizedScenarioIds(context));
-                consumed = true;
+                // T51-1（P1，smoke-runner-v2 cold_start 流程实测发现）：场景确认只做状态迁移，
+                // 不置 consumed——consumed 的规划语义是「指标歧义已裁决，本轮强制 query 组装」
+                // （T3.3 近似同意沿用）。场景确认后当前话术应正常规划（无命中 → 场景内
+                // discovery 冷启动承接）；强制 query 会在无资产话术（如「好」）下产出
+                // metric_id=null 的提案并被输出契约拒绝（PROPOSAL_CONTRACT_INVALID），
+                // 把「已进场景」掩盖成能力边界错误。
             } else {
                 sessionStateService.consumeClarificationChoice(context, clarificationChoice);
                 consumed = true;

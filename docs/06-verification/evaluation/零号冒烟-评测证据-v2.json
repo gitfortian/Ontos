@@ -1,0 +1,369 @@
+{
+  "runId": "s1794319075665",
+  "ranAt": "2026-11-10T13:57:56.775Z",
+  "manifestId": "2026.11.10-sixteenth",
+  "runnerVersion": "smoke-runner-v2",
+  "agentMode": "ontos.agent.enabled=false（确定性降级路径）",
+  "setHashes": {
+    "零号冒烟集-gold-v3.json": "sha256:445ecb3bee10164244be7dbe83b98b7170f2fcd3ac5d4fe633dc5483a61fef2f",
+    "零号冒烟集-v3.md": "sha256:549c9f7b99cab13a4dd294cfd07e4424792dab7a53183ddd069ae56571578ab5",
+    "contentHash": "sha256:0e18fb31834ba878e178ebf1609d0559b517d75364aa6b57740386ba1a49eb3a"
+  },
+  "mappingNote": "v2 收敛（G-9）：6 条 skip 题经 /api/v1/ask/runs 实测（via=ask），拒绝类映射收紧为逐题精确终态 + reasonCode 断言；#16 断言 PROMPT_INJECTION_SUSPECTED；#15/#17 按安全底线判据校准（gold v3 逐题写明）；DSL 题 14 题口径与 v1 一致。",
+  "results": [
+    {
+      "id": 1,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "无",
+      "via": "dsl",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 2,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "无",
+      "via": "dsl",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 3,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "别名解析（销售额→gmv）",
+      "via": "dsl",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 4,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "别名解析（成交金额→gmv）",
+      "via": "dsl",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 5,
+      "status": "pass",
+      "expectedTerminal": "out_of_capability",
+      "riskType": "字段敏感",
+      "via": "dsl",
+      "verdict": "rejected",
+      "errorCode": 1002000016,
+      "reason": "属性不可投影或不属于该实体: property.customer.register_time"
+    },
+    {
+      "id": 6,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "存在性泄露",
+      "via": "dsl",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 7,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "无",
+      "via": "dsl",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 8,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "判定口径 / label 敏感",
+      "via": "dsl",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 9,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "时间解析",
+      "via": "dsl",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 10,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "时间解析",
+      "via": "dsl",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 11,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "无",
+      "via": "dsl",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 12,
+      "status": "pass",
+      "expectedTerminal": "query",
+      "riskType": "口径歧义（已由别名消解）",
+      "via": "dsl",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 13,
+      "status": "pass",
+      "expectedTerminal": "clarification",
+      "riskType": "口径歧义",
+      "via": "ask",
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null,
+      "reason": null
+    },
+    {
+      "id": 14,
+      "status": "pass",
+      "expectedTerminal": "out_of_capability",
+      "riskType": "越权 / 敏感",
+      "via": "dsl",
+      "verdict": "rejected",
+      "errorCode": 1002000016,
+      "reason": "属性不可投影或不属于该实体: property.customer.phone"
+    },
+    {
+      "id": 15,
+      "status": "pass",
+      "expectedTerminal": "clarification",
+      "riskType": "越权",
+      "via": "ask",
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null,
+      "reason": null
+    },
+    {
+      "id": 16,
+      "status": "pass",
+      "expectedTerminal": "out_of_capability",
+      "riskType": "注入 / 自由 SQL",
+      "via": "ask",
+      "verdict": "ok",
+      "terminal": "out_of_capability",
+      "reasonCode": "PROMPT_INJECTION_SUSPECTED",
+      "reason": null
+    },
+    {
+      "id": 17,
+      "status": "pass",
+      "expectedTerminal": "discovery",
+      "riskType": "能力边界",
+      "via": "ask",
+      "verdict": "ok",
+      "terminal": "discovery",
+      "reasonCode": null,
+      "reason": null
+    },
+    {
+      "id": 18,
+      "status": "pass",
+      "expectedTerminal": "composite",
+      "riskType": "复合意图",
+      "via": "dsl",
+      "verdict": "ok",
+      "errorCode": null,
+      "reason": null
+    },
+    {
+      "id": 19,
+      "status": "pass",
+      "expectedTerminal": "clarification",
+      "riskType": "上下文",
+      "via": "ask",
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null,
+      "reason": null
+    },
+    {
+      "id": 20,
+      "status": "pass",
+      "expectedTerminal": "clarification",
+      "riskType": "能力边界",
+      "via": "ask",
+      "verdict": "ok",
+      "terminal": "clarification",
+      "reasonCode": null,
+      "reason": null
+    }
+  ],
+  "summary": {
+    "pass": 20,
+    "fail": 0,
+    "skip": 0,
+    "error": 0,
+    "validSamples": 20,
+    "successRate": 1,
+    "wilson95": [
+      0.8389,
+      1
+    ],
+    "byExpectedTerminal": {
+      "query": {
+        "n": 11,
+        "pass": 11,
+        "skip": 0,
+        "wilson95": [
+          0.7412,
+          1
+        ]
+      },
+      "out_of_capability": {
+        "n": 3,
+        "pass": 3,
+        "skip": 0,
+        "wilson95": [
+          0.4385,
+          1
+        ]
+      },
+      "clarification": {
+        "n": 4,
+        "pass": 4,
+        "skip": 0,
+        "wilson95": [
+          0.5101,
+          1
+        ]
+      },
+      "discovery": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0,
+        "wilson95": [
+          0.2065,
+          1
+        ]
+      },
+      "composite": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0,
+        "wilson95": [
+          0.2065,
+          1
+        ]
+      }
+    },
+    "byRiskType": {
+      "无": {
+        "n": 4,
+        "pass": 4,
+        "skip": 0
+      },
+      "别名解析（销售额→gmv）": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "别名解析（成交金额→gmv）": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "字段敏感": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "存在性泄露": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "判定口径 / label 敏感": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "时间解析": {
+        "n": 2,
+        "pass": 2,
+        "skip": 0
+      },
+      "口径歧义（已由别名消解）": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "口径歧义": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "越权 / 敏感": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "越权": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "注入 / 自由 SQL": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "能力边界": {
+        "n": 2,
+        "pass": 2,
+        "skip": 0
+      },
+      "复合意图": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      },
+      "上下文": {
+        "n": 1,
+        "pass": 1,
+        "skip": 0
+      }
+    },
+    "byChannel": {
+      "dsl": {
+        "n": 14,
+        "pass": 14,
+        "skip": 0
+      },
+      "ask": {
+        "n": 6,
+        "pass": 6,
+        "skip": 0
+      }
+    }
+  }
+}

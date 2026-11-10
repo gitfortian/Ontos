@@ -238,8 +238,8 @@ node docs/00-governance/check-docs.mjs
 | 首份进度快照 | 进度 | 已记录 | — | [`05-progress/2026/2026-11-06.md`](05-progress/2026/2026-11-06.md) |
 | 进度快照（W5 归位） | 进度 | 已记录 | — | [`05-progress/2026/2026-11-07.md`](05-progress/2026/2026-11-07.md) |
 | 进度快照（M1 定稿 / M2 开工 / 交接审计） | 进度 | 已记录 | — | [`05-progress/2026/2026-11-08.md`](05-progress/2026/2026-11-08.md) |
-| 零号冒烟集 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/零号冒烟集-v2.md`](06-verification/evaluation/零号冒烟集-v2.md) |
-| 零号冒烟集 gold | 验证 | 已冻结 | v1 | [`06-verification/evaluation/零号冒烟集-gold-v2.json`](06-verification/evaluation/零号冒烟集-gold-v2.json) |
+| 零号冒烟集 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/零号冒烟集-v3.md`](06-verification/evaluation/零号冒烟集-v3.md) |
+| 零号冒烟集 gold | 验证 | 已冻结 | v1 | [`06-verification/evaluation/零号冒烟集-gold-v3.json`](06-verification/evaluation/零号冒烟集-gold-v3.json) |
 | Golden 集 v2 · 案例设计 | 验证 | 已冻结 | v2-cases | [`06-verification/evaluation/Golden集-v2-案例设计.json`](06-verification/evaluation/Golden集-v2-案例设计.json) |
 | Golden 集 v2 · SQL 回填（gold） | 验证 | 已冻结 | v1 | [`06-verification/evaluation/Golden集-v2-gold-v1.json`](06-verification/evaluation/Golden集-v2-gold-v1.json) |
 | 编译器 Golden 集 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/编译器Golden集-v1.json`](06-verification/evaluation/编译器Golden集-v1.json) |
@@ -265,8 +265,8 @@ node docs/00-governance/check-docs.mjs
 | ADR-0016 · 品类维度与订单事实指标的粒度边界 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0016-品类维度与订单事实指标的粒度边界.md`](01-decisions/ADR-0016-品类维度与订单事实指标的粒度边界.md) |
 | ADR-0017 · M6 外部评审裁决 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0017-M6外部评审裁决.md`](01-decisions/ADR-0017-M6外部评审裁决.md) |
 | M7 最小框架验收记录 | 验证 | 已冻结 | v1 | [`06-verification/checklists/M7-最小框架验收记录-v1.md`](06-verification/checklists/M7-最小框架验收记录-v1.md) |
-| 正式评测集 | 验证 | 已冻结 | v3 | [`06-verification/evaluation/正式评测集-v3.md`](06-verification/evaluation/正式评测集-v3.md) |
-| test 集（主指标分母） | 验证 | 已冻结 | v2 | [`06-verification/evaluation/test集-v2.md`](06-verification/evaluation/test集-v2.md) |
+| 正式评测集 | 验证 | 已冻结 | v3 | [`06-verification/evaluation/正式评测集-v4.md`](06-verification/evaluation/正式评测集-v4.md) |
+| test 集（主指标分母） | 验证 | 已冻结 | v2 | [`06-verification/evaluation/test集-v3.md`](06-verification/evaluation/test集-v3.md) |
 | 评测统计口径 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/评测统计口径-v1.md`](06-verification/evaluation/评测统计口径-v1.md) |
 | 零号冒烟评测证据 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/零号冒烟-评测证据-v1.json`](06-verification/evaluation/零号冒烟-评测证据-v1.json) |
 | 并行义务登记台账 | 治理 | 生效中 | schemaVersion 1 | [`00-governance/parallel-obligations.json`](00-governance/parallel-obligations.json) |
