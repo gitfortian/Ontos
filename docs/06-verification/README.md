@@ -20,6 +20,8 @@
 - [M6 · W2/T2.2 Scenario 资产模型与发布校验 深度审核 v1](checklists/M6-W2-T2.2-深度审核-v1.md)（已冻结：ScenarioMeta 升级 v1.4 §5.7 完整模型（legacy 兼容 v12）、§5.7 规则集中到 ScenarioValidator、catalog 生命周期/回滚/依赖影响、清单 v13 dry-run 通过但未激活；**4 项 P2 修复**——legacy scope 兼容、状态双写漂移、回滚版本 400→业务码、发布 ID 错配；3 项 P3 登记）
 - [M6 · W2/T2.3 入口路由决策与状态机 深度审核 v1](checklists/M6-W2-T2.3-深度审核-v1.md)（已冻结：ScenarioRouter 五态确定性决策 + ScenarioRouteState 三态封闭迁移（25 例单测）+ pending_confirm 复用 M5 澄清回传校验；**P2 修复——新会话无状态行时状态写入静默失效**；T23-4 登记：显式切换不走 pending 待 T2.4 复核；**路由不启用**——三触发条件 2/3，见核对记录 v1）
 - [M6 · W2/T2.4 入口路由接入瀑布 深度审核 v1](checklists/M6-W2-T2.4-深度审核-v1.md)（已冻结：Router 接入瀑布 + scope 裁剪只收窄 + 直传裁决 D1 四步 + 编排模式过滤；**2 项 P2 修复**——裁剪按当前态、属性随域内概念展开；v13 已激活（thirteenth），Golden 回归零回退 M6 23/0 / M3 6/0 / M2 27/0）
+- [M6 · W3/T3.1 Skill 资产模型与生命周期 深度审核 v1](checklists/M6-W3-T3.1-深度审核-v1.md)（已冻结：SkillMeta 全字段 + 审核人记录、SkillValidator 命名空间/跨模式近似/published 必有审核人、生命周期 approve 留痕非迁移；3 项 P2 当场修复；清单 v14 七条内置 Skill）
+- [M6 · W3/T3.2 SkillRegistry 注册制升级 深度审核 v1](checklists/M6-W3-T3.2-深度审核-v1.md)（已冻结：清单驱动解析 + 受控工具注册表 + 编译期四条闸门 + carriersFor 承担者查询；**M3 回归不回退**——list 去重与 skillId 对齐运行时命名；5 项发现处置，全量 59/557）
 - [M6 · ADR-0004 三触发条件核对 v2](checklists/M6-ADR0004三触发条件核对-v2.md)（已冻结：③ scope 裁剪取证通过 → **三条全满足，Router 接入瀑布放行**；激活语义与 T5.2 补充探针在档；v1 已归档）
 - [M6 · ADR-0004 三触发条件核对 v1](../99-archive/verification/M6-ADR0004三触发条件核对-v1.md)（已冻结：①编译器覆盖+fail-closed 满足、②路径规划满足、③scope 裁剪归 T2.4 **未满足** → **Scenario Entry Router 不接入瀑布，v13 只发布元数据**；T2.4 后升 v2 复核）
 - [M5 收口后深度审核 v1](checklists/M5-收口后深度审核-v1.md)（已归档：全局复核 4 项发现全部当场修复复验——OBL-M7 evidence 补提及样本回填凭据、索引错位与过时状态修正、**HITL 放行重放 requestId 分裂统一（-replay 同源实证）**、事件表保留策略登记 M6；M5 判定不变：通过）
