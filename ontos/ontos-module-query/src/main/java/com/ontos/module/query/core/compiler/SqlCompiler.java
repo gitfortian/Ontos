@@ -400,9 +400,6 @@ public class SqlCompiler {
         if (params == null || params.getSteps() == null || params.getSteps().size() < 2) {
             throw exception(DSL_INVALID, "funnel 缺少合法 steps");
         }
-        if (queryDsl.getFilters() != null && !queryDsl.getFilters().isEmpty()) {
-            throw exception(DSL_INVALID, "funnel 暂不支持 filters（M2 未定档）");
-        }
         if (params.getCohortWindow() == null || params.getCohortWindow().getFrom() == null
                 || params.getCohortWindow().getTo() == null) {
             throw exception(FUNNEL_TIME_WINDOW_MISSING, "cohortWindow 未解析");
@@ -460,6 +457,13 @@ public class SqlCompiler {
         for (String dimensionId : dimensionIds) {
             dimensions.add(semantic.requireDimension(dimensionId));
         }
+        // M6/T1.5：顶层 filters = 全局过滤——cohort 与每个步进 CTE 共享同一组条件
+        // （只作用于主体维度；时间维度在订单/事件表，校验器已按「必须映射主体表」拒绝）
+        List<Condition> filters = new ArrayList<>();
+        for (QueryDsl.Filter filter : queryDsl.getFilters() == null
+                ? List.<QueryDsl.Filter>of() : queryDsl.getFilters()) {
+            filters.add(condition(filter, semantic.requireDimension(filter.getFieldId())));
+        }
 
         // cohort：首步事件 + 首次发生时间 + 首次触点维度值
         SelectQuery<Record> cohort = dsl.selectQuery();
@@ -470,7 +474,7 @@ public class SqlCompiler {
                     .as(DSL.name(dimension.getId())));
         }
         cohort.addFrom(DSL.table(tableName(eventTable)));
-        if (!dimensions.isEmpty()) {
+        if (!dimensions.isEmpty() || !filters.isEmpty()) {
             cohort.addJoin(DSL.table(tableName(subjectTable)),
                     DSL.field(columnName(subject.getColumn())).eq(participant));
         }
@@ -478,6 +482,7 @@ public class SqlCompiler {
                 eventType.eq(events.get(0).getEventTypeValue()),
                 eventTime.ge(DSL.val(cohortFrom)),
                 eventTime.le(DSL.val(cohortTo)));
+        cohort.addConditions(filters);
         List<Field<?>> cohortGroup = new ArrayList<>();
         cohortGroup.add(participant);
         for (SemanticManifest.Dimension dimension : dimensions) {
@@ -499,11 +504,18 @@ public class SqlCompiler {
             step.addFrom(DSL.table(tableName(eventTable)));
             step.addJoin(DSL.table(DSL.name(previousCte)),
                     DSL.field(DSL.name(previousCte, "subject")).eq(participant));
+            if (!filters.isEmpty()) {
+                // 全局过滤：每个步进 CTE 共享同一组主体维度条件（规格 §3），
+                // 只在 cohort 过滤会让后续步骤把「被过滤掉主体的行为」算回转化
+                step.addJoin(DSL.table(tableName(subjectTable)),
+                        DSL.field(columnName(subject.getColumn())).eq(participant));
+            }
             step.addConditions(
                     eventType.eq(event.getEventTypeValue()),
                     eventTime.gt(previousTime),
                     eventTime.le(DSL.field("cast({0} as timestamp) + cast({1} as interval)",
                             Timestamp.class, previousTime, DSL.inline(stepInterval))));
+            step.addConditions(filters);
             step.addGroupBy(participant);
             ctes.add(DSL.name(cteName).as(step));
             previousCte = cteName;

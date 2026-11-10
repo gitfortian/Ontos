@@ -59,4 +59,52 @@ class FunnelCompilerTest {
         assertEquals(FUNNEL_EVENT_NOT_FOUND.getCode(), ex.getCode());
     }
 
+    @Test
+    void shouldApplyGlobalFiltersToCohortAndEveryStep() {
+        // M6/T1.5：全局过滤必须在 cohort 与每个步进 CTE 同时生效——
+        // 只过滤 cohort 会把「被过滤主体的后续行为」算回转化
+        QueryDsl dsl = TestFixtures.funnelDsl();
+        QueryDsl.Filter filter = new QueryDsl.Filter();
+        filter.setFieldId(TestFixtures.CUSTOMER_TIER_DIMENSION);
+        filter.setOperator(QueryDsl.Operator.EQ);
+        filter.setValues(List.of("gold"));
+        dsl.setFilters(List.of(filter));
+
+        CompiledQuery compiled = compiler.compile(dsl, TestFixtures.funnelManifest());
+        String sql = compiled.getSql().toLowerCase();
+
+        assertEquals(2, occurrences(sql, "\"customer\".\"tier\" = ?"),
+                "cohort 与 step_2 各出现一次过滤条件（维度投影列不计）: " + sql);
+        assertTrue(compiled.getBindValues().contains("gold"), "过滤值参数化进绑定");
+        assertTrue(sql.contains("join \"customer\""), "过滤主体维度必须引入主体表: " + sql);
+    }
+
+    @Test
+    void shouldJoinSubjectTableWhenOnlyFiltersPresent() {
+        QueryDsl dsl = TestFixtures.funnelDsl();
+        dsl.setDimensions(List.of());
+        QueryDsl.Filter filter = new QueryDsl.Filter();
+        filter.setFieldId(TestFixtures.CUSTOMER_TIER_DIMENSION);
+        filter.setOperator(QueryDsl.Operator.EQ);
+        filter.setValues(List.of("normal"));
+        dsl.setFilters(List.of(filter));
+
+        CompiledQuery compiled = compiler.compile(dsl, TestFixtures.funnelManifest());
+        String sql = compiled.getSql().toLowerCase();
+
+        assertTrue(sql.contains("join \"customer\""),
+                "无分组维度但存在全局过滤时仍须 JOIN 主体表: " + sql);
+        assertEquals(2, occurrences(sql, "\"customer\".\"tier\""));
+    }
+
+    private static int occurrences(String text, String token) {
+        int count = 0;
+        int index = text.indexOf(token);
+        while (index >= 0) {
+            count++;
+            index = text.indexOf(token, index + token.length());
+        }
+        return count;
+    }
+
 }

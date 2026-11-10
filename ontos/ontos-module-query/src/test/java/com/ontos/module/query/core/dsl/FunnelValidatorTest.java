@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.module.ontology.core.PublishedManifest;
+import com.ontos.module.ontology.core.SemanticManifest;
 import com.ontos.module.query.core.QueryProperties;
 import com.ontos.module.query.core.TestFixtures;
 import org.junit.jupiter.api.BeforeEach;
@@ -104,18 +105,53 @@ class FunnelValidatorTest {
     }
 
     @Test
-    void shouldRejectFiltersInsteadOfSilentlyIgnoringThem() {
-        // 深度审核 D58：步进 CTE 没有接 filters 的位置，静默忽略会让「华东漏斗」返回全国数字
+    void shouldAcceptGlobalFilterOnSubjectDimension() {
+        // M6/T1.5：顶层 filters = 全局过滤（M2 偏差 2 收口），主体维度可按值过滤
+        QueryDsl dsl = TestFixtures.funnelDsl();
+        dsl.setFilters(List.of(subjectTierFilter("gold")));
+
+        assertDoesNotThrow(() -> validator.validate(dsl, manifest));
+    }
+
+    @Test
+    void shouldRejectFilterOnNonSubjectDimension() {
+        // 过滤字段与分组同规：只能映射主体表（时间维度都在订单/事件表，天然被拒）
+        SemanticManifest.Dimension region = new SemanticManifest.Dimension();
+        region.setId(TestFixtures.DIMENSION_ID);
+        region.setTable(TestFixtures.TABLE);
+        region.setColumn(TestFixtures.TABLE + ".region");
+        manifest.getSemantic().setDimensions(List.of(
+                manifest.getSemantic().getDimensions().get(0), region));
+        QueryDsl dsl = TestFixtures.funnelDsl();
+        QueryDsl.Filter filter = new QueryDsl.Filter();
+        filter.setFieldId(TestFixtures.DIMENSION_ID);
+        filter.setOperator(QueryDsl.Operator.EQ);
+        filter.setValues(List.of("华东"));
+        dsl.setFilters(List.of(filter));
+
+        ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
+        assertEquals(FUNNEL_DIMENSION_UNSUPPORTED.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldRejectFilterValueArityMismatch() {
         QueryDsl dsl = TestFixtures.funnelDsl();
         QueryDsl.Filter filter = new QueryDsl.Filter();
         filter.setFieldId(TestFixtures.CUSTOMER_TIER_DIMENSION);
         filter.setOperator(QueryDsl.Operator.EQ);
-        filter.setValues(List.of("gold"));
+        filter.setValues(List.of("gold", "normal"));
         dsl.setFilters(List.of(filter));
 
         ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
         assertEquals(DSL_INVALID.getCode(), ex.getCode());
-        assertTrue(ex.getMessage().contains("filters"));
+    }
+
+    private static QueryDsl.Filter subjectTierFilter(String value) {
+        QueryDsl.Filter filter = new QueryDsl.Filter();
+        filter.setFieldId(TestFixtures.CUSTOMER_TIER_DIMENSION);
+        filter.setOperator(QueryDsl.Operator.EQ);
+        filter.setValues(List.of(value));
+        return filter;
     }
 
     @Test

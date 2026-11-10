@@ -403,9 +403,108 @@ const ATTRIBUTION_CASES = [
   },
 ];
 
+/** T1.5 funnel 顶层 filters（全局过滤）案例集。 */
+const FUNNEL_CASES = [
+  {
+    section: "funnel",
+    id: "m6-funnel-global-filter-eq",
+    title: "漏斗全局过滤（主体维度 EQ）",
+    kind: "sql",
+    dsl: {
+      mode: "FUNNEL",
+      dimensions: ["dim.customer_tier"],
+      filters: [{ fieldId: "dim.customer_tier", operator: "EQ", values: ["gold"] }],
+      analysisParams: {
+        steps: ["ORDER_PLACED", "REFUND"],
+        cohortWindow: { timeExpressionRaw: "近 90 天" },
+        stepWindow: "7d",
+        subjectPropertyId: SUBJECT,
+        deduplication: "first_occurrence",
+        conversionDenominator: "previous_step",
+      },
+      limit: 100,
+    },
+  },
+  {
+    section: "funnel",
+    id: "m6-funnel-global-filter-in",
+    title: "漏斗全局过滤（多值 IN，无分组维度）",
+    kind: "sql",
+    dsl: {
+      mode: "FUNNEL",
+      filters: [{ fieldId: "dim.customer_tier", operator: "IN", values: ["gold", "normal"] }],
+      analysisParams: {
+        steps: ["ORDER_PLACED", "REFUND"],
+        cohortWindow: { timeExpressionRaw: "近 60 天" },
+        stepWindow: "14d",
+        subjectPropertyId: SUBJECT,
+        deduplication: "first_occurrence",
+        conversionDenominator: "previous_step",
+      },
+    },
+  },
+  {
+    section: "funnel",
+    id: "m6-funnel-neg-filter-non-subject",
+    title: "负例：过滤字段非主体表（渠道维度）",
+    kind: "negative",
+    expectErrorCode: 1002000023,
+    dsl: {
+      mode: "FUNNEL",
+      filters: [{ fieldId: "dim.channel", operator: "EQ", values: ["线上"] }],
+      analysisParams: {
+        steps: ["ORDER_PLACED", "REFUND"],
+        cohortWindow: { timeExpressionRaw: "近 60 天" },
+        stepWindow: "7d",
+        subjectPropertyId: SUBJECT,
+        deduplication: "first_occurrence",
+        conversionDenominator: "previous_step",
+      },
+    },
+  },
+  {
+    section: "funnel",
+    id: "m6-funnel-neg-filter-unpublished",
+    title: "负例：过滤字段未发布维度",
+    kind: "negative",
+    expectErrorCode: 1001000003,
+    dsl: {
+      mode: "FUNNEL",
+      filters: [{ fieldId: "dim.not_published", operator: "EQ", values: ["x"] }],
+      analysisParams: {
+        steps: ["ORDER_PLACED", "REFUND"],
+        cohortWindow: { timeExpressionRaw: "近 60 天" },
+        stepWindow: "7d",
+        subjectPropertyId: SUBJECT,
+        deduplication: "first_occurrence",
+        conversionDenominator: "previous_step",
+      },
+    },
+  },
+  {
+    section: "funnel",
+    id: "m6-funnel-neg-filter-arity",
+    title: "负例：EQ 过滤值数量不符",
+    kind: "negative",
+    expectErrorCode: 1002000000,
+    dsl: {
+      mode: "FUNNEL",
+      filters: [{ fieldId: "dim.customer_tier", operator: "EQ", values: ["gold", "normal"] }],
+      analysisParams: {
+        steps: ["ORDER_PLACED", "REFUND"],
+        cohortWindow: { timeExpressionRaw: "近 60 天" },
+        stepWindow: "7d",
+        subjectPropertyId: SUBJECT,
+        deduplication: "first_occurrence",
+        conversionDenominator: "previous_step",
+      },
+    },
+  },
+];
+
 const SECTION = process.argv.find((item) => item.startsWith("--section="))?.split("=")[1]
   ?? argOf("--section", "retention");
-const ALL_CASES = [...CASES, ...ATTRIBUTION_CASES];
+const ALL_CASES = [...CASES, ...ATTRIBUTION_CASES, ...FUNNEL_CASES];
 const ACTIVE = ALL_CASES.filter((item) => item.section === SECTION);
 
 // request_id 必须随运行变化：request_state 以 request_id 为幂等键（ADR-0004）

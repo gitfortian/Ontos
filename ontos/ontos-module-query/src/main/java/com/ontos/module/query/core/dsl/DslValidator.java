@@ -280,11 +280,8 @@ public class DslValidator {
         if (dsl.getSubIntents() != null && !dsl.getSubIntents().isEmpty()) {
             throw exception(DSL_INVALID, "funnel 不接受 subIntents");
         }
-        if (dsl.getFilters() != null && !dsl.getFilters().isEmpty()) {
-            // 编译器的步进 CTE 没有接 filters 的位置；静默忽略会让「华东漏斗」返回全国数字。
-            // M2 未给 funnel 过滤定档，按 fail-closed 明确拒绝，不用「看起来成功」糊过去。
-            throw exception(DSL_INVALID, "funnel 暂不支持 filters（M2 未定档，拒绝而非静默忽略）");
-        }
+        // M6/T1.5：顶层 filters = 全局过滤（模式规格 v1.1 §3），校验与维度分组同规，
+        // 具体字段在主体解析之后逐个校验（必须映射主体表）。步级过滤不引入。
         if (!isBlank(dsl.getCaliberVariantId())) {
             throw exception(DSL_INVALID, "funnel 不接受 caliberVariantId（口径变体只作用于指标）");
         }
@@ -343,6 +340,15 @@ public class DslValidator {
                 throw exception(FUNNEL_DIMENSION_UNSUPPORTED, dimensionId + " -> " + subjectTable);
             }
             sensitiveDimension |= dimension.isSensitive();
+        }
+        // 全局过滤：字段同样只能映射主体表（时间维度都在订单/事件表，天然被拒，
+        // 与规格「时间维度过滤继续拒绝」一致）；值数量按算子校验，不做静默兜底。
+        for (QueryDsl.Filter filter : dsl.getFilters() == null ? List.<QueryDsl.Filter>of() : dsl.getFilters()) {
+            SemanticManifest.Dimension dimension = semantic.requireDimension(filter.getFieldId());
+            if (!subjectTable.equals(dimension.getTable())) {
+                throw exception(FUNNEL_DIMENSION_UNSUPPORTED, filter.getFieldId() + " -> " + subjectTable);
+            }
+            validateFilterValues(filter);
         }
         int limit = dsl.getLimit() == null ? properties.getMaxRows() : dsl.getLimit();
         if (limit < 1 || limit > properties.getMaxRows()) {
