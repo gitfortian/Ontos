@@ -648,29 +648,41 @@ public class DslValidator {
      */
     private void validateCaliberVariant(QueryDsl dsl, SemanticManifest semantic,
                                        SemanticManifest.Metric metric) {
+        validateCaliberVariant(dsl.getCaliberVariantId(), semantic, metric, null);
+    }
+
+    /**
+     * 口径变体闸门参数化形态（M3/W2 顶层 + M6/W4/T4.4 子意图共用一套判定）：
+     * variantId 由调用方提供（顶层 = dsl.caliberVariantId；子意图 = sub.caliberVariantId），
+     * at 用于错误定位（null = 顶层）。
+     */
+    private void validateCaliberVariant(String variantId, SemanticManifest semantic,
+                                       SemanticManifest.Metric metric, String at) {
+        String where = at == null ? "" : "（子意图 " + at + "）";
         List<SemanticManifest.CaliberVariant> variants = metric.getCaliberVariants() == null
                 ? List.of() : metric.getCaliberVariants();
         if (variants.isEmpty()) {
-            if (!isBlank(dsl.getCaliberVariantId())) {
+            if (!isBlank(variantId)) {
                 throw exception(DSL_INVALID,
-                        "指标没有口径变体，不接受 caliberVariantId: " + dsl.getCaliberVariantId());
+                        "指标没有口径变体，不接受 caliberVariantId: " + variantId + where);
             }
             return;
         }
-        if (isBlank(dsl.getCaliberVariantId())) {
+        if (isBlank(variantId)) {
             List<String> candidates = new ArrayList<>();
             for (SemanticManifest.CaliberVariant variant : variants) {
                 String alias = variant.getAlias() == null || variant.getAlias().isEmpty()
                         ? "" : "（" + variant.getAlias().get(0) + "）";
                 candidates.add(variant.getVariantId() + alias);
             }
-            throw exception(CALIBER_AMBIGUOUS, metric.getId() + " 候选: " + String.join(" / ", candidates));
+            throw exception(CALIBER_AMBIGUOUS, metric.getId() + where
+                    + " 候选: " + String.join(" / ", candidates));
         }
         SemanticManifest.CaliberVariant matched = variants.stream()
-                .filter(candidate -> dsl.getCaliberVariantId().equals(candidate.getVariantId()))
+                .filter(candidate -> variantId.equals(candidate.getVariantId()))
                 .findFirst()
                 .orElseThrow(() -> exception(DSL_INVALID,
-                        "caliberVariantId 不属于该指标: " + dsl.getCaliberVariantId()));
+                        "caliberVariantId 不属于该指标: " + variantId + where));
         SemanticManifest.VariantCondition condition = matched.getCondition();
         if (condition == null || isBlank(condition.getFieldId())) {
             throw exception(DSL_INVALID, "变体缺少 condition.fieldId: " + matched.getVariantId());
@@ -1102,7 +1114,18 @@ public class DslValidator {
             if (sub.getResultRef() != null) {
                 validateResultRef(sub);
             }
+            // T4.4（R-27）：子意图口径变体复用 M3 闸门（同表/缺变体澄清/归属校验）
+            if (!isBlank(sub.getCaliberVariantId()) || hasVariants(semantic, sub.getMetricId())) {
+                validateCaliberVariant(sub.getCaliberVariantId(), semantic,
+                        semantic.requireMetric(sub.getMetricId()), sub.getSubIntentId());
+            }
         }
+    }
+
+    /** 指标是否声明口径变体（决定子意图是否触发缺变体澄清）。 */
+    private static boolean hasVariants(SemanticManifest semantic, String metricId) {
+        SemanticManifest.Metric metric = semantic.requireMetric(metricId);
+        return metric.getCaliberVariants() != null && !metric.getCaliberVariants().isEmpty();
     }
 
     /** resultRef 结构校验（规格 §2）：引用一致 + 选择器闭枚举 + 注入槽位合法。 */
@@ -1192,9 +1215,12 @@ public class DslValidator {
         if (!isBlank(dsl.getEntityId()) || dsl.getIdentity() != null
                 || (dsl.getIdentities() != null && !dsl.getIdentities().isEmpty())
                 || (dsl.getAttributes() != null && !dsl.getAttributes().isEmpty())
-                || !isBlank(dsl.getIdentityPropertyId()) || !isBlank(dsl.getBooleanMetricId())
-                || !isBlank(dsl.getCaliberVariantId())) {
-            throw exception(DSL_INVALID, "复合意图不接受 lookup 字段或口径变体（请下放到子意图）");
+                || !isBlank(dsl.getIdentityPropertyId()) || !isBlank(dsl.getBooleanMetricId())) {
+            throw exception(DSL_INVALID, "复合意图不接受 lookup 字段（请下放到子意图）");
+        }
+        // T4.4（R-27）：容器级口径变体无指标归属——变体只作用于子意图指标，逐子校验
+        if (!isBlank(dsl.getCaliberVariantId())) {
+            throw exception(DSL_INVALID, "复合意图不接受容器级 caliberVariantId（请下放到子意图）");
         }
         validateSubIntents(dsl, manifest.getSemantic());
     }

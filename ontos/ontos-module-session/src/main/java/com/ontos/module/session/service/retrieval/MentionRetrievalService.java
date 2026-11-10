@@ -64,6 +64,15 @@ public class MentionRetrievalService {
      */
     public RetrievalOutcome resolve(String utterance, RequestContext context,
                                     SessionProjection projection) {
+        return resolve(utterance, context, projection, null);
+    }
+
+    /**
+     * R-29（M6/W4/T4.4）：variantHint 参与候选**排序权重**——词面匹配的指标候选加权提前；
+     * 只重排不增删：候选集不变、授权裁剪结果不变（不扩候选集、不绕授权裁剪）。
+     */
+    public RetrievalOutcome resolve(String utterance, RequestContext context,
+                                    SessionProjection projection, String variantHint) {
         PublishedManifest manifest = manifestService.getActiveManifestOrNull();
         if (manifest == null || manifest.getSemantic() == null) {
             // 无生效清单：能力发现是编排层职责，瀑布不假装有候选
@@ -190,11 +199,38 @@ public class MentionRetrievalService {
         List<RetrievalOutcome.VqrCandidate> vqrCandidates = vqrCandidateMatcher.match(
                 text, manifest, scoped.scenarioId());
 
-        return new RetrievalOutcome(distinct(exact, dictionary), distinct(fuzzy), prevTurn,
+        // R-29：variantHint 排序权重——只重排 dslReady（模糊/prevTurn 不加），候选集不变
+        List<RetrievedCandidate> dslReady = applyVariantHintBoost(
+                distinct(exact, dictionary), variantHint);
+
+        return new RetrievalOutcome(dslReady, distinct(fuzzy), prevTurn,
                 clarifications, projectionStale,
                 contextHash(manifest, authorizedKeys, scopedKeys), scenarioContext, vqrCandidates);
     }
 
+    /**
+     * variantHint 词面加权（R-29）：matchedTerm / assetId 包含 hint 的候选 +100 分后按既有
+     * 比较器重排——同层级内被提示的候选排前；层级不跨越（L1 仍先于 L2，不产生越级）。
+     * 返回新列表（输入可能来自不可变 toList()，就地 clear 会 uoe）。
+     */
+    private static List<RetrievedCandidate> applyVariantHintBoost(
+            List<RetrievedCandidate> candidates, String variantHint) {
+        if (variantHint == null || variantHint.isBlank() || candidates.isEmpty()) {
+            return candidates;
+        }
+        String hint = variantHint.strip();
+        List<RetrievedCandidate> boosted = new ArrayList<>(candidates.size());
+        for (RetrievedCandidate candidate : candidates) {
+            boolean hit = candidate.matchedTerm() != null
+                    && candidate.matchedTerm().contains(hint)
+                    || (candidate.assetId() != null && candidate.assetId().contains(hint));
+            boosted.add(hit ? new RetrievedCandidate(candidate.assetId(), candidate.assetType(),
+                    candidate.matchedTerm(), candidate.layer(), candidate.fuzzy(),
+                    candidate.score() + 100) : candidate);
+        }
+        java.util.Collections.sort(boosted);
+        return java.util.List.copyOf(boosted);
+    }
 
     /** 场景决策 → 澄清载荷（候选 = 进入/切换/退出；不足 2 个时补「留在场景改写问法」）。 */
     private ClarificationPayload scenarioClarification(

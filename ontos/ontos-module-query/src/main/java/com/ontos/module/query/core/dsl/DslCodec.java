@@ -46,7 +46,7 @@ public class DslCodec {
     private static final Set<String> COHORT_WINDOW = Set.of("timeExpressionRaw");
     private static final Set<String> SUB_INTENT = Set.of(
             "subIntentId", "metricId", "mode", "dimensions", "filters",
-            "timeExpressionRaw", "timeRange", "dependsOn", "resultRef");
+            "timeExpressionRaw", "timeRange", "dependsOn", "resultRef", "caliberVariantId");
     /** M6/W4/T4.2 结果引用（规格 composite-resultRef v1）。 */
     private static final Set<String> RESULT_REF = Set.of("fromSubIntentId", "selector", "inject");
     private static final Set<String> SELECTOR = Set.of("type", "row", "column");

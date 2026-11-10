@@ -837,6 +837,8 @@ public class QueryServiceImpl implements QueryService {
         child.setTimeExpressionRaw(sub.getTimeExpressionRaw());
         // 时间维度随子意图走：解析器据此把「近 N 天」换算成 from/to 并回填 source=EXPRESSION
         child.setTimeRange(sub.getTimeRange());
+        // T4.4（R-27）：子意图口径变体下推——子 DSL 走既有单请求链路（M3 变体条件下推自动生效）
+        child.setCaliberVariantId(sub.getCaliberVariantId());
         // 容器级 limit 作为每个子意图的默认上限；子意图没有独立 limit 字段，M2 不做过细覆盖
         child.setLimit(parent.getLimit());
         child.setVariantHint(parent.getVariantHint());

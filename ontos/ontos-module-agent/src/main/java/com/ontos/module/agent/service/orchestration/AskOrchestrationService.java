@@ -157,8 +157,14 @@ public class AskOrchestrationService {
      */
     public Map<String, Object> executeTurn(RequestContext context, String utterance,
                                            String clarificationChoice) {
+        return executeTurn(context, utterance, clarificationChoice, null);
+    }
+
+    /** T4.4（R-29）：variantHint 随请求进瀑布——只参与候选排序权重（不扩候选集、不绕授权裁剪）。 */
+    public Map<String, Object> executeTurn(RequestContext context, String utterance,
+                                           String clarificationChoice, String variantHint) {
         var future = runExecutor.submit(
-                () -> executeTurnInThread(context, utterance, clarificationChoice));
+                () -> executeTurnInThread(context, utterance, clarificationChoice, variantHint));
         try {
             return future.get(askProperties.getRunWaitTimeout().toMillis(), TimeUnit.MILLISECONDS);
         } catch (java.util.concurrent.ExecutionException ex) {
@@ -207,10 +213,10 @@ public class AskOrchestrationService {
 
     /** run 执行主体（执行线程内；context 显式绑定线程——QueryService 链路依赖 RequestContextHolder）。 */
     private Map<String, Object> executeTurnInThread(RequestContext context, String utterance,
-                                                    String clarificationChoice) {
+                                                    String clarificationChoice, String variantHint) {
         com.ontos.framework.web.core.context.RequestContextHolder.set(context);
         try {
-            return doExecuteTurn(context, utterance, clarificationChoice);
+            return doExecuteTurn(context, utterance, clarificationChoice, variantHint);
         } catch (SensitiveClosedException closed) {
             // 敏感收尾（拒绝/TTL）：终态已装配落事件、run 已置终态，直接返回载荷（不走 FAILED）
             return closed.terminal();
@@ -220,7 +226,7 @@ public class AskOrchestrationService {
     }
 
     private Map<String, Object> doExecuteTurn(RequestContext context, String utterance,
-                                              String clarificationChoice) {
+                                              String clarificationChoice, String variantHint) {
         // run 创建 = turn 占用（乐观锁）：按会话当前 turn_index 占用（冲突即 409 由客户端重试），
         // 请求头 X-Ontos-Turn 是轮次声明，不做占用基准
         var state = sessionStateService.read(context.tenantId(), context.userId(),
@@ -246,7 +252,8 @@ public class AskOrchestrationService {
             runStateService.transition(runId, AskRunDO.PENDING, AskRunDO.RUNNING);
             reachedRunning = true;
 
-            Map<String, Object> terminal = doExecute(context, runId, utterance, clarificationChoice);
+            Map<String, Object> terminal = doExecute(context, runId, utterance, clarificationChoice,
+                    variantHint);
 
             runStateService.transition(runId, AskRunDO.RUNNING, AskRunDO.FINISHED);
             eventService.emit(runId, AskEventService.RUN_FINISHED,
@@ -268,7 +275,8 @@ public class AskOrchestrationService {
     }
 
     private Map<String, Object> doExecute(RequestContext context, String runId,
-                                          String utterance, String clarificationChoice) {
+                                          String utterance, String clarificationChoice,
+                                          String variantHint) {
         // 1. 检索瀑布（授权裁剪内）；指代消解来源 = 会话投影（resolved_entities JSON）
         SessionProjection projection = readProjection(context);
         boolean consumed = false;
@@ -292,7 +300,8 @@ public class AskOrchestrationService {
                 consumed = true;
             }
         }
-        RetrievalOutcome outcome = retrievalService.resolve(utterance, context, projection);
+        RetrievalOutcome outcome = retrievalService.resolve(utterance, context, projection,
+                variantHint);
 
         // 2. Proposal：LLM（enabled 且可用）或确定性降级；近似同意轮强制 query 组装（T3.3）
         Map<String, Object> proposal =

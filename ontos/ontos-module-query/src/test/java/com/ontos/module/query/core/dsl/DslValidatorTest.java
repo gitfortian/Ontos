@@ -659,6 +659,39 @@ class DslValidatorTest {
     }
 
     @Test
+    void shouldAcceptSubIntentCaliberVariantAndRejectAmbiguity() {
+        // T4.4（R-27）：子意图携带合法变体通过；缺变体 → CALIBER_AMBIGUOUS（带子意图定位）
+        manifest.getSemantic().getMetrics().get(0)
+                .setCaliberVariants(List.of(caliberVariant("gmv.online")));
+        QueryDsl.SubIntent withVariant = sub("s1", TestFixtures.METRIC_ID);
+        withVariant.setCaliberVariantId("gmv.online");
+        QueryDsl dsl = compositeDsl(withVariant);
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(
+                () -> validator.validateComposite(dsl, manifest));
+
+        QueryDsl.SubIntent missing = sub("s1", TestFixtures.METRIC_ID);
+        QueryDsl missingDsl = compositeDsl(missing);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> validator.validateComposite(missingDsl, manifest));
+        assertEquals(CALIBER_AMBIGUOUS.getCode(), ex.getCode(), "缺变体 → 澄清");
+        assertTrue(ex.getMessage().contains("子意图 s1"), "错误定位到子意图: " + ex.getMessage());
+    }
+
+    @Test
+    void shouldRejectSubIntentVariantNotOwnedByMetric() {
+        // 变体不属于该指标（M3 闸门复用，错误带子意图定位）
+        manifest.getSemantic().getMetrics().get(0)
+                .setCaliberVariants(List.of(caliberVariant("gmv.online")));
+        QueryDsl.SubIntent wrong = sub("s1", TestFixtures.METRIC_ID);
+        wrong.setCaliberVariantId("metric.other.v1");
+        QueryDsl dsl = compositeDsl(wrong);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> validator.validateComposite(dsl, manifest));
+        assertEquals(DSL_INVALID.getCode(), ex.getCode());
+        assertTrue(ex.getMessage().contains("子意图 s1"), ex.getMessage());
+    }
+
+    @Test
     void shouldRejectSelectorShapeMismatch() {
         // single_row 携带 row = 形状混用
         QueryDsl.SubIntent dependent = sub("s2", TestFixtures.METRIC_ID);

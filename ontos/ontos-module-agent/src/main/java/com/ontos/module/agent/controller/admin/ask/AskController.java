@@ -44,7 +44,7 @@ public class AskController {
         this.runStateService = runStateService;
     }
 
-    public record AskRunRequest(String utterance, String clarificationChoice) {
+    public record AskRunRequest(String utterance, String clarificationChoice, String variantHint) {
     }
 
     @PostMapping("/runs")
@@ -52,7 +52,7 @@ public class AskController {
     public CommonResult<Map<String, Object>> createRun(@RequestBody AskRunRequest request) {
         RequestContext context = RequestContextHolder.require();
         Map<String, Object> terminal = orchestrationService.executeTurn(
-                context, request.utterance(), request.clarificationChoice());
+                context, request.utterance(), request.clarificationChoice(), request.variantHint());
         return success(terminal);
     }
 

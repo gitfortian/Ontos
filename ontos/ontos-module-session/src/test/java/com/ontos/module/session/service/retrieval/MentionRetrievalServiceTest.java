@@ -335,6 +335,40 @@ class MentionRetrievalServiceTest {
                         "退出场景，回到自由问数", null)));
     }
 
+    // ---------- R-29 variantHint 排序（M6/W4/T4.4） ----------
+
+    @Test
+    void variantHintBoostsMatchedCandidateWithinSameLayer() {
+        // 「金额」同词命中多资产（L2）——variantHint 命中的候选同层排前；候选集不变
+        MentionRetrievalService service = service();
+        RetrievalOutcome withHint = service.resolve("看下金额", context, null, "refund");
+        RetrievalOutcome withoutHint = service.resolve("看下金额", context, null, null);
+        var withIds = withHint.dslReady().stream()
+                .map(RetrievedCandidate::assetId).toList();
+        var withoutIds = withoutHint.dslReady().stream()
+                .map(RetrievedCandidate::assetId).toList();
+        assertEquals(withoutIds.size(), withIds.size(), "只重排不增删（候选集不变）");
+        assertTrue(withIds.indexOf("metric.refund_amount") < withoutIds.indexOf("metric.refund_amount"),
+                "hint 命中的候选排前: with=" + withIds + " without=" + withoutIds);
+    }
+
+    @Test
+    void variantHintDoesNotCrossLayers() {
+        // hint 只在层内加权：输出层级必须非降序（L1 候选仍在全部 L2 之前——加权不越级）
+        MentionRetrievalService service = service();
+        RetrievalOutcome outcome = service.resolve("看下金额和订单数", context, null, "refund");
+        var layers = outcome.dslReady().stream().map(RetrievedCandidate::layer).toList();
+        for (int i = 1; i < layers.size(); i++) {
+            assertTrue(layers.get(i) >= layers.get(i - 1),
+                    "层级非降序（加权不越级）: " + layers);
+        }
+        // 被提示的候选在同层内排前
+        var ids = outcome.dslReady().stream().map(RetrievedCandidate::assetId).toList();
+        assertTrue(ids.indexOf("metric.refund_amount") < ids.lastIndexOf("metric.gmv")
+                        || ids.indexOf("metric.refund_amount") < ids.indexOf("metric.order_count"),
+                "hint 候选层内提前: " + ids);
+    }
+
     // ---------- contextHash ----------
 
     @Test

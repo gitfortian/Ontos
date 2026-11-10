@@ -105,6 +105,11 @@ public class QueryDsl {
         /** M2 仅支持无依赖子集；M6/W4 起全链路（拓扑定序 + resultRef 结构化取值）。 */
         private List<String> dependsOn = new ArrayList<>();
         /**
+         * 子意图口径变体（M6/W4/T4.4，R-27）：校验复用 M3 闸门（变体条件与指标同表、
+         * 缺变体 → CALIBER_AMBIGUOUS 候选澄清，禁止 LLM 二选一）；编译下推与单请求同链路。
+         */
+        private String caliberVariantId;
+        /**
          * 结果引用（M6/W4/T4.2，规格 composite-resultRef v1）：依赖取值的结构化 Schema——
          * 每子意图至多一个；dependsOn 非空而 resultRef 缺失 = 结构校验拒绝
          * （依赖了却不说怎么取值 = M2 遗留自由文本的洞，由本字段封死）。
