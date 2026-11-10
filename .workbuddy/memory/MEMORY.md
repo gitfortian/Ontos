@@ -1,116 +1,41 @@
 # Ontos 项目长期记忆
 
-## 项目形态
-- 顶层：`ontos`（后端 Maven 多模块，单进程单体，唯一部署单元 `ontos-server`）、`ontos-ui`（Vite/React/TS 前端）。
-- 定位：本体驱动的确定性问数系统。自然语言 → 类型化 DSL → 确定性编译 → 只读 Query DS（RLS）→ 审计。
-- 方案文档：`docs/02-solutions/architecture/智能问数系统技术选型方案-v1.1.md`（技术栈冻结）、`docs/02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md`（v1.4 架构）。
-
-## 已冻结技术基线
-- JDK **21**、Spring Boot **4.0.x（≥4.0.3）**、AgentScope Java **2.1.0-BETA1**、PostgreSQL 18、Jackson 3（`tools.jackson.*`）。
-- Boot 大版本以 AgentScope starter 的 Maven Central POM 为准，不是 3.x；版本依据一律实测，不采信第三方博客。
-- **模型接入只认 OpenAI 协议，不绑定厂商**（用户 2026-11-07 明确）：配置是标准三件套 `ontos.agent.model` + `base-url` + `api-key`（密钥仅环境变量），换供应商只改 `base-url` 与模型名。实现上依赖 `agentscope-extensions-model-openai`，但**不要在配置/文档里暴露各家的 provider 前缀**——用户明确说「先不适配各家模型」。`dashscope:` 前缀解析不到（工程没引入该扩展），不要再用。
+## 项目形态与技术基线
+- `ontos`（后端 Maven 多模块单体，部署单元 `ontos-server`）+ `ontos-ui`（Vite/React/TS）。定位：本体驱动确定性问数（NL→DSL→编译→只读 Query DS→审计）。
+- JDK 21、Spring Boot 4.0.x、AgentScope Java 2.1.0-BETA1、PG 18、Jackson 3（tools.jackson.*）。
+- 模型接入只认 OpenAI 协议三件套（base-url/api-key/模型名），不暴露厂商前缀；`dashscope:` 前缀不可用。
+- 方案：`docs/02-solutions/architecture/` 技术选型 v1.1 + 完整可落地 v1.4；工程约定在根 `AGENTS.md`（改动前先读）。
 
 ## 用户明确偏好（必须遵守）
-- **功能代码介绍（2026-11-08 用户要求「记住」）**：凡功能代码开发任务结束，回复中必须额外输出一小段「主要核心类逻辑与功能」介绍——点明核心类、各自职责、关键逻辑链路及整体实现的功能；简短、与深度审核结论分开，不要只列改动文件或写「详见代码」。
-- **深度审核铁律（2026-11-08 用户要求「永远记住」）**：每完成**一个任务**（含子任务/单个工作流/单步实现）立即做一次深度审核；**整个大任务**（阶段/里程碑/一批任务）结束后再做一次覆盖全局的深度审核。审核须查：改动与规格一致、代码边界与安全（fail-closed）、测试真跑且断言有效、文档/索引同步、提交范围与工作区；发现问题当场修复并复核，未闭环不得宣告完成；结论留痕（进度快照 append-only）并在回复中给实质发现。该规则优先于「按计划继续、不用每步询问」的授权，**自动推进 ≠ 跳过审核**。
-- 后端整体代码风格**尽量参考 yudao-boot-mini**（github.com/yudaocode/yudao-boot-mini），保持规范。
-- **通用/工具类代码直接抄 yudao 的实现，不要自己发挥**；仅在文件头标注来源与必要适配（Jackson 2→3、javax→jakarta）。
-- 后端**按功能架构拆多模块**，不要把代码全塞进一个包；模块内按 controller / service / dal.dataobject / dal.mysql / core / enums 分层。
-- 工程约定固化在根目录 `AGENTS.md`，改动前先读。
+- **功能代码介绍**：任务结束回复必须附「主要核心类逻辑与功能」段——核心类职责、关键链路、整体功能；简短、与审核结论分开。
+- **深度审核铁律**：每完成一个任务立即深度审核；大任务结束再全局审核。查：规格一致、fail-closed、测试真跑、文档同步、提交范围；发现问题当场修复，未闭环不得宣告完成；结论留痕。自动推进 ≠ 跳过审核。
+- 代码风格参考 yudao-boot-mini；通用/工具类直接抄 yudao（标注来源与 Jackson2→3/javax→jakarta 适配）。
+- 后端按功能拆多模块，模块内 controller/service/dal/core/enums 分层。
 
-## 前端规范基线（必须遵守，两套边界不要混淆）
-- **参考 yak-ops 的只是「工程规范」**：`ontos-ui/FRONTEND_RULES.md`（迁移自 `D:/tianxy/code/yak-ops/yak-ops-ui/FRONTEND_RULES.md`）只约束目录分层、`service/http` 三层、状态与请求原则、命名、Lint/格式化、架构检查、测试方式。配套 `ontos-ui/docs/tooling.md`。改动前端前必须先读，禁止另起一套写法。
-- **框架与组件一律用我们自己的选型**：`docs/02-solutions/architecture/智能问数系统技术选型方案-v1.1.md` **附录 A**（shadcn/ui + Tailwind v4 + Radix、CopilotKit Headless/AG-UI、TanStack Table + ECharts + Monaco、React Hook Form + Zod、TanStack Query + Zustand、Vite + TS + pnpm，纯静态产物由 Spring Boot 单体托管）。**附录 A 是权威，不要修订它去迁就实现**。
-- 用户明确澄清过：「我只是让参考其前端代码规范，框架组件还是用我们的选型」。因此**不得把来源项目基于 `@base-ui/react` 的组件库当作本项目组件选型**。
-- **归位已完成（2026-11-07，W5/T5.2–T5.4）**：`packages/ontos-ui` 已重写为 shadcn/ui + Radix，来源组件库与 `--yak-*` token 已清除，架构检查全局禁止回流。AG-UI 侧仍待 PoC #10 验收后切 CopilotKit Headless（T5.5）。
-- 请求方向 `app/<域>` → `service/<域>` → `service/http`；fetch 只允许在 `service/http/request.ts`（含 SSE）。服务端数据用 Query 缓存，分页筛选放 URL，样式用语义 token 不硬编码颜色。规范由 `ontos-ui/scripts/` 下脚本强制，禁止为跑通而放宽。
+## 前端规范
+- `ontos-ui/FRONTEND_RULES.md` 只约束工程规范；框架组件以技术选型附录 A 为权威（shadcn/ui+Radix、TanStack、Zod 等），不得用来源项目组件库。请求方向 app/<域>→service/<域>→service/http，fetch 只在 service/http。规范由 ontos-ui/scripts 强制。
 
-## 文档规范（必须遵守）
-- **唯一入口 `docs/README.md`**（文档规范 + 总索引）。新增/修改/查找文档前必须先读；`docs/` 根目录除它外不得有 `.md`。
-- 分层：`00-governance` 治理模板/检查脚本、`01-decisions` ADR、`02-solutions` 方案、`03-plans` 计划、`04-specs` 规格、`05-progress` 进度、`06-verification` 验证、`07-references` 参考、`99-archive` 归档；层级上限 3 层，每个一级目录有 README.md。
-- 起稿用 `docs/00-governance/templates/` 七类模板；统一头块 8 字段；**已冻结文档不得原地改**（升版本 + 归档旧版 + 更新总索引）；进度 append-only。
-- SSOT：技术栈版本/锁定项只在 `02-solutions`，阶段编号 M0–M8 只在 `03-plans/roadmap`；其它文档只引用不复制。相对链接必须可解析。
-- **冻结方案正文的修订用 ADR 承载，不改正文**：`ADR-0002` 即 §4.8.2 跨轮差分规则的生效解释（精确差分即时转审批 + 三处约束），技术选型下次升版时并入。
-- **归档路径**：`99-archive` 镜像分类、**去掉编号前缀**（`06-verification/poc/x.md` → `99-archive/verification/x.md`）。因为 `check-docs.mjs` 禁止一级目录下有 `\d{2}-` 子目录，照搬原结构会同时违反层级与编号两条规则。
-- 维护进度与状态时同步 `docs/05-progress/<年>/` 与 `.workbuddy/memory/`；进度 append-only，修正用「更正」条目。
-- 提交前跑 `node docs/00-governance/check-docs.mjs`。
-- 存量文档已归位：技术选型与架构方案在 `docs/02-solutions/architecture/`，大计划在 `docs/03-plans/roadmap/`，全仓引用已同步。
+## 文档规范
+- 唯一入口 docs/README.md；分层 00-governance…99-archive；起稿用模板；**冻结文档不得原地改**（升版+归档+改索引）；进度 append-only；冻结方案修订用 ADR；归档去编号前缀；提交前跑 check-docs.mjs。版本/锁定项只在 02-solutions，M0–M8 只在 roadmap。
 
 ## 环境注意
-- 用户级 `~/.npmrc` 写死失效代理 `http://127.0.0.1:7897`，会让 `npm/pnpm install` 静默卡死；用 `NPM_CONFIG_USERCONFIG=/dev/null pnpm install --registry=https://registry.npmmirror.com` 绕过。
-- **本地 PG18 可用**（用户 2026-11-06 确认）：Windows 服务 `postgresql-x64-18`，安装目录 `D:\pg`（18.6-5），超管 `postgres/123456`，`psql` 不在 PATH 用绝对路径 `D:/pg/bin/psql.exe`。双库 `ontos`（System DB）/ `ontos_queryds`（Query DS），只读角色 `ontos_query_ro/ontos_query_ro`。`docker` 命令不在 PATH，compose 未使用。
-- **PG 错误消息已固定为英文（2026-11-09）**：原 `lc_messages = Chinese (Simplified)_China.936`，握手期服务端发 GBK 中文字节被 pgjdbc 按 UTF-8 解码 → 不可恢复的日志乱码；已 `ALTER SYSTEM SET lc_messages='C'` + `pg_reload_conf()`（持久于 `postgresql.auto.conf`），回退用 `ALTER SYSTEM RESET lc_messages` + reload。此问题与控制台编码无关。
-- **IDEA 启动必带 `local` profile**（Active profiles / `SPRING_PROFILES_ACTIVE` / `--spring.profiles.active=local`）：不带则 DB 凭据为空 → PG `28000` → Flyway 初始化失败 → 启动中止；切勿为图省事把默认弱口令写回 `application.yml`（破坏 fail-closed）。仓库已带共享运行配置 `.run/OntosApplication-local.run.xml`（含 profile + UTF-8 VM 参数），IDEA 下拉直接选 `OntosApplication (local)`。
-- **Spring Boot 4 坑**：Flyway 自动配置拆到 `spring-boot-flyway` 模块，仅依赖 `flyway-core` 不会执行迁移；`ontos-server/pom.xml` 必须保留 `spring-boot-starter-flyway`，否则生产部署静默缺表。
-- `pnpm` 11.5.1 已装；前端已按 ADR-0001 切 pnpm workspaces（根 `pnpm-workspace.yaml`，`packageManager: pnpm@11.5.1`）。
-  pnpm 10+ 默认禁跑依赖安装脚本，`esbuild` 需在 `pnpm-workspace.yaml` 的 `allowBuilds` 放行，否则 vite 起不来。
-- 环境注入了 `SERVER__PORT=51719`（hooks 代理占用），会顶掉 `application.yml` 的 8080；`java -jar` 启动必须显式 `--server.port=8080`。
-- 批量删除（>50 文件/次）被环境删除保护拦截（`SAFE_DELETE_BULK_CONFIRM_REQUIRED`）；清 `node_modules`/vite 缓存要分批或用 pnpm 自己处理，不要用 `rm -rf` 硬来。
-- 视觉复核：本机有 playwright 浏览器缓存，仓库没装 playwright，可用 `D:/tianxy/code/semantica/explorer/node_modules/playwright-core` + `executablePath` 截图；chromium 要 `--no-proxy-server`，且 Git Bash 会把以 `/` 开头的参数当路径转换。
+- `~/.npmrc` 失效代理会卡死安装：`NPM_CONFIG_USERCONFIG=/dev/null pnpm install --registry=https://registry.npmmirror.com`。
+- 本地 PG18：`D:/pg/bin/psql.exe`（不在 PATH），超管 postgres/123456，双库 ontos/ontos_queryds；psql 子进程必须传完整 os.environ。
+- IDEA 启动必带 local profile（`.run/OntosApplication (local).run.xml`）；java -jar 必须显式 `--server.port=8080`（环境注入 SERVER__PORT=51719）。
+- Spring Boot 4：flyway 迁移需 `spring-boot-starter-flyway` 依赖；pnpm 10+ 需 allowBuilds 放行 esbuild。
+- 批量删除>50 文件被环境拦截，分批处理；改 src/main 后全量验证必须 `mvn clean test`（增量会 NoClassDefFoundError）；后台起服务后提交前要停（8080 进程锁 target）。
 
-## M0 状态（2026-11-07）
-- **M0 已通过验收**：G1–G8 关闭（《M0 验收报告 v1》冻结于 `06-verification/checklists/`）；G2（#3 终态 68.8%）为负责人签字的有条件关闭，修复项（服务端校验+重试）登记 M1 首批，未达 100% 则重开。
-- 已冻结决策：ADR-0002（差分规则修订：精确差分即时转审批）、ADR-0003（fail-closed 判据清单）、ADR-0004（首发业务域=交易域，7 关系一条不减）、ADR-0005（评测门槛=§7 初值一字不改）。
-- 前端主路线已定：CopilotKit 协议可行但入口 `unsafe_dev_only` 非生产级 → **走退路 `@ag-ui/client` + 自研渲染**，CopilotKit 列观察项待 M1 复查。
-- 非 QUERY 分析模式已 fail-closed（`1_002_000_006`），构造器实现归 M2；Golden 集 / 复合题集 30 题 / 提及样本 300 条均已冻结待回填。
-- 下一步：M1 前补 §11 剩余 8 项 ADR → 《M1 实施规格》。真实敏感数据测试以 M4 复验登记为边界。
+## 不得破坏的口径（M2/M3 冻结）
+YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路径规划；聚合模式拒绝 lookup 字段；rows 不带 __identity；lookup 缺失行同形；文案不透 {x} 原文；变体条件与指标同表；多口径缺变体必须澄清；「上季度」按 tep.last_quarter；FUNNEL 顶层 filters=全局过滤（字段须映射主体表，cohort 与每步 CTE 同时过滤）。
 
-## M2 状态（2026-11-09）
-- **M2 已通过（E1 附条件，ADR-0013）**：验收报告 v1 冻结；《M2 收口后深度审核 v1》归档（12 项发现全部修复复验、R-18 关闭、R-25 归 M3）。
-- 当前生效清单 `2026.11.08-seventh`（hash 471cc654）；Golden 30 条中 27 可构造逐字一致 0 失败；复合可表达子集 14/14；RLS 100 轮 0 越权。
-- **后续改动不得破坏的口径**：YOY_MOM 的 Join 与 filters 必须同时进入「聚合」与「维度枚举」两个 CTE；FUNNEL 在 M2 不接受 filters（拒绝而非忽略）；时间窗绑定统一按上海墙钟（会话时区固定 Asia/Shanghai）；模式授权 `validateMode` 必须先于路径规划；聚合模式拒绝 lookup 字段；YOY_MOM 不允许时间维度自身作分组维度。
-- 基线：`mvn test` **269 例**（30 类）；`pnpm check` exit 0；`check-docs.mjs` 60 文档 / 467 链接。
-- **M3 规格已冻结（v1.0）**：能力注册落 query `core/skill`（不新建 agent 模块）；口径变体由新增 `metric.paid_gmv` 承载（不改 gmv）；文案模板走独立端点。
-- **M3/W1 已完成**：清单 v8（2026.11.08-eighth，hash 2720fb36）生效——paid_gmv 双口径变体（dim.channel 同表）、上季度模式、文案模板 9 条（带 reasonCode/占位符白名单/version）；结构校验与解析器同步落地。W2 待启动（caliberVariantId 门禁 + 编译下推 + CALIBER_AMBIGUOUS）。
-- **M3/W4 已完成**：CopyTemplateService + GET /api/v1/copy-templates/{reasonCode}；渲染只按发布期白名单，声明未给值回退 GENERIC（1002000034 兜底缺失报错）；R-26 关闭（未声明花括号按字面量）。
-- **M3/W3 已完成**：core/skill 包（SkillHandler/SkillRegistry/entity_lookup）；GET /skills + POST /skills/{skillId}；能力层只组装 DSL（校验全复用 execute）；SKILL_EXECUTE 审计；R-20 关闭（rows 剥离 __identity）。
-- **M3/W2 已完成**：caliberVariantId 进 DSL；多口径指标缺变体 → 1002000033 CALIBER_AMBIGUOUS（候选带别名，禁止 LLM 二选一）；变体条件下推 QUERY WHERE 与 YOY 两个 CTE。R-27：复合子意图暂不支持变体。
-- **后续不得破坏**：变体条件只允许与指标同表（跨表拒绝）；文案模板占位符必须白名单声明；「上季度」按 patternId=tep.last_quarter 解析（不按粒度回退）；多口径指标缺变体必须澄清不得默认。
-- M3 范围：lookup 产品化、布尔判定闭环、口径变体、上季度时间模式、文案模板、`__identity` 收口；并行偿还 R-20/R-23/R-25。
+## 并行义务纪律
+roadmap 并行项与主线同等跟踪；阶段收口必须逐项点名欠账（触发点/负责人/证据），未点名不得关闭。机器强制：`parallel-obligations.json` + check-parallel-obligations.mjs。OBL-M4 触发 M5；OBL-M7 触发 M6（ADR-0015），test≥200 题已闭环（test集 v2，241 题，sha 556e564c…，正式评测集 v3）。
 
-## M3 状态（2026-11-09 收口）
-- **M3 已通过（E1–E6 全满足）**：验收报告 v1 冻结；M5 放行（M4 可并行）。
-- 当前生效清单 `2026.11.08-eighth`（hash 2720fb36）；M3 Golden 增量 6/0（m3-golden.mjs）；
-  M2 基线未回退（Golden 27/0、复合分布一致、RLS、E5 9/9）。
-- **后续不得破坏**：`rows` 不携带 `__identity`；lookup 缺失行 `available=false/values={}` 与不存在同形；
-  文案渲染绝不透 `{x}` 原文；能力层只组装 DSL（校验全复用 execute）；前端 app 层不直连 service/http
-  （BizError 经 service/query 转发）；`getResponse` 是拿响应头的唯一通道。
-- 基线：`mvn test` **304 例**（33 类）；`pnpm check` exit 0（21 单测）；docs 63/493。
-- 待办：M5（ask 对话主干与能力编排；R-27 复合子意图变体、R-29 variantHint 语义随做）或 M4（并行）。
-
-## 并行义务纪律（2026-11-09，用户要求「不能漏掉不做」）
-- **硬约束**：roadmap 所有「并行 / 同步建设 / 不许后置」项与主线同等跟踪；状态「待启动」不等于可略过。每阶段收口（验收报告 / 深度审核 / 进度快照）必须逐项点名，欠账写清触发点 / 负责人 / 证据并同步台账；**未点名不得宣告阶段关闭**。见 `AGENTS.md` §6.4、ADR-0014、`docs/README.md` §7.8。
-- **机器强制**：`docs/00-governance/parallel-obligations.json`（状态仅 `done` / `deferred`）＋ `check-parallel-obligations.mjs`（接入 `verify-baseline.mjs`，基线 5 项）；禁止放宽脚本或删改 roadmap 硬约束文本绕过。
-- **当前欠账**：OBL-M4 触发 M5（M5 启动前必须完成 M4）；OBL-M7 最小框架三件已按《M7 最小框架验收记录 v1》有条件通过验收，按 ADR-0015 把触发阶段由 M4 重定为 **M6**（全量交付物收敛点），状态仍 `deferred`。M6 一经通过而未闭环即 `FAIL`。不得事后追认、不得把 dev/validation 结果当 test 集结论、不得把主线素材算作 M7 交付物。
-
-## M6 状态（2026-11-09，进行中）
-- 规格 **v1.0 已冻结**（`docs/03-plans/stages/M6/M6-分析模式ScenarioSkill与复合意图-实施规格-v1.0.md`）：两轮自审 11 项 + 二轮深度 review 10 项闭环，八项决策定档，编码放行。
-- W1/T1.1 契约规格 v1 冻结（`docs/04-specs/analysis-mode-retention-attribution-规格-v1.md`）：RETENTION 事件锚点 / ATTRIBUTION 聚合锚点，§9.5 八项 + §9.6 七项定档，funnel 顶层 filters=全局过滤。
-- **W1/T1.2 完成**：`OntologySnapshot.EventDef.channelPropertyId` + 结构校验（存在/可过滤/同表）；queryds V3 触点种子；**当前生效清单 v11 = `2026.11.09-eleventh`，hash `4c92a62ad4b1f0013…`**（v10 为 `6b1f4e33…`）。基线 `mvn test` 401 例。
-- **教训**：JsonUtils 回装输出 null 键——给已有类型加可选字段会改变「提交树 vs 回装树」键集；键差分断言方向应是「提交键不丢」子集语义，别断言键集相等。测试不得直接写 `docs/06-verification/evaluation/` 下的冻结证据（已改 target/ 软名）。
-- **待办**：T1.3 留存构造器 → T1.4 归因构造器 → T1.5 funnel filters → W2 catalog → W3 Skill/VQR → W4 复合 → W5 OBL-M7 收敛。清单 v11 使《M7 最小框架验收记录 v1》资产一致性判据过期，归 W5/T5.1 重跑 + 证据 v2。
-- **M6 阶段中深度审核 v1（2026-11-09）**：`docs/06-verification/checklists/M6-阶段中深度审核-v1.md`；7 项发现（2 修 5 登记），判定通过但不宣告 M6 关闭。**P1 修复**：queryds V3 事件 ID 与 `scripts/verify/funnel-semantics.sql` fixture 主键冲突（真库 duplicate key），已改 `e-m6-*` 前缀 + 证据脚本 append-only 更正段。**硬欠账 D-3**：OBL-M7 test ≥200 题按决策 8 应自 W1 起并行编写但未启动（台账 reason 已登记，触发 M6 收口）。T1.3 编码约束：4 个 RETENTION_*/ATTRIBUTION_* 错误码须追加；RETENTION 独立分流 + 拒绝客户端 timeRange。生效清单 v11、模式规格 v1.1 为权威状态（M6 规格 v1.0 §2/§4 的 v10/v1 已由进度「更正」条目覆盖）。
-- **接手（2026-11-10，新 agent）**：复核基线全绿（`mvn test` 43 类/401 例、`pnpm check` 21 单测+token、docs 97/838、并行义务 PASS）；M6/W1 未提交成果已补提交 `99580ab`；roadmap M6 状态由「待启动」修正为「进行中」；接手快照 `docs/05-progress/2026/2026-11-10.md`。编码入口 **T1.3 RETENTION 构造器**，D-3（test ≥200 题）自 T1.3 起并行。
-- **T1.3 完成（2026-11-10）**：RETENTION 构造器落地（commit `c175017`）。要点：`AnalysisParams` 增 cohortEvent/returnEvent/periodUnit/periods；`DslValidator.validateRetention` 独立分流（拒绝客户端 timeRange/explicitRange/filters/跨模式参数）；`TimeWindowResolver.resolveRetention` 按 EventDef.timeProperty 回填 field；`SqlCompiler.compileRetention` 三 CTE（cohort_first/cohort/retained）+ Clock 注入判最后完整周期；错误码 1002000035-37 只追加；`QueryServiceImpl.isEventAnchored` 让 funnel/retention 跳过 metric 主资产判定与路径规划。验证：mvn 46 类/427 例、M6 Golden 10/0（`scripts/verify/m6-golden.mjs`）、M2 27/0 + M3 6/0 不回退、真库 execute 验证「未完整期整期不输出」、dry-plan 28.95/86.72。审核 `docs/06-verification/checklists/M6-W1-T1.3-深度审核-v1.md`：通过，2 登记（规格 v1.1 §1.1 示例 dim.channel 与主体表维度定档冲突，按定档实现、下次升版修；笛卡尔展开性能归 W5 压测）。**下一步 T1.4 ATTRIBUTION（聚合锚点/末次触点）+ D-3 题目编写并行**。
-- **T1.4 完成（2026-11-10）**：ATTRIBUTION 构造器落地（commit `fede564`）。要点：清单 **v12**（`2026.11.10-twelfth`，hash `cc611e96…`）= v11 + `property.channel.name` + `property.event.dedup_key`（归因维度取值与 last_touch 稳定排序的资产前置；M6 规格 §3.6 的「v12=scenarios/skills/vqrs」顺延 v13，T14-3 登记）；`validateAttribution` 聚合锚点 + `model` 仅 last_touch（first/linear → 1002000040）+ 触点必须有 channelPropertyId 且同表 + 维度限渠道/指标同表（1002000039）；`SqlCompiler.compileAttribution` 三 CTE（conversions/attributed/facts）+ 标量子查询 last_touch（`order by occurred_at desc, dedup_key desc limit 1`）+ `coalesce(channel_name,'UNATTRIBUTED')` + 指标值经发布关系 `ontology.Order.recordsEvent` Join（禁止猜 Join 列）；`TimeWindowResolver.resolveEventWindow` 抽出供 retention/attribution 共用；`QueryServiceImpl.isEventTimeBackfilled` 让归因跳过路径规划（timeRange.field 是事件属性非维度）。**P1 教训（T14-1）**：`left join channel as ch` 后条件/select 仍写未限定 `"channel".*` → 真库 missing FROM-clause，而 Golden 逐字比对能通过——**编译产物必须人工审阅 + 真库执行**。验证：mvn 49 类/451 例、M6 Golden 18/0、M2 27/0 + M3 6/0、真库 线上 12498/3 线下 6308/3。**下一步 T1.5 funnel filters（M2 偏差 2 收口）+ D-3 题目编写并行**。
-- **T1.4 再次审核（2026-11-10，用户指令）**：`docs/06-verification/checklists/M6-W1-T1.4-再次深度审核-v1.md` —— **R-A（P2 已修）**：`UNATTRIBUTED` 不能用 `coalesce(channel_name,...)` 判定（会把「有触点但渠道主数据缺失」伪装成无触点、touched_events 少计），已改为 `case when attributed_channel_id is null then 'UNATTRIBUTED' else coalesce(channel_name, attributed_channel_id) end`；R-B event 表索引归 W5 压测、R-C 重复转化事件归 M7、R-D dim.channel 值域一致性随 T2.2 发布校验。**方法论沉淀**：Golden 逐字比对只能锁 SQL 文本，测不出「SQL 语义错/真库跑不通」——每模式必须人工审阅编译产物 + 真库执行（T14-1 别名缺陷、R-A 桶语义均由此发现）。判定通过，T1.5 放行。
-- **T1.5 完成（2026-11-10）**：funnel 顶层 filters = 全局过滤（M2 偏差 2 收口，commit `365aa58`）。要点：`validateFunnel` 接受 filters 且字段必须映射主体表（否则 1002000023）+ 值数量校验；`compileFunnel` 在 **cohort 与每个 step CTE 同时 JOIN 主体表并追加条件**（只过滤 cohort 与规格「每步共享 WHERE」不符），单测以「`"customer"."tier" = ?` 精确出现 2 次」锁定防回归；真库对比 3→1 证明过滤生效。验证：mvn clean test 49 类/455 例、M6 Golden 23/0（10+8+5）、M2 27/0、M3 6/0。**纪律（T15-3）**：改 `src/main` 后直接增量 `mvn test` 会抛 `NoClassDefFoundError: SqlCompiler$1`（本次 46 errors），全量验证必须 `mvn clean test`。
-- **T1.5 再次审核（2026-11-10）**：`M6-W1-T1.5-再次深度审核-v1.md` —— 0 代码缺陷；**更正 T15-1 表述**（step 是 INNER JOIN cohort，主体已限定，每步过滤属规格字面 + 纵深防御的冗余，不是正确性必需）；登记 R-B（filters 允许 null/空白值 → 静默空结果，属跨模式输入卫生，需单独立项）、R-C（filters 顺序影响 SQL/缓存命中，不影响正确性）。
-- **T1.6 + W1 收口（2026-11-10）**：新增 `docs/04-specs/analysis-mode-discovery-边界声明-v1.md`（DISCOVERY 不进 DSL，`validateMode`/编译器均抛 1002000006，§9.2 由 M5 `TerminalAssembler.discovery` 三键载荷承载，M6 只扩数据源归 T2.5）；仅改校验器/编译器注释指针。W1 收口审核 `M6-W1-收口深度审核-v1.md`：**W1 通过（附 D-3 排期条件）**，T1.1–T1.6 全部完成，E1 模式部分取证齐备（Golden 23/0、M2 五模式 27/0、mvn clean test 49 类/455 例）。**下一步：D-3 第一批（题目模板化）→ W2 前置 `ontos-module-catalog`（V15 + ArchUnit 先改后动）与清单 v13**。
-- **环境（2026-11-10）**：IDEA 把 `.run/OntosApplication-local.run.xml` 重命名为 `OntosApplication (local).run.xml` 并扩充参数，已按新命名入库（commit `0365e0f`），旧连字符文件不再存在。
-- **D-3 闭环（2026-11-10）**：test 集 `docs/06-verification/evaluation/test集-v1.{md,json}` 冻结——**241 题全部新增**（19 题族），JSON sha256 `ee38261910bd7cf3`。四维按统计口径 v1 出表（aggregate 132 / lookup_attribute 43 / composite 30 / lookup_boolean 12 / lookup_batch 12 / discovery 12；single 189 / followup 25 / incremental 15 / correction 12；normal 205 / injection 10 / differential 10 / cross_domain 8 / existence 8），**额外记 `analysis_mode` 八模式**（v1 的 query_shape 枚举不含 RETENTION/ATTRIBUTION，不改冻结口径，登记 E-3 由 M7 决定是否并入）。正式评测集升 **v2**（v1 归档，7 处旧链接改指归档路径，只改路径不改结论）。缺口 E-1（scenario_mode 0 题，T2.5 后补 ≥15）/ E-2（分层 <30，W5 前补）/ E-4（聚合泄露风险枚举，M7 评估）。台账 OBL-M7 仍 `deferred`（消融/看板/追踪/压测/M7 报告未完成）。**教训**：题目参数必须对齐清单 v12 与 demo 种子（初稿用了不存在的品类「家用电器/服装/食品」与客户 c-1004+，生成后发现并修正为手机/配件/穿戴与 c-1001~c-1003）。
-- **D-3 再次深度审核（2026-11-10）**：`docs/06-verification/checklists/M6-W5-D3-再次深度审核-v1.md` —— **v1 判定不通过**，8 类缺陷全部修复并升 **test 集 v2**（241 题 / skip 2 / 有效 239，sha256 `556e564c8276c1e1…`），**正式评测集升 v3**，v1/v2 归档。核心缺陷：①哈希按内存字符串算（声明 ee382619 / 实际 ff263e6c）→ 改「写文件后对字节复算」；②10 差分 + 8 存在性整族套成 lookup_attribute/LOOKUP → 逐题标注；③funnel 用不存在的 `cohortWindowRaw`、缺 stepWindow/去重/分母，retention/attribution 缺事件对 → 按真实 DSL 补齐；④订单 o-6~o-12、品类家用电器/服装/食品不存在，布尔缺 attributes、过滤缺 operator；⑤上上个月/去年同月/本月 非已发布模式；⑥YOY 用 distinct_customers、retention/funnel 用跨表维度、15 题品类×订单指标触发 `1002000014`；⑦题族表 19 族/251 行 → 20 族/241；⑧skip 未落数据。**验证**：119/119 单轮 DSL 真实编译通过、45 复合子意图 0 失败、2 负例稳定 1002000014、docs 109/982、并行义务 PASS。
-- **新增产品缺口 E-5（2026-11-10）**：`Order 1---N OrderItem` 使「品类维度 × 订单事实指标」必然粒度扩散，规划器 fail-closed（1002000014）；`dim.product_category` 当前无法与任何订单指标同用。v2 保留 2 题 skip + 2 题拒绝判据作哨兵；需 M7 决定补订单项级指标或显式去重口径。**教训**：test 集冻结前必须逐条真实编译（期望不可编译会把资产缺陷记成系统缺陷）；shape/mode 逐题判定，不按题族批量套；能力缺口不许改写成别的维度藏起来。
-- **T2.1 完成（2026-11-10，M6/W2）**：新增 `ontos-module-catalog`（管理面，commit `408b9ab`）+ **V15** 迁移 + ArchUnit 边界。要点：catalog 只有管理面，query/system/session/agent **不得依赖**（ArchUnit 强制），运行时只读清单 scenarios/skills/vqrs 段；`CatalogAssetStatus` 用 draft/reviewing/published/retired（与 `rules.status` 同词表），回滚=新版本发布不是状态迁移；V15 建 `scenario_definition`（entry_mode 闭枚举 + definition JSONB）/`skill_definition`（八模式闭枚举、implementation_ref、capabilities、max_batch_size、approximation_of）/`vqr_definition`（dsl_template/params/golden/freshness/invalidation），`audit_log` 增 11 列 + 3 部分索引。**T21-1 教训（P2，已修）**：`CHECK ((status='published')=(published_at IS NOT NULL))` 会在 retire 时清空发布时间，改为「published/retired 允许非空 + published 必填」；本地改已应用的迁移必须 drop 对象 + 删 `flyway_schema_history` 对应行后重放。基线 `mvn clean test` **50 类/460 例**、ArchitectureTest 9 条、docs 111/994、并行义务 PASS。
-- **ADR-0016（2026-11-10，负责人确认）**：`Order 1:N OrderItem` 下「品类维度 × 订单事实指标」首发不提供，`1002000014` fail-closed；test 集 2 skip + 2 拒绝判据（有效分母 239）；M7 再定订单项级指标或显式去重口径。**不得**在 Scenario/Skill/文档里宣称支持品类销售分析。下一步 **T2.2**：ScenarioMeta 升级完整模型 + §5.7 发布校验 + 版本/失效/回滚 + 清单 v13（scenarios 完整段）。
-- **T2.1 复审（2026-11-10，用户指令）**：3 项 P2 —— ①JSONB 列无形状闸门（`"scalar"`/`[]` 可写入）→ V15 补 6 条 CHECK（definition/dsl_template/params_schema 必须 object，capabilities/allowed_scenarios/invalidation 必须 array）；②只验升级库 → 空库单会话 V1→V15 共 14 个迁移全成功；③ArchUnit 只证「不违规时通过」→ 在 query/ontology 临时注入引用 catalog 的探针，规则精确拦截两处，移除后 9 条通过。**教训**：迁移改动后本地已应用 → drop 对象 + 删 `flyway_schema_history` 行再重放；规则要故障注入证明会拦。
-- **T2.2 完成（2026-11-10，M6/W2，commit `8b5ac85`）**：ScenarioMeta 升级 v1.4 §5.7 完整模型（嵌套 ontologyScope/semanticScope、frozenCalibers、skills、entryHints、coldStartSamples、versionCompatibility、invalidation），`OntologyScope`/`SemanticScope` 用 delegating creator 兼容 v12 扁平数组（legacyShape 走最小校验）；`ScenarioValidator` 集中 §5.7 规则，`ManifestStructureValidator` 委派；catalog 新增 `ScenarioLifecycleService`（draft→reviewing→published→retired，回滚=清单快照生成补丁草稿）、`ScenarioDependencyAnalyzer`（资产反查/目标清单缺资产阻断）、`JdbcScenarioRepository`（列与 definition 写前同步）。**清单 v13** `ontos-assets/first-release-v13.json` 含 scenario.sales 完整段，dry-run `valid=true`（8 指标/5 维度/1 场景），**未激活**（T2.4 统一升版并同步 Golden/test 集 manifestId）。**T22 修复 4 项 P2**：legacy scope 兼容、状态双写漂移、回滚非 SemVer 500→1_005_000_008、发布 ID 错配。基线 **52 类/486 例**、docs 112/1000。下一步 **T2.3** 入口路由五态 + 状态机激活 + ADR-0004 三触发条件核对记录。
-- **外部评审裁决 ADR-0017（2026-11-10）**：另一 agent 对 M6 规格 7 项评审，逐条对照原文/代码复核——**采纳 5 / 修正 2，规格正文零改动**。关键反证：①G-2「同义反复」不成立（manual 分支规格已要求无权限/失效即拒答=授权前置），但裁决顺序未显式化，D1 四步顺序写死（T2.4 依据）；②E5「预期行为无来源」不成立——M2 回填 counters（pass12/deferred_m6 9/partial 4/dsl 3/grain 2）与 E5「9+4+14+3」一一对应，缺的是 runner 映射（D6/T4.5）；③留存「标注」评审指错对象——权威契约是 v1.1「只排除」，标注=编译元数据+响应可选 periodCompleteness（D5/W5 前）。**真问题**：dependsOn 引用无 schema（DSL 只有 dependsOn，题集 derive 是自由文本）→ D2：W4 编码前冻结《结果引用规格 v1》，row_selector 支持 single_row（≤1行）与 ordered_top（评审的「≤1行」与决策 6「第 1 行」冲突，不照抄）；近似同意复用澄清回传通道（D3/T3.3）；VQR 执行类证据外置（D4/T3.4，catalog 校验证据不连库）；R-31 多域 ADR 入 T5.4 核对（D7）。**教训**：外部评审要逐条对照原文与代码反证，定级会变；「看起来对、实施时会出事」的点用 ADR 固化顺序与依据，任务验收引用 ADR 编号。
-- **T2.3 完成（2026-11-10，M6/W2，commit `2ac0564`）**：session 模块新增 `core/scenario`（ScenarioEntryMode 三值 / ScenarioRouteState 三态封闭迁移 / ScenarioEntrySource §12.1 六值 / ScenarioRouteDecision / ScenarioRouter 纯函数五态决策）+ `service/scenario/ScenarioSessionService`（迁移校验后写 `session_state.scenario_state` JSONB；pending_confirm 建立时状态与澄清候选**同条 UPDATE**，确认复用 M5 `consumeClarificationChoice` 原子回传校验）。**关键闸门**：ADR-0004 三触发条件 **2/3**（③ scope 裁剪归 T2.4）→ **Scenario Entry Router 不接入瀑布**，v13 只发布元数据；核对记录 `M6-ADR0004三触发条件核对-v1` 冻结，T2.4 后升 v2。修复 T23-1（P2）：新会话无行时 UPDATE 静默失效 → 写前 ensure；T23-4 登记：显式切换（IN_SCENARIO→IN_SCENARIO）不走 pending，待 T2.4 复核。基线 **55 类/511 例**、docs 115/1023。**下一步 T2.4**：Router 接入瀑布（授权裁剪后、L1 前）+ scope 裁剪 + frozen_calibers + DSL scenarioId 裁决（D1 四步）+ 统一激活 v13 并同步 Golden/test 集 manifestId。
-- **T2.3 复审（2026-11-10，用户指令）**：2 项 P2 —— ①confirm 消费候选与写状态是两条 UPDATE（中间失败留下 pending_confirm 无候选卡死会话）→ `consumeClarificationAndUpdateScenarioState` 单条 UPDATE（校验+清候选+写状态），真库验证同候选重复消费 UPDATE 0；②pending 直传场景 ENTER 后旧候选永久残留 → `updateScenarioState` 一律顺带清 `pending_clarification`。T23-9（P3）reject 候选死数据登记。commit `344441b`。
-- **T2.4 完成（2026-11-10，M6/W2）**：Router 接入瀑布（授权裁剪后、L1 前）+ scope 裁剪 + 直传裁决 + v13 激活。要点：①`ScenarioScopeService.resolve` 产出 `scopedKeys = authorized ∩ 场景 scope`（metrics/dims/rootConcepts+域内概念属性），L1/L2 命中按裁剪键集分区，场景外命中只作越界信号；②**裁剪按当前态**（T24-1 教训：按决策后目标态裁剪会把本轮命中隐藏、越界澄清永不触发；路由决策只影响下一轮）；③直传裁决走端口 `ScenarioRouteGuard`（query 定义接口、session 实现、server 装配——query 不得依赖 session，ArchUnit 边界），`QueryServiceImpl.prepare` 在 manifest 之前裁决（D1 四步）；④`AssetType` 增 SCENARIO（授权集 `scenario|<id>`，默认拒绝）；⑤激活走 publish + `POST /manifests/{id}/activate`（publish 只写快照不激活！）；⑥验证脚本运行期对齐生效清单，冻结评测资产的 manifestId 是溯源记录不用改；⑦v13 激活后 Golden 零回退（M6 23/0、M3 6/0、M2 27/0），Gold 重刷是纯基线刷新（0 SQL 变化）。基线 **57 类/530 例**、docs 117/1034。T24-3（P3）登记：多澄清载荷优先级归 T3.x。**下一步 T3.1–T3.4**：SkillRegistry 扩展 + implementation_ref 内置映射 + 近似降级同意走澄清回传（D3）+ VQR 执行证据外置（D4）。
-- **T2.4 复审（2026-11-10，用户指令）**：3 项发现全部处置——①T24-4（P2）：clarificationTerminal 只取 get(0) 且场景推荐排在歧义/模糊后（入口语义被淹没）→ 场景澄清插入首位；②T24-5（P2）：直连 API 带场景时 DSL 资产不受场景约束（guard 只裁 scenarioId，场景语义被架空）→ guard 接口增 referencedAssetIds 做 scope 交集（`SCENARIO_SCOPE_VIOLATION` 1_004_000_007，场景边界独立于授权边界只收窄）；③T24-6（P2）：demo 种子无 scenario 授权（场景死路）→ **V16** 按发布新 policy_version 通道派生 seed-2026.11.10-v2（快照内容不可变但 active 可翻转——触发器只拦 policy_version/payload）。**端到端 8/8**：探针脚本 `target/t24-e2e.py`（真 HTTP 走通直传/四拒绝码/ask hint→pending_confirm 落库）；教训：metric.refund_amount 在 v13 场景 scope 内，真场景外资产是 dim.product_category；psql 子进程必须传完整 os.environ。基线 **57 类/533 例**（commit `e6ef60c`）。
-- **T3.1 完成（2026-11-10，M6/W3，commit `dea1e40`）**：`ManifestPayload.SkillMeta`（v1.4 §5.8 全字段 + reviewer/reviewedAt 审核人记录）+ `SkillValidator`（implementation_ref 命名空间 `builtin.<mode>.<impl>@<semver>` 且 **mode 段与 analysisMode 一致**；allowed_scenario_ids 引用已发布场景；approximation_of **跨模式**；published 必有审核人；DISCOVERY 不注册）+ catalog `SkillLifecycleService`/`JdbcSkillRepository`（approve 是留痕动作**非状态迁移**；publish 前置 `SCENARIO_REVIEW_REQUIRED` 1_005_000_004 + 目标清单校验 + definition.skillId 一致；回滚=快照 patch+1 草稿）+ **清单 v14**（7 条内置 Skill 覆盖非 discovery 全模式；`skill.entity_lookup` 保留 M3 skillId；LOOKUP_BATCH maxBatch=100；ATTRIBUTION 绑定 scenario.sales）。T31 修复：SkillRecord 漏时间戳、正则 impl 段缺下划线（last_touch 被拒）、publish 缺审核人改专用码。基线 **59 类/551 例**。**教训**：v14 未激活（T3.2 运行时消费后统一升版）；catalog 错误码 STATE_INVALID=1_005_000_003 / REVIEW_REQUIRED=004 / INVALID=005 / VERSION_INVALID=008。**下一步 T3.2**：SkillRegistry 清单加载 + implementation_ref 内置映射 + required_capabilities 校验 + 近似降级同意走澄清回传（D3）。
-- **T3.2 完成（2026-11-10，M6/W3，commit `3a28e26`）**：SkillRegistry 清单驱动注册制 + 编译期四条闸门。要点：①`SkillHandler.builtinRefs()` 声明 `builtin.<MODE>.<impl>` 命名空间列表（entity_lookup 双命名空间——单实体+批量共用构造器），Registry 按 implementation_ref **去版本前缀**解析；②注册但无映射 = fail-closed 拒绝执行（不假装支持）；③`ControlledCapabilities`：semantic.query 恒可用、rule.evaluate 要求清单 rules 段 published、**未知能力一律不满足**；④executeSkill 四条先于 handler 解析（041 capabilities / 042 场景越界 / 043 batch 上界，guard 加 currentScenarioId default 方法）；⑤`carriersFor(mode, currentScenarioId)` 承担者三过滤 = T3.3 近似降级数据源；⑥**M3 回归不回退**：list() 按 skillId 去重（双命名空间同 handler 曾重复）、v14 skillId 对齐运行时 `entity_lookup`（v1.4 示例 `skill.` 前缀是示意）。T32 发现：T32-1 list 重复 / T32-2 命名失配 / T32-3 空 manifest stub（空清单 fail-closed 先于能力判定）/ T32-4（P3）rule.evaluate 判定源是清单代理——健康探测归 T3.3/T5.x。T3.1 审核文档补录（`M6-W3-T3.1-深度审核-v1`）。基线 **59 类/557 例**、docs 119/1045。**下一步 T3.3**：近似降级（声明→同意→MODE_APPROXIMATED 审计，走澄清回传 D3，≥1 样例）。
-- **T3.2 复审（2026-11-10，用户指令）**：**T32-6（P1 级回归，端到端抓到）**——当前生效清单 v13 无 skills 段 → 清单驱动注册制把 entity_lookup 判成「未知能力」，M3 存量行为破坏（list() 兼容了但执行路径漏了）。修复 `isRegistrationMode` 双态：清单**有** skills 段=严格注册制；**没有**=M3 直挂兼容态（兼容查询查**全量** skillId 视图——初版查 legacy 空表二次修复）。**v14 激活**（2026.11.10-fourteenth）→ 严格注册制端到端（执行/无映射拒绝/batch 双向）+ **Golden 零回退**（M6 23/0、M3 6/0、M2 27/0）。T32-7（P3）：批量上界双轨——DslValidator 配置默认（019）先于清单 043，043 只在清单更严时可见。**教训**：兼容纪律必须覆盖全部消费路径；单测 fixture 带 skills 段测不出存量清单形态；端到端是回归的唯一可靠证明。commit `478e049`，基线 59 类/559 例。
-- **T3.3 完成（2026-11-10，M6/W3，commit `3cc5002`）**：近似降级机制闭环 + **T32-8（P1）场景确认断链修复**。要点：①近似样例 `QuerySkill`（skill.query.approx，QUERY，builtin.QUERY.approx@1.0.0，approximationOf=skill.funnel.standard，绑定 scenario.sales）+ **清单 v15 激活**（fifteenth）；②`SkillRegistry.approximationCarriersFor(rejectedMode, currentScenario)`：published + **可执行** + 跨模式声明 + 场景在列——不可执行承担者不参与降级；③近似同意走 M5 回传通道（D3）：候选 {approx:<skillId>, exit} **只写 pending_clarification**（scenario_state 不变——近似不是场景迁移），回传键剥前缀得承担者 ID（M5 consume 返回的 assetId 恒 null 不可用）；④`executeSkillApproximation`：闸门同 executeSkill，审计 MODE_APPROXIMATED + originalMode（audit_log 列名是 **dsl** 不是 dsl_json！审计行的 tenant/user 是 ask 执行线程的默认值 demo/demo，按 user 过滤会漏查）；⑤**T32-8（P1）**：ask 编排只消费澄清候选从未调 confirm——场景确认断链；消费点按前缀分流（scenario:→confirm / approx:→近似执行）；⑥**T33-1 双通道候选覆盖**（P2 教训）：TerminalAssembler.persistClarification 与 ScenarioSessionService.persist 写同一 JSONB——persistClarification 必须跳过 scenario/approximation 类型候选 + **过滤后空列表早退**（初版空覆盖把正确候选抹成 NULL）；⑦近似同意轮 planner 强制 query 组装（approximationConsumed 参数跳过歧义澄清——用户已决策）。端到端 3/3（确认闭环/近似执行 rows=2/审计 originalMode=funnel）。基线 **59 类/562 例**、docs 120/1054。**下一步 T3.4**：VQR 模型 + 生命周期 + 入库七条件 + 自动失效 + vqrs 段进清单 v16。
+## M6 进度（进行中，2026-11-10）
+- 规格 v1.0 冻结（`03-plans/stages/M6/`）；ADR-0017 决策 D1–D7 定档。W1 完成（T1.1–T1.6：RETENTION/ATTRIBUTION 构造器、funnel filters、DISCOVERY 边界声明）；Golden M6 23/0。
+- W2 完成：T2.1 catalog 模块+V15（ArchUnit：catalog 只管理面）；T2.2 ScenarioMeta 完整模型+§5.7 发布校验；T2.3 五态路由状态机；T2.4 Router 接入瀑布+scope 裁剪+直传裁决 D1 四步+V16 demo 场景授权；ADR-0004 核对 v2 3/3 放行。
+- W3 进行中：T3.1 SkillMeta+生命周期（审核人）✅；T3.2 SkillRegistry 清单驱动注册制+四条闸门（T32-6 P1 双态兼容修复）✅；T3.3 近似降级闭环+T32-8（P1）场景确认断链修复 ✅。**下一步 T3.4**：VQR 模型+生命周期+入库七条件（D4 证据外置）+自动失效+vqrs 段进清单 v16。
+- **当前生效清单 v15 = `2026.11.10-fifteenth`**（skills 8 条、scenario.sales、近似样例）；激活走 publish + POST /manifests/{id}/activate。
+- 关键教训：审计列名是 `dsl` 不是 dsl_json；审计行 tenant/user 是执行线程默认值（按 user 过滤会漏查）；TerminalAssembler.persistClarification 与场景通道写同一 JSONB（须按类型分流+空早退）；裁剪按当前态（决策只影响下一轮）；兼容纪律覆盖全部消费路径，端到端是回归唯一可靠证明；Golden 逐字比对测不出 SQL 语义错——每模式人工审阅产物+真库执行；E-5 缺口：Order 1:N OrderItem 使品类维度×订单指标 fail-closed（ADR-0016 首发不提供）。
+- 基线：`mvn clean test` 59 类/562 例；docs 120/1054。后续：T3.4 → W4 复合意图（D2 先冻结《结果引用规格 v1》）→ W5 OBL-M7 收敛 + M6 收口。
+- **T3.4 完成（2026-11-10，M6/W3，commit `5cd2f67`）**：VQR 模型+生命周期+入库七条件+自动失效+vqrs 段进清单 v16。要点：①`ManifestPayload.VqrMeta`（questionPattern/dslTemplate/paramsSchema/goldenRef/resultCheckRef/freshnessLimitHours/invalidationConditions/reviewer）+ PublishedRefs.of(payload) 自建 vqrIds——**ScenarioValidator 的 defaultVqrIds/coldStartSamples 引用校验自此生效**；②VqrValidator 七条件清单侧判定（占位符必须声明/资产绑定按目标清单/证据引用必填 D4 外置/失效条件死声明拦截），validateStructure 免绑定供草稿期（T34-1）；③VqrLifecycleService.admissionChecks 带条件编号，点赞不可直达发布；④VqrInvalidationAnalyzer 六族失效（废弃/定义 JSON 不一致保守判定/Rule·Skill 失效/Skill 主版本·结构变更/场景模式收窄/声明式条件）接入 PublishServiceImpl 结构校验**前**，PublishReportVO.invalidatedVqrs 不静默；⑤**T34-8（P2，真服务 dryRun 抓到）**：失效移除 VQR 后场景 defaultVqrIds/coldStartSamples 悬空卡死后续发布 → `apply` 级联清理；⑥清单 v16 首发样例（vqr.sales.daily_gmv_by_channel）**未激活**（T3.5 命中通道消费后统一激活）。教训：admissionChecks 必须消费 targetPayload（T34-2）；skill 测试 definition 同步断言被夹具掩盖（T34-5）；探针前必须确认「当前实例=当前 jar」（端口占用静默退出打旧实例）。基线 **62 类/590 例**、docs 121/1057。**下一步 T3.5**：VQR 命中通道（瀑布第 7 步候选 + Proposal 引用 vqrId + 八步重校验 + vqrId 进审计/缓存键）+ v16 激活。
