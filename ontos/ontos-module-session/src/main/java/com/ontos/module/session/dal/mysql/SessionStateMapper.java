@@ -142,6 +142,19 @@ public class SessionStateMapper {
                 params);
     }
 
+    /** 仅写澄清候选（T3.3 近似同意：scenario_state 不变——近似不是场景迁移）。 */
+    public void updateClarificationOnly(String tenantId, String userId, String sessionId,
+                                        String clarificationJson) {
+        Map<String, Object> params = params(tenantId, userId, sessionId);
+        params.put("clarification", clarificationJson);
+        jdbcTemplate.update(
+                "UPDATE session_state SET pending_clarification = cast(:clarification as jsonb),"
+                        + " updated_at = now()"
+                        + " WHERE tenant_id = :tenantId AND user_id = :userId"
+                        + " AND session_id = :sessionId",
+                params);
+    }
+
     /** Scenario 会话状态 + 澄清候选原子写入（pending_confirm 建立：状态与候选必须同生同灭）。 */
     public void updateScenarioStateWithClarification(String tenantId, String userId, String sessionId,
                                                      String scenarioStateJson, String clarificationJson) {

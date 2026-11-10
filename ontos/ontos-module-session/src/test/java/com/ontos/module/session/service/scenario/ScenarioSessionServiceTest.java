@@ -137,6 +137,20 @@ class ScenarioSessionServiceTest {
     }
 
     @Test
+    void approximationRequestWritesCandidatesWithoutStateChange() {
+        // T3.3：近似同意请求只写 pending_clarification——scenario_state 不变（近似不是场景迁移）
+        when(sessionStateService.read(any(), any(), any())).thenReturn(inScenarioState());
+        String candidateId = service.requestApproximation(context, "skill.query.approx", "用聚合近似");
+        assertEquals("approx:skill.query.approx", candidateId);
+        verify(mapper).updateClarificationOnly(eq("demo"), eq("alice"), eq("s-1"),
+                org.mockito.ArgumentMatchers.contains("mode_approximation"));
+        verify(mapper, org.mockito.Mockito.never())
+                .updateScenarioState(any(), any(), any(), any());
+        verify(mapper, org.mockito.Mockito.never())
+                .updateScenarioStateWithClarification(any(), any(), any(), any(), any());
+    }
+
+    @Test
     void shouldClearStaleCandidatesOnExplicitEnterFromPending() {
         // T23-8：pending_confirm 中直传已授权场景 → 显式 ENTER，状态写入必须同时清残留候选
         SessionStateDO stale = pendingState();

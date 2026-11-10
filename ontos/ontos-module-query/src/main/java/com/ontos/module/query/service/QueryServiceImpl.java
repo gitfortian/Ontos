@@ -397,6 +397,54 @@ public class QueryServiceImpl implements QueryService {
         return execute(dsl);
     }
 
+    /** 近似降级执行（T3.3）：闸门同 executeSkill，审计 action=MODE_APPROXIMATED + originalMode。 */
+    @Override
+    public QueryResult executeSkillApproximation(String skillId, Map<String, Object> slots,
+                                                 String originalMode) {
+        RequestContext context = RequestContextHolder.require();
+        PublishedManifest active = manifestService.getActiveManifestOrNull();
+        if (active == null) {
+            throw exception(MANIFEST_NOT_FOUND);
+        }
+        ManifestPayload.SkillMeta meta = skillRegistry.manifestSkill(skillId)
+                .orElseThrow(() -> exception(DSL_INVALID, "未知能力: " + skillId));
+        Set<String> missing = ControlledCapabilities.unsatisfiedOf(meta, active);
+        if (!missing.isEmpty()) {
+            throw exception(SKILL_CAPABILITY_MISSING, skillId, String.join(", ", missing));
+        }
+        List<String> allowedScenarios = meta.getAllowedScenarioIds();
+        if (allowedScenarios != null && !allowedScenarios.isEmpty()) {
+            String currentScenario = scenarioRouteGuard.currentScenarioId(context);
+            if (currentScenario == null || !allowedScenarios.contains(currentScenario)) {
+                throw exception(SKILL_SCENARIO_FORBIDDEN, skillId, String.join(", ", allowedScenarios));
+            }
+        }
+        SkillHandler handler = skillRegistry.byId(skillId)
+                .orElseThrow(() -> exception(DSL_INVALID, "未知能力: " + skillId));
+        QueryDsl dsl = handler.build(slots == null ? Map.of() : slots, active.getManifestId());
+        if (meta.getMaxBatchSize() != null && dsl.getLimit() != null
+                && dsl.getLimit() > meta.getMaxBatchSize()) {
+            throw exception(SKILL_BATCH_LIMIT_EXCEEDED, dsl.getLimit(), meta.getMaxBatchSize());
+        }
+        // 近似审计：独立于 SKILL_EXECUTE——回答「这次查询是用户同意的近似降级、原请求是什么模式」
+        AuditLogCreateReqDTO audit = new AuditLogCreateReqDTO();
+        audit.setRequestId(context.traceId());
+        audit.setTenantId(context.tenantId());
+        audit.setUserId(context.userId());
+        audit.setSessionId(context.sessionId());
+        audit.setTurnIndex(context.turnIndex());
+        audit.setAction("MODE_APPROXIMATED");
+        Map<String, Object> auditBody = new java.util.LinkedHashMap<>();
+        auditBody.put("skillId", skillId);
+        auditBody.put("originalMode", String.valueOf(originalMode));
+        auditBody.put("slots", slots == null ? Map.of() : slots);
+        audit.setDslJson(JsonUtils.toJsonString(auditBody));
+        audit.setTraceId(context.traceId());
+        audit.setDevMode(context.devMode());
+        auditService.record(audit);
+        return execute(dsl);
+    }
+
     /** 能力来源审计：与 EXECUTE 行分开，回答「这次查询是由哪个能力、带什么槽位发起的」。 */
     private void auditSkill(RequestContext context, String skillId, Map<String, Object> slots) {
         AuditLogCreateReqDTO audit = new AuditLogCreateReqDTO();

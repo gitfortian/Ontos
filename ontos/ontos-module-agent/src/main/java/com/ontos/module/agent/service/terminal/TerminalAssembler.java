@@ -174,10 +174,20 @@ public class TerminalAssembler {
 
     private void persistClarification(RequestContext context, ClarificationPayload payload) {
         try {
+            // T32-8：场景确认/近似同意候选由场景通道持久化（PendingChoice.assetId=裸场景 ID，
+            // 回传键=candidateId 前缀格式）——透出层候选把 candidateId 放在 assetId 槽，
+            // 若在此覆盖会把回传键写坏（confirm 校验 scenariosById.get(assetId) 必然 miss）
             List<SessionStateService.ClarificationCandidate> candidates = payload.candidates().stream()
+                    .filter(candidate -> !"scenario".equals(candidate.assetType())
+                            && !"approximation".equals(candidate.assetType()))
                     .map(candidate -> new SessionStateService.ClarificationCandidate(
                             candidate.assetId(), candidate.matchedTerm(), candidate.assetId()))
                     .toList();
+            if (candidates.isEmpty()) {
+                // T32-8：本轮候选全部是场景/近似类（场景通道已持久化）——跳过覆盖，
+                // 空候选覆盖会把场景通道写入的正确候选抹成 NULL
+                return;
+            }
             sessionStateService.savePendingClarification(context,
                     new SessionStateService.PendingClarification(
                             payload.mention(), candidates, payload.defaultSuggestion(),

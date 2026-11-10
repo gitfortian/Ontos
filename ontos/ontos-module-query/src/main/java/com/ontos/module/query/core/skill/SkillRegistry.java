@@ -138,6 +138,53 @@ public class SkillRegistry {
         return Optional.ofNullable(handlersBySkillId.get(skillId));
     }
 
+    /**
+     * 被拒模式的近似承担者（T3.3，ADR-0017 D3）：published + **可执行**（implementation_ref
+     * 解析到内置 handler）+ 预声明 approximationOf 指向的 Skill 的 analysis_mode == 被拒模式
+     * + allowed_scenario_ids 语义与 carriersFor 同款。空 = 未声明近似 → 调用方维持拒绝。
+     */
+    public List<ApproximationCarrier> approximationCarriersFor(String rejectedMode,
+                                                               String currentScenarioId) {
+        PublishedManifest manifest = manifestService.getActiveManifestOrNull();
+        if (manifest == null || manifest.getSkills() == null || rejectedMode == null) {
+            return List.of();
+        }
+        Set<String> satisfied = ControlledCapabilities.satisfied(manifest);
+        Map<String, ManifestPayload.SkillMeta> byId = new HashMap<>();
+        for (ManifestPayload.SkillMeta skill : manifest.getSkills()) {
+            byId.put(skill.getSkillId(), skill);
+        }
+        List<ApproximationCarrier> carriers = new ArrayList<>();
+        for (ManifestPayload.SkillMeta skill : manifest.getSkills()) {
+            String approximationOf = skill.getApproximationOf();
+            if (approximationOf == null || approximationOf.isBlank()
+                    || !"published".equals(skill.getStatus())) {
+                continue;
+            }
+            ManifestPayload.SkillMeta target = byId.get(approximationOf);
+            if (target == null || !rejectedMode.equalsIgnoreCase(target.getAnalysisMode())) {
+                continue;
+            }
+            if (!satisfied.containsAll(skill.getRequiredCapabilities())) {
+                continue;
+            }
+            List<String> allowed = skill.getAllowedScenarioIds();
+            if (allowed != null && !allowed.isEmpty()
+                    && (currentScenarioId == null || !allowed.contains(currentScenarioId))) {
+                continue;
+            }
+            if (byId(skill.getSkillId()).isEmpty()) {
+                continue;
+            }
+            carriers.add(new ApproximationCarrier(skill, target.getAnalysisMode().toLowerCase()));
+        }
+        return List.copyOf(carriers);
+    }
+
+    /** 近似承担者视图：Skill 元数据 + 被近似模式（审计 originalMode 的来源）。 */
+    public record ApproximationCarrier(ManifestPayload.SkillMeta skill, String approximatedMode) {
+    }
+
     private Optional<SkillHandler> resolve(String implementationRef) {
         if (implementationRef == null || implementationRef.isBlank()) {
             return Optional.empty();

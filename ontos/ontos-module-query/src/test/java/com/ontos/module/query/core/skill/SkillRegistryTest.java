@@ -23,9 +23,10 @@ class SkillRegistryTest {
         when(manifestService.getActiveManifestOrNull()).thenReturn(manifest());
         SkillRegistry registry = registry();
 
-        // list() 兼容纪律：仍只列可执行能力（M3 契约不回退）
-        assertEquals(1, registry.list().size());
+        // list() 兼容纪律：只列可执行能力（M3 契约不回退；T3.3 新增 QuerySkill 后共 2 条）
+        assertEquals(2, registry.list().size());
         assertEquals("entity_lookup", registry.list().get(0).skillId());
+        assertEquals("skill.query.approx", registry.list().get(1).skillId());
         // 清单驱动解析：published + implementation_ref 命名空间
         assertTrue(registry.byId("entity_lookup").isPresent());
         assertTrue(registry.byId("nope").isEmpty(), "未发布 / 不存在同形 empty（不泄露存在性）");
@@ -82,8 +83,59 @@ class SkillRegistryTest {
                 "兼容态直挂查询命中（全量 skillId 视图）");
     }
 
+    @Test
+    void approximationCarriersRequireCrossModeDeclarationAndExecutableHandler() {
+        // T3.3：近似承担者 = published + 可执行 + approximationOf 指向被拒模式 + 场景在列
+        when(manifestService.getActiveManifestOrNull()).thenReturn(manifestWithApproximation());
+        SkillRegistry registry = registry();
+
+        // FUNNEL 被场景拒绝 → skill.query.approx 声明近似 funnel 且 QUERY handler 可解析
+        var carriers = registry.approximationCarriersFor("FUNNEL", "scenario.sales");
+        assertEquals(1, carriers.size());
+        assertEquals("skill.query.approx", carriers.get(0).skill().getSkillId());
+        assertEquals("funnel", carriers.get(0).approximatedMode());
+
+        // 同模式自我近似不成立：REQUEST 模式=QUERY 有承担者，近似声明指向 QUERY 的 Skill 不匹配
+        assertEquals(0, registry.approximationCarriersFor("QUERY", "scenario.sales").size());
+        // 场景外不承担
+        assertEquals(0, registry.approximationCarriersFor("FUNNEL", "scenario.other").size());
+    }
+
+    @Test
+    void approximationCarrierWithoutExecutableHandlerIsRejected() {
+        // 近似承担者的 implementation_ref 无内置映射 → 不可执行 → 不承担（fail-closed）
+        PublishedManifest manifest = manifestWithApproximation();
+        manifest.getSkills().stream()
+                .filter(skill -> "skill.query.approx".equals(skill.getSkillId()))
+                .findFirst().orElseThrow()
+                .setImplementationRef("builtin.QUERY.ghost@1.0.0");
+        when(manifestService.getActiveManifestOrNull()).thenReturn(manifest);
+        assertEquals(0, registry().approximationCarriersFor("FUNNEL", "scenario.sales").size(),
+                "不可执行的近似承担者不参与降级");
+    }
+
+    private PublishedManifest manifestWithApproximation() {
+        PublishedManifest manifest = manifest();
+        ManifestPayload.SkillMeta approx = new ManifestPayload.SkillMeta();
+        approx.setSkillId("skill.query.approx");
+        approx.setOwner("platform-data");
+        approx.setVersion("1.0.0");
+        approx.setStatus("published");
+        approx.setAnalysisMode("QUERY");
+        approx.setImplementationRef("builtin.QUERY.approx@1.0.0");
+        approx.setRequiredCapabilities(List.of("semantic.query"));
+        approx.setAllowedScenarioIds(List.of("scenario.sales"));
+        approx.setApproximationOf("skill.funnel.standard");
+        approx.setReviewer("project-team");
+        List<ManifestPayload.SkillMeta> skills = new java.util.ArrayList<>(manifest.getSkills());
+        skills.add(approx);
+        manifest.setSkills(skills);
+        // 近似样例需要一个 QUERY 可执行 handler（QuerySkill 声明 builtin.QUERY.approx）
+        return manifest;
+    }
+
     private SkillRegistry registry() {
-        return new SkillRegistry(List.of(new EntityLookupSkill()), manifestService);
+        return new SkillRegistry(List.of(new EntityLookupSkill(), new QuerySkill()), manifestService);
     }
 
     private static PublishedManifest manifest() {

@@ -25,8 +25,19 @@ public class DeterministicProposalPlanner {
     /** 从检索瀑布产出确定性提案（terminal ∈ query / clarification / discovery）。 */
     public Map<String, Object> plan(String utterance, RetrievalOutcome outcome,
                                     boolean clarificationConsumed) {
-        // 1. 瀑布已给出澄清（同词多资产歧义 / 模糊候选）→ 原样透传四要素
-        if (!outcome.clarifications().isEmpty()) {
+        return plan(utterance, outcome, clarificationConsumed, false);
+    }
+
+    /**
+     * @param approximationConsumed 本轮已消费近似同意（T3.3）：用户已做出降级决策，
+     *                              本轮新产生的歧义澄清不再问——强制走 query 组装
+     *                              （近似槽位与提案槽位同词表；无指标命中时契约兜底拒答）
+     */
+    public Map<String, Object> plan(String utterance, RetrievalOutcome outcome,
+                                    boolean clarificationConsumed, boolean approximationConsumed) {
+        // 1. 瀑布已给出澄清（同词多资产歧义 / 模糊候选）→ 原样透传四要素；
+        //    近似同意轮跳过（用户已决策，本轮歧义不问）
+        if (!outcome.clarifications().isEmpty() && !approximationConsumed) {
             com.ontos.module.session.service.retrieval.ClarificationPayload payload =
                     outcome.clarifications().get(0);
             Map<String, Object> clarification = new LinkedHashMap<>();

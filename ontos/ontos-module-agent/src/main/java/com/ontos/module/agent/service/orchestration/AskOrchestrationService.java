@@ -21,12 +21,17 @@ import com.ontos.module.agent.service.terminal.TerminalAssembler;
 import com.ontos.module.system.dal.dataobject.ApprovalRequestDO;
 import com.ontos.module.system.dal.mysql.ApprovalRequestMapper;
 import com.ontos.module.system.service.approval.HitlNotifier;
+import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.service.manifest.ManifestService;
 import com.ontos.module.query.core.dsl.QueryDsl;
 import com.ontos.module.query.service.QueryService;
+import com.ontos.module.session.core.scenario.ScenarioRouteDecision;
+import com.ontos.module.session.service.retrieval.ClarificationPayload;
 import com.ontos.module.session.service.retrieval.MentionRetrievalService;
+import com.ontos.module.session.service.retrieval.RetrievedCandidate;
 import com.ontos.module.session.service.retrieval.RetrievalOutcome;
 import com.ontos.module.session.service.retrieval.SessionCandidateContextProvider;
+import com.ontos.module.session.service.scenario.ScenarioSessionService;
 import com.ontos.module.session.service.session.SessionProjection;
 import com.ontos.module.session.service.session.SessionStateService;
 import io.agentscope.core.message.Msg;
@@ -85,6 +90,9 @@ public class AskOrchestrationService {
     private final HitlNotifier hitlNotifier;
     private final ApprovalRequestMapper approvalRequestMapper;
     private final AskProperties askProperties;
+    private final com.ontos.module.session.service.scenario.ScenarioSessionService scenarioSessionService;
+    private final com.ontos.module.system.service.policy.PolicySnapshotService policySnapshotService;
+    private final com.ontos.module.query.core.skill.SkillRegistry skillRegistry;
     /** run 执行线程池（F-8）：HITL 轮询在执行线程内进行，不占 REST 线程。 */
     private final ExecutorService runExecutor;
 
@@ -103,7 +111,10 @@ public class AskOrchestrationService {
                                    TerminalAssembler terminalAssembler,
                                    HitlNotifier hitlNotifier,
                                    ApprovalRequestMapper approvalRequestMapper,
-                                   AskProperties askProperties) {
+                                   AskProperties askProperties,
+                                   com.ontos.module.session.service.scenario.ScenarioSessionService scenarioSessionService,
+                                   com.ontos.module.system.service.policy.PolicySnapshotService policySnapshotService,
+                                   com.ontos.module.query.core.skill.SkillRegistry skillRegistry) {
         this.runStateService = runStateService;
         this.sessionStateService = sessionStateService;
         this.retrievalService = retrievalService;
@@ -119,6 +130,9 @@ public class AskOrchestrationService {
         this.hitlNotifier = hitlNotifier;
         this.approvalRequestMapper = approvalRequestMapper;
         this.askProperties = askProperties;
+        this.scenarioSessionService = scenarioSessionService;
+        this.policySnapshotService = policySnapshotService;
+        this.skillRegistry = skillRegistry;
         this.runExecutor = Executors.newFixedThreadPool(
                 Math.max(askProperties.getRunExecutorPool(), 1), runnable -> {
                     Thread thread = new Thread(runnable, "ask-run-executor");
@@ -258,15 +272,32 @@ public class AskOrchestrationService {
         // 1. 检索瀑布（授权裁剪内）；指代消解来源 = 会话投影（resolved_entities JSON）
         SessionProjection projection = readProjection(context);
         boolean consumed = false;
+        String approxSkillId = null;
         if (clarificationChoice != null && !clarificationChoice.isBlank()) {
-            sessionStateService.consumeClarificationChoice(context, clarificationChoice);
-            consumed = true;
+            // T32-8 + T3.3：回传候选按前缀分流——场景确认走 confirm（状态迁移闭环），
+            // 近似同意走降级执行；两者都经 M5 原子回传校验（伪造 candidateId 被拒）
+            if (clarificationChoice.startsWith(
+                    com.ontos.module.session.service.scenario.ScenarioSessionService.APPROX_CANDIDATE_PREFIX)) {
+                sessionStateService.consumeClarificationChoice(context, clarificationChoice);
+                consumed = true;
+                // 回传键即近似承担者：approx:<skillId>（M5 消费返回的 assetId 为 null，不可用）
+                approxSkillId = clarificationChoice.substring(
+                        com.ontos.module.session.service.scenario.ScenarioSessionService.APPROX_CANDIDATE_PREFIX.length());
+            } else if (clarificationChoice.startsWith("scenario:")) {
+                scenarioSessionService.confirm(context, clarificationChoice,
+                        scenariosById(), authorizedScenarioIds(context));
+                consumed = true;
+            } else {
+                sessionStateService.consumeClarificationChoice(context, clarificationChoice);
+                consumed = true;
+            }
         }
         RetrievalOutcome outcome = retrievalService.resolve(utterance, context, projection);
 
-        // 2. Proposal：LLM（enabled 且可用）或确定性降级
+        // 2. Proposal：LLM（enabled 且可用）或确定性降级；近似同意轮强制 query 组装（T3.3）
         Map<String, Object> proposal =
-                proposeWithFallback(context, runId, utterance, outcome, consumed);
+                proposeWithFallback(context, runId, utterance, outcome, consumed,
+                        approxSkillId != null);
 
         // 3. 合同校验（确定性/LLM 输出同闸门）+ 来源完整性对账
         IntentProposalContract.ValidationResult validation =
@@ -289,6 +320,44 @@ public class AskOrchestrationService {
             return outOfCapability(context, integrity.reason());
         }
 
+        // 3.5 T3.3 近似同意：本轮用户已同意降级 → 用近似承担者的构造器执行（完整闸门），
+        // 审计 MODE_APPROXIMATED + originalMode（近似槽位 = 提案槽位同词表）
+        log.info("[approxBranch][approxSkillId={} terminal={} subIntentsType={}]", approxSkillId,
+                proposal.get("terminal"),
+                proposal.get("sub_intents") == null ? "null" : proposal.get("sub_intents").getClass().getSimpleName());
+        if (approxSkillId != null) {
+            Object raw = proposal.get("sub_intents");
+            if (raw instanceof List<?> subIntents && !subIntents.isEmpty()
+                    && subIntents.get(0) instanceof Map<?, ?> box) {
+                String approximatedMode = approximatedModeOf(approxSkillId);
+                eventService.emit(runId, AskEventService.TEXT_MESSAGE,
+                        Map.of("delta", "已按您同意的近似方式执行（原请求模式不可用）"));
+                // 槽位精确挑选（近似槽位词表 = 提案槽位的 metric_id/dimensions/time_expression_raw/limit），
+                // 不透传整盒——box 里的 analysis_mode/filters 等槽位不属于 QUERY 近似构造器
+                Map<String, Object> approxSlots = new java.util.LinkedHashMap<>();
+                Map<String, Object> source = (Map<String, Object>) box;
+                for (String key : List.of("metric_id", "dimensions", "time_expression_raw", "limit")) {
+                    if (source.containsKey(key)) {
+                        approxSlots.put(key, source.get(key));
+                    }
+                }
+                var result = queryService.executeSkillApproximation(approxSkillId,
+                        approxSlots, approximatedMode);
+                sessionStateService.project(context, SessionProjection.of(
+                                new QueryDsl() {{
+                                    setMetricId(stringOf(((Map<String, Object>) box).get("metric_id")));
+                                    setManifestId(activeManifestId(context));
+                                }}),
+                        "query", context.traceId());
+                Map<String, Object> terminal = terminalAssembler.query(context.traceId(),
+                        result.getRowCount(),
+                        result.getRows() == null ? List.of() : result.getRows(), false);
+                terminalAssembler.emitTerminal(eventService, runId, terminal);
+                return terminal;
+            }
+            return outOfCapability(context, "PROPOSAL_CONTRACT_INVALID");
+        }
+
         // 4. 终态分派
         String terminal = String.valueOf(proposal.get("terminal"));
         return switch (terminal) {
@@ -300,10 +369,55 @@ public class AskOrchestrationService {
         };
     }
 
+    /** 生效清单的已发布场景映射（场景确认的 status/entryMode 再校验数据源）。 */
+    private Map<String, ManifestPayload.ScenarioMeta> scenariosById() {
+        var manifest = manifestService.getActiveManifestOrNull();
+        Map<String, ManifestPayload.ScenarioMeta> map = new java.util.LinkedHashMap<>();
+        if (manifest != null && manifest.getScenarios() != null) {
+            for (ManifestPayload.ScenarioMeta scenario : manifest.getScenarios()) {
+                if ("published".equals(scenario.getStatus())) {
+                    map.put(scenario.getId(), scenario);
+                }
+            }
+        }
+        return map;
+    }
+
+    /** 当前用户的场景授权集（授权集 scenario| 键）；无快照 fail-closed 由 policy 层抛错。 */
+    private java.util.Set<String> authorizedScenarioIds(RequestContext context) {
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        for (String key : policySnapshotService.authorizedAssetIds(context)) {
+            if (key.startsWith("scenario|")) {
+                ids.add(key.substring("scenario|".length()));
+            }
+        }
+        return java.util.Set.copyOf(ids);
+    }
+
+    /** 近似承担者声明的被近似模式（审计 originalMode；清单事实，声明缺失按 UNKNOWN）。 */
+    private String approximatedModeOf(String approxSkillId) {
+        var manifest = manifestService.getActiveManifestOrNull();
+        if (manifest != null && manifest.getSkills() != null) {
+            for (ManifestPayload.SkillMeta skill : manifest.getSkills()) {
+                if (approxSkillId.equals(skill.getSkillId())
+                        && skill.getApproximationOf() != null && manifest.getSkills() != null) {
+                    for (ManifestPayload.SkillMeta target : manifest.getSkills()) {
+                        if (target.getSkillId().equals(skill.getApproximationOf())) {
+                            return target.getAnalysisMode() == null
+                                    ? "UNKNOWN" : target.getAnalysisMode().toLowerCase();
+                        }
+                    }
+                }
+            }
+        }
+        return "UNKNOWN";
+    }
+
     /** LLM 提案（enabled 时）；模型故障降级确定性提案（对外声明 degraded）——不悬挂、不无限重试。 */
     private Map<String, Object> proposeWithFallback(RequestContext context, String runId,
                                                     String utterance, RetrievalOutcome outcome,
-                                                    boolean clarificationConsumed) {
+                                                    boolean clarificationConsumed,
+                                                    boolean approximationConsumed) {
         if (agentProperties.isEnabled()) {
             OntosAgentFactory factory = agentFactoryProvider.getIfAvailable();
             if (factory != null) {
@@ -319,7 +433,8 @@ public class AskOrchestrationService {
                 }
             }
         }
-        return deterministicPlanner.plan(utterance, outcome, clarificationConsumed);
+        return deterministicPlanner.plan(utterance, outcome, clarificationConsumed,
+                approximationConsumed);
     }
 
     /** 调用模型产出意图提案；修复反馈逐轮注入，超限返回契约兜底拒答（fail-closed）。 */
@@ -381,7 +496,27 @@ public class AskOrchestrationService {
             if (!scenario.allowedModes().isEmpty()
                     && (dsl.getMode() == null
                     || !scenario.allowedModes().contains(dsl.getMode().name().toLowerCase()))) {
-                return terminalAssembler.outOfCapability(context, "SCENARIO_MODE_FORBIDDEN");
+                // T3.3（ADR-0017 D3）：被拒模式先查预声明近似——有承担者 → 征求同意
+                //（M5 回传通道，候选 {接受近似, 拒绝}）；无声明 → 维持拒绝（不退化到自由 SQL）
+                String rejectedMode = dsl.getMode() == null
+                        ? null : dsl.getMode().name().toLowerCase();
+                var approxCarriers = skillRegistry.approximationCarriersFor(
+                        rejectedMode, scenario.scenarioId());
+                if (approxCarriers.isEmpty()) {
+                    return terminalAssembler.outOfCapability(context, "SCENARIO_MODE_FORBIDDEN");
+                }
+                var carrier = approxCarriers.get(0);
+                String candidateId = scenarioSessionService.requestApproximation(context,
+                        carrier.skill().getSkillId(),
+                        "用「" + carrier.skill().getName() + "」近似回答（原模式不可用）");
+                List<RetrievedCandidate> approxCandidates =
+                        List.of(new RetrievedCandidate(candidateId, "approximation",
+                                        "接受近似：" + carrier.skill().getName(), 0, false, 0),
+                                new RetrievedCandidate(ScenarioRouteDecision.EXIT_CANDIDATE_ID,
+                                        "approximation", "拒绝近似", 0, false, 0));
+                return terminalAssembler.clarification(context, new ClarificationPayload(
+                        "「" + rejectedMode + "」在当前场景不可用，是否用近似能力回答？",
+                        approxCandidates, candidateId, true));
             }
             dsl.setScenarioId(scenario.scenarioId());
         }

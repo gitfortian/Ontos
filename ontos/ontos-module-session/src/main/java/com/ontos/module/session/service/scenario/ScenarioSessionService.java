@@ -140,6 +140,29 @@ public class ScenarioSessionService {
                 null, List.of());
     }
 
+    /**
+     * 近似降级同意请求（T3.3，ADR-0017 D3）：候选集合 = {接受近似(approx:<skillId>), 拒绝(exit)}，
+     * 原子写入 pending_clarification（**scenario_state 不变**——近似不是场景迁移）；
+     * 回传校验复用 M5 通道（伪造 candidateId 被拒）。返回候选 ID 供编排层透出。
+     */
+    public String requestApproximation(RequestContext context, String approxSkillId, String label) {
+        sessionStateService.ensure(context.tenantId(), context.userId(), context.sessionId());
+        String candidateId = APPROX_CANDIDATE_PREFIX + approxSkillId;
+        SessionStateService.PendingClarification clarification =
+                new SessionStateService.PendingClarification("mode_approximation",
+                        List.of(new SessionStateService.ClarificationCandidate(
+                                        candidateId, label, approxSkillId),
+                                new SessionStateService.ClarificationCandidate(
+                                        ScenarioRouteDecision.EXIT_CANDIDATE_ID, "拒绝近似，按无能力处理", null)),
+                        candidateId, null);
+        mapper.updateClarificationOnly(context.tenantId(), context.userId(), context.sessionId(),
+                JsonUtils.toJsonString(clarification));
+        return candidateId;
+    }
+
+    /** 近似同意候选的前缀（与场景确认候选 scenario: 前缀区分）。 */
+    public static final String APPROX_CANDIDATE_PREFIX = "approx:";
+
     /** 显式退出场景（in_scenario → free）。 */
     public ScenarioRouteDecision exit(RequestContext context) {
         sessionStateService.ensure(context.tenantId(), context.userId(), context.sessionId());
