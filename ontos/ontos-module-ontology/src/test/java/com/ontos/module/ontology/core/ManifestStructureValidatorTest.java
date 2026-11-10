@@ -339,4 +339,82 @@ class ManifestStructureValidatorTest {
         assertTrue(codes.stream().anyMatch(code -> code.contains("variantId 必填且在同一指标内唯一")));
     }
 
+    // ── M6/T1.2：EventDef.channelPropertyId（触点渠道映射） ──────────────────
+
+    /** 事件表上的可过滤属性（occurred_at / channel_id 同在 event 表）。 */
+    private OntologySnapshot.Property eventProperty(String id, String column, boolean filterable) {
+        OntologySnapshot.Property property = new OntologySnapshot.Property();
+        property.setId(id);
+        property.setName(id.endsWith("channel_id") ? "渠道标识" : "事件发生时间");
+        property.setSummary("事件表属性");
+        property.setAliases(List.of("别名"));
+        property.setConceptId("concept.order");
+        property.setValueType("string");
+        property.setColumn(column);
+        property.setFilterable(filterable);
+        return property;
+    }
+
+    /** 触点事件（四要素齐全 + 可选 channelPropertyId）。 */
+    private OntologySnapshot.EventDef touchEvent(String channelPropertyId) {
+        OntologySnapshot.EventDef event = new OntologySnapshot.EventDef();
+        event.setId("event.channel_touch");
+        event.setName("渠道触点");
+        event.setSummary("客户在渠道上的触点行为");
+        event.setAliases(List.of("触点"));
+        event.setParticipantClass("concept.order");
+        event.setTimeProperty("property.event.occurred_at");
+        event.setEventType("CHANNEL_TOUCH");
+        event.setDedupKey("id:CHANNEL_TOUCH");
+        event.setChannelPropertyId(channelPropertyId);
+        return event;
+    }
+
+    @Test
+    void shouldAcceptTouchChannelPropertyOnSameTable() {
+        ManifestPayload payload = validPayload();
+        OntologySnapshot ontology = payload.getOntology();
+        // 保留既有 identity 引用属性，追加事件表两个映射属性
+        OntologySnapshot.Property orderNo = ontology.getProperties().get(0);
+        ontology.setProperties(List.of(orderNo,
+                eventProperty("property.event.occurred_at", "event.occurred_at", true),
+                eventProperty("property.event.channel_id", "event.channel_id", true)));
+        ontology.setEvents(List.of(touchEvent("property.event.channel_id")));
+        assertTrue(validator.validate(payload).isEmpty(),
+                () -> "同表可过滤渠道映射不应有违规: " + validator.validate(payload));
+    }
+
+    @Test
+    void shouldRejectChannelPropertyReferencingUnknownProperty() {
+        ManifestPayload payload = validPayload();
+        payload.getOntology().setEvents(List.of(touchEvent("property.event.missing")));
+        assertTrue(codes(payload).stream().anyMatch(code ->
+                code.contains("channelPropertyId 引用不存在的属性")));
+    }
+
+    @Test
+    void shouldRejectNonFilterableChannelProperty() {
+        ManifestPayload payload = validPayload();
+        OntologySnapshot ontology = payload.getOntology();
+        ontology.setProperties(List.of(
+                eventProperty("property.event.occurred_at", "event.occurred_at", true),
+                eventProperty("property.event.channel_id", "event.channel_id", false)));
+        ontology.setEvents(List.of(touchEvent("property.event.channel_id")));
+        assertTrue(codes(payload).stream().anyMatch(code ->
+                code.contains("channelPropertyId 不可过滤")));
+    }
+
+    @Test
+    void shouldRejectChannelPropertyCrossingTables() {
+        ManifestPayload payload = validPayload();
+        OntologySnapshot ontology = payload.getOntology();
+        // 渠道属性指向订单表列，与事件时间属性（event 表）跨表
+        ontology.setProperties(List.of(
+                eventProperty("property.event.occurred_at", "event.occurred_at", true),
+                eventProperty("property.event.channel_id", "sales_order.channel", true)));
+        ontology.setEvents(List.of(touchEvent("property.event.channel_id")));
+        assertTrue(codes(payload).stream().anyMatch(code ->
+                code.contains("事件映射属性跨表")));
+    }
+
 }

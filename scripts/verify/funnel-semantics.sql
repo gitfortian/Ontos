@@ -14,6 +14,15 @@
 --   silver: step_1=1（c-1003），step_2=1，conversion_2=1
 --   gold  : 无 cohort 行（首步在窗口外）
 -- 其中 c-9001 的 REFUND 距首步 16 天，超步窗不计转化；c-1003 的 REFUND 距首步 3 天计入。
+--
+-- 【更正 2026-11-09 · M6/T1.2 数据基线变更】（保留上方历史期望，不回改）
+-- queryds V3 为留存/归因新增复购序列后，c-1001 在 2026-10-26 增加一笔 ORDER_PLACED，
+-- 落在同一 cohort 窗口内，因此 gold 不再「无 cohort 行」。本脚本 SQL 未变，真库复跑实测：
+--   gold  : step_1=1, step_2=0, conversion_2=0   ← 新基线（原为无行）
+--   normal: step_1=2, step_2=0, conversion_2=0   ← 与原期望一致
+--   silver: step_1=1, step_2=1, conversion_2=1   ← 与原期望一致
+-- V3 的下单事件 ID 已改 e-m6-* 前缀，避免与本脚本事务内 fixture e-10..e-13 主键冲突
+-- （此前真库执行报 duplicate key，已修复并复验）。原结论其余语义（步窗、分母、首触点）不变。
 
 BEGIN;
 SET LOCAL TimeZone = 'Asia/Shanghai';

@@ -43,8 +43,12 @@ class MentionBackfillBatchTest {
     private static final Path MANIFEST_JSON = REPO_ROOT.resolve("ontos-assets/first-release-v10.json");
     private static final Path SAMPLES_JSON =
             REPO_ROOT.resolve("docs/06-verification/evaluation/中文提及样本集-v1.json");
-    private static final Path EVIDENCE_JSON =
-            REPO_ROOT.resolve("docs/06-verification/evaluation/提及样本回填-M5W2证据-v1.json");
+    /**
+     * 跑批输出写到 target/ 软名：v1 冻结证据（docs/06-verification/evaluation/提及样本回填-M5W2证据-v1.json）
+     * 是 M5/W2 已验收交付物，不得被每次 mvn test 覆写（M6/T1.2 审核发现）。
+     * 本测试固定读 v10 清单资产（与冻结证据同源），保证历史证据可复算；评估生效清单的跑批另走脚本。
+     */
+    private static final Path EVIDENCE_JSON = Path.of("target", "提及样本回填-latest.json");
 
     private MentionRetrievalService service;
     private List<Map<String, Object>> cases;

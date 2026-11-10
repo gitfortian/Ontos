@@ -127,6 +127,8 @@ public class OntologySnapshot {
         private String eventTypeValue;
         /** 事件表上的主体标识属性（Property ID）；funnel 用它关联 subjectPropertyId。 */
         private String participantProperty;
+        /** 触点渠道属性（Property ID）；attribution 触点渠道的物理来源（M6/T1.2，可空，仅触点类事件声明）。 */
+        private String channelPropertyId;
         /** 去重键。 */
         private String dedupKey;
     }

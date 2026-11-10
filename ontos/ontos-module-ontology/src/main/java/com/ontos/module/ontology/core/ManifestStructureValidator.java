@@ -288,6 +288,18 @@ public final class ManifestStructureValidator {
                             + event.getParticipantProperty()));
                 }
             }
+            // M6/T1.2：触点渠道映射为可选字段，但声明后必须可解析、可过滤且与事件其他映射同表
+            if (!blank(event.getChannelPropertyId())) {
+                mapped.add(event.getChannelPropertyId());
+                OntologySnapshot.Property channelProperty = propertyById.get(event.getChannelPropertyId());
+                if (channelProperty == null) {
+                    violations.add(new Violation(at, "channelPropertyId 引用不存在的属性: "
+                            + event.getChannelPropertyId()));
+                } else if (!channelProperty.isFilterable()) {
+                    violations.add(new Violation(at, "channelPropertyId 不可过滤: "
+                            + event.getChannelPropertyId()));
+                }
+            }
             String eventTable = null;
             for (String propertyId : mapped) {
                 OntologySnapshot.Property property = propertyById.get(propertyId);
