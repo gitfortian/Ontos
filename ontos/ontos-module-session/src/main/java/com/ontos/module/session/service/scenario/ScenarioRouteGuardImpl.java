@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.ontos.module.session.enums.ErrorCodeConstants.SCENARIO_CALIBER_CONFLICT;
+import static com.ontos.module.session.enums.ErrorCodeConstants.SCENARIO_SCOPE_VIOLATION;
 import static com.ontos.module.session.enums.ErrorCodeConstants.SCENARIO_MANUAL_UNAUTHORIZED;
 import static com.ontos.module.session.enums.ErrorCodeConstants.SCENARIO_MODE_FORBIDDEN;
 
@@ -53,7 +54,7 @@ public class ScenarioRouteGuardImpl implements ScenarioRouteGuard {
 
     @Override
     public void adjudicate(RequestContext context, String scenarioId, String mode,
-                           String timeRangeField) {
+                           String timeRangeField, java.util.Collection<String> referencedAssetIds) {
         if (scenarioId == null || scenarioId.isBlank()) {
             return;
         }
@@ -86,6 +87,16 @@ public class ScenarioRouteGuardImpl implements ScenarioRouteGuard {
                 && !scenario.getAllowedAnalysisModes().isEmpty()
                 && !scenario.getAllowedAnalysisModes().contains(mode.toLowerCase())) {
             throw exception(SCENARIO_MODE_FORBIDDEN, scenarioId, mode);
+        }
+        // ⑦ 引用资产 ⊆ 场景 scope（T24-5：显式带场景 = 声明在该业务域内查询，
+        // 引用场景外资产即使已授权也拒绝——场景边界独立于授权边界，只收窄不放宽）
+        if (referencedAssetIds != null && !referencedAssetIds.isEmpty()) {
+            Set<String> scopeIds = ScenarioScopeService.scopeAssetIds(scenario, manifest);
+            for (String assetId : referencedAssetIds) {
+                if (assetId != null && !assetId.isBlank() && !scopeIds.contains(assetId)) {
+                    throw exception(SCENARIO_SCOPE_VIOLATION, assetId, scenarioId);
+                }
+            }
         }
         // ⑥ frozen_calibers 冲突即拒绝（不静默覆盖）
         if (timeRangeField != null && scenario.getSemanticScope() != null) {

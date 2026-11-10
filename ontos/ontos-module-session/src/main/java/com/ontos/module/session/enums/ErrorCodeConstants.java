@@ -19,5 +19,7 @@ public interface ErrorCodeConstants {
             "分析模式不在场景允许范围内: {} 不允许 {}");
     ErrorCode SCENARIO_CALIBER_CONFLICT = new ErrorCode(1_004_000_006,
             "与场景冻结口径冲突: {} 需要 {}");
+    ErrorCode SCENARIO_SCOPE_VIOLATION = new ErrorCode(1_004_000_007,
+            "引用资产超出场景范围: {} 不在 {} 的 scope 内");
 
 }

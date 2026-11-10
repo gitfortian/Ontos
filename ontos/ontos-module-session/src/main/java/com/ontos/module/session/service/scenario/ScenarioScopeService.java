@@ -120,6 +120,23 @@ public class ScenarioScopeService {
         return Set.copyOf(result);
     }
 
+    /**
+     * 场景 scope 的**裸资产 ID 集合**（无类型前缀；T24-5 直连裁决用）：
+     * 与 {@link #trimToScope} 同构——显式 metrics/dimensions + rootConcepts 及其属性，excluded 连带剔除。
+     */
+    public static Set<String> scopeAssetIds(ManifestPayload.ScenarioMeta scenario,
+                                            PublishedManifest manifest) {
+        Set<String> keys = scopeKeys(scenario, manifest);
+        Set<String> ids = new LinkedHashSet<>();
+        for (String key : keys) {
+            int split = key.indexOf('|');
+            if (split > 0 && split < key.length() - 1) {
+                ids.add(key.substring(split + 1));
+            }
+        }
+        return Set.copyOf(ids);
+    }
+
     /** 场景 scope 的全部资产键（metric|dimension|property|entity 前缀）。 */
     private static Set<String> scopeKeys(ManifestPayload.ScenarioMeta scenario,
                                          PublishedManifest manifest) {

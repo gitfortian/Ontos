@@ -62,14 +62,14 @@ class ScenarioRouteGuardImplTest {
 
     @Test
     void blankScenarioIdPassesWithoutAnyLookup() {
-        assertDoesNotThrow(() -> guard.adjudicate(context, null, "query", null));
-        assertDoesNotThrow(() -> guard.adjudicate(context, "  ", "query", null));
+        assertDoesNotThrow(() -> guard.adjudicate(context, null, "query", null, null));
+        assertDoesNotThrow(() -> guard.adjudicate(context, "  ", "query", null, null));
         verify(manifestService, never()).getActiveManifestOrNull();
     }
 
     @Test
     void explicitAuthorizedScenarioEntersAndPersists() {
-        assertDoesNotThrow(() -> guard.adjudicate(context, SALES, "query", "dim.order_date"));
+        assertDoesNotThrow(() -> guard.adjudicate(context, SALES, "query", "dim.order_date", List.of("metric.gmv")));
 
         org.mockito.ArgumentCaptor<ScenarioRouter.RouteInput> captor =
                 org.mockito.ArgumentCaptor.forClass(ScenarioRouter.RouteInput.class);
@@ -84,11 +84,11 @@ class ScenarioRouteGuardImplTest {
     void unpublishedScenarioIsRejectedWithoutLeakingExistence() {
         when(manifestService.getActiveManifestOrNull()).thenReturn(manifest());
         ServiceException ex = assertThrows(ServiceException.class,
-                () -> guard.adjudicate(context, "scenario.draft", "query", null));
+                () -> guard.adjudicate(context, "scenario.draft", "query", null, null));
         assertEquals(1_004_000_003, ex.getCode());
         // 不存在与未发布同形（清单里没有的 ID 同码）
         ServiceException missing = assertThrows(ServiceException.class,
-                () -> guard.adjudicate(context, "scenario.unknown", "query", null));
+                () -> guard.adjudicate(context, "scenario.unknown", "query", null, null));
         assertEquals(1_004_000_003, missing.getCode());
     }
 
@@ -96,7 +96,7 @@ class ScenarioRouteGuardImplTest {
     void unauthorizedScenarioIsRejected() {
         when(policySnapshotService.authorizedAssetIds(any())).thenReturn(Set.of("metric|metric.gmv"));
         ServiceException ex = assertThrows(ServiceException.class,
-                () -> guard.adjudicate(context, SALES, "query", null));
+                () -> guard.adjudicate(context, SALES, "query", null, null));
         assertEquals(1_004_000_003, ex.getCode());
         verify(scenarioSessionService, never()).apply(any(), any());
     }
@@ -104,15 +104,31 @@ class ScenarioRouteGuardImplTest {
     @Test
     void forbiddenAnalysisModeIsRejected() {
         ServiceException ex = assertThrows(ServiceException.class,
-                () -> guard.adjudicate(context, SALES, "funnel", null));
+                () -> guard.adjudicate(context, SALES, "funnel", null, null));
         assertEquals(1_004_000_005, ex.getCode());
     }
 
     @Test
     void caliberConflictIsRejectedNotOverridden() {
         ServiceException ex = assertThrows(ServiceException.class,
-                () -> guard.adjudicate(context, SALES, "query", "dim.order_date_custom"));
+                () -> guard.adjudicate(context, SALES, "query", "dim.order_date_custom", null));
         assertEquals(1_004_000_006, ex.getCode());
+    }
+
+    @Test
+    void referencedAssetOutsideScenarioScopeIsRejectedEvenIfAuthorized() {
+        // T24-5：显式带场景 = 声明在该业务域内查询；场景外资产即使已授权也拒绝
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> guard.adjudicate(context, SALES, "query", "dim.order_date",
+                        List.of("metric.gmv", "metric.refund_amount")));
+        assertEquals(1_004_000_007, ex.getCode());
+    }
+
+    @Test
+    void referencedAssetsInsideScenarioScopePass() {
+        // 场景内资产（含域内概念属性）全部通过
+        assertDoesNotThrow(() -> guard.adjudicate(context, SALES, "query", "dim.order_date",
+                List.of("metric.gmv", "dim.region", "property.customer.email", "concept.order")));
     }
 
     @Test
@@ -121,7 +137,7 @@ class ScenarioRouteGuardImplTest {
         when(policySnapshotService.authorizedAssetIds(any()))
                 .thenThrow(new ServiceException(1_003_000_001, "快照缺失"));
         org.junit.jupiter.api.Assertions.assertThrows(ServiceException.class,
-                () -> guard.adjudicate(context, SALES, "query", null));
+                () -> guard.adjudicate(context, SALES, "query", null, null));
     }
 
     // ---------- fixtures ----------
@@ -143,8 +159,13 @@ class ScenarioRouteGuardImplTest {
         sales.setStatus("published");
         sales.setEntryMode("auto_if_confident");
         sales.setAllowedAnalysisModes(List.of("query"));
+        ManifestPayload.OntologyScope ontologyScope = new ManifestPayload.OntologyScope();
+        ontologyScope.setRootConcepts(List.of("concept.order", "concept.customer"));
+        ontologyScope.setExcludedConcepts(List.of());
+        sales.setOntologyScope(ontologyScope);
         ManifestPayload.SemanticScope semantic = new ManifestPayload.SemanticScope();
         semantic.setMetrics(List.of("metric.gmv"));
+        semantic.setDimensions(List.of("dim.region"));
         ManifestPayload.FrozenCaliber defaultTimeField = new ManifestPayload.FrozenCaliber();
         defaultTimeField.setType("field_id");
         defaultTimeField.setValue("dim.order_date");
@@ -158,6 +179,19 @@ class ScenarioRouteGuardImplTest {
         draft.setEntryMode("manual_only");
 
         manifest.setScenarios(List.of(sales, draft));
+
+        com.ontos.module.ontology.core.OntologySnapshot ontology =
+                new com.ontos.module.ontology.core.OntologySnapshot();
+        com.ontos.module.ontology.core.OntologySnapshot.Property email =
+                new com.ontos.module.ontology.core.OntologySnapshot.Property();
+        email.setId("property.customer.email");
+        email.setConceptId("concept.customer");
+        com.ontos.module.ontology.core.OntologySnapshot.Property orderNo =
+                new com.ontos.module.ontology.core.OntologySnapshot.Property();
+        orderNo.setId("property.order.order_no");
+        orderNo.setConceptId("concept.order");
+        ontology.setProperties(List.of(email, orderNo));
+        manifest.setOntology(ontology);
         return manifest;
     }
 }

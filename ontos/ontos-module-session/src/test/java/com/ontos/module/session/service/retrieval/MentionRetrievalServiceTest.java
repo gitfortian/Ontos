@@ -272,6 +272,25 @@ class MentionRetrievalServiceTest {
         assertTrue(outcome.scenario() == null);
     }
 
+    @Test
+    void scenarioRecommendationTakesPrecedenceOverAmbiguity() {
+        // T24-4：clarificationTerminal 只取首个载荷——场景推荐必须排在歧义/模糊之前
+        MentionRetrievalService free = inScenarioService(new com.ontos.module.session.core.scenario.ScenarioRouteDecision(
+                com.ontos.module.session.core.scenario.ScenarioRouteDecision.Action.ASK_CONFIRM,
+                com.ontos.module.session.core.scenario.ScenarioRouteState.PENDING_CONFIRM,
+                "scenario.sales", null, null,
+                List.of(new com.ontos.module.session.core.scenario.ScenarioRouteDecision.PendingChoice(
+                                "scenario:scenario.sales", "进入场景：销售分析", "scenario.sales"),
+                        new com.ontos.module.session.core.scenario.ScenarioRouteDecision.PendingChoice(
+                                com.ontos.module.session.core.scenario.ScenarioRouteDecision.EXIT_CANDIDATE_ID,
+                                "留在自由问数", null))));
+        // 「金额」命中 gmv 与 refund_amount（歧义/模糊）+「订单趋势」命中 hint（推荐）
+        RetrievalOutcome outcome = free.resolve("看下金额和订单趋势", context, null);
+        assertTrue(outcome.clarifications().size() >= 2, "歧义/模糊与场景推荐并存");
+        assertEquals("scenario:scenario.sales", outcome.clarifications().get(0).defaultSuggestion(),
+                "场景推荐排首位（入口级语义优先于资产级歧义）");
+    }
+
     private MentionRetrievalService inScenarioService(
             com.ontos.module.session.core.scenario.ScenarioRouteDecision decision) {
         return inScenarioService(decision,

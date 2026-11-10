@@ -150,12 +150,14 @@ public class MentionRetrievalService {
             fuzzyMatch(text, index, scopedKeys, alreadyHit, fuzzy);
         }
 
-        // 澄清四要素：同词多资产歧义（≥2 资产）或模糊命中（≥2 资产）+ 场景确认/越界澄清
+        // 澄清四要素：同词多资产歧义（≥2 资产）或模糊命中（≥2 资产）+ 场景确认/越界澄清。
+        // T24-4：编排层 clarificationTerminal 只取首个载荷——场景推荐/越界澄清是入口级语义，
+        // 必须优先于资产级歧义/模糊（否则场景入口被淹没，pending 状态与澄清载荷脱节）。
         clarifications.addAll(buildClarifications(text, dictionary, fuzzy));
         if (decision.action() == com.ontos.module.session.core.scenario.ScenarioRouteDecision.Action.ASK_CONFIRM) {
             ClarificationPayload payload = scenarioClarification(decision, null, "是否进入场景");
             if (payload != null) {
-                clarifications.add(payload);
+                clarifications.add(0, payload);
             }
         }
 

@@ -821,10 +821,35 @@ public class QueryServiceImpl implements QueryService {
         // 校验在 manifest 处理之前完成，直传越权不进入任何后续链路。
         scenarioRouteGuard.adjudicate(context, queryDsl.getScenarioId(),
                 queryDsl.getMode() == null ? null : queryDsl.getMode().name().toLowerCase(),
-                queryDsl.getTimeRange() == null ? null : queryDsl.getTimeRange().getField());
+                queryDsl.getTimeRange() == null ? null : queryDsl.getTimeRange().getField(),
+                referencedAssetIds(queryDsl));
         checkManifestHeader(queryDsl, context);
         PublishedManifest manifest = manifestService.validateManifest(queryDsl.getManifestId());
         return prepareWith(queryDsl, context, manifest, sensitivityCollector);
+    }
+
+    /** DSL 引用的语义资产 ID（供场景 scope 交集；T24-5）。服务端推衍字段（identityPropertyId 等）不重复收集。 */
+    private static java.util.List<String> referencedAssetIds(QueryDsl queryDsl) {
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        if (queryDsl.getMetricId() != null) {
+            ids.add(queryDsl.getMetricId());
+        }
+        if (queryDsl.getBooleanMetricId() != null) {
+            ids.add(queryDsl.getBooleanMetricId());
+        }
+        if (queryDsl.getEntityId() != null) {
+            ids.add(queryDsl.getEntityId());
+        }
+        ids.addAll(queryDsl.getDimensions());
+        ids.addAll(queryDsl.getAttributes());
+        if (queryDsl.getFilters() != null) {
+            queryDsl.getFilters().forEach(filter -> {
+                if (filter.getFieldId() != null) {
+                    ids.add(filter.getFieldId());
+                }
+            });
+        }
+        return ids;
     }
 
     private static void checkManifestHeader(QueryDsl queryDsl, RequestContext context) {

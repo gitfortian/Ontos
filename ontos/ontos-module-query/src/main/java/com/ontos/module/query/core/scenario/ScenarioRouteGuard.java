@@ -17,12 +17,16 @@ import com.ontos.framework.web.core.context.RequestContext;
 public interface ScenarioRouteGuard {
 
     /**
-     * @param context        请求上下文（授权裁剪按 tenant+roles+userId）
-     * @param scenarioId     DSL 直传的场景 ID；空/null = 自由问数语义，直接放行（不改会话状态）
-     * @param mode           DSL 分析模式（{@code null} 允许——LOOKUP 等模式由下游校验补齐后再断言）
-     * @param timeRangeField DSL 显式时间绑定字段（{@code timeRange.field}；无显式绑定为 {@code null}）
+     * @param context             请求上下文（授权裁剪按 tenant+roles+userId）
+     * @param scenarioId          DSL 直传的场景 ID；空/null = 自由问数语义，直接放行（不改会话状态）
+     * @param mode                DSL 分析模式（{@code null} 允许——LOOKUP 等模式由下游校验补齐后再断言）
+     * @param timeRangeField      DSL 显式时间绑定字段（{@code timeRange.field}；无显式绑定为 {@code null}）
+     * @param referencedAssetIds  DSL 引用的语义资产 ID（metric/dimension/filter 字段/属性/实体）；
+     *                            显式带场景时做 scope 交集——**引用场景外资产一律拒绝**（T24-5：
+     *                            场景是业务域切片，不是入口标签；授权之外再收一层场景边界）
      * @throws com.ontos.framework.common.exception.ServiceException 未发布 / 未授权 /
-     *         模式越界 / 口径冲突 / 状态迁移非法（业务码，fail-closed 不回退）
+     *         模式越界 / 口径冲突 / 引用越界 / 状态迁移非法（业务码，fail-closed 不回退）
      */
-    void adjudicate(RequestContext context, String scenarioId, String mode, String timeRangeField);
+    void adjudicate(RequestContext context, String scenarioId, String mode, String timeRangeField,
+                    java.util.Collection<String> referencedAssetIds);
 }
