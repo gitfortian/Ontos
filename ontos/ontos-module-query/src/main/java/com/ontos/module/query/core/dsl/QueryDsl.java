@@ -103,7 +103,7 @@ public class QueryDsl {
         private List<String> dependsOn = new ArrayList<>();
     }
 
-    /** funnel / yoy_mom 的 analysis_params（字段名按 DSL camelCase 契约，语义见规格 v1）。 */
+    /** funnel / yoy_mom / retention 的 analysis_params（字段名按 DSL camelCase 契约，语义见规格 v1 / v1.1）。 */
     @Data
     public static class AnalysisParams {
         private List<String> steps = new ArrayList<>();
@@ -114,6 +114,14 @@ public class QueryDsl {
         private String conversionDenominator;
         /** yoy_mom：MONTH | YEAR 封闭枚举，QUARTER 归 M6。 */
         private String period;
+        /** retention：cohort 起点事件 event_type（M6/T1.3，规格 v1.1 §1.1）。 */
+        private String cohortEvent;
+        /** retention：回访事件 event_type；与 cohortEvent 可相同（复购留存）。 */
+        private String returnEvent;
+        /** retention：cohort 周期单位，封闭枚举 WEEK | MONTH（周一 / 每月 1 日起）。 */
+        private String periodUnit;
+        /** retention：输出 cohort 期 + 后续 periods-1 个观察期，取值 [2, 12]。 */
+        private Integer periods;
     }
 
     @Data

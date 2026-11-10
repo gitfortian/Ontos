@@ -2,7 +2,12 @@ package com.ontos.module.query.core.compiler;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +18,7 @@ import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.core.SemanticManifest;
 import com.ontos.module.query.core.dsl.QueryDsl;
 import com.ontos.module.query.core.time.TimeExpressionParser;
+import org.jooq.CommonTableExpression;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.Field;
@@ -34,6 +40,8 @@ import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_TIME_WINDOW
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_ATTRIBUTE_NOT_PROJECTABLE;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_CROSS_TABLE_UNSUPPORTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_IDENTITY_REQUIRED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.RETENTION_EVENT_NOT_FOUND;
+import static com.ontos.module.query.enums.ErrorCodeConstants.RETENTION_PERIOD_INCOMPLETE;
 import static com.ontos.module.query.enums.ErrorCodeConstants.RULE_EXPRESSION_INVALID;
 import static com.ontos.module.query.enums.ErrorCodeConstants.RULE_NOT_FOUND;
 import static com.ontos.module.query.enums.ErrorCodeConstants.RULE_NOT_PUBLISHED;
@@ -53,6 +61,16 @@ public class SqlCompiler {
     private static final String IDENTITY_ALIAS = "__identity";
 
     private final DSLContext dsl = DSL.using(SQLDialect.POSTGRES);
+    /** 留存观察锚点时钟（Asia/Shanghai）；单测注入固定时钟保证「完整周期」判定可复现。 */
+    private Clock clock = Clock.system(ZoneId.of(TimeExpressionParser.ZONE));
+
+    public SqlCompiler() {
+    }
+
+    /** 包级可见：仅测试注入固定时钟，Spring 走无参构造。 */
+    SqlCompiler(Clock clock) {
+        this.clock = clock;
+    }
 
     public CompiledQuery compile(QueryDsl queryDsl, PublishedManifest manifest) {
         QueryDsl.AnalysisMode mode = queryDsl.getMode() == null ? QueryDsl.AnalysisMode.QUERY : queryDsl.getMode();
@@ -66,6 +84,10 @@ public class SqlCompiler {
         }
         if (mode == QueryDsl.AnalysisMode.FUNNEL) {
             return compileFunnel(queryDsl, manifest);
+        }
+        // M6/T1.3：留存走事件锚点 + cohort 周期骨架构造器
+        if (mode == QueryDsl.AnalysisMode.RETENTION) {
+            return compileRetention(queryDsl, manifest);
         }
         // 纵深防御（PoC-04 缺陷修复）：即使调用方绕过校验器，编译器也绝不把
         // 未实现的模式静默编译成聚合 SQL——只拒绝，不实现（funnel / yoy_mom 归 T3.3）。
@@ -546,6 +568,244 @@ public class SqlCompiler {
         compiled.setAppliedLimit(limit);
         compiled.setCompiledAt(Instant.now());
         return compiled;
+    }
+
+    /**
+     * retention 留存构造器（M6/T1.3，模式规格 v1.1 §1）。
+     *
+     * <p>口径：cohort = 主体在观察窗内的首次 cohort 事件所在周期（自然周 / 自然月，
+     * 左闭右开）；retention[period_index] = 该周期内发生过 return 事件的主体数（distinct）。
+     * 未完整结束的周期整期不产出（不冒充完整数据）；窗内没有任何完整 cohort 期时整题拒绝。
+     * 维度只取主体表，事件级维度首发不支持（校验器已拒绝，编译器按同一口径纵深防御）。
+     */
+    private CompiledQuery compileRetention(QueryDsl queryDsl, PublishedManifest manifest) {
+        OntologySnapshot ontology = manifest.getOntology();
+        SemanticManifest semantic = manifest.getSemantic();
+        QueryDsl.AnalysisParams params = queryDsl.getAnalysisParams();
+        if (params == null || params.getCohortEvent() == null || params.getReturnEvent() == null) {
+            throw exception(DSL_INVALID, "retention 缺少 cohortEvent / returnEvent");
+        }
+        QueryDsl.TimeRange range = queryDsl.getTimeRange();
+        if (range == null || range.getFrom() == null || range.getTo() == null) {
+            throw exception(DSL_INVALID, "retention 缺少已解析的 timeRange");
+        }
+        String unit = retentionUnit(params.getPeriodUnit());
+        int periods = params.getPeriods() == null ? 0 : params.getPeriods();
+        if (periods < 2 || periods > 12) {
+            throw exception(DSL_INVALID, "retention periods 必须在 [2, 12]");
+        }
+        OntologySnapshot.EventDef cohortEvent = retentionEvent(ontology, params.getCohortEvent());
+        OntologySnapshot.EventDef returnEvent = retentionEvent(ontology, params.getReturnEvent());
+        if (!sameEventMapping(cohortEvent, returnEvent)) {
+            throw exception(DSL_INVALID, "retention cohort / return 事件物理映射不一致");
+        }
+        OntologySnapshot.Property typeProperty = eventProperty(ontology, cohortEvent.getEventTypeProperty());
+        OntologySnapshot.Property timeProperty = eventProperty(ontology, cohortEvent.getTimeProperty());
+        OntologySnapshot.Property participantProperty =
+                eventProperty(ontology, cohortEvent.getParticipantProperty());
+        String eventTable = tableOf(timeProperty.getColumn());
+        if (eventTable == null
+                || !eventTable.equals(tableOf(typeProperty.getColumn()))
+                || !eventTable.equals(tableOf(participantProperty.getColumn()))) {
+            throw exception(DSL_INVALID, "retention 事件映射属性跨表或缺少表限定");
+        }
+        OntologySnapshot.Property subject = ontology.propertyIndex().get(params.getSubjectPropertyId());
+        if (subject == null || tableOf(subject.getColumn()) == null) {
+            throw exception(DSL_INVALID,
+                    "retention subjectPropertyId 无法解析物理列: " + params.getSubjectPropertyId());
+        }
+        String subjectTable = tableOf(subject.getColumn());
+        List<String> dimensionIds = queryDsl.getDimensions() == null ? List.of() : queryDsl.getDimensions();
+        List<SemanticManifest.Dimension> dimensions = new ArrayList<>();
+        for (String dimensionId : dimensionIds) {
+            dimensions.add(semantic.requireDimension(dimensionId));
+        }
+
+        Field<Timestamp> eventTime = DSL.field(columnName(timeProperty.getColumn()), Timestamp.class);
+        Field<String> eventType = DSL.field(columnName(typeProperty.getColumn()), String.class);
+        Field<String> participant = DSL.field(columnName(participantProperty.getColumn()), String.class);
+
+        // 完整周期判定：以上海「今日」为观察锚点，最后一个完整周期是当前周期的前一周期
+        LocalDate today = LocalDate.now(clock);
+        LocalDate windowStart = range.getFrom()
+                .atZone(ZoneId.of(TimeExpressionParser.ZONE)).toLocalDate();
+        LocalDate latestComplete = lastCompletePeriodStart(today, unit);
+        LocalDate firstPeriod = retentionPeriodStart(windowStart, unit);
+        if (firstPeriod.isAfter(latestComplete)) {
+            throw exception(RETENTION_PERIOD_INCOMPLETE,
+                    "观察窗起点 " + firstPeriod + " 晚于最后完整周期 " + latestComplete);
+        }
+        Timestamp anchor = Timestamp.valueOf(today.atStartOfDay());
+
+        // cohort_first：窗内首次 cohort 事件（按主体聚合，min 已覆盖「同时刻取一」的确定性）
+        SelectQuery<Record> first = dsl.selectQuery();
+        first.addSelect(participant.as("subject"));
+        first.addSelect(DSL.min(eventTime).as("first_time"));
+        first.addFrom(DSL.table(tableName(eventTable)));
+        first.addConditions(
+                eventType.eq(cohortEvent.getEventTypeValue()),
+                eventTime.ge(DSL.val(shanghaiTimestamp(range.getFrom()))),
+                eventTime.lt(DSL.val(shanghaiTimestamp(range.getTo()))));
+        first.addGroupBy(participant);
+
+        // cohort：首次事件所在周期 + cohort 时点的主体维度（主体表维度对同一主体唯一）
+        Field<String> firstSubject = DSL.field(DSL.name("cohort_first", "subject"), String.class);
+        Field<Timestamp> firstTime = DSL.field(DSL.name("cohort_first", "first_time"), Timestamp.class);
+        Field<Timestamp> bucket = DSL.field("date_trunc({0}, {1})", Timestamp.class,
+                DSL.inline(unit), firstTime);
+        SelectQuery<Record> cohort = dsl.selectQuery();
+        cohort.addSelect(firstSubject.as("subject"));
+        cohort.addSelect(bucket.as("cohort_period"));
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            cohort.addSelect(DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()))
+                    .as(DSL.name(dimension.getId())));
+        }
+        cohort.addFrom(DSL.table(DSL.name("cohort_first")));
+        if (!dimensions.isEmpty()) {
+            cohort.addJoin(DSL.table(tableName(subjectTable)),
+                    DSL.field(columnName(subject.getColumn())).eq(firstSubject));
+        }
+        List<Field<?>> cohortGroup = new ArrayList<>();
+        cohortGroup.add(firstSubject);
+        cohortGroup.add(bucket);
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            cohortGroup.add(DSL.field(assetColumn(dimension.getTable(), dimension.getColumn())));
+        }
+        cohort.addGroupBy(cohortGroup);
+
+        // periods：0..periods-1 的观察期序号（生成序列先例见 yoy_mom 周期骨架）
+        SelectQuery<Record> periodsQuery = dsl.selectQuery();
+        periodsQuery.addSelect(DSL.field("generate_series({0}, {1})", Integer.class,
+                DSL.val(0), DSL.val(periods - 1)).as("period_index"));
+
+        // retained：cohort × periods 逐期判定 return 事件；未完整期整期不产出
+        Field<String> cohortSubject = DSL.field(DSL.name("c", "subject"), String.class);
+        Field<Timestamp> cohortPeriod = DSL.field(DSL.name("c", "cohort_period"), Timestamp.class);
+        Field<Integer> periodIndex = DSL.field(DSL.name("p", "period_index"), Integer.class);
+        // interval 字面量来自封闭枚举（week / month），不是用户输入
+        Field<Timestamp> periodStart = DSL.field("{0} + ({1} * cast({2} as interval))",
+                Timestamp.class, cohortPeriod, periodIndex, DSL.inline("1 " + unit));
+        Field<Timestamp> periodEnd = DSL.field("{0} + (({1} + 1) * cast({2} as interval))",
+                Timestamp.class, cohortPeriod, periodIndex, DSL.inline("1 " + unit));
+        Condition returned = DSL.exists(dsl.selectOne()
+                .from(DSL.table(tableName(eventTable)))
+                .where(participant.eq(cohortSubject),
+                        eventType.eq(returnEvent.getEventTypeValue()),
+                        eventTime.ge(periodStart),
+                        eventTime.lt(periodEnd)));
+        SelectQuery<Record> retained = dsl.selectQuery();
+        retained.addSelect(cohortSubject.as("subject"));
+        retained.addSelect(cohortPeriod.as("cohort_period"));
+        retained.addSelect(periodIndex.as("period_index"));
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            retained.addSelect(DSL.field(DSL.name("c", dimension.getId())).as(DSL.name(dimension.getId())));
+        }
+        retained.addSelect(DSL.field("case when {0} then 1 else 0 end", Integer.class, returned)
+                .as("retained"));
+        retained.addFrom(DSL.table(DSL.name("cohort")).as("c"));
+        retained.addFrom(DSL.table(periodsQuery).as("p"));
+        retained.addConditions(periodEnd.le(DSL.val(anchor)));
+
+        // 外层聚合：cohort_users / retained_users / retention_rate（分母为 0 时 null，无除零路径）
+        Field<String> outSubject = DSL.field(DSL.name("r", "subject"), String.class);
+        Field<Integer> outRetained = DSL.field(DSL.name("r", "retained"), Integer.class);
+        Field<Integer> cohortUsers = DSL.countDistinct(outSubject);
+        Field<Integer> retainedUsers = DSL.countDistinct(outSubject)
+                .filterWhere(outRetained.eq(1));
+        List<Field<?>> outerFields = new ArrayList<>();
+        outerFields.add(DSL.field(DSL.name("r", "cohort_period")).as("cohort_period"));
+        outerFields.add(DSL.field(DSL.name("r", "period_index")).as("period_index"));
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            outerFields.add(DSL.field(DSL.name("r", dimension.getId())).as(DSL.name(dimension.getId())));
+        }
+        outerFields.add(cohortUsers.as("cohort_users"));
+        outerFields.add(retainedUsers.as("retained_users"));
+        outerFields.add(DSL.field("cast({0} as numeric) / nullif({1}, 0)", BigDecimal.class,
+                retainedUsers, cohortUsers).as("retention_rate"));
+
+        List<Field<?>> groupFields = new ArrayList<>();
+        List<Field<?>> orderFields = new ArrayList<>();
+        groupFields.add(DSL.field(DSL.name("r", "cohort_period")));
+        groupFields.add(DSL.field(DSL.name("r", "period_index")));
+        orderFields.add(DSL.field(DSL.name("r", "cohort_period")));
+        orderFields.add(DSL.field(DSL.name("r", "period_index")));
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            groupFields.add(DSL.field(DSL.name("r", dimension.getId())));
+            orderFields.add(DSL.field(DSL.name("r", dimension.getId())));
+        }
+
+        List<CommonTableExpression<Record>> ctes = new ArrayList<>();
+        ctes.add(DSL.name("cohort_first").as(first));
+        ctes.add(DSL.name("cohort").as(cohort));
+        ctes.add(DSL.name("retained").as(retained));
+        int limit = queryDsl.getLimit() == null ? 500 : queryDsl.getLimit();
+        Query query = dsl.with(ctes)
+                .select(outerFields.toArray(new Field[0]))
+                .from(DSL.table(DSL.name("retained")).as("r"))
+                .groupBy(groupFields)
+                .orderBy(orderFields)
+                .limit(limit);
+
+        CompiledQuery compiled = new CompiledQuery();
+        compiled.setManifestId(manifest.getManifestId());
+        compiled.setContentHash(manifest.getContentHash());
+        compiled.setMode(QueryDsl.AnalysisMode.RETENTION.name());
+        compiled.setDimensions(dimensionIds);
+        compiled.setJoins(List.of());
+        compiled.setDialect("postgresql");
+        compiled.setSql(query.getSQL(ParamType.INDEXED));
+        compiled.setBindValues(query.getBindValues());
+        compiled.setAppliedLimit(limit);
+        compiled.setCompiledAt(Instant.now());
+        return compiled;
+    }
+
+    /** WEEK | MONTH → PostgreSQL date_trunc 单位（封闭枚举由校验器保证，编译器不猜测）。 */
+    private static String retentionUnit(String periodUnit) {
+        if ("WEEK".equals(periodUnit)) {
+            return "week";
+        }
+        if ("MONTH".equals(periodUnit)) {
+            return "month";
+        }
+        throw exception(DSL_INVALID, "retention periodUnit 仅允许 WEEK / MONTH: " + periodUnit);
+    }
+
+    private static OntologySnapshot.EventDef retentionEvent(OntologySnapshot ontology, String eventType) {
+        List<OntologySnapshot.EventDef> matched = ontology.getEvents().stream()
+                .filter(event -> eventType != null && eventType.equals(event.getEventType()))
+                .toList();
+        if (matched.size() != 1) {
+            throw exception(RETENTION_EVENT_NOT_FOUND, String.valueOf(eventType));
+        }
+        return matched.get(0);
+    }
+
+    private static OntologySnapshot.Property eventProperty(OntologySnapshot ontology, String propertyId) {
+        OntologySnapshot.Property property = propertyId == null ? null : ontology.propertyIndex().get(propertyId);
+        if (property == null) {
+            throw exception(DSL_INVALID, "retention 事件映射属性未发布: " + propertyId);
+        }
+        return property;
+    }
+
+    private static boolean sameEventMapping(OntologySnapshot.EventDef left, OntologySnapshot.EventDef right) {
+        return java.util.Objects.equals(left.getEventTypeProperty(), right.getEventTypeProperty())
+                && java.util.Objects.equals(left.getTimeProperty(), right.getTimeProperty())
+                && java.util.Objects.equals(left.getParticipantProperty(), right.getParticipantProperty());
+    }
+
+    /** 周期起点：WEEK 取周一（周一起），MONTH 取每月 1 日（ADR-0004 §2.4）。 */
+    private static LocalDate retentionPeriodStart(LocalDate date, String unit) {
+        return "week".equals(unit)
+                ? date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                : date.withDayOfMonth(1);
+    }
+
+    /** 最后一个已完整结束的周期起点：当前周期尚未结束，取前一周期（不冒充完整数据）。 */
+    private static LocalDate lastCompletePeriodStart(LocalDate today, String unit) {
+        LocalDate currentStart = retentionPeriodStart(today, unit);
+        return "week".equals(unit) ? currentStart.minusWeeks(1) : currentStart.minusMonths(1);
     }
 
     private static OntologySnapshot.Property requireEventProperty(OntologySnapshot ontology, String propertyId) {

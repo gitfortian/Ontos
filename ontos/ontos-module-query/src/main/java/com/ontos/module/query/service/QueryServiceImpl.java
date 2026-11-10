@@ -836,9 +836,9 @@ public class QueryServiceImpl implements QueryService {
             // 解析结果（含 patternId / parserVersion）写入 DSL，随 buildAudit 的 dsl_json 进审计。
             timeWindowResolver.resolve(queryDsl, manifest);
             // W3/T3.1：跨表字段先由规划器解析 UNIQUE 路径，歧义/不可达在此拒绝。
-            // funnel 按事件主体编译、没有 metric，也不做本体路径规划，必须跳过规划器，
-            // 否则 requireMetric(null) 会以「语义资产不存在」误拒合法漏斗。
-            if (queryDsl.getMode() != QueryDsl.AnalysisMode.FUNNEL) {
+            // funnel / retention 按事件主体编译、没有 metric，也不做本体路径规划，必须跳过规划器，
+            // 否则 requireMetric(null) 会以「语义资产不存在」误拒合法事件锚点查询。
+            if (!isEventAnchored(queryDsl)) {
                 // R-18：模式授权必须先于路径规划。规则型指标没有物理表，
                 // 先跑规划器会把「模式不支持」误报成 PATH_UNREACHABLE。
                 dslValidator.validateMode(queryDsl, manifest);
@@ -855,7 +855,7 @@ public class QueryServiceImpl implements QueryService {
                     PolicySnapshotService.AssetType.ENTITY,
                     policyService.check(context, PolicySnapshotService.AssetType.ENTITY,
                             queryDsl.getEntityId()));
-        } else if (queryDsl.getMode() != QueryDsl.AnalysisMode.FUNNEL) {
+        } else if (!isEventAnchored(queryDsl)) {
             collectSensitivity(sensitivityCollector, manifest, queryDsl.getMetricId(),
                     PolicySnapshotService.AssetType.METRIC,
                     policyService.check(context, PolicySnapshotService.AssetType.METRIC,
@@ -879,7 +879,10 @@ public class QueryServiceImpl implements QueryService {
                                 filter.getFieldId()));
             }
         }
-        if (queryDsl.getTimeRange() != null && queryDsl.getTimeRange().getField() != null) {
+        if (queryDsl.getTimeRange() != null && queryDsl.getTimeRange().getField() != null
+                && !isEventAnchored(queryDsl)) {
+            // 事件锚点模式的 timeRange.field 是服务端按 EventDef.timeProperty 回填的事件时间属性
+            // （不是维度资产、也不来自客户端），不参与 DIMENSION 判定；funnel 的时间在 cohortWindow。
             collectSensitivity(sensitivityCollector, manifest, queryDsl.getTimeRange().getField(),
                     PolicySnapshotService.AssetType.DIMENSION,
                     policyService.check(context, PolicySnapshotService.AssetType.DIMENSION,
@@ -946,6 +949,15 @@ public class QueryServiceImpl implements QueryService {
     private static boolean isLookup(QueryDsl dsl) {
         return dsl.getMode() == QueryDsl.AnalysisMode.LOOKUP
                 || dsl.getMode() == QueryDsl.AnalysisMode.LOOKUP_BATCH;
+    }
+
+    /**
+     * 事件锚点模式（funnel / retention）：按事件主体聚合，没有 metric，不做本体路径规划；
+     * 授权由维度/属性引用面与事件映射承担（M2 funnel 口径，M6 retention 延续）。
+     */
+    private static boolean isEventAnchored(QueryDsl dsl) {
+        return dsl.getMode() == QueryDsl.AnalysisMode.FUNNEL
+                || dsl.getMode() == QueryDsl.AnalysisMode.RETENTION;
     }
 
     /**

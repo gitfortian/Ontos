@@ -42,5 +42,9 @@ public interface ErrorCodeConstants {
     ErrorCode REQUEST_TERMINAL = new ErrorCode(1_002_000_032, "请求已处于终态（{}），请使用新的 request_id 重试: {}");
     ErrorCode CALIBER_AMBIGUOUS = new ErrorCode(1_002_000_033, "该指标存在多个口径，请指定 caliberVariantId（候选: {}）");
     ErrorCode COPY_TEMPLATE_MISSING = new ErrorCode(1_002_000_034, "没有可用的文案模板（原因码与通用兜底均缺失）: {}");
+    /** M6/T1.3：留存事件锚点 / 主体维度 / 未完整周期的结构化原因码（规格 v1.1 §1）。 */
+    ErrorCode RETENTION_EVENT_NOT_FOUND = new ErrorCode(1_002_000_035, "留存事件找不到唯一已发布定义或映射不完整: {}");
+    ErrorCode RETENTION_DIMENSION_UNSUPPORTED = new ErrorCode(1_002_000_036, "留存维度必须映射到主体表（事件级维度后续支持）: {}");
+    ErrorCode RETENTION_PERIOD_INCOMPLETE = new ErrorCode(1_002_000_037, "留存观察窗内没有已完整结束的 cohort 周期: {}");
 
 }

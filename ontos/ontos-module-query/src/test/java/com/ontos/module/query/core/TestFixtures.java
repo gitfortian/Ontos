@@ -231,6 +231,40 @@ public final class TestFixtures {
         return dsl;
     }
 
+    /** M6/T1.3 夹具：留存复用 funnel 的事件锚点清单（事件映射齐备、维度属主体表）。 */
+    public static PublishedManifest retentionManifest() {
+        return funnelManifest();
+    }
+
+    /**
+     * M6/T1.3 留存 DSL：观察窗与 timeRange.field 是 TimeWindowResolver 的回填产物，
+     * 夹具直接给等价结果（field = cohort 事件 timeProperty）。
+     */
+    public static QueryDsl retentionDsl() {
+        QueryDsl dsl = new QueryDsl();
+        dsl.setManifestId("manifest-001");
+        dsl.setMode(QueryDsl.AnalysisMode.RETENTION);
+        dsl.setDimensions(List.of(CUSTOMER_TIER_DIMENSION));
+        QueryDsl.AnalysisParams params = new QueryDsl.AnalysisParams();
+        params.setCohortEvent("ORDER_PLACED");
+        params.setReturnEvent("ORDER_PLACED");
+        params.setPeriodUnit("WEEK");
+        params.setPeriods(4);
+        params.setSubjectPropertyId(CUSTOMER_SUBJECT_PROPERTY);
+        dsl.setAnalysisParams(params);
+        dsl.setTimeExpressionRaw("近 40 天");
+        QueryDsl.TimeRange range = new QueryDsl.TimeRange();
+        range.setField(EVENT_TIME_PROPERTY);
+        range.setFrom(java.time.Instant.parse("2026-10-01T00:00:00Z"));
+        range.setTo(java.time.Instant.parse("2026-11-09T00:00:00Z"));
+        range.setSource(QueryDsl.TimeRange.SOURCE_EXPRESSION);
+        dsl.setTimeRange(range);
+        dsl.setTimePatternId("tep.last_n_days");
+        dsl.setTimeParserVersion("time-parser-1.0");
+        dsl.setLimit(100);
+        return dsl;
+    }
+
     /** T3.4 夹具：布尔指标 + published Rule + 唯一的主体/指标表连接关系。 */
     public static PublishedManifest ruleManifest() {
         PublishedManifest manifest = lookupManifest();
