@@ -1,12 +1,14 @@
 package com.ontos.module.session.service.retrieval;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
 import com.ontos.framework.web.core.context.RequestContext;
+import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.service.manifest.ManifestService;
 import com.ontos.module.session.service.session.SessionProjection;
@@ -38,11 +40,15 @@ public class MentionRetrievalService {
     private final PolicySnapshotService policySnapshotService;
     private volatile MentionIndex cachedIndex;
 
+    private final com.ontos.module.session.service.scenario.ScenarioScopeService scenarioScopeService;
+
     @Autowired
     public MentionRetrievalService(ManifestService manifestService,
-                                   PolicySnapshotService policySnapshotService) {
+                                   PolicySnapshotService policySnapshotService,
+                                   com.ontos.module.session.service.scenario.ScenarioScopeService scenarioScopeService) {
         this.manifestService = manifestService;
         this.policySnapshotService = policySnapshotService;
+        this.scenarioScopeService = scenarioScopeService;
     }
 
     /**
@@ -64,8 +70,16 @@ public class MentionRetrievalService {
         Set<String> authorizedKeys = policySnapshotService.authorizedAssetIds(context);
 
         String text = utterance == null ? "" : utterance.strip();
+
+        // M6/W2/T2.4：Scenario Entry Router 在授权裁剪后、L1 前完成入口确认与 scope 裁剪
+        //（§7.5 步 2–3）；in_scenario 时裁剪键集 = 授权 ∩ 场景 scope（只收窄不扩大）。
+        var scoped = scenarioScopeService.resolve(context, text, manifest, authorizedKeys);
+        Set<String> scopedKeys = scoped.scopedAssetKeys();
+
         List<RetrievedCandidate> exact = new ArrayList<>();
         List<RetrievedCandidate> dictionary = new ArrayList<>();
+        List<RetrievedCandidate> exactOutside = new ArrayList<>();
+        List<RetrievedCandidate> dictionaryOutside = new ArrayList<>();
         List<RetrievedCandidate> fuzzy = new ArrayList<>();
 
         // L1 精确：话术全等 name/alias，或话术内出现资产 ID 字面量（高级用户直接引用）
@@ -76,8 +90,14 @@ public class MentionRetrievalService {
                 }
                 if (text.equals(entry.term())
                         || text.toLowerCase().contains(entry.assetId().toLowerCase())) {
-                    exact.add(new RetrievedCandidate(entry.assetId(), entry.assetType(),
-                            entry.term(), 1, false, 100));
+                    RetrievedCandidate candidate = new RetrievedCandidate(entry.assetId(),
+                            entry.assetType(), entry.term(), 1, false, 100);
+                    if (scopedKeys.contains(key(entry.assetType(), entry.assetId()))) {
+                        exact.add(candidate);
+                    } else {
+                        // 场景内不可见但授权域内可见：越界信号（触发 out-of-scope 澄清）
+                        exactOutside.add(candidate);
+                    }
                 }
             }
         }
@@ -94,34 +114,109 @@ public class MentionRetrievalService {
                     if (!authorizedKeys.contains(key(entry.assetType(), entry.assetId()))) {
                         continue;
                     }
-                    dictionary.add(new RetrievedCandidate(entry.assetId(), entry.assetType(),
-                            term, 2, false, 60 + term.length()));
+                    RetrievedCandidate candidate = new RetrievedCandidate(entry.assetId(),
+                            entry.assetType(), term, 2, false, 60 + term.length());
+                    if (scopedKeys.contains(key(entry.assetType(), entry.assetId()))) {
+                        dictionary.add(candidate);
+                    } else {
+                        dictionaryOutside.add(candidate);
+                    }
                 }
             }
         }
         // 同词多资产：词条目重复出现（term+assetId 去重由 candidateDistinct 承担）
 
-        // L3 受限模糊：滑窗编辑距离 ≤1；只补充 L1/L2 未命中的资产（不得覆盖精确/词典命中）
+        // 越界澄清（§3.2）：场景内 L1/L2 全空且授权域外有命中 → 问题超出当前场景范围，
+        // 二次路由产出 CLARIFY_OUT_OF_SCOPE 并落 pending_confirm（复用 M5 回传校验通道）。
+        List<ClarificationPayload> clarifications = new ArrayList<>();
+        com.ontos.module.session.core.scenario.ScenarioRouteDecision decision =
+                scoped.decision();
+        if (scoped.scenarioId() != null && exact.isEmpty() && dictionary.isEmpty()
+                && (!exactOutside.isEmpty() || !dictionaryOutside.isEmpty())) {
+            decision = scenarioScopeService.clarifyOutOfScope(context, manifest, authorizedKeys);
+            ClarificationPayload payload = scenarioClarification(decision,
+                    scoped.scenarioId(), "问题超出当前场景范围");
+            if (payload != null) {
+                clarifications.add(payload);
+            }
+        }
+
+        // L3 受限模糊：滑窗编辑距离 ≤1；只补充 L1/L2 未命中的资产（不得覆盖精确/词典命中）；
+        // 模糊候选只看场景裁剪后的键集（越界资产不进澄清候选）
         if (!text.isEmpty()) {
             Set<String> alreadyHit = new TreeSet<>();
             exact.forEach(candidate -> alreadyHit.add(candidate.assetId()));
             dictionary.forEach(candidate -> alreadyHit.add(candidate.assetId()));
-            fuzzyMatch(text, index, authorizedKeys, alreadyHit, fuzzy);
+            fuzzyMatch(text, index, scopedKeys, alreadyHit, fuzzy);
         }
 
-        // 澄清四要素：同词多资产歧义（≥2 资产）或模糊命中（≥2 资产）
-        List<ClarificationPayload> clarifications = buildClarifications(text, dictionary, fuzzy);
+        // 澄清四要素：同词多资产歧义（≥2 资产）或模糊命中（≥2 资产）+ 场景确认/越界澄清
+        clarifications.addAll(buildClarifications(text, dictionary, fuzzy));
+        if (decision.action() == com.ontos.module.session.core.scenario.ScenarioRouteDecision.Action.ASK_CONFIRM) {
+            ClarificationPayload payload = scenarioClarification(decision, null, "是否进入场景");
+            if (payload != null) {
+                clarifications.add(payload);
+            }
+        }
 
         // 指代消解（T2.2）：本轮无 L1/L2 命中且有会话投影 → 投影实体候选；失效投影标记
         List<RetrievedCandidate> prevTurn = new ArrayList<>();
         boolean projectionStale = false;
         if (exact.isEmpty() && dictionary.isEmpty() && projection != null) {
-            collectProjectionCandidates(projection, index, authorizedKeys, prevTurn);
+            collectProjectionCandidates(projection, index, scopedKeys, prevTurn);
             projectionStale = prevTurn.isEmpty() && !projection.isEmpty();
         }
 
+        // 场景上下文（仅 dslReady 非空才有 DSL 组装；澄清/待确认轮编排层不组装 DSL）
+        RetrievalOutcome.ScenarioContext scenarioContext = null;
+        if (decision.targetState() == com.ontos.module.session.core.scenario.ScenarioRouteState.IN_SCENARIO
+                && scoped.scenarioId() != null && clarifications.isEmpty()) {
+            var scenario = scoped.scenario();
+            scenarioContext = new RetrievalOutcome.ScenarioContext(scoped.scenarioId(),
+                    decision.source() == null ? null : decision.source().code(),
+                    scenario == null ? List.of() : scenario.getAllowedAnalysisModes(),
+                    calibersOf(scenario));
+        }
+
         return new RetrievalOutcome(distinct(exact, dictionary), distinct(fuzzy), prevTurn,
-                clarifications, projectionStale, contextHash(manifest, authorizedKeys));
+                clarifications, projectionStale,
+                contextHash(manifest, authorizedKeys, scopedKeys), scenarioContext);
+    }
+
+    /** 场景决策 → 澄清载荷（候选 = 进入/切换/退出；不足 2 个时补「留在场景改写问法」）。 */
+    private ClarificationPayload scenarioClarification(
+            com.ontos.module.session.core.scenario.ScenarioRouteDecision decision,
+            String currentScenarioId, String mention) {
+        List<RetrievedCandidate> candidates = new ArrayList<>();
+        for (var choice : decision.candidates()) {
+            candidates.add(new RetrievedCandidate(choice.candidateId(), "scenario",
+                    choice.label(), 0, false, 0));
+        }
+        if (candidates.size() == 1 && currentScenarioId != null) {
+            // 单场景清单的越界澄清只有退出候选：补「留在场景」选项（确认回到同场景）
+            candidates.add(new RetrievedCandidate(
+                    com.ontos.module.session.core.scenario.ScenarioRouter.candidateIdOf(currentScenarioId),
+                    "scenario", "留在场景内改写问法", 0, false, 0));
+        }
+        if (candidates.size() < 2) {
+            return null;
+        }
+        return new ClarificationPayload(mention, candidates, candidates.get(0).assetId(), true);
+    }
+
+    /** frozen_calibers → 名称到值映射（时间绑定冲突校验在直连 guard；此处供审计与编排）。 */
+    private static Map<String, String> calibersOf(ManifestPayload.ScenarioMeta scenario) {
+        if (scenario == null || scenario.getSemanticScope() == null
+                || scenario.getSemanticScope().getFrozenCalibers() == null) {
+            return Map.of();
+        }
+        Map<String, String> values = new LinkedHashMap<>();
+        scenario.getSemanticScope().getFrozenCalibers().forEach((name, caliber) -> {
+            if (caliber.getValue() != null) {
+                values.put(name, caliber.getValue());
+            }
+        });
+        return values;
     }
 
     /** L1+L2 合并去重（同资产同词保留高分），dslReady 出口——只有这里的内容允许进 DSL。 */
@@ -258,6 +353,14 @@ public class MentionRetrievalService {
     }
 
     /** 候选集内容哈希：清单 contentHash + 授权键集合（排序）——Proposal 对账的基准。 */
+    /** 场景裁剪参与哈希：同授权不同场景（或同场景不同裁剪）的候选集上下文必须可区分。 */
+    static String contextHash(PublishedManifest manifest, Set<String> authorizedKeys,
+                              Set<String> scopedKeys) {
+        java.util.List<String> combined = new ArrayList<>(authorizedKeys);
+        scopedKeys.forEach(key -> combined.add("scope|" + key));
+        return contextHash(manifest, new java.util.LinkedHashSet<>(combined));
+    }
+
     static String contextHash(PublishedManifest manifest, Set<String> authorizedKeys) {
         TreeSet<String> ordered = new TreeSet<>(authorizedKeys);
         StringBuilder material = new StringBuilder(manifest.getContentHash()).append('|');

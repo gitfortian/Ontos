@@ -15,5 +15,9 @@ public interface ErrorCodeConstants {
             "Scenario 不可用（未发布 / 无权限 / 已失效）: {}");
     ErrorCode SCENARIO_STATE_INVALID = new ErrorCode(1_004_000_004,
             "Scenario 状态迁移非法: {} -> {}");
+    ErrorCode SCENARIO_MODE_FORBIDDEN = new ErrorCode(1_004_000_005,
+            "分析模式不在场景允许范围内: {} 不允许 {}");
+    ErrorCode SCENARIO_CALIBER_CONFLICT = new ErrorCode(1_004_000_006,
+            "与场景冻结口径冲突: {} 需要 {}");
 
 }

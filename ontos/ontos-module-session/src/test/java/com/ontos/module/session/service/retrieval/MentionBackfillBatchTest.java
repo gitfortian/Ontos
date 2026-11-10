@@ -73,7 +73,21 @@ class MentionBackfillBatchTest {
         PolicySnapshotService policySnapshotService = mock(PolicySnapshotService.class);
         when(policySnapshotService.authorizedAssetIds(any()))
                 .thenReturn(allAssetKeys(manifest.getSemantic(), manifest.getOntology()));
-        service = new MentionRetrievalService(manifestService, policySnapshotService);
+        com.ontos.module.session.service.scenario.ScenarioSessionService sessionService =
+                org.mockito.Mockito.mock(com.ontos.module.session.service.scenario.ScenarioSessionService.class);
+        org.mockito.Mockito.when(sessionService.read(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new com.ontos.module.session.service.scenario.ScenarioSessionService
+                        .ScenarioSessionView(
+                        com.ontos.module.session.core.scenario.ScenarioRouteState.FREE, null));
+        org.mockito.Mockito.when(sessionService.apply(org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new com.ontos.module.session.core.scenario.ScenarioRouteDecision(
+                        com.ontos.module.session.core.scenario.ScenarioRouteDecision.Action.STAY,
+                        com.ontos.module.session.core.scenario.ScenarioRouteState.FREE, null,
+                        com.ontos.module.session.core.scenario.ScenarioEntrySource.SESSION_INHERIT,
+                        null, List.of()));
+        service = new MentionRetrievalService(manifestService, policySnapshotService,
+                new com.ontos.module.session.service.scenario.ScenarioScopeService(sessionService));
 
         Map<String, Object> sampleSet = JsonUtils.parseObject(
                 Files.readString(SAMPLES_JSON, StandardCharsets.UTF_8),

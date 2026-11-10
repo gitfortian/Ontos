@@ -42,8 +42,32 @@ class MentionRetrievalServiceTest {
     }
 
     private MentionRetrievalService service() {
-        return new MentionRetrievalService(manifestService, policySnapshotService);
+        return new MentionRetrievalService(manifestService, policySnapshotService, scenarioScopeService());
     }
+
+    /** 缺省场景桩：无场景清单 → free 态 STAY（授权全域透传）。 */
+    private com.ontos.module.session.service.scenario.ScenarioScopeService scenarioScopeService() {
+        com.ontos.module.session.service.scenario.ScenarioSessionService sessionService =
+                org.mockito.Mockito.mock(com.ontos.module.session.service.scenario.ScenarioSessionService.class);
+        org.mockito.Mockito.when(sessionService.read(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new com.ontos.module.session.service.scenario.ScenarioSessionService
+                        .ScenarioSessionView(
+                        com.ontos.module.session.core.scenario.ScenarioRouteState.FREE, null));
+        org.mockito.Mockito.when(sessionService.apply(org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any()))
+                .thenReturn(stayFree());
+        return new com.ontos.module.session.service.scenario.ScenarioScopeService(sessionService);
+    }
+
+    /** 无场景清单的缺省路由：STAY（free 态不迁移、不落库）。 */
+    private static com.ontos.module.session.core.scenario.ScenarioRouteDecision stayFree() {
+        return new com.ontos.module.session.core.scenario.ScenarioRouteDecision(
+                com.ontos.module.session.core.scenario.ScenarioRouteDecision.Action.STAY,
+                com.ontos.module.session.core.scenario.ScenarioRouteState.FREE, null,
+                com.ontos.module.session.core.scenario.ScenarioEntrySource.SESSION_INHERIT,
+                null, List.of());
+    }
+
 
     // ---------- 分层：L1 精确 ----------
 
@@ -190,6 +214,106 @@ class MentionRetrievalServiceTest {
         assertEquals("metric.gmv", outcome.dslReady().get(0).assetId());
     }
 
+    // ---------- 场景路由接线（M6/W2/T2.4） ----------
+
+    @Test
+    void inScenarioCandidatesAreTrimmedToScenarioScope() {
+        // 场景内说「订单数」→ 命中场景 scope 内指标；场景上下文随结果透出
+        MentionRetrievalService inScenario = inScenarioService(enterDecision(),
+                com.ontos.module.session.core.scenario.ScenarioRouteState.IN_SCENARIO,
+                "scenario.sales");
+        RetrievalOutcome outcome = inScenario.resolve("订单数", context, null);
+        assertTrue(outcome.dslReady().stream()
+                .anyMatch(candidate -> candidate.assetId().equals("metric.order_count")));
+        assertEquals("scenario.sales", outcome.scenario().scenarioId());
+        assertTrue(outcome.scenario().allowedModes().contains("query"));
+    }
+
+    @Test
+    void outOfScopeMentionTriggersScenarioClarifyAndHidesCandidate() {
+        // 场景内说「退款额」（授权但不在场景 scope）→ 候选隐藏 + 越界澄清（M5 回传通道）
+        MentionRetrievalService inScenario = inScenarioService(clarifyDecision(),
+                com.ontos.module.session.core.scenario.ScenarioRouteState.IN_SCENARIO,
+                "scenario.sales");
+        RetrievalOutcome outcome = inScenario.resolve("退款额", context, null);
+        assertTrue(outcome.dslReady().isEmpty(), "越界资产不得进 DSL");
+        assertEquals(1, outcome.clarifications().size());
+        var payload = outcome.clarifications().get(0);
+        assertTrue(payload.valid(), "场景澄清满足四要素（含补齐的留在场景选项）");
+        assertTrue(payload.candidates().stream()
+                .anyMatch(candidate -> "scenario:scenario.sales".equals(candidate.assetId())),
+                "补齐「留在场景」候选（单场景清单只有退出时）");
+    }
+
+    @Test
+    void askConfirmDecisionSurfacesScenarioRecommendation() {
+        // free 态 hint 命中 recommend 场景 → 推荐确认候选透出（进入/留在自由问数）
+        MentionRetrievalService free = inScenarioService(new com.ontos.module.session.core.scenario.ScenarioRouteDecision(
+                com.ontos.module.session.core.scenario.ScenarioRouteDecision.Action.ASK_CONFIRM,
+                com.ontos.module.session.core.scenario.ScenarioRouteState.PENDING_CONFIRM,
+                "scenario.sales", null, null,
+                List.of(new com.ontos.module.session.core.scenario.ScenarioRouteDecision.PendingChoice(
+                                "scenario:scenario.sales", "进入场景：销售分析", "scenario.sales"),
+                        new com.ontos.module.session.core.scenario.ScenarioRouteDecision.PendingChoice(
+                                com.ontos.module.session.core.scenario.ScenarioRouteDecision.EXIT_CANDIDATE_ID,
+                                "留在自由问数", null))));
+        RetrievalOutcome outcome = free.resolve("看看订单趋势", context, null);
+        // 话术可能同时触发模糊命中澄清（既有行为）；场景推荐载荷必须存在且满足四要素
+        var scenarioPayload = outcome.clarifications().stream()
+                .filter(candidate -> "scenario:scenario.sales".equals(candidate.defaultSuggestion()))
+                .findFirst().orElse(null);
+        assertTrue(scenarioPayload != null, "推荐确认候选必须透出");
+        assertTrue(scenarioPayload.valid());
+        assertTrue(scenarioPayload.candidates().stream().anyMatch(candidate ->
+                        com.ontos.module.session.core.scenario.ScenarioRouteDecision.EXIT_CANDIDATE_ID
+                                .equals(candidate.assetId())),
+                "退出候选在列");
+        // 推荐轮不透出场景上下文（澄清轮编排层不组装 DSL）
+        assertTrue(outcome.scenario() == null);
+    }
+
+    private MentionRetrievalService inScenarioService(
+            com.ontos.module.session.core.scenario.ScenarioRouteDecision decision) {
+        return inScenarioService(decision,
+                com.ontos.module.session.core.scenario.ScenarioRouteState.FREE, null);
+    }
+
+    /** 当前视图可指定：裁剪按当前态（in_scenario 会话本轮可见域受场景 scope 约束）。 */
+    private MentionRetrievalService inScenarioService(
+            com.ontos.module.session.core.scenario.ScenarioRouteDecision decision,
+            com.ontos.module.session.core.scenario.ScenarioRouteState viewState,
+            String viewScenarioId) {
+        com.ontos.module.session.service.scenario.ScenarioSessionService sessionService =
+                org.mockito.Mockito.mock(com.ontos.module.session.service.scenario.ScenarioSessionService.class);
+        org.mockito.Mockito.when(sessionService.read(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new com.ontos.module.session.service.scenario.ScenarioSessionService
+                        .ScenarioSessionView(viewState, viewScenarioId));
+        org.mockito.Mockito.when(sessionService.apply(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any())).thenReturn(decision);
+        com.ontos.module.session.service.scenario.ScenarioScopeService scopeService =
+                new com.ontos.module.session.service.scenario.ScenarioScopeService(sessionService);
+        return new MentionRetrievalService(manifestService, policySnapshotService, scopeService);
+    }
+
+    private static com.ontos.module.session.core.scenario.ScenarioRouteDecision enterDecision() {
+        return new com.ontos.module.session.core.scenario.ScenarioRouteDecision(
+                com.ontos.module.session.core.scenario.ScenarioRouteDecision.Action.ENTER_SCENARIO,
+                com.ontos.module.session.core.scenario.ScenarioRouteState.IN_SCENARIO,
+                "scenario.sales",
+                com.ontos.module.session.core.scenario.ScenarioEntrySource.AUTO_CONFIDENT,
+                null, List.of());
+    }
+
+    private static com.ontos.module.session.core.scenario.ScenarioRouteDecision clarifyDecision() {
+        return new com.ontos.module.session.core.scenario.ScenarioRouteDecision(
+                com.ontos.module.session.core.scenario.ScenarioRouteDecision.Action.CLARIFY_OUT_OF_SCOPE,
+                com.ontos.module.session.core.scenario.ScenarioRouteState.PENDING_CONFIRM,
+                "scenario.sales", null, null,
+                List.of(new com.ontos.module.session.core.scenario.ScenarioRouteDecision.PendingChoice(
+                        com.ontos.module.session.core.scenario.ScenarioRouteDecision.EXIT_CANDIDATE_ID,
+                        "退出场景，回到自由问数", null)));
+    }
+
     // ---------- contextHash ----------
 
     @Test
@@ -226,6 +350,27 @@ class MentionRetrievalServiceTest {
         PublishedManifest manifest = new PublishedManifest();
         manifest.setManifestId("m-test");
         manifest.setContentHash("hash-test");
+
+        // M6/W2/T2.4：场景清单（销售分析：gmv/order_count/region + hint）
+        com.ontos.module.ontology.core.ManifestPayload.ScenarioMeta sales =
+                new com.ontos.module.ontology.core.ManifestPayload.ScenarioMeta();
+        sales.setId("scenario.sales");
+        sales.setName("销售分析");
+        sales.setStatus("published");
+        sales.setEntryMode("auto_if_confident");
+        sales.setEntryHints(List.of("订单趋势"));
+        com.ontos.module.ontology.core.ManifestPayload.OntologyScope ontologyScope =
+                new com.ontos.module.ontology.core.ManifestPayload.OntologyScope();
+        ontologyScope.setRootConcepts(List.of("concept.order", "concept.customer"));
+        ontologyScope.setExcludedConcepts(List.of());
+        sales.setOntologyScope(ontologyScope);
+        com.ontos.module.ontology.core.ManifestPayload.SemanticScope semanticScope =
+                new com.ontos.module.ontology.core.ManifestPayload.SemanticScope();
+        semanticScope.setMetrics(List.of("metric.gmv", "metric.order_count"));
+        semanticScope.setDimensions(List.of("dim.region"));
+        sales.setSemanticScope(semanticScope);
+        sales.setAllowedAnalysisModes(List.of("query"));
+        manifest.setScenarios(List.of(sales));
 
         com.ontos.module.ontology.core.SemanticManifest semantic =
                 new com.ontos.module.ontology.core.SemanticManifest();

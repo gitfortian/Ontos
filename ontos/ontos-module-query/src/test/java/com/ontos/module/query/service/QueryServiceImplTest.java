@@ -106,6 +106,7 @@ class QueryServiceImplTest {
 
     private QueryServiceImpl service(TimeWindowResolver resolver) {
         return new QueryServiceImpl(manifestService, new DslValidator(TestFixtures.queryProperties()),
+                (context, scenarioId, mode, timeRangeField) -> { },
                 policyService, sqlCompiler, queryExecutor, auditService, requestStateService, resolver,
                 new JoinPathResolver(() -> Set.of()), queryArtifactRepository, queryCacheService,
                 new SkillRegistry(List.of(new EntityLookupSkill())), sensitiveEventService,

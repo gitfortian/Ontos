@@ -292,7 +292,7 @@ public class AskOrchestrationService {
         // 4. 终态分派
         String terminal = String.valueOf(proposal.get("terminal"));
         return switch (terminal) {
-            case "query" -> executeQueryTerminal(context, runId, proposal);
+            case "query" -> executeQueryTerminal(context, runId, proposal, outcome.scenario());
             case "composite" -> executeCompositeTerminal(context, runId, proposal);
             case "clarification" -> clarificationTerminal(context, outcome);
             case "discovery" -> discoveryTerminal(context, outcome);
@@ -365,13 +365,26 @@ public class AskOrchestrationService {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> executeQueryTerminal(RequestContext context, String runId,
-                                                     Map<String, Object> proposal) {
+                                                     Map<String, Object> proposal,
+                                                     RetrievalOutcome.ScenarioContext scenario) {
         Object raw = proposal.get("sub_intents");
         if (!(raw instanceof List<?> subIntents) || subIntents.isEmpty()
                 || !(subIntents.get(0) instanceof Map<?, ?> box)) {
             return terminalAssembler.outOfCapability(context, "PROPOSAL_CONTRACT_INVALID");
         }
         QueryDsl dsl = assembleDsl(context, (Map<String, Object>) box);
+
+        // M6/W2/T2.4（§3.2）：场景内模式候选 ∩ allowed_analysis_modes（确定性过滤，
+        // 越界模式 fail-closed 拒答，不静默改写）；DSL scenarioId 由服务端路由结果盖章，
+        // 不采信提案——直传越权在 query 侧 ScenarioRouteGuard 再拦一道（防御纵深）。
+        if (scenario != null && scenario.scenarioId() != null) {
+            if (!scenario.allowedModes().isEmpty()
+                    && (dsl.getMode() == null
+                    || !scenario.allowedModes().contains(dsl.getMode().name().toLowerCase()))) {
+                return terminalAssembler.outOfCapability(context, "SCENARIO_MODE_FORBIDDEN");
+            }
+            dsl.setScenarioId(scenario.scenarioId());
+        }
 
         // T3.4 第二级路由：Analysis Mode 从指标 allowed_modes 确定性过滤
         filterAnalysisMode(dsl);

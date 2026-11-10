@@ -30,6 +30,7 @@ import com.ontos.module.query.core.executor.DryRunOutcome;
 import com.ontos.module.query.core.executor.QueryExecutor;
 import com.ontos.module.query.core.executor.QueryPlan;
 import com.ontos.module.query.core.executor.QueryResult;
+import com.ontos.module.query.core.scenario.ScenarioRouteGuard;
 import com.ontos.module.query.core.skill.SkillHandler;
 import com.ontos.module.query.core.skill.SkillRegistry;
 import com.ontos.module.query.core.time.TimeExpressionParser;
@@ -68,6 +69,7 @@ public class QueryServiceImpl implements QueryService {
 
     private final ManifestService manifestService;
     private final DslValidator dslValidator;
+    private final ScenarioRouteGuard scenarioRouteGuard;
     private final PolicyService policyService;
     private final SqlCompiler sqlCompiler;
     private final QueryExecutor queryExecutor;
@@ -83,6 +85,7 @@ public class QueryServiceImpl implements QueryService {
 
     public QueryServiceImpl(ManifestService manifestService,
                             DslValidator dslValidator,
+                            ScenarioRouteGuard scenarioRouteGuard,
                             PolicyService policyService,
                             SqlCompiler sqlCompiler,
                             QueryExecutor queryExecutor,
@@ -97,6 +100,7 @@ public class QueryServiceImpl implements QueryService {
                             com.ontos.module.system.service.approval.ApprovalService approvalService) {
         this.manifestService = manifestService;
         this.dslValidator = dslValidator;
+        this.scenarioRouteGuard = scenarioRouteGuard;
         this.policyService = policyService;
         this.sqlCompiler = sqlCompiler;
         this.queryExecutor = queryExecutor;
@@ -813,6 +817,11 @@ public class QueryServiceImpl implements QueryService {
             // 复合请求本身没有指标，走单请求链路只会在 requireMetric(null) 上给出含糊错误
             throw exception(DSL_INVALID, "复合意图请使用 /api/v1/query/composite/execute");
         }
+        // M6/W2/T2.4（ADR-0017 D1）：DSL scenarioId 服务端裁决前置——授权 + 已发布 + 模式/口径
+        // 校验在 manifest 处理之前完成，直传越权不进入任何后续链路。
+        scenarioRouteGuard.adjudicate(context, queryDsl.getScenarioId(),
+                queryDsl.getMode() == null ? null : queryDsl.getMode().name().toLowerCase(),
+                queryDsl.getTimeRange() == null ? null : queryDsl.getTimeRange().getField());
         checkManifestHeader(queryDsl, context);
         PublishedManifest manifest = manifestService.validateManifest(queryDsl.getManifestId());
         return prepareWith(queryDsl, context, manifest, sensitivityCollector);

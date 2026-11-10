@@ -1,294 +1,7 @@
 {
-  "manifestId": "2026.11.10-twelfth",
-  "generatedAt": "2026-11-10T02:39:59.887Z",
+  "manifestId": "2026.11.10-thirteenth",
+  "generatedAt": "2026-11-10T06:17:18.871Z",
   "cases": [
-    {
-      "id": "m6-ret-week-basic",
-      "title": "周留存（4 期，无维度）",
-      "section": "retention",
-      "kind": "sql",
-      "dsl": {
-        "mode": "RETENTION",
-        "timeExpressionRaw": "近 90 天",
-        "analysisParams": {
-          "cohortEvent": "ORDER_PLACED",
-          "returnEvent": "ORDER_PLACED",
-          "periodUnit": "WEEK",
-          "periods": 4,
-          "subjectPropertyId": "property.customer.customer_id"
-        },
-        "limit": 100
-      },
-      "sqlExpected": "with \"cohort_first\" as (select \"event\".\"customer_id\" as \"subject\", min(\"event\".\"occurred_at\") as \"first_time\" from \"event\" where (\"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= cast(? as timestamp) and \"event\".\"occurred_at\" < cast(? as timestamp)) group by \"event\".\"customer_id\"), \"cohort\" as (select \"cohort_first\".\"subject\" as \"subject\", date_trunc('week', \"cohort_first\".\"first_time\") as \"cohort_period\" from \"cohort_first\" group by \"cohort_first\".\"subject\", date_trunc('week', \"cohort_first\".\"first_time\")), \"retained\" as (select \"c\".\"subject\" as \"subject\", \"c\".\"cohort_period\" as \"cohort_period\", \"p\".\"period_index\" as \"period_index\", case when exists (select 1 as \"one\" from \"event\" where (\"event\".\"customer_id\" = \"c\".\"subject\" and \"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= \"c\".\"cohort_period\" + (\"p\".\"period_index\" * cast('1 week' as interval)) and \"event\".\"occurred_at\" < \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 week' as interval)))) then 1 else 0 end as \"retained\" from \"cohort\" as \"c\", (select generate_series(?, ?) as \"period_index\") as \"p\" where \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 week' as interval)) <= cast(? as timestamp)) select \"r\".\"cohort_period\" as \"cohort_period\", \"r\".\"period_index\" as \"period_index\", count(distinct \"r\".\"subject\") as \"cohort_users\", count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as \"retained_users\", cast(count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as numeric) / nullif(count(distinct \"r\".\"subject\"), 0) as \"retention_rate\" from \"retained\" as \"r\" group by \"r\".\"cohort_period\", \"r\".\"period_index\" order by \"r\".\"cohort_period\", \"r\".\"period_index\" fetch next ? rows only",
-      "joinsExpected": [],
-      "bindValuesSample": [
-        "ORDER_PLACED",
-        "2026-08-12T16:00:00.000Z",
-        "2026-11-10T16:00:00.000Z",
-        "ORDER_PLACED",
-        0,
-        3,
-        "2026-11-09T16:00:00.000Z",
-        1,
-        1,
-        100
-      ],
-      "status": "compiled"
-    },
-    {
-      "id": "m6-ret-week-tier",
-      "title": "周留存（8 期，主体维度）",
-      "section": "retention",
-      "kind": "sql",
-      "dsl": {
-        "mode": "RETENTION",
-        "dimensions": [
-          "dim.customer_tier"
-        ],
-        "timeExpressionRaw": "近 90 天",
-        "analysisParams": {
-          "cohortEvent": "ORDER_PLACED",
-          "returnEvent": "ORDER_PLACED",
-          "periodUnit": "WEEK",
-          "periods": 8,
-          "subjectPropertyId": "property.customer.customer_id"
-        },
-        "limit": 200
-      },
-      "sqlExpected": "with \"cohort_first\" as (select \"event\".\"customer_id\" as \"subject\", min(\"event\".\"occurred_at\") as \"first_time\" from \"event\" where (\"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= cast(? as timestamp) and \"event\".\"occurred_at\" < cast(? as timestamp)) group by \"event\".\"customer_id\"), \"cohort\" as (select \"cohort_first\".\"subject\" as \"subject\", date_trunc('week', \"cohort_first\".\"first_time\") as \"cohort_period\", \"customer\".\"tier\" as \"dim.customer_tier\" from \"cohort_first\" join \"customer\" on \"customer\".\"id\" = \"cohort_first\".\"subject\" group by \"cohort_first\".\"subject\", date_trunc('week', \"cohort_first\".\"first_time\"), \"customer\".\"tier\"), \"retained\" as (select \"c\".\"subject\" as \"subject\", \"c\".\"cohort_period\" as \"cohort_period\", \"p\".\"period_index\" as \"period_index\", \"c\".\"dim.customer_tier\" as \"dim.customer_tier\", case when exists (select 1 as \"one\" from \"event\" where (\"event\".\"customer_id\" = \"c\".\"subject\" and \"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= \"c\".\"cohort_period\" + (\"p\".\"period_index\" * cast('1 week' as interval)) and \"event\".\"occurred_at\" < \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 week' as interval)))) then 1 else 0 end as \"retained\" from \"cohort\" as \"c\", (select generate_series(?, ?) as \"period_index\") as \"p\" where \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 week' as interval)) <= cast(? as timestamp)) select \"r\".\"cohort_period\" as \"cohort_period\", \"r\".\"period_index\" as \"period_index\", \"r\".\"dim.customer_tier\" as \"dim.customer_tier\", count(distinct \"r\".\"subject\") as \"cohort_users\", count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as \"retained_users\", cast(count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as numeric) / nullif(count(distinct \"r\".\"subject\"), 0) as \"retention_rate\" from \"retained\" as \"r\" group by \"r\".\"cohort_period\", \"r\".\"period_index\", \"r\".\"dim.customer_tier\" order by \"r\".\"cohort_period\", \"r\".\"period_index\", \"r\".\"dim.customer_tier\" fetch next ? rows only",
-      "joinsExpected": [],
-      "bindValuesSample": [
-        "ORDER_PLACED",
-        "2026-08-12T16:00:00.000Z",
-        "2026-11-10T16:00:00.000Z",
-        "ORDER_PLACED",
-        0,
-        7,
-        "2026-11-09T16:00:00.000Z",
-        1,
-        1,
-        200
-      ],
-      "status": "compiled"
-    },
-    {
-      "id": "m6-ret-month-basic",
-      "title": "月留存（6 期，「今年」观察窗）",
-      "section": "retention",
-      "kind": "sql",
-      "dsl": {
-        "mode": "RETENTION",
-        "timeExpressionRaw": "今年",
-        "analysisParams": {
-          "cohortEvent": "ORDER_PLACED",
-          "returnEvent": "ORDER_PLACED",
-          "periodUnit": "MONTH",
-          "periods": 6,
-          "subjectPropertyId": "property.customer.customer_id"
-        }
-      },
-      "sqlExpected": "with \"cohort_first\" as (select \"event\".\"customer_id\" as \"subject\", min(\"event\".\"occurred_at\") as \"first_time\" from \"event\" where (\"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= cast(? as timestamp) and \"event\".\"occurred_at\" < cast(? as timestamp)) group by \"event\".\"customer_id\"), \"cohort\" as (select \"cohort_first\".\"subject\" as \"subject\", date_trunc('month', \"cohort_first\".\"first_time\") as \"cohort_period\" from \"cohort_first\" group by \"cohort_first\".\"subject\", date_trunc('month', \"cohort_first\".\"first_time\")), \"retained\" as (select \"c\".\"subject\" as \"subject\", \"c\".\"cohort_period\" as \"cohort_period\", \"p\".\"period_index\" as \"period_index\", case when exists (select 1 as \"one\" from \"event\" where (\"event\".\"customer_id\" = \"c\".\"subject\" and \"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= \"c\".\"cohort_period\" + (\"p\".\"period_index\" * cast('1 month' as interval)) and \"event\".\"occurred_at\" < \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 month' as interval)))) then 1 else 0 end as \"retained\" from \"cohort\" as \"c\", (select generate_series(?, ?) as \"period_index\") as \"p\" where \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 month' as interval)) <= cast(? as timestamp)) select \"r\".\"cohort_period\" as \"cohort_period\", \"r\".\"period_index\" as \"period_index\", count(distinct \"r\".\"subject\") as \"cohort_users\", count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as \"retained_users\", cast(count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as numeric) / nullif(count(distinct \"r\".\"subject\"), 0) as \"retention_rate\" from \"retained\" as \"r\" group by \"r\".\"cohort_period\", \"r\".\"period_index\" order by \"r\".\"cohort_period\", \"r\".\"period_index\" fetch next ? rows only",
-      "joinsExpected": [],
-      "bindValuesSample": [
-        "ORDER_PLACED",
-        "2025-12-31T16:00:00.000Z",
-        "2026-12-31T16:00:00.000Z",
-        "ORDER_PLACED",
-        0,
-        5,
-        "2026-11-09T16:00:00.000Z",
-        1,
-        1,
-        500
-      ],
-      "status": "compiled"
-    },
-    {
-      "id": "m6-ret-last-quarter",
-      "title": "月留存（上季度观察窗，periodUnit 与解析粒度独立）",
-      "section": "retention",
-      "kind": "sql",
-      "dsl": {
-        "mode": "RETENTION",
-        "timeExpressionRaw": "上季度",
-        "analysisParams": {
-          "cohortEvent": "ORDER_PLACED",
-          "returnEvent": "ORDER_PLACED",
-          "periodUnit": "MONTH",
-          "periods": 3,
-          "subjectPropertyId": "property.customer.customer_id"
-        }
-      },
-      "sqlExpected": "with \"cohort_first\" as (select \"event\".\"customer_id\" as \"subject\", min(\"event\".\"occurred_at\") as \"first_time\" from \"event\" where (\"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= cast(? as timestamp) and \"event\".\"occurred_at\" < cast(? as timestamp)) group by \"event\".\"customer_id\"), \"cohort\" as (select \"cohort_first\".\"subject\" as \"subject\", date_trunc('month', \"cohort_first\".\"first_time\") as \"cohort_period\" from \"cohort_first\" group by \"cohort_first\".\"subject\", date_trunc('month', \"cohort_first\".\"first_time\")), \"retained\" as (select \"c\".\"subject\" as \"subject\", \"c\".\"cohort_period\" as \"cohort_period\", \"p\".\"period_index\" as \"period_index\", case when exists (select 1 as \"one\" from \"event\" where (\"event\".\"customer_id\" = \"c\".\"subject\" and \"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= \"c\".\"cohort_period\" + (\"p\".\"period_index\" * cast('1 month' as interval)) and \"event\".\"occurred_at\" < \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 month' as interval)))) then 1 else 0 end as \"retained\" from \"cohort\" as \"c\", (select generate_series(?, ?) as \"period_index\") as \"p\" where \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 month' as interval)) <= cast(? as timestamp)) select \"r\".\"cohort_period\" as \"cohort_period\", \"r\".\"period_index\" as \"period_index\", count(distinct \"r\".\"subject\") as \"cohort_users\", count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as \"retained_users\", cast(count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as numeric) / nullif(count(distinct \"r\".\"subject\"), 0) as \"retention_rate\" from \"retained\" as \"r\" group by \"r\".\"cohort_period\", \"r\".\"period_index\" order by \"r\".\"cohort_period\", \"r\".\"period_index\" fetch next ? rows only",
-      "joinsExpected": [],
-      "bindValuesSample": [
-        "ORDER_PLACED",
-        "2026-06-30T16:00:00.000Z",
-        "2026-09-30T16:00:00.000Z",
-        "ORDER_PLACED",
-        0,
-        2,
-        "2026-11-09T16:00:00.000Z",
-        1,
-        1,
-        500
-      ],
-      "status": "compiled"
-    },
-    {
-      "id": "m6-ret-event-pair",
-      "title": "事件对留存（下单 → 退款）",
-      "section": "retention",
-      "kind": "sql",
-      "dsl": {
-        "mode": "RETENTION",
-        "timeExpressionRaw": "近 60 天",
-        "analysisParams": {
-          "cohortEvent": "ORDER_PLACED",
-          "returnEvent": "REFUND",
-          "periodUnit": "WEEK",
-          "periods": 4,
-          "subjectPropertyId": "property.customer.customer_id"
-        }
-      },
-      "sqlExpected": "with \"cohort_first\" as (select \"event\".\"customer_id\" as \"subject\", min(\"event\".\"occurred_at\") as \"first_time\" from \"event\" where (\"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= cast(? as timestamp) and \"event\".\"occurred_at\" < cast(? as timestamp)) group by \"event\".\"customer_id\"), \"cohort\" as (select \"cohort_first\".\"subject\" as \"subject\", date_trunc('week', \"cohort_first\".\"first_time\") as \"cohort_period\" from \"cohort_first\" group by \"cohort_first\".\"subject\", date_trunc('week', \"cohort_first\".\"first_time\")), \"retained\" as (select \"c\".\"subject\" as \"subject\", \"c\".\"cohort_period\" as \"cohort_period\", \"p\".\"period_index\" as \"period_index\", case when exists (select 1 as \"one\" from \"event\" where (\"event\".\"customer_id\" = \"c\".\"subject\" and \"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= \"c\".\"cohort_period\" + (\"p\".\"period_index\" * cast('1 week' as interval)) and \"event\".\"occurred_at\" < \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 week' as interval)))) then 1 else 0 end as \"retained\" from \"cohort\" as \"c\", (select generate_series(?, ?) as \"period_index\") as \"p\" where \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 week' as interval)) <= cast(? as timestamp)) select \"r\".\"cohort_period\" as \"cohort_period\", \"r\".\"period_index\" as \"period_index\", count(distinct \"r\".\"subject\") as \"cohort_users\", count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as \"retained_users\", cast(count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as numeric) / nullif(count(distinct \"r\".\"subject\"), 0) as \"retention_rate\" from \"retained\" as \"r\" group by \"r\".\"cohort_period\", \"r\".\"period_index\" order by \"r\".\"cohort_period\", \"r\".\"period_index\" fetch next ? rows only",
-      "joinsExpected": [],
-      "bindValuesSample": [
-        "ORDER_PLACED",
-        "2026-09-11T16:00:00.000Z",
-        "2026-11-10T16:00:00.000Z",
-        "REFUND",
-        0,
-        3,
-        "2026-11-09T16:00:00.000Z",
-        1,
-        1,
-        500
-      ],
-      "status": "compiled"
-    },
-    {
-      "id": "m6-ret-neg-periods",
-      "title": "负例：periods 越界",
-      "section": "retention",
-      "kind": "negative",
-      "dsl": {
-        "mode": "RETENTION",
-        "timeExpressionRaw": "近 90 天",
-        "analysisParams": {
-          "cohortEvent": "ORDER_PLACED",
-          "returnEvent": "ORDER_PLACED",
-          "periodUnit": "WEEK",
-          "periods": 13,
-          "subjectPropertyId": "property.customer.customer_id"
-        }
-      },
-      "expectedErrorCode": 1002000000,
-      "actualErrorCode": 1002000000,
-      "errorMessage": "查询 DSL 校验失败: retention periods 必须在 [2, 12]",
-      "status": "supported"
-    },
-    {
-      "id": "m6-ret-neg-event",
-      "title": "负例：未发布事件类型",
-      "section": "retention",
-      "kind": "negative",
-      "dsl": {
-        "mode": "RETENTION",
-        "timeExpressionRaw": "近 90 天",
-        "analysisParams": {
-          "cohortEvent": "ORDER_PLACED",
-          "returnEvent": "NOT_PUBLISHED",
-          "periodUnit": "WEEK",
-          "periods": 4,
-          "subjectPropertyId": "property.customer.customer_id"
-        }
-      },
-      "expectedErrorCode": 1002000035,
-      "actualErrorCode": 1002000035,
-      "errorMessage": "留存事件找不到唯一已发布定义或映射不完整: NOT_PUBLISHED 命中 0 个事件定义",
-      "status": "supported"
-    },
-    {
-      "id": "m6-ret-neg-client-timerange",
-      "title": "负例：客户端提交 timeRange（服务端回填通道不可占用）",
-      "section": "retention",
-      "kind": "negative",
-      "dsl": {
-        "mode": "RETENTION",
-        "timeExpressionRaw": "近 90 天",
-        "timeRange": {
-          "field": "dim.order_date",
-          "from": "2026-01-01T00:00:00Z",
-          "to": "2026-06-01T00:00:00Z"
-        },
-        "analysisParams": {
-          "cohortEvent": "ORDER_PLACED",
-          "returnEvent": "ORDER_PLACED",
-          "periodUnit": "WEEK",
-          "periods": 4,
-          "subjectPropertyId": "property.customer.customer_id"
-        }
-      },
-      "expectedErrorCode": 1002000000,
-      "actualErrorCode": 1002000000,
-      "errorMessage": "查询 DSL 校验失败: retention 的时间窗由服务端按事件回填，客户端不得提交 timeRange",
-      "status": "supported"
-    },
-    {
-      "id": "m6-ret-neg-event-dimension",
-      "title": "负例：事件级维度（非主体表）",
-      "section": "retention",
-      "kind": "negative",
-      "dsl": {
-        "mode": "RETENTION",
-        "dimensions": [
-          "dim.channel"
-        ],
-        "timeExpressionRaw": "近 90 天",
-        "analysisParams": {
-          "cohortEvent": "ORDER_PLACED",
-          "returnEvent": "ORDER_PLACED",
-          "periodUnit": "WEEK",
-          "periods": 4,
-          "subjectPropertyId": "property.customer.customer_id"
-        }
-      },
-      "expectedErrorCode": 1002000036,
-      "actualErrorCode": 1002000036,
-      "errorMessage": "留存维度必须映射到主体表（事件级维度后续支持）: dim.channel -> customer",
-      "status": "supported"
-    },
-    {
-      "id": "m6-ret-neg-filters",
-      "title": "负例：filters 未定档（拒绝而非静默忽略）",
-      "section": "retention",
-      "kind": "negative",
-      "dsl": {
-        "mode": "RETENTION",
-        "timeExpressionRaw": "近 90 天",
-        "filters": [
-          {
-            "fieldId": "dim.customer_tier",
-            "operator": "EQ",
-            "values": [
-              "gold"
-            ]
-          }
-        ],
-        "analysisParams": {
-          "cohortEvent": "ORDER_PLACED",
-          "returnEvent": "ORDER_PLACED",
-          "periodUnit": "WEEK",
-          "periods": 4,
-          "subjectPropertyId": "property.customer.customer_id"
-        }
-      },
-      "expectedErrorCode": 1002000000,
-      "actualErrorCode": 1002000000,
-      "errorMessage": "查询 DSL 校验失败: retention 暂不支持 filters（未定档，拒绝而非静默忽略）",
-      "status": "supported"
-    },
     {
       "id": "m6-att-last-touch",
       "title": "末次触点归因（gmv，30d 窗口，渠道维度）",
@@ -717,6 +430,293 @@
       "expectedErrorCode": 1002000000,
       "actualErrorCode": 1002000000,
       "errorMessage": "查询 DSL 校验失败: 过滤条件 EQ 需要 1 个值，实际 2: dim.customer_tier",
+      "status": "supported"
+    },
+    {
+      "id": "m6-ret-week-basic",
+      "title": "周留存（4 期，无维度）",
+      "section": "retention",
+      "kind": "sql",
+      "dsl": {
+        "mode": "RETENTION",
+        "timeExpressionRaw": "近 90 天",
+        "analysisParams": {
+          "cohortEvent": "ORDER_PLACED",
+          "returnEvent": "ORDER_PLACED",
+          "periodUnit": "WEEK",
+          "periods": 4,
+          "subjectPropertyId": "property.customer.customer_id"
+        },
+        "limit": 100
+      },
+      "sqlExpected": "with \"cohort_first\" as (select \"event\".\"customer_id\" as \"subject\", min(\"event\".\"occurred_at\") as \"first_time\" from \"event\" where (\"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= cast(? as timestamp) and \"event\".\"occurred_at\" < cast(? as timestamp)) group by \"event\".\"customer_id\"), \"cohort\" as (select \"cohort_first\".\"subject\" as \"subject\", date_trunc('week', \"cohort_first\".\"first_time\") as \"cohort_period\" from \"cohort_first\" group by \"cohort_first\".\"subject\", date_trunc('week', \"cohort_first\".\"first_time\")), \"retained\" as (select \"c\".\"subject\" as \"subject\", \"c\".\"cohort_period\" as \"cohort_period\", \"p\".\"period_index\" as \"period_index\", case when exists (select 1 as \"one\" from \"event\" where (\"event\".\"customer_id\" = \"c\".\"subject\" and \"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= \"c\".\"cohort_period\" + (\"p\".\"period_index\" * cast('1 week' as interval)) and \"event\".\"occurred_at\" < \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 week' as interval)))) then 1 else 0 end as \"retained\" from \"cohort\" as \"c\", (select generate_series(?, ?) as \"period_index\") as \"p\" where \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 week' as interval)) <= cast(? as timestamp)) select \"r\".\"cohort_period\" as \"cohort_period\", \"r\".\"period_index\" as \"period_index\", count(distinct \"r\".\"subject\") as \"cohort_users\", count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as \"retained_users\", cast(count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as numeric) / nullif(count(distinct \"r\".\"subject\"), 0) as \"retention_rate\" from \"retained\" as \"r\" group by \"r\".\"cohort_period\", \"r\".\"period_index\" order by \"r\".\"cohort_period\", \"r\".\"period_index\" fetch next ? rows only",
+      "joinsExpected": [],
+      "bindValuesSample": [
+        "ORDER_PLACED",
+        "2026-08-12T16:00:00.000Z",
+        "2026-11-10T16:00:00.000Z",
+        "ORDER_PLACED",
+        0,
+        3,
+        "2026-11-09T16:00:00.000Z",
+        1,
+        1,
+        100
+      ],
+      "status": "compiled"
+    },
+    {
+      "id": "m6-ret-week-tier",
+      "title": "周留存（8 期，主体维度）",
+      "section": "retention",
+      "kind": "sql",
+      "dsl": {
+        "mode": "RETENTION",
+        "dimensions": [
+          "dim.customer_tier"
+        ],
+        "timeExpressionRaw": "近 90 天",
+        "analysisParams": {
+          "cohortEvent": "ORDER_PLACED",
+          "returnEvent": "ORDER_PLACED",
+          "periodUnit": "WEEK",
+          "periods": 8,
+          "subjectPropertyId": "property.customer.customer_id"
+        },
+        "limit": 200
+      },
+      "sqlExpected": "with \"cohort_first\" as (select \"event\".\"customer_id\" as \"subject\", min(\"event\".\"occurred_at\") as \"first_time\" from \"event\" where (\"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= cast(? as timestamp) and \"event\".\"occurred_at\" < cast(? as timestamp)) group by \"event\".\"customer_id\"), \"cohort\" as (select \"cohort_first\".\"subject\" as \"subject\", date_trunc('week', \"cohort_first\".\"first_time\") as \"cohort_period\", \"customer\".\"tier\" as \"dim.customer_tier\" from \"cohort_first\" join \"customer\" on \"customer\".\"id\" = \"cohort_first\".\"subject\" group by \"cohort_first\".\"subject\", date_trunc('week', \"cohort_first\".\"first_time\"), \"customer\".\"tier\"), \"retained\" as (select \"c\".\"subject\" as \"subject\", \"c\".\"cohort_period\" as \"cohort_period\", \"p\".\"period_index\" as \"period_index\", \"c\".\"dim.customer_tier\" as \"dim.customer_tier\", case when exists (select 1 as \"one\" from \"event\" where (\"event\".\"customer_id\" = \"c\".\"subject\" and \"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= \"c\".\"cohort_period\" + (\"p\".\"period_index\" * cast('1 week' as interval)) and \"event\".\"occurred_at\" < \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 week' as interval)))) then 1 else 0 end as \"retained\" from \"cohort\" as \"c\", (select generate_series(?, ?) as \"period_index\") as \"p\" where \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 week' as interval)) <= cast(? as timestamp)) select \"r\".\"cohort_period\" as \"cohort_period\", \"r\".\"period_index\" as \"period_index\", \"r\".\"dim.customer_tier\" as \"dim.customer_tier\", count(distinct \"r\".\"subject\") as \"cohort_users\", count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as \"retained_users\", cast(count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as numeric) / nullif(count(distinct \"r\".\"subject\"), 0) as \"retention_rate\" from \"retained\" as \"r\" group by \"r\".\"cohort_period\", \"r\".\"period_index\", \"r\".\"dim.customer_tier\" order by \"r\".\"cohort_period\", \"r\".\"period_index\", \"r\".\"dim.customer_tier\" fetch next ? rows only",
+      "joinsExpected": [],
+      "bindValuesSample": [
+        "ORDER_PLACED",
+        "2026-08-12T16:00:00.000Z",
+        "2026-11-10T16:00:00.000Z",
+        "ORDER_PLACED",
+        0,
+        7,
+        "2026-11-09T16:00:00.000Z",
+        1,
+        1,
+        200
+      ],
+      "status": "compiled"
+    },
+    {
+      "id": "m6-ret-month-basic",
+      "title": "月留存（6 期，「今年」观察窗）",
+      "section": "retention",
+      "kind": "sql",
+      "dsl": {
+        "mode": "RETENTION",
+        "timeExpressionRaw": "今年",
+        "analysisParams": {
+          "cohortEvent": "ORDER_PLACED",
+          "returnEvent": "ORDER_PLACED",
+          "periodUnit": "MONTH",
+          "periods": 6,
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "sqlExpected": "with \"cohort_first\" as (select \"event\".\"customer_id\" as \"subject\", min(\"event\".\"occurred_at\") as \"first_time\" from \"event\" where (\"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= cast(? as timestamp) and \"event\".\"occurred_at\" < cast(? as timestamp)) group by \"event\".\"customer_id\"), \"cohort\" as (select \"cohort_first\".\"subject\" as \"subject\", date_trunc('month', \"cohort_first\".\"first_time\") as \"cohort_period\" from \"cohort_first\" group by \"cohort_first\".\"subject\", date_trunc('month', \"cohort_first\".\"first_time\")), \"retained\" as (select \"c\".\"subject\" as \"subject\", \"c\".\"cohort_period\" as \"cohort_period\", \"p\".\"period_index\" as \"period_index\", case when exists (select 1 as \"one\" from \"event\" where (\"event\".\"customer_id\" = \"c\".\"subject\" and \"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= \"c\".\"cohort_period\" + (\"p\".\"period_index\" * cast('1 month' as interval)) and \"event\".\"occurred_at\" < \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 month' as interval)))) then 1 else 0 end as \"retained\" from \"cohort\" as \"c\", (select generate_series(?, ?) as \"period_index\") as \"p\" where \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 month' as interval)) <= cast(? as timestamp)) select \"r\".\"cohort_period\" as \"cohort_period\", \"r\".\"period_index\" as \"period_index\", count(distinct \"r\".\"subject\") as \"cohort_users\", count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as \"retained_users\", cast(count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as numeric) / nullif(count(distinct \"r\".\"subject\"), 0) as \"retention_rate\" from \"retained\" as \"r\" group by \"r\".\"cohort_period\", \"r\".\"period_index\" order by \"r\".\"cohort_period\", \"r\".\"period_index\" fetch next ? rows only",
+      "joinsExpected": [],
+      "bindValuesSample": [
+        "ORDER_PLACED",
+        "2025-12-31T16:00:00.000Z",
+        "2026-12-31T16:00:00.000Z",
+        "ORDER_PLACED",
+        0,
+        5,
+        "2026-11-09T16:00:00.000Z",
+        1,
+        1,
+        500
+      ],
+      "status": "compiled"
+    },
+    {
+      "id": "m6-ret-last-quarter",
+      "title": "月留存（上季度观察窗，periodUnit 与解析粒度独立）",
+      "section": "retention",
+      "kind": "sql",
+      "dsl": {
+        "mode": "RETENTION",
+        "timeExpressionRaw": "上季度",
+        "analysisParams": {
+          "cohortEvent": "ORDER_PLACED",
+          "returnEvent": "ORDER_PLACED",
+          "periodUnit": "MONTH",
+          "periods": 3,
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "sqlExpected": "with \"cohort_first\" as (select \"event\".\"customer_id\" as \"subject\", min(\"event\".\"occurred_at\") as \"first_time\" from \"event\" where (\"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= cast(? as timestamp) and \"event\".\"occurred_at\" < cast(? as timestamp)) group by \"event\".\"customer_id\"), \"cohort\" as (select \"cohort_first\".\"subject\" as \"subject\", date_trunc('month', \"cohort_first\".\"first_time\") as \"cohort_period\" from \"cohort_first\" group by \"cohort_first\".\"subject\", date_trunc('month', \"cohort_first\".\"first_time\")), \"retained\" as (select \"c\".\"subject\" as \"subject\", \"c\".\"cohort_period\" as \"cohort_period\", \"p\".\"period_index\" as \"period_index\", case when exists (select 1 as \"one\" from \"event\" where (\"event\".\"customer_id\" = \"c\".\"subject\" and \"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= \"c\".\"cohort_period\" + (\"p\".\"period_index\" * cast('1 month' as interval)) and \"event\".\"occurred_at\" < \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 month' as interval)))) then 1 else 0 end as \"retained\" from \"cohort\" as \"c\", (select generate_series(?, ?) as \"period_index\") as \"p\" where \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 month' as interval)) <= cast(? as timestamp)) select \"r\".\"cohort_period\" as \"cohort_period\", \"r\".\"period_index\" as \"period_index\", count(distinct \"r\".\"subject\") as \"cohort_users\", count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as \"retained_users\", cast(count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as numeric) / nullif(count(distinct \"r\".\"subject\"), 0) as \"retention_rate\" from \"retained\" as \"r\" group by \"r\".\"cohort_period\", \"r\".\"period_index\" order by \"r\".\"cohort_period\", \"r\".\"period_index\" fetch next ? rows only",
+      "joinsExpected": [],
+      "bindValuesSample": [
+        "ORDER_PLACED",
+        "2026-06-30T16:00:00.000Z",
+        "2026-09-30T16:00:00.000Z",
+        "ORDER_PLACED",
+        0,
+        2,
+        "2026-11-09T16:00:00.000Z",
+        1,
+        1,
+        500
+      ],
+      "status": "compiled"
+    },
+    {
+      "id": "m6-ret-event-pair",
+      "title": "事件对留存（下单 → 退款）",
+      "section": "retention",
+      "kind": "sql",
+      "dsl": {
+        "mode": "RETENTION",
+        "timeExpressionRaw": "近 60 天",
+        "analysisParams": {
+          "cohortEvent": "ORDER_PLACED",
+          "returnEvent": "REFUND",
+          "periodUnit": "WEEK",
+          "periods": 4,
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "sqlExpected": "with \"cohort_first\" as (select \"event\".\"customer_id\" as \"subject\", min(\"event\".\"occurred_at\") as \"first_time\" from \"event\" where (\"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= cast(? as timestamp) and \"event\".\"occurred_at\" < cast(? as timestamp)) group by \"event\".\"customer_id\"), \"cohort\" as (select \"cohort_first\".\"subject\" as \"subject\", date_trunc('week', \"cohort_first\".\"first_time\") as \"cohort_period\" from \"cohort_first\" group by \"cohort_first\".\"subject\", date_trunc('week', \"cohort_first\".\"first_time\")), \"retained\" as (select \"c\".\"subject\" as \"subject\", \"c\".\"cohort_period\" as \"cohort_period\", \"p\".\"period_index\" as \"period_index\", case when exists (select 1 as \"one\" from \"event\" where (\"event\".\"customer_id\" = \"c\".\"subject\" and \"event\".\"event_type\" = ? and \"event\".\"occurred_at\" >= \"c\".\"cohort_period\" + (\"p\".\"period_index\" * cast('1 week' as interval)) and \"event\".\"occurred_at\" < \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 week' as interval)))) then 1 else 0 end as \"retained\" from \"cohort\" as \"c\", (select generate_series(?, ?) as \"period_index\") as \"p\" where \"c\".\"cohort_period\" + ((\"p\".\"period_index\" + 1) * cast('1 week' as interval)) <= cast(? as timestamp)) select \"r\".\"cohort_period\" as \"cohort_period\", \"r\".\"period_index\" as \"period_index\", count(distinct \"r\".\"subject\") as \"cohort_users\", count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as \"retained_users\", cast(count(distinct \"r\".\"subject\") filter (where \"r\".\"retained\" = ?) as numeric) / nullif(count(distinct \"r\".\"subject\"), 0) as \"retention_rate\" from \"retained\" as \"r\" group by \"r\".\"cohort_period\", \"r\".\"period_index\" order by \"r\".\"cohort_period\", \"r\".\"period_index\" fetch next ? rows only",
+      "joinsExpected": [],
+      "bindValuesSample": [
+        "ORDER_PLACED",
+        "2026-09-11T16:00:00.000Z",
+        "2026-11-10T16:00:00.000Z",
+        "REFUND",
+        0,
+        3,
+        "2026-11-09T16:00:00.000Z",
+        1,
+        1,
+        500
+      ],
+      "status": "compiled"
+    },
+    {
+      "id": "m6-ret-neg-periods",
+      "title": "负例：periods 越界",
+      "section": "retention",
+      "kind": "negative",
+      "dsl": {
+        "mode": "RETENTION",
+        "timeExpressionRaw": "近 90 天",
+        "analysisParams": {
+          "cohortEvent": "ORDER_PLACED",
+          "returnEvent": "ORDER_PLACED",
+          "periodUnit": "WEEK",
+          "periods": 13,
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "expectedErrorCode": 1002000000,
+      "actualErrorCode": 1002000000,
+      "errorMessage": "查询 DSL 校验失败: retention periods 必须在 [2, 12]",
+      "status": "supported"
+    },
+    {
+      "id": "m6-ret-neg-event",
+      "title": "负例：未发布事件类型",
+      "section": "retention",
+      "kind": "negative",
+      "dsl": {
+        "mode": "RETENTION",
+        "timeExpressionRaw": "近 90 天",
+        "analysisParams": {
+          "cohortEvent": "ORDER_PLACED",
+          "returnEvent": "NOT_PUBLISHED",
+          "periodUnit": "WEEK",
+          "periods": 4,
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "expectedErrorCode": 1002000035,
+      "actualErrorCode": 1002000035,
+      "errorMessage": "留存事件找不到唯一已发布定义或映射不完整: NOT_PUBLISHED 命中 0 个事件定义",
+      "status": "supported"
+    },
+    {
+      "id": "m6-ret-neg-client-timerange",
+      "title": "负例：客户端提交 timeRange（服务端回填通道不可占用）",
+      "section": "retention",
+      "kind": "negative",
+      "dsl": {
+        "mode": "RETENTION",
+        "timeExpressionRaw": "近 90 天",
+        "timeRange": {
+          "field": "dim.order_date",
+          "from": "2026-01-01T00:00:00Z",
+          "to": "2026-06-01T00:00:00Z"
+        },
+        "analysisParams": {
+          "cohortEvent": "ORDER_PLACED",
+          "returnEvent": "ORDER_PLACED",
+          "periodUnit": "WEEK",
+          "periods": 4,
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "expectedErrorCode": 1002000000,
+      "actualErrorCode": 1002000000,
+      "errorMessage": "查询 DSL 校验失败: retention 的时间窗由服务端按事件回填，客户端不得提交 timeRange",
+      "status": "supported"
+    },
+    {
+      "id": "m6-ret-neg-event-dimension",
+      "title": "负例：事件级维度（非主体表）",
+      "section": "retention",
+      "kind": "negative",
+      "dsl": {
+        "mode": "RETENTION",
+        "dimensions": [
+          "dim.channel"
+        ],
+        "timeExpressionRaw": "近 90 天",
+        "analysisParams": {
+          "cohortEvent": "ORDER_PLACED",
+          "returnEvent": "ORDER_PLACED",
+          "periodUnit": "WEEK",
+          "periods": 4,
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "expectedErrorCode": 1002000036,
+      "actualErrorCode": 1002000036,
+      "errorMessage": "留存维度必须映射到主体表（事件级维度后续支持）: dim.channel -> customer",
+      "status": "supported"
+    },
+    {
+      "id": "m6-ret-neg-filters",
+      "title": "负例：filters 未定档（拒绝而非静默忽略）",
+      "section": "retention",
+      "kind": "negative",
+      "dsl": {
+        "mode": "RETENTION",
+        "timeExpressionRaw": "近 90 天",
+        "filters": [
+          {
+            "fieldId": "dim.customer_tier",
+            "operator": "EQ",
+            "values": [
+              "gold"
+            ]
+          }
+        ],
+        "analysisParams": {
+          "cohortEvent": "ORDER_PLACED",
+          "returnEvent": "ORDER_PLACED",
+          "periodUnit": "WEEK",
+          "periods": 4,
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "expectedErrorCode": 1002000000,
+      "actualErrorCode": 1002000000,
+      "errorMessage": "查询 DSL 校验失败: retention 暂不支持 filters（未定档，拒绝而非静默忽略）",
       "status": "supported"
     }
   ]

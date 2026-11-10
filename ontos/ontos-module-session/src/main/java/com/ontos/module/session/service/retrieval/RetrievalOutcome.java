@@ -1,6 +1,7 @@
 package com.ontos.module.session.service.retrieval;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 检索瀑布的单轮产出。
@@ -21,13 +22,26 @@ import java.util.List;
  * @param projectionStale  会话投影失效（资产被降权/清单变化）——需要向用户澄清或重新发现
  * @param contextHash      候选集内容 SHA-256（清单 contentHash + 授权集合 + 词表），供
  *                         Proposal 来源对账（候选集外 ID → InjectionCheckpoint）
+ * @param scenario         场景路由上下文（M6/W2/T2.4：in_scenario 时的场景 ID/入口来源/
+ *                         allowed_analysis_modes/frozen_calibers；free/pending 为 null）
  */
 public record RetrievalOutcome(List<RetrievedCandidate> dslReady,
                                List<RetrievedCandidate> fuzzyOnly,
                                List<RetrievedCandidate> prevTurn,
                                List<ClarificationPayload> clarifications,
                                boolean projectionStale,
-                               String contextHash) {
+                               String contextHash,
+                               ScenarioContext scenario) {
+
+    /** 旧签名兼容构造器（场景上下文缺省 = 无场景语义）。 */
+    public RetrievalOutcome(List<RetrievedCandidate> dslReady,
+                            List<RetrievedCandidate> fuzzyOnly,
+                            List<RetrievedCandidate> prevTurn,
+                            List<ClarificationPayload> clarifications,
+                            boolean projectionStale,
+                            String contextHash) {
+        this(dslReady, fuzzyOnly, prevTurn, clarifications, projectionStale, contextHash, null);
+    }
 
     public RetrievalOutcome {
         dslReady = dslReady == null ? List.of() : List.copyOf(dslReady);
@@ -47,6 +61,17 @@ public record RetrievalOutcome(List<RetrievedCandidate> dslReady,
     /** 是否完全无候选（连模糊/指代都没有）——编排层据此走能力发现或拒答。 */
     public boolean isEmpty() {
         return dslReady.isEmpty() && fuzzyOnly.isEmpty() && prevTurn.isEmpty();
+    }
+
+    /** 场景路由上下文（M6/W2/T2.4）。 */
+    public record ScenarioContext(String scenarioId,
+                                  String entrySource,
+                                  List<String> allowedModes,
+                                  Map<String, String> calibers) {
+        public ScenarioContext {
+            allowedModes = allowedModes == null ? List.of() : List.copyOf(allowedModes);
+            calibers = calibers == null ? Map.of() : Map.copyOf(calibers);
+        }
     }
 
 }

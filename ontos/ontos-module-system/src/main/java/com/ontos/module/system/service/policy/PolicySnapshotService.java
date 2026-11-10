@@ -48,7 +48,9 @@ public class PolicySnapshotService {
 
     /** 资产类型（与快照 assets[].assetType 对应，wire 形态为小写）。 */
     public enum AssetType {
-        METRIC, DIMENSION, PROPERTY, ENTITY, RULE;
+        METRIC, DIMENSION, PROPERTY, ENTITY, RULE,
+        /** Scenario 入口白名单（M6/W2/T2.4）：授权集内 scenario|<id> 才可路由/进入。 */
+        SCENARIO;
 
         String wire() {
             return name().toLowerCase();
