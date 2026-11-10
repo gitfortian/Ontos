@@ -127,6 +127,33 @@ public class SessionStateMapper {
                 params);
     }
 
+    /** Scenario 会话状态写入（M6/W2/T2.3；scenario_state 是 JSONB，V1 已建列）。 */
+    public void updateScenarioState(String tenantId, String userId, String sessionId,
+                                    String scenarioStateJson) {
+        Map<String, Object> params = params(tenantId, userId, sessionId);
+        params.put("scenarioState", scenarioStateJson);
+        jdbcTemplate.update(
+                "UPDATE session_state SET scenario_state = cast(:scenarioState as jsonb),"
+                        + " updated_at = now()"
+                        + " WHERE tenant_id = :tenantId AND user_id = :userId"
+                        + " AND session_id = :sessionId",
+                params);
+    }
+
+    /** Scenario 会话状态 + 澄清候选原子写入（pending_confirm 建立：状态与候选必须同生同灭）。 */
+    public void updateScenarioStateWithClarification(String tenantId, String userId, String sessionId,
+                                                     String scenarioStateJson, String clarificationJson) {
+        Map<String, Object> params = params(tenantId, userId, sessionId);
+        params.put("scenarioState", scenarioStateJson);
+        params.put("clarification", clarificationJson);
+        jdbcTemplate.update(
+                "UPDATE session_state SET scenario_state = cast(:scenarioState as jsonb),"
+                        + " pending_clarification = cast(:clarification as jsonb), updated_at = now()"
+                        + " WHERE tenant_id = :tenantId AND user_id = :userId"
+                        + " AND session_id = :sessionId",
+                params);
+    }
+
     /**
      * 澄清选择消费（原子）：candidateId 属于当前 pending_clarification 才清除并返回 true——
      * 伪造 candidateId（不在候选集内）返回 false，不能绕过澄清（v1.2 R5）。
