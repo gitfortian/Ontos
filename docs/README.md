@@ -250,7 +250,8 @@ node docs/00-governance/check-docs.mjs
 | ADR-0014 · 并行义务纪律与 M7 同步建设偏离处置 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0014-并行义务纪律与M7同步建设偏离.md`](01-decisions/ADR-0014-并行义务纪律与M7同步建设偏离.md) |
 | ADR-0015 · M7 最小框架验收与触发阶段重定 | 决策 | 已冻结 | v1 | [`01-decisions/ADR-0015-M7最小框架验收与触发阶段重定.md`](01-decisions/ADR-0015-M7最小框架验收与触发阶段重定.md) |
 | M7 最小框架验收记录 | 验证 | 已冻结 | v1 | [`06-verification/checklists/M7-最小框架验收记录-v1.md`](06-verification/checklists/M7-最小框架验收记录-v1.md) |
-| 正式评测集 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/正式评测集-v1.md`](06-verification/evaluation/正式评测集-v1.md) |
+| 正式评测集 | 验证 | 已冻结 | v2 | [`06-verification/evaluation/正式评测集-v2.md`](06-verification/evaluation/正式评测集-v2.md) |
+| test 集（主指标分母） | 验证 | 已冻结 | v1 | [`06-verification/evaluation/test集-v1.md`](06-verification/evaluation/test集-v1.md) |
 | 评测统计口径 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/评测统计口径-v1.md`](06-verification/evaluation/评测统计口径-v1.md) |
 | 零号冒烟评测证据 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/零号冒烟-评测证据-v1.json`](06-verification/evaluation/零号冒烟-评测证据-v1.json) |
 | 并行义务登记台账 | 治理 | 生效中 | schemaVersion 1 | [`00-governance/parallel-obligations.json`](00-governance/parallel-obligations.json) |
