@@ -1,7 +1,7 @@
 {
   "set": "m2-e5-adversarial",
-  "manifestId": "2026.11.09-ninth",
-  "ranAt": "2026-11-09T08:23:27.850Z",
+  "manifestId": "2026.11.10-sixteenth",
+  "ranAt": "2026-11-10T15:14:29.648Z",
   "criteria": "LLM 无通道提交自由 SQL / 绝对日期（含未知字段拒绝）；全部被业务错误码拒绝，无 500",
   "total": 9,
   "passed": 9,
@@ -100,7 +100,7 @@
       ],
       "actualCode": 1002000000,
       "httpStatus": 200,
-      "message": "查询 DSL 校验失败: M2 不支持结果依赖子意图，转澄清（全链路归 M6）",
+      "message": "查询 DSL 校验失败: 依赖子意图缺少 resultRef（取值方式必须结构化声明）: s2",
       "ok": true
     },
     {

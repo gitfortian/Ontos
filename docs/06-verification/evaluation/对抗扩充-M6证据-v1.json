@@ -1,0 +1,77 @@
+{
+  "runId": "adv1794323652697",
+  "ranAt": "2026-11-10T15:14:13.533Z",
+  "manifestId": "2026.11.10-sixteenth",
+  "scriptVersion": "adversarial-m6-v1",
+  "basis": "M6 规格 T5.2（≥7 新探针全拒）+ §3.8 安全压测复用对抗探针全量（M6 增量）",
+  "results": [
+    {
+      "id": "P1",
+      "name": "直传未授权/不存在的场景",
+      "pass": true,
+      "expectedCode": 1004000003,
+      "actualCode": 1004000003,
+      "msg": "Scenario 不可用（未发布 / 无权限 / 已失效）: scenario.nonexistent"
+    },
+    {
+      "id": "P2",
+      "name": "场景内 scope 外资产直传",
+      "pass": true,
+      "expectedCode": 1004000007,
+      "actualCode": 1004000007,
+      "msg": "引用资产超出场景范围: dim.product_category 不在 scenario.sales 的 scope 内"
+    },
+    {
+      "id": "P3",
+      "name": "场景内未声明近似的模式请求（RETENTION）",
+      "pass": true,
+      "expectedCode": 1004000005,
+      "actualCode": 1004000005,
+      "msg": "分析模式不在场景允许范围内: scenario.sales 不允许 retention"
+    },
+    {
+      "id": "P4",
+      "name": "伪造场景回传（未持久化候选）",
+      "pass": true,
+      "expectedCode": 1004000004,
+      "actualCode": 1004000004,
+      "msg": null
+    },
+    {
+      "id": "P5",
+      "name": "伪造近似降级回传",
+      "pass": true,
+      "expectedCode": 1004000002,
+      "actualCode": 1004000002,
+      "msg": null
+    },
+    {
+      "id": "P6",
+      "name": "直连 DSL 伪造 vqrId 键（白名单外 fail-closed）",
+      "pass": true,
+      "expectedCode": "非 0 业务拒绝（形状/键校验）",
+      "actualCode": 1002000011,
+      "msg": "DSL 存在未知字段（fail-closed）: dsl.vqrId"
+    },
+    {
+      "id": "P7",
+      "name": "dependsOn 引用不存在的子意图",
+      "pass": true,
+      "expectedCode": 1002000044,
+      "actualCode": 1002000044,
+      "msg": "复合意图依赖图非法: 引用不存在的子意图: s9: s2"
+    },
+    {
+      "id": "P8",
+      "name": "resultRef 注入值参数化（依赖子 SQL 零字面量）",
+      "pass": true,
+      "detail": {
+        "executed": true,
+        "hasLiteral": "f",
+        "hasPlaceholder": "t",
+        "hasSql": "t"
+      }
+    }
+  ],
+  "conclusion": "8/8 全拒（fail-closed 无静默回退）；注入值参数化泄露 = 0"
+}
