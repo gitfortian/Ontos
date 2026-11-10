@@ -239,8 +239,174 @@ const CASES = [
   },
 ];
 
-const SECTION = argOf("--section", "retention");
-const ACTIVE = CASES.filter((item) => item.section === SECTION);
+/**
+ * T1.4 归因案例集。负例错误码：ATTRIBUTION_EVENT_NOT_FOUND 1002000038 /
+ * ATTRIBUTION_DIMENSION_UNSUPPORTED 1002000039 / ATTRIBUTION_MODEL_NOT_IMPLEMENTED 1002000040。
+ */
+const ATTRIBUTION_CASES = [
+  {
+    section: "attribution",
+    id: "m6-att-last-touch",
+    title: "末次触点归因（gmv，30d 窗口，渠道维度）",
+    kind: "sql",
+    dsl: {
+      mode: "ATTRIBUTION",
+      metricId: "metric.gmv",
+      dimensions: ["dim.channel"],
+      timeExpressionRaw: "近 30 天",
+      analysisParams: {
+        conversionEvent: "ORDER_PLACED",
+        touchEvent: "CHANNEL_TOUCH",
+        attributionWindow: "30d",
+        model: "last_touch",
+        subjectPropertyId: SUBJECT,
+      },
+      limit: 100,
+    },
+  },
+  {
+    section: "attribution",
+    id: "m6-att-order-count",
+    title: "末次触点归因（order_count，7d 窗口）",
+    kind: "sql",
+    dsl: {
+      mode: "ATTRIBUTION",
+      metricId: "metric.order_count",
+      dimensions: ["dim.channel"],
+      timeExpressionRaw: "近 30 天",
+      analysisParams: {
+        conversionEvent: "ORDER_PLACED",
+        touchEvent: "CHANNEL_TOUCH",
+        attributionWindow: "7d",
+        model: "last_touch",
+        subjectPropertyId: SUBJECT,
+      },
+    },
+  },
+  {
+    section: "attribution",
+    id: "m6-att-no-channel-dimension",
+    title: "无渠道维度（不产出 UNATTRIBUTED 桶）",
+    kind: "sql",
+    dsl: {
+      mode: "ATTRIBUTION",
+      metricId: "metric.gmv",
+      timeExpressionRaw: "近 30 天",
+      analysisParams: {
+        conversionEvent: "ORDER_PLACED",
+        touchEvent: "CHANNEL_TOUCH",
+        attributionWindow: "30d",
+        model: "last_touch",
+        subjectPropertyId: SUBJECT,
+      },
+    },
+  },
+  {
+    section: "attribution",
+    id: "m6-att-14d-window",
+    title: "14d 回溯窗口（枚举边界）",
+    kind: "sql",
+    dsl: {
+      mode: "ATTRIBUTION",
+      metricId: "metric.gmv",
+      dimensions: ["dim.channel"],
+      timeExpressionRaw: "近 30 天",
+      analysisParams: {
+        conversionEvent: "ORDER_PLACED",
+        touchEvent: "CHANNEL_TOUCH",
+        attributionWindow: "14d",
+        model: "last_touch",
+        subjectPropertyId: SUBJECT,
+      },
+    },
+  },
+  {
+    section: "attribution",
+    id: "m6-att-neg-unknown-event",
+    title: "负例：未发布触点事件",
+    kind: "negative",
+    expectErrorCode: 1002000038,
+    dsl: {
+      mode: "ATTRIBUTION",
+      metricId: "metric.gmv",
+      dimensions: ["dim.channel"],
+      timeExpressionRaw: "近 30 天",
+      analysisParams: {
+        conversionEvent: "ORDER_PLACED",
+        touchEvent: "NOT_PUBLISHED",
+        attributionWindow: "30d",
+        model: "last_touch",
+        subjectPropertyId: SUBJECT,
+      },
+    },
+  },
+  {
+    section: "attribution",
+    id: "m6-att-neg-unimplemented-model",
+    title: "负例：声明未实现的归因模型（linear）",
+    kind: "negative",
+    expectErrorCode: 1002000040,
+    dsl: {
+      mode: "ATTRIBUTION",
+      metricId: "metric.gmv",
+      dimensions: ["dim.channel"],
+      timeExpressionRaw: "近 30 天",
+      analysisParams: {
+        conversionEvent: "ORDER_PLACED",
+        touchEvent: "CHANNEL_TOUCH",
+        attributionWindow: "30d",
+        model: "linear",
+        subjectPropertyId: SUBJECT,
+      },
+    },
+  },
+  {
+    section: "attribution",
+    id: "m6-att-neg-dimension",
+    title: "负例：非指标同表维度（客户等级）",
+    kind: "negative",
+    expectErrorCode: 1002000039,
+    dsl: {
+      mode: "ATTRIBUTION",
+      metricId: "metric.gmv",
+      dimensions: ["dim.customer_tier"],
+      timeExpressionRaw: "近 30 天",
+      analysisParams: {
+        conversionEvent: "ORDER_PLACED",
+        touchEvent: "CHANNEL_TOUCH",
+        attributionWindow: "30d",
+        model: "last_touch",
+        subjectPropertyId: SUBJECT,
+      },
+    },
+  },
+  {
+    section: "attribution",
+    id: "m6-att-neg-client-timerange",
+    title: "负例：客户端提交 timeRange",
+    kind: "negative",
+    expectErrorCode: 1002000000,
+    dsl: {
+      mode: "ATTRIBUTION",
+      metricId: "metric.gmv",
+      dimensions: ["dim.channel"],
+      timeExpressionRaw: "近 30 天",
+      timeRange: { field: "dim.order_date", from: "2026-01-01T00:00:00Z", to: "2026-06-01T00:00:00Z" },
+      analysisParams: {
+        conversionEvent: "ORDER_PLACED",
+        touchEvent: "CHANNEL_TOUCH",
+        attributionWindow: "30d",
+        model: "last_touch",
+        subjectPropertyId: SUBJECT,
+      },
+    },
+  },
+];
+
+const SECTION = process.argv.find((item) => item.startsWith("--section="))?.split("=")[1]
+  ?? argOf("--section", "retention");
+const ALL_CASES = [...CASES, ...ATTRIBUTION_CASES];
+const ACTIVE = ALL_CASES.filter((item) => item.section === SECTION);
 
 // request_id 必须随运行变化：request_state 以 request_id 为幂等键（ADR-0004）
 const RUN = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
@@ -265,7 +431,15 @@ async function compileOnce(dsl, requestId) {
 
 async function main() {
   if (MODE === "backfill") {
-    const gold = { manifestId: MANIFEST_ID, generatedAt: new Date().toISOString(), cases: [] };
+    // 按 section 增量回填：保留其他 section 的已冻结案例（gold 是单文件多段，不能整段覆盖）
+    let kept = [];
+    try {
+      const existing = JSON.parse(readFileSync(GOLD, "utf8"));
+      kept = (existing.cases ?? []).filter((item) => item.section !== SECTION);
+    } catch {
+      kept = [];
+    }
+    const gold = { manifestId: MANIFEST_ID, generatedAt: new Date().toISOString(), cases: [...kept] };
     for (const testCase of ACTIVE) {
       const first = await compileOnce(testCase.dsl, `${testCase.id}-a`);
       const second = await compileOnce(testCase.dsl, `${testCase.id}-b`);
@@ -319,8 +493,9 @@ async function main() {
     }
     mkdirSync(dirname(GOLD), { recursive: true });
     writeFileSync(GOLD, `${JSON.stringify(gold, null, 2)}\n`, "utf8");
-    const ok = gold.cases.filter((item) => item.status === "compiled" || item.status === "supported");
-    console.log(`backfill[${SECTION}]: ${ok.length}/${ACTIVE.length} 固化 → ${GOLD}`);
+    const ok = gold.cases.filter((item) => item.section === SECTION
+      && (item.status === "compiled" || item.status === "supported"));
+    console.log(`backfill[${SECTION}]: ${ok.length}/${ACTIVE.length} 固化 → ${GOLD}（保留其他段 ${kept.length} 条）`);
     const bad = gold.cases.filter((item) => item.status === "unexpected" || item.status === "mismatch");
     for (const item of bad) {
       console.error(`  UNEXPECTED ${item.id}: ${item.actualErrorCode ?? "repro mismatch"} ${item.errorMessage ?? ""}`);

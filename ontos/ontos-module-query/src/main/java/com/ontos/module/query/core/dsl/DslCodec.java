@@ -40,7 +40,9 @@ public class DslCodec {
             "steps", "cohortWindow", "stepWindow", "subjectPropertyId",
             "deduplication", "conversionDenominator", "period",
             // M6/T1.3 retention：cohortEvent / returnEvent / periodUnit / periods
-            "cohortEvent", "returnEvent", "periodUnit", "periods");
+            // M6/T1.4 attribution：conversionEvent / touchEvent / attributionWindow / model
+            "cohortEvent", "returnEvent", "periodUnit", "periods",
+            "conversionEvent", "touchEvent", "attributionWindow", "model");
     private static final Set<String> COHORT_WINDOW = Set.of("timeExpressionRaw");
     private static final Set<String> SUB_INTENT = Set.of(
             "subIntentId", "metricId", "mode", "dimensions", "filters",

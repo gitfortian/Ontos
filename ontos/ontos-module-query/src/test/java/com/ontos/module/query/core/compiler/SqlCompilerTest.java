@@ -101,9 +101,9 @@ class SqlCompilerTest {
     @Test
     void shouldRejectNonQueryModeDefensively() {
         // 纵深防御：即使绕过校验器，编译器也绝不把未实现模式静默编译成聚合 SQL（PoC-04）
-        // 已实现 LOOKUP/LOOKUP_BATCH、YOY_MOM、FUNNEL，这里用仍未实现的 ATTRIBUTION 验证
+        // 已实现 LOOKUP/LOOKUP_BATCH、YOY_MOM、FUNNEL、RETENTION、ATTRIBUTION；DISCOVERY 仍未实现
         QueryDsl dsl = TestFixtures.query();
-        dsl.setMode(QueryDsl.AnalysisMode.ATTRIBUTION);
+        dsl.setMode(QueryDsl.AnalysisMode.DISCOVERY);
         ServiceException ex = assertThrows(ServiceException.class, () -> compiler.compile(dsl, TestFixtures.manifest()));
         assertEquals(ANALYSIS_MODE_NOT_IMPLEMENTED.getCode(), ex.getCode());
     }

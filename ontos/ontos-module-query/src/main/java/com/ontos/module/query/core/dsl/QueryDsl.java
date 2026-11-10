@@ -122,6 +122,14 @@ public class QueryDsl {
         private String periodUnit;
         /** retention：输出 cohort 期 + 后续 periods-1 个观察期，取值 [2, 12]。 */
         private Integer periods;
+        /** attribution：转化事件 event_type（M6/T1.4，规格 v1.1 §2.1）。 */
+        private String conversionEvent;
+        /** attribution：触点事件 event_type（必须声明 channelPropertyId）。 */
+        private String touchEvent;
+        /** attribution：触点回溯窗口，封闭枚举 7d | 14d | 30d（左闭右开）。 */
+        private String attributionWindow;
+        /** attribution：归因模型，首发仅 last_touch；first_touch / linear 声明未实现。 */
+        private String model;
     }
 
     @Data

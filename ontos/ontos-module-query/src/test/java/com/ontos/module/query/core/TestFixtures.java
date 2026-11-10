@@ -35,6 +35,16 @@ public final class TestFixtures {
     public static final String CUSTOMER_TIER_DIMENSION = "customer_tier";
     public static final String BOOLEAN_METRIC_ID = "metric.high_value_customer";
     public static final String RULE_METRIC_ID = "metric.gmv";
+    /** M6/T1.4 归因夹具常量（清单 v12：事件标识/去重键/渠道属性 + 订单 ↔ 事件关系）。 */
+    public static final String EVENT_ID_PROPERTY = "property.event.event_id";
+    public static final String EVENT_ORDER_PROPERTY = "property.event.order_id";
+    public static final String EVENT_DEDUP_PROPERTY = "property.event.dedup_key";
+    public static final String EVENT_CHANNEL_PROPERTY = "property.event.channel_id";
+    public static final String CHANNEL_CONCEPT = "concept.channel";
+    public static final String CHANNEL_ID_PROPERTY = "property.channel.channel_id";
+    public static final String CHANNEL_NAME_PROPERTY = "property.channel.name";
+    public static final String CHANNEL_DIMENSION_ID = "dim.channel";
+    public static final String ATTRIBUTION_METRIC_ID = "metric.gmv";
 
     private TestFixtures() {
     }
@@ -261,6 +271,110 @@ public final class TestFixtures {
         dsl.setTimeRange(range);
         dsl.setTimePatternId("tep.last_n_days");
         dsl.setTimeParserVersion("time-parser-1.0");
+        dsl.setLimit(100);
+        return dsl;
+    }
+
+    /**
+     * M6/T1.4 归因夹具：订单指标（gmv，orders.amount，allowedModes 含 ATTRIBUTION）、
+     * 渠道实体（channel.id / channel.name）、触点事件（channelPropertyId）与
+     * 「订单 → 事件」可查询关系（物理列 orders.id → event.order_id）。
+     */
+    public static PublishedManifest attributionManifest() {
+        OntologySnapshot.Concept customer = new OntologySnapshot.Concept();
+        customer.setId(CUSTOMER_CONCEPT);
+        customer.setDomain("customer");
+        OntologySnapshot.Concept order = new OntologySnapshot.Concept();
+        order.setId(ORDER_CONCEPT);
+        order.setDomain("trade");
+        OntologySnapshot.Concept channel = new OntologySnapshot.Concept();
+        channel.setId(CHANNEL_CONCEPT);
+        channel.setDomain("trade");
+        OntologySnapshot.Concept eventConcept = new OntologySnapshot.Concept();
+        eventConcept.setId(EVENT_CONCEPT);
+        eventConcept.setDomain("trade");
+
+        OntologySnapshot ontology = new OntologySnapshot();
+        ontology.setConcepts(List.of(customer, order, channel, eventConcept));
+        ontology.setProperties(List.of(
+                property(CUSTOMER_SUBJECT_PROPERTY, CUSTOMER_CONCEPT, "customer.id", true, true, false),
+                property(ORDER_NO_PROPERTY, ORDER_CONCEPT, "orders.id", true, true, false),
+                property(EVENT_ID_PROPERTY, EVENT_CONCEPT, "event.id", false, true, false),
+                property(EVENT_TYPE_PROPERTY, EVENT_CONCEPT, "event.event_type", true, true, false),
+                property(EVENT_TIME_PROPERTY, EVENT_CONCEPT, "event.occurred_at", true, true, false),
+                property(EVENT_PARTICIPANT_PROPERTY, EVENT_CONCEPT, "event.customer_id", true, true, false),
+                property(EVENT_ORDER_PROPERTY, EVENT_CONCEPT, "event.order_id", true, true, false),
+                property(EVENT_DEDUP_PROPERTY, EVENT_CONCEPT, "event.dedup_key", false, true, false),
+                property(EVENT_CHANNEL_PROPERTY, EVENT_CONCEPT, "event.channel_id", true, true, false),
+                property(CHANNEL_ID_PROPERTY, CHANNEL_CONCEPT, "channel.id", true, true, false),
+                property(CHANNEL_NAME_PROPERTY, CHANNEL_CONCEPT, "channel.name", true, true, false)));
+        ontology.setEvents(List.of(
+                eventDef("event.order_placed", "ORDER_PLACED"),
+                eventDef("event.refund", "REFUND"),
+                channelTouchEventDef()));
+
+        OntologySnapshot.Relation recordsEvent = new OntologySnapshot.Relation();
+        recordsEvent.setId("ontology.Order.recordsEvent");
+        recordsEvent.setName("记录了");
+        recordsEvent.setFrom(ORDER_CONCEPT);
+        recordsEvent.setTo(EVENT_CONCEPT);
+        recordsEvent.setFromColumn("orders.id");
+        recordsEvent.setToColumn("event.order_id");
+        recordsEvent.setCardinality("1:N");
+        recordsEvent.setQueryable(true);
+        ontology.setRelations(List.of(recordsEvent));
+
+        SemanticManifest.Metric gmv = new SemanticManifest.Metric();
+        gmv.setId(ATTRIBUTION_METRIC_ID);
+        gmv.setName("成交金额");
+        gmv.setTable("orders");
+        gmv.setColumn("orders.amount");
+        gmv.setAggregation(SemanticManifest.Aggregation.SUM);
+        gmv.setAllowedModes(List.of("QUERY", "ATTRIBUTION"));
+        gmv.setAllowedDimensions(List.of(CHANNEL_DIMENSION_ID));
+
+        SemanticManifest.Dimension channelDimension = new SemanticManifest.Dimension();
+        channelDimension.setId(CHANNEL_DIMENSION_ID);
+        channelDimension.setName("渠道");
+        channelDimension.setTable("orders");
+        channelDimension.setColumn("orders.channel");
+
+        PublishedManifest manifest = manifest();
+        manifest.setOntology(ontology);
+        manifest.getSemantic().setMetrics(List.of(gmv));
+        manifest.getSemantic().setDimensions(List.of(channelDimension));
+        return manifest;
+    }
+
+    private static OntologySnapshot.EventDef channelTouchEventDef() {
+        OntologySnapshot.EventDef event = eventDef("event.channel_touch", "CHANNEL_TOUCH");
+        event.setChannelPropertyId(EVENT_CHANNEL_PROPERTY);
+        return event;
+    }
+
+    /** M6/T1.4 归因 DSL：转化窗与 timeRange.field 是 TimeWindowResolver 的回填产物。 */
+    public static QueryDsl attributionDsl() {
+        QueryDsl dsl = new QueryDsl();
+        dsl.setManifestId("manifest-001");
+        dsl.setMode(QueryDsl.AnalysisMode.ATTRIBUTION);
+        dsl.setMetricId(ATTRIBUTION_METRIC_ID);
+        dsl.setDimensions(List.of(CHANNEL_DIMENSION_ID));
+        dsl.setTimeExpressionRaw("近 30 天");
+        QueryDsl.TimeRange range = new QueryDsl.TimeRange();
+        range.setField(EVENT_TIME_PROPERTY);
+        range.setFrom(java.time.Instant.parse("2026-10-01T00:00:00Z"));
+        range.setTo(java.time.Instant.parse("2026-11-09T00:00:00Z"));
+        range.setSource(QueryDsl.TimeRange.SOURCE_EXPRESSION);
+        dsl.setTimeRange(range);
+        dsl.setTimePatternId("tep.last_n_days");
+        dsl.setTimeParserVersion("time-parser-1.0");
+        QueryDsl.AnalysisParams params = new QueryDsl.AnalysisParams();
+        params.setConversionEvent("ORDER_PLACED");
+        params.setTouchEvent("CHANNEL_TOUCH");
+        params.setAttributionWindow("30d");
+        params.setModel("last_touch");
+        params.setSubjectPropertyId(CUSTOMER_SUBJECT_PROPERTY);
+        dsl.setAnalysisParams(params);
         dsl.setLimit(100);
         return dsl;
     }

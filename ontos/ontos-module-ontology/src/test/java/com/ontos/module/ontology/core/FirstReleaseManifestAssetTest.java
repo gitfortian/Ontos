@@ -99,6 +99,29 @@ class FirstReleaseManifestAssetTest {
     }
 
     @Test
+    void shouldAcceptV12ManifestWithChannelNameAndDedupKey() throws Exception {
+        // M6/T1.4：归因需要渠道名称（维度取值来源）与事件去重键（last_touch 稳定排序）作为已发布属性
+        ManifestPayload payload = load("first-release-v12.json");
+        List<ManifestStructureValidator.Violation> violations =
+                new ManifestStructureValidator().validate(payload);
+
+        assertTrue(violations.isEmpty(), "v12 清单结构校验失败: " + violations);
+        OntologySnapshot.Property channelName = payload.getOntology().getProperties().stream()
+                .filter(property -> "property.channel.name".equals(property.getId()))
+                .findFirst().orElseThrow(() -> new AssertionError("v12 缺少渠道名称属性"));
+        assertEquals("channel.name", channelName.getColumn());
+        assertEquals("concept.channel", channelName.getConceptId());
+        OntologySnapshot.Property dedupKey = payload.getOntology().getProperties().stream()
+                .filter(property -> "property.event.dedup_key".equals(property.getId()))
+                .findFirst().orElseThrow(() -> new AssertionError("v12 缺少事件去重键属性"));
+        assertEquals("event.dedup_key", dedupKey.getColumn());
+        // 归因指标必须显式开放 ATTRIBUTION（gmv / order_count），否则入口闸门会拒
+        assertTrue(payload.getSemantic().getMetrics().stream()
+                .filter(metric -> "metric.gmv".equals(metric.getId()))
+                .findFirst().orElseThrow().getAllowedModes().contains("ATTRIBUTION"));
+    }
+
+    @Test
     void shouldRoundTripV11WithoutDroppingChannelPropertyKey() throws Exception {
         // 发布链路未知字段键差分：channelPropertyId 若被 Jackson 静默丢弃，v11 发布会被拒绝
         String json = Files.readString(Path.of("..", "..", "ontos-assets", "first-release-v11.json"));

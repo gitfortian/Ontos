@@ -46,5 +46,9 @@ public interface ErrorCodeConstants {
     ErrorCode RETENTION_EVENT_NOT_FOUND = new ErrorCode(1_002_000_035, "留存事件找不到唯一已发布定义或映射不完整: {}");
     ErrorCode RETENTION_DIMENSION_UNSUPPORTED = new ErrorCode(1_002_000_036, "留存维度必须映射到主体表（事件级维度后续支持）: {}");
     ErrorCode RETENTION_PERIOD_INCOMPLETE = new ErrorCode(1_002_000_037, "留存观察窗内没有已完整结束的 cohort 周期: {}");
+    /** M6/T1.4：归因事件锚点 / 维度 / 未实现模型的结构化原因码（规格 v1.1 §2）。 */
+    ErrorCode ATTRIBUTION_EVENT_NOT_FOUND = new ErrorCode(1_002_000_038, "归因事件找不到唯一已发布定义或映射不完整: {}");
+    ErrorCode ATTRIBUTION_DIMENSION_UNSUPPORTED = new ErrorCode(1_002_000_039, "归因维度必须是渠道（dim.channel）或指标同表已发布维度: {}");
+    ErrorCode ATTRIBUTION_MODEL_NOT_IMPLEMENTED = new ErrorCode(1_002_000_040, "归因模型尚未实现（首发仅 last_touch）: {}");
 
 }

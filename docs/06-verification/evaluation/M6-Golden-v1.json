@@ -1,6 +1,6 @@
 {
-  "manifestId": "2026.11.09-eleventh",
-  "generatedAt": "2026-11-10T01:59:45.153Z",
+  "manifestId": "2026.11.10-twelfth",
+  "generatedAt": "2026-11-10T02:25:43.605Z",
   "cases": [
     {
       "id": "m6-ret-week-basic",
@@ -232,7 +232,7 @@
       },
       "expectedErrorCode": 1002000000,
       "actualErrorCode": 1002000000,
-      "errorMessage": "查询 DSL 校验失败: retention 的时间窗由服务端按 cohort 事件回填，客户端不得提交 timeRange",
+      "errorMessage": "查询 DSL 校验失败: retention 的时间窗由服务端按事件回填，客户端不得提交 timeRange",
       "status": "supported"
     },
     {
@@ -287,6 +287,237 @@
       "expectedErrorCode": 1002000000,
       "actualErrorCode": 1002000000,
       "errorMessage": "查询 DSL 校验失败: retention 暂不支持 filters（未定档，拒绝而非静默忽略）",
+      "status": "supported"
+    },
+    {
+      "id": "m6-att-last-touch",
+      "title": "末次触点归因（gmv，30d 窗口，渠道维度）",
+      "section": "attribution",
+      "kind": "sql",
+      "dsl": {
+        "mode": "ATTRIBUTION",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.channel"
+        ],
+        "timeExpressionRaw": "近 30 天",
+        "analysisParams": {
+          "conversionEvent": "ORDER_PLACED",
+          "touchEvent": "CHANNEL_TOUCH",
+          "attributionWindow": "30d",
+          "model": "last_touch",
+          "subjectPropertyId": "property.customer.customer_id"
+        },
+        "limit": 100
+      },
+      "sqlExpected": "with \"conversions\" as (select \"e\".\"id\" as \"conversion_id\", \"e\".\"order_id\" as \"order_id\", (select \"t\".\"channel_id\" from \"event\" as \"t\" where (\"t\".\"customer_id\" = \"e\".\"customer_id\" and \"t\".\"event_type\" = ? and \"t\".\"channel_id\" is not null and \"t\".\"occurred_at\" >= \"e\".\"occurred_at\" - cast('30 days' as interval) and \"t\".\"occurred_at\" < \"e\".\"occurred_at\") order by \"t\".\"occurred_at\" desc, \"t\".\"dedup_key\" desc fetch next ? rows only) as \"attributed_channel_id\" from \"event\" as \"e\" where (\"e\".\"event_type\" = ? and \"e\".\"customer_id\" is not null and \"e\".\"occurred_at\" >= cast(? as timestamp) and \"e\".\"occurred_at\" < cast(? as timestamp))), \"attributed\" as (select \"c\".\"conversion_id\" as \"conversion_id\", \"c\".\"order_id\" as \"order_id\", \"ch\".\"name\" as \"channel_name\" from \"conversions\" as \"c\" left outer join \"channel\" as \"ch\" on \"ch\".\"id\" = \"c\".\"attributed_channel_id\"), \"facts\" as (select \"a\".\"conversion_id\" as \"conversion_id\", \"a\".\"channel_name\" as \"channel_name\", \"o\".\"amount\" as \"metric_value\" from \"attributed\" as \"a\" join \"orders\" as \"o\" on \"o\".\"id\" = \"a\".\"order_id\") select coalesce(\"f\".\"channel_name\", 'UNATTRIBUTED') as \"dim.channel\", sum(\"f\".\"metric_value\") as \"attributed_metric_value\", count(distinct \"f\".\"conversion_id\") as \"converted_events\", count(distinct case when \"f\".\"channel_name\" is not null then \"f\".\"conversion_id\" end) as \"touched_events\" from \"facts\" as \"f\" group by coalesce(\"f\".\"channel_name\", 'UNATTRIBUTED') order by coalesce(\"f\".\"channel_name\", 'UNATTRIBUTED') fetch next ? rows only",
+      "joinsExpected": [],
+      "bindValuesSample": [
+        "CHANNEL_TOUCH",
+        1,
+        "ORDER_PLACED",
+        "2026-10-11T16:00:00.000Z",
+        "2026-11-10T16:00:00.000Z",
+        100
+      ],
+      "status": "compiled"
+    },
+    {
+      "id": "m6-att-order-count",
+      "title": "末次触点归因（order_count，7d 窗口）",
+      "section": "attribution",
+      "kind": "sql",
+      "dsl": {
+        "mode": "ATTRIBUTION",
+        "metricId": "metric.order_count",
+        "dimensions": [
+          "dim.channel"
+        ],
+        "timeExpressionRaw": "近 30 天",
+        "analysisParams": {
+          "conversionEvent": "ORDER_PLACED",
+          "touchEvent": "CHANNEL_TOUCH",
+          "attributionWindow": "7d",
+          "model": "last_touch",
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "sqlExpected": "with \"conversions\" as (select \"e\".\"id\" as \"conversion_id\", \"e\".\"order_id\" as \"order_id\", (select \"t\".\"channel_id\" from \"event\" as \"t\" where (\"t\".\"customer_id\" = \"e\".\"customer_id\" and \"t\".\"event_type\" = ? and \"t\".\"channel_id\" is not null and \"t\".\"occurred_at\" >= \"e\".\"occurred_at\" - cast('7 days' as interval) and \"t\".\"occurred_at\" < \"e\".\"occurred_at\") order by \"t\".\"occurred_at\" desc, \"t\".\"dedup_key\" desc fetch next ? rows only) as \"attributed_channel_id\" from \"event\" as \"e\" where (\"e\".\"event_type\" = ? and \"e\".\"customer_id\" is not null and \"e\".\"occurred_at\" >= cast(? as timestamp) and \"e\".\"occurred_at\" < cast(? as timestamp))), \"attributed\" as (select \"c\".\"conversion_id\" as \"conversion_id\", \"c\".\"order_id\" as \"order_id\", \"ch\".\"name\" as \"channel_name\" from \"conversions\" as \"c\" left outer join \"channel\" as \"ch\" on \"ch\".\"id\" = \"c\".\"attributed_channel_id\"), \"facts\" as (select \"a\".\"conversion_id\" as \"conversion_id\", \"a\".\"channel_name\" as \"channel_name\", \"o\".\"id\" as \"metric_value\" from \"attributed\" as \"a\" join \"orders\" as \"o\" on \"o\".\"id\" = \"a\".\"order_id\") select coalesce(\"f\".\"channel_name\", 'UNATTRIBUTED') as \"dim.channel\", count(distinct \"f\".\"metric_value\") as \"attributed_metric_value\", count(distinct \"f\".\"conversion_id\") as \"converted_events\", count(distinct case when \"f\".\"channel_name\" is not null then \"f\".\"conversion_id\" end) as \"touched_events\" from \"facts\" as \"f\" group by coalesce(\"f\".\"channel_name\", 'UNATTRIBUTED') order by coalesce(\"f\".\"channel_name\", 'UNATTRIBUTED') fetch next ? rows only",
+      "joinsExpected": [],
+      "bindValuesSample": [
+        "CHANNEL_TOUCH",
+        1,
+        "ORDER_PLACED",
+        "2026-10-11T16:00:00.000Z",
+        "2026-11-10T16:00:00.000Z",
+        500
+      ],
+      "status": "compiled"
+    },
+    {
+      "id": "m6-att-no-channel-dimension",
+      "title": "无渠道维度（不产出 UNATTRIBUTED 桶）",
+      "section": "attribution",
+      "kind": "sql",
+      "dsl": {
+        "mode": "ATTRIBUTION",
+        "metricId": "metric.gmv",
+        "timeExpressionRaw": "近 30 天",
+        "analysisParams": {
+          "conversionEvent": "ORDER_PLACED",
+          "touchEvent": "CHANNEL_TOUCH",
+          "attributionWindow": "30d",
+          "model": "last_touch",
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "sqlExpected": "with \"conversions\" as (select \"e\".\"id\" as \"conversion_id\", \"e\".\"order_id\" as \"order_id\", (select \"t\".\"channel_id\" from \"event\" as \"t\" where (\"t\".\"customer_id\" = \"e\".\"customer_id\" and \"t\".\"event_type\" = ? and \"t\".\"channel_id\" is not null and \"t\".\"occurred_at\" >= \"e\".\"occurred_at\" - cast('30 days' as interval) and \"t\".\"occurred_at\" < \"e\".\"occurred_at\") order by \"t\".\"occurred_at\" desc, \"t\".\"dedup_key\" desc fetch next ? rows only) as \"attributed_channel_id\" from \"event\" as \"e\" where (\"e\".\"event_type\" = ? and \"e\".\"customer_id\" is not null and \"e\".\"occurred_at\" >= cast(? as timestamp) and \"e\".\"occurred_at\" < cast(? as timestamp))), \"attributed\" as (select \"c\".\"conversion_id\" as \"conversion_id\", \"c\".\"order_id\" as \"order_id\", \"ch\".\"name\" as \"channel_name\" from \"conversions\" as \"c\" left outer join \"channel\" as \"ch\" on \"ch\".\"id\" = \"c\".\"attributed_channel_id\"), \"facts\" as (select \"a\".\"conversion_id\" as \"conversion_id\", \"a\".\"channel_name\" as \"channel_name\", \"o\".\"amount\" as \"metric_value\" from \"attributed\" as \"a\" join \"orders\" as \"o\" on \"o\".\"id\" = \"a\".\"order_id\") select sum(\"f\".\"metric_value\") as \"attributed_metric_value\", count(distinct \"f\".\"conversion_id\") as \"converted_events\", count(distinct case when \"f\".\"channel_name\" is not null then \"f\".\"conversion_id\" end) as \"touched_events\" from \"facts\" as \"f\" group by () fetch next ? rows only",
+      "joinsExpected": [],
+      "bindValuesSample": [
+        "CHANNEL_TOUCH",
+        1,
+        "ORDER_PLACED",
+        "2026-10-11T16:00:00.000Z",
+        "2026-11-10T16:00:00.000Z",
+        500
+      ],
+      "status": "compiled"
+    },
+    {
+      "id": "m6-att-14d-window",
+      "title": "14d 回溯窗口（枚举边界）",
+      "section": "attribution",
+      "kind": "sql",
+      "dsl": {
+        "mode": "ATTRIBUTION",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.channel"
+        ],
+        "timeExpressionRaw": "近 30 天",
+        "analysisParams": {
+          "conversionEvent": "ORDER_PLACED",
+          "touchEvent": "CHANNEL_TOUCH",
+          "attributionWindow": "14d",
+          "model": "last_touch",
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "sqlExpected": "with \"conversions\" as (select \"e\".\"id\" as \"conversion_id\", \"e\".\"order_id\" as \"order_id\", (select \"t\".\"channel_id\" from \"event\" as \"t\" where (\"t\".\"customer_id\" = \"e\".\"customer_id\" and \"t\".\"event_type\" = ? and \"t\".\"channel_id\" is not null and \"t\".\"occurred_at\" >= \"e\".\"occurred_at\" - cast('14 days' as interval) and \"t\".\"occurred_at\" < \"e\".\"occurred_at\") order by \"t\".\"occurred_at\" desc, \"t\".\"dedup_key\" desc fetch next ? rows only) as \"attributed_channel_id\" from \"event\" as \"e\" where (\"e\".\"event_type\" = ? and \"e\".\"customer_id\" is not null and \"e\".\"occurred_at\" >= cast(? as timestamp) and \"e\".\"occurred_at\" < cast(? as timestamp))), \"attributed\" as (select \"c\".\"conversion_id\" as \"conversion_id\", \"c\".\"order_id\" as \"order_id\", \"ch\".\"name\" as \"channel_name\" from \"conversions\" as \"c\" left outer join \"channel\" as \"ch\" on \"ch\".\"id\" = \"c\".\"attributed_channel_id\"), \"facts\" as (select \"a\".\"conversion_id\" as \"conversion_id\", \"a\".\"channel_name\" as \"channel_name\", \"o\".\"amount\" as \"metric_value\" from \"attributed\" as \"a\" join \"orders\" as \"o\" on \"o\".\"id\" = \"a\".\"order_id\") select coalesce(\"f\".\"channel_name\", 'UNATTRIBUTED') as \"dim.channel\", sum(\"f\".\"metric_value\") as \"attributed_metric_value\", count(distinct \"f\".\"conversion_id\") as \"converted_events\", count(distinct case when \"f\".\"channel_name\" is not null then \"f\".\"conversion_id\" end) as \"touched_events\" from \"facts\" as \"f\" group by coalesce(\"f\".\"channel_name\", 'UNATTRIBUTED') order by coalesce(\"f\".\"channel_name\", 'UNATTRIBUTED') fetch next ? rows only",
+      "joinsExpected": [],
+      "bindValuesSample": [
+        "CHANNEL_TOUCH",
+        1,
+        "ORDER_PLACED",
+        "2026-10-11T16:00:00.000Z",
+        "2026-11-10T16:00:00.000Z",
+        500
+      ],
+      "status": "compiled"
+    },
+    {
+      "id": "m6-att-neg-unknown-event",
+      "title": "负例：未发布触点事件",
+      "section": "attribution",
+      "kind": "negative",
+      "dsl": {
+        "mode": "ATTRIBUTION",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.channel"
+        ],
+        "timeExpressionRaw": "近 30 天",
+        "analysisParams": {
+          "conversionEvent": "ORDER_PLACED",
+          "touchEvent": "NOT_PUBLISHED",
+          "attributionWindow": "30d",
+          "model": "last_touch",
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "expectedErrorCode": 1002000038,
+      "actualErrorCode": 1002000038,
+      "errorMessage": "归因事件找不到唯一已发布定义或映射不完整: NOT_PUBLISHED 命中 0 个事件定义",
+      "status": "supported"
+    },
+    {
+      "id": "m6-att-neg-unimplemented-model",
+      "title": "负例：声明未实现的归因模型（linear）",
+      "section": "attribution",
+      "kind": "negative",
+      "dsl": {
+        "mode": "ATTRIBUTION",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.channel"
+        ],
+        "timeExpressionRaw": "近 30 天",
+        "analysisParams": {
+          "conversionEvent": "ORDER_PLACED",
+          "touchEvent": "CHANNEL_TOUCH",
+          "attributionWindow": "30d",
+          "model": "linear",
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "expectedErrorCode": 1002000040,
+      "actualErrorCode": 1002000040,
+      "errorMessage": "归因模型尚未实现（首发仅 last_touch）: linear",
+      "status": "supported"
+    },
+    {
+      "id": "m6-att-neg-dimension",
+      "title": "负例：非指标同表维度（客户等级）",
+      "section": "attribution",
+      "kind": "negative",
+      "dsl": {
+        "mode": "ATTRIBUTION",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.customer_tier"
+        ],
+        "timeExpressionRaw": "近 30 天",
+        "analysisParams": {
+          "conversionEvent": "ORDER_PLACED",
+          "touchEvent": "CHANNEL_TOUCH",
+          "attributionWindow": "30d",
+          "model": "last_touch",
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "expectedErrorCode": 1002000039,
+      "actualErrorCode": 1002000039,
+      "errorMessage": "归因维度必须是渠道（dim.channel）或指标同表已发布维度: dim.customer_tier -> orders",
+      "status": "supported"
+    },
+    {
+      "id": "m6-att-neg-client-timerange",
+      "title": "负例：客户端提交 timeRange",
+      "section": "attribution",
+      "kind": "negative",
+      "dsl": {
+        "mode": "ATTRIBUTION",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.channel"
+        ],
+        "timeExpressionRaw": "近 30 天",
+        "timeRange": {
+          "field": "dim.order_date",
+          "from": "2026-01-01T00:00:00Z",
+          "to": "2026-06-01T00:00:00Z"
+        },
+        "analysisParams": {
+          "conversionEvent": "ORDER_PLACED",
+          "touchEvent": "CHANNEL_TOUCH",
+          "attributionWindow": "30d",
+          "model": "last_touch",
+          "subjectPropertyId": "property.customer.customer_id"
+        }
+      },
+      "expectedErrorCode": 1002000000,
+      "actualErrorCode": 1002000000,
+      "errorMessage": "查询 DSL 校验失败: attribution 的时间窗由服务端按事件回填，客户端不得提交 timeRange",
       "status": "supported"
     }
   ]

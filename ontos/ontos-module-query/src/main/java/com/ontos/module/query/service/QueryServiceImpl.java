@@ -842,7 +842,11 @@ public class QueryServiceImpl implements QueryService {
                 // R-18：模式授权必须先于路径规划。规则型指标没有物理表，
                 // 先跑规划器会把「模式不支持」误报成 PATH_UNREACHABLE。
                 dslValidator.validateMode(queryDsl, manifest);
-                joinPathResolver.resolve(queryDsl, manifest);
+                // attribution 的 timeRange.field 是转化事件时间属性（非维度），规划器会把它当维度解析；
+                // 首发归因维度限「渠道 / 指标同表」、不需要路径展开，故与 retention 同型跳过规划。
+                if (!isEventTimeBackfilled(queryDsl)) {
+                    joinPathResolver.resolve(queryDsl, manifest);
+                }
             }
         }
         dslValidator.validate(queryDsl, manifest);
@@ -880,8 +884,8 @@ public class QueryServiceImpl implements QueryService {
             }
         }
         if (queryDsl.getTimeRange() != null && queryDsl.getTimeRange().getField() != null
-                && !isEventAnchored(queryDsl)) {
-            // 事件锚点模式的 timeRange.field 是服务端按 EventDef.timeProperty 回填的事件时间属性
+                && !isEventTimeBackfilled(queryDsl)) {
+            // retention / attribution 的 timeRange.field 是服务端按 EventDef.timeProperty 回填的事件时间属性
             // （不是维度资产、也不来自客户端），不参与 DIMENSION 判定；funnel 的时间在 cohortWindow。
             collectSensitivity(sensitivityCollector, manifest, queryDsl.getTimeRange().getField(),
                     PolicySnapshotService.AssetType.DIMENSION,
@@ -958,6 +962,12 @@ public class QueryServiceImpl implements QueryService {
     private static boolean isEventAnchored(QueryDsl dsl) {
         return dsl.getMode() == QueryDsl.AnalysisMode.FUNNEL
                 || dsl.getMode() == QueryDsl.AnalysisMode.RETENTION;
+    }
+
+    /** 时间窗 field 由服务端按事件 timeProperty 回填的模式（retention / attribution）。 */
+    private static boolean isEventTimeBackfilled(QueryDsl dsl) {
+        return dsl.getMode() == QueryDsl.AnalysisMode.RETENTION
+                || dsl.getMode() == QueryDsl.AnalysisMode.ATTRIBUTION;
     }
 
     /**

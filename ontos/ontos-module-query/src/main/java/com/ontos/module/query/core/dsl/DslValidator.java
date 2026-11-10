@@ -21,6 +21,9 @@ import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.inv
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.ASSET_MODE_NOT_ALLOWED;
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.DIMENSION_NOT_ALLOWED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ABSOLUTE_DATE_REJECTED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.ATTRIBUTION_DIMENSION_UNSUPPORTED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.ATTRIBUTION_EVENT_NOT_FOUND;
+import static com.ontos.module.query.enums.ErrorCodeConstants.ATTRIBUTION_MODEL_NOT_IMPLEMENTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.CALIBER_AMBIGUOUS;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.CROSS_TABLE_UNSUPPORTED;
@@ -56,6 +59,12 @@ public class DslValidator {
     private static final Set<String> YOY_MOM_PERIODS = Set.of("MONTH", "YEAR");
     /** retention cohort 周期单位封闭枚举（规格 v1.1 §1.1）：周一 / 每月 1 日起。 */
     private static final Set<String> RETENTION_PERIOD_UNITS = Set.of("WEEK", "MONTH");
+    /** attribution 触点回溯窗口封闭枚举（规格 v1.1 §2.1）。 */
+    private static final Set<String> ATTRIBUTION_WINDOWS = Set.of("7d", "14d", "30d");
+    /** 已写入契约但首发未实现的归因模型（引用即结构化拒绝，作为 approximation_of 的登记位）。 */
+    private static final Set<String> ATTRIBUTION_DECLARED_MODELS = Set.of("first_touch", "linear");
+    /** 首发约定的渠道维度（规格 §2.1「首发固定支撑 dim.channel」；多域接入时改为清单元数据）。 */
+    private static final String CHANNEL_DIMENSION_ID = "dim.channel";
     /** M2 规则求值支持的单值比较算子；IN（集合阈值）归 M6。 */
     private static final Set<String> RULE_OPERATORS = Set.of("EQ", "NEQ", "GT", "GTE", "LT", "LTE");
 
@@ -89,6 +98,11 @@ public class DslValidator {
         rejectLookupOnlyFields(dsl);
         SemanticManifest semantic = manifest.getSemantic();
         SemanticManifest.Metric metric = validateMode(dsl, manifest);
+        // M6/T1.4：归因是聚合锚点（metricId 必填），但维度/时间/事件的约束与通用聚合不同
+        if (mode == QueryDsl.AnalysisMode.ATTRIBUTION) {
+            validateAttribution(dsl, manifest, metric);
+            return;
+        }
 
         validateAnalysisParams(dsl, mode);
         validateSubIntents(dsl, semantic);
@@ -164,9 +178,10 @@ public class DslValidator {
             throw exception(ASSET_MODE_NOT_ALLOWED, dsl.getMetricId() + " / " + mode.name());
         }
         // fail-closed（PoC-04 缺陷修复）：只有已落地确定性构造的模式才放行。
-        // QUERY / YOY_MOM 在本类编译；LOOKUP / LOOKUP_BATCH / FUNNEL / RETENTION 在入口分流；
-        // ATTRIBUTION / DISCOVERY 一律拒绝。
-        if (mode != QueryDsl.AnalysisMode.QUERY && mode != QueryDsl.AnalysisMode.YOY_MOM) {
+        // QUERY / YOY_MOM / ATTRIBUTION 在本类或专用分支编译；LOOKUP / LOOKUP_BATCH / FUNNEL / RETENTION 在入口分流；
+        // DISCOVERY 一律拒绝。
+        if (mode != QueryDsl.AnalysisMode.QUERY && mode != QueryDsl.AnalysisMode.YOY_MOM
+                && mode != QueryDsl.AnalysisMode.ATTRIBUTION) {
             throw exception(ANALYSIS_MODE_NOT_IMPLEMENTED, mode.name());
         }
         return metric;
@@ -443,6 +458,161 @@ public class DslValidator {
             throw exception(SENSITIVE_BULK_EXPORT_REJECTED, "retention 敏感主体/维度且 limit=" + limit);
         }
         dsl.setLimit(limit);
+    }
+
+    /**
+     * attribution 校验（M6/T1.4，模式规格 v1.1 §2）。
+     *
+     * <p>四条硬边界：聚合锚点（metricId 必填且 allowed_modes 含 ATTRIBUTION，由 validateMode 保证）；
+     * 转化 / 触点事件各命中唯一已发布定义、三件物理映射齐备且同表，触点事件必须声明
+     * channelPropertyId（渠道物理来源，禁止自由文本）；维度只允许渠道维度或指标同表维度
+     * （取值时点 = 转化时点）；时间窗只接受服务端按转化事件 timeProperty 回填的 timeRange。
+     */
+    private void validateAttribution(QueryDsl dsl, PublishedManifest manifest, SemanticManifest.Metric metric) {
+        OntologySnapshot ontology = manifest.getOntology();
+        SemanticManifest semantic = manifest.getSemantic();
+        if (dsl.getExplicitRange() != null) {
+            throw exception(DSL_INVALID, "attribution 不接受绝对日期（explicitRange）");
+        }
+        if (dsl.getSubIntents() != null && !dsl.getSubIntents().isEmpty()) {
+            throw exception(DSL_INVALID, "attribution 不接受 subIntents");
+        }
+        if (dsl.getFilters() != null && !dsl.getFilters().isEmpty()) {
+            // 归因 CTE 没有接 filters 的位置；静默忽略会让「某区域归因」返回全域数字
+            throw exception(DSL_INVALID, "attribution 暂不支持 filters（未定档，拒绝而非静默忽略）");
+        }
+        if (!isBlank(dsl.getCaliberVariantId())) {
+            // 首发归因指标（gmv / order_count）无口径变体；带变体的指标接入需先定档条件下推位置
+            throw exception(DSL_INVALID, "attribution 暂不支持 caliberVariantId（首发未定档）");
+        }
+        QueryDsl.AnalysisParams params = dsl.getAnalysisParams();
+        if (params == null) {
+            throw exception(DSL_INVALID, "attribution 缺少 analysisParams");
+        }
+        validateAnalysisParams(dsl, QueryDsl.AnalysisMode.ATTRIBUTION);
+
+        QueryDsl.TimeRange range = dsl.getTimeRange();
+        if (range == null || range.getFrom() == null || range.getTo() == null
+                || !QueryDsl.TimeRange.SOURCE_EXPRESSION.equals(range.getSource())
+                || isBlank(range.getField()) || isBlank(dsl.getTimePatternId())
+                || isBlank(dsl.getTimeParserVersion())) {
+            throw exception(DSL_INVALID, "attribution 的时间窗必须由服务端解析 timeExpressionRaw 后回填");
+        }
+        if (range.getFrom().isAfter(range.getTo())) {
+            throw exception(DSL_INVALID, "attribution 转化窗起点晚于终点");
+        }
+        OntologySnapshot.Property subject = ontology.propertyIndex().get(params.getSubjectPropertyId());
+        if (subject == null || tableOf(subject.getColumn()) == null) {
+            throw exception(DSL_INVALID,
+                    "attribution subjectPropertyId 无法解析物理列: " + params.getSubjectPropertyId());
+        }
+        OntologySnapshot.EventDef conversionEvent = requireAttributionEvent(
+                ontology, params.getConversionEvent(), "conversionEvent", subject, false);
+        OntologySnapshot.EventDef touchEvent = requireAttributionEvent(
+                ontology, params.getTouchEvent(), "touchEvent", subject, true);
+        String eventTable = tableOf(requireEventMappingProperty(
+                ontology, conversionEvent, conversionEvent.getTimeProperty()).getColumn());
+        if (eventTable == null || !sameTable(ontology, conversionEvent, eventTable)
+                || !sameTable(ontology, touchEvent, eventTable)) {
+            throw exception(ATTRIBUTION_EVENT_NOT_FOUND,
+                    "转化 / 触点事件的判定列、时间列、主体列必须同表: " + eventTable);
+        }
+        if (!Objects.equals(range.getField(), conversionEvent.getTimeProperty())) {
+            throw exception(DSL_INVALID,
+                    "attribution timeRange.field 必须是转化事件时间属性: " + conversionEvent.getTimeProperty());
+        }
+
+        boolean sensitiveDimension = false;
+        for (String dimensionId : dsl.getDimensions() == null ? List.<String>of() : dsl.getDimensions()) {
+            SemanticManifest.Dimension dimension = semantic.requireDimension(dimensionId);
+            sensitiveDimension |= dimension.isSensitive();
+            if (CHANNEL_DIMENSION_ID.equals(dimensionId)) {
+                continue; // 渠道维度值来自触点渠道映射（channel.name），不是订单冗余列
+            }
+            if (!Objects.equals(dimension.getTable(), metric.getTable())) {
+                throw exception(ATTRIBUTION_DIMENSION_UNSUPPORTED,
+                        dimensionId + " -> " + metric.getTable());
+            }
+        }
+        int limit = dsl.getLimit() == null ? properties.getMaxRows() : dsl.getLimit();
+        if (limit < 1 || limit > properties.getMaxRows()) {
+            throw exception(DSL_INVALID, "limit 必须在 [1, " + properties.getMaxRows() + "]");
+        }
+        boolean sensitive = sensitiveDimension || metric.isSensitive();
+        if (sensitive && (dsl.getDimensions() == null || dsl.getDimensions().isEmpty())
+                && limit > properties.getSensitiveUngroupedLimit()) {
+            throw exception(SENSITIVE_BULK_EXPORT_REJECTED,
+                    metric.getId() + " 归因无维度分组且 limit=" + limit);
+        }
+        dsl.setLimit(limit);
+    }
+
+    /**
+     * 归因事件：唯一已发布定义 + 三件物理映射齐备 + participantClass 与主体一致；
+     * 触点事件额外要求 channelPropertyId（渠道物理来源）已发布、可过滤且与事件映射同表。
+     */
+    private static OntologySnapshot.EventDef requireAttributionEvent(OntologySnapshot ontology, String eventType,
+                                                                     String field,
+                                                                     OntologySnapshot.Property subject,
+                                                                     boolean requireChannel) {
+        if (isBlank(eventType)) {
+            throw exception(DSL_INVALID, "attribution 缺少 " + field);
+        }
+        List<OntologySnapshot.EventDef> matched = ontology.getEvents().stream()
+                .filter(event -> eventType.equals(event.getEventType()))
+                .toList();
+        if (matched.size() != 1) {
+            throw exception(ATTRIBUTION_EVENT_NOT_FOUND,
+                    eventType + " 命中 " + matched.size() + " 个事件定义");
+        }
+        OntologySnapshot.EventDef event = matched.get(0);
+        if (isBlank(event.getEventTypeProperty()) || isBlank(event.getParticipantProperty())
+                || isBlank(event.getTimeProperty())) {
+            throw exception(ATTRIBUTION_EVENT_NOT_FOUND, event.getId() + " 缺少物理映射");
+        }
+        if (!Objects.equals(subject.getConceptId(), event.getParticipantClass())) {
+            throw exception(ATTRIBUTION_EVENT_NOT_FOUND,
+                    "participantClass 与主体不一致: " + event.getId());
+        }
+        if (!requireChannel) {
+            return event;
+        }
+        OntologySnapshot.Property channel = isBlank(event.getChannelPropertyId())
+                ? null : ontology.propertyIndex().get(event.getChannelPropertyId());
+        if (channel == null) {
+            throw exception(ATTRIBUTION_EVENT_NOT_FOUND,
+                    event.getId() + " 未声明 channelPropertyId（触点渠道物理来源）");
+        }
+        if (!channel.isFilterable()) {
+            throw exception(ATTRIBUTION_EVENT_NOT_FOUND, "渠道属性不可过滤: " + channel.getId());
+        }
+        String eventTable = tableOf(requireEventMappingProperty(ontology, event, event.getTimeProperty()).getColumn());
+        if (!Objects.equals(tableOf(channel.getColumn()), eventTable)) {
+            throw exception(ATTRIBUTION_EVENT_NOT_FOUND,
+                    "渠道属性与事件映射不同表: " + channel.getId());
+        }
+        return event;
+    }
+
+    private static OntologySnapshot.Property requireEventMappingProperty(OntologySnapshot ontology,
+                                                                        OntologySnapshot.EventDef event,
+                                                                        String propertyId) {
+        OntologySnapshot.Property property = isBlank(propertyId) ? null : ontology.propertyIndex().get(propertyId);
+        if (property == null) {
+            throw exception(ATTRIBUTION_EVENT_NOT_FOUND, event.getId() + " 映射属性未发布: " + propertyId);
+        }
+        return property;
+    }
+
+    private static boolean sameTable(OntologySnapshot ontology, OntologySnapshot.EventDef event, String table) {
+        for (String propertyId : List.of(event.getEventTypeProperty(), event.getTimeProperty(),
+                event.getParticipantProperty())) {
+            OntologySnapshot.Property property = requireEventMappingProperty(ontology, event, propertyId);
+            if (!Objects.equals(table, tableOf(property.getColumn()))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** cohort / return 事件：必须命中唯一已发布定义且三件物理映射齐备（不得从命名习惯推断）。 */
@@ -764,23 +934,58 @@ public class DslValidator {
         return lastDot <= 0 ? null : column.substring(0, lastDot);
     }
 
-    /** funnel / yoy_mom / retention 的 analysis_params 契约（analysis-mode 规格 v1 / v1.1）。 */
+    /** funnel / yoy_mom / retention / attribution 的 analysis_params 契约（analysis-mode 规格 v1 / v1.1）。 */
     private void validateAnalysisParams(QueryDsl dsl, QueryDsl.AnalysisMode mode) {
         QueryDsl.AnalysisParams params = dsl.getAnalysisParams();
         boolean funnel = mode == QueryDsl.AnalysisMode.FUNNEL;
         boolean yoyMom = mode == QueryDsl.AnalysisMode.YOY_MOM;
         boolean retention = mode == QueryDsl.AnalysisMode.RETENTION;
-        if (!funnel && !yoyMom && !retention) {
+        boolean attribution = mode == QueryDsl.AnalysisMode.ATTRIBUTION;
+        if (!funnel && !yoyMom && !retention && !attribution) {
             if (params != null) {
-                throw exception(DSL_INVALID, "analysisParams 仅允许 funnel / yoy_mom / retention 模式");
+                throw exception(DSL_INVALID,
+                        "analysisParams 仅允许 funnel / yoy_mom / retention / attribution 模式");
             }
             return;
         }
-        // yoy_mom 的 period、funnel 的 steps、retention 的事件对都是必填；缺整个对象时先前会一路漏到编译器
-        // 触发 NPE（500），这里必须在校验层就按业务错误拒绝。
+        // yoy_mom 的 period、funnel 的 steps、retention 的事件对、attribution 的事件对都是必填；
+        // 缺整个对象时会一路漏到编译器触发 NPE（500），必须在校验层按业务错误拒绝。
         if (params == null) {
-            String label = funnel ? "funnel" : (yoyMom ? "yoy_mom" : "retention");
+            String label = funnel ? "funnel"
+                    : (yoyMom ? "yoy_mom" : (retention ? "retention" : "attribution"));
             throw exception(DSL_INVALID, label + " 缺少 analysisParams");
+        }
+        if (attribution) {
+            if (isBlank(params.getConversionEvent()) || isBlank(params.getTouchEvent())) {
+                throw exception(DSL_INVALID,
+                        "attribution 缺少 conversionEvent / touchEvent（event_type 值）");
+            }
+            if (isBlank(params.getAttributionWindow())
+                    || !ATTRIBUTION_WINDOWS.contains(params.getAttributionWindow())) {
+                throw exception(DSL_INVALID, "attribution attributionWindow 仅允许 7d / 14d / 30d");
+            }
+            if (isBlank(params.getModel())) {
+                throw exception(DSL_INVALID, "attribution 缺少 model（首发仅 last_touch）");
+            }
+            if (!"last_touch".equals(params.getModel())) {
+                // 契约已声明未实现的模型：给出结构化「未实现」而不是笼统 DSL 错误
+                if (ATTRIBUTION_DECLARED_MODELS.contains(params.getModel())) {
+                    throw exception(ATTRIBUTION_MODEL_NOT_IMPLEMENTED, params.getModel());
+                }
+                throw exception(DSL_INVALID, "attribution model 仅允许 last_touch: " + params.getModel());
+            }
+            if (isBlank(params.getSubjectPropertyId())) {
+                throw exception(DSL_INVALID, "attribution 缺少 subjectPropertyId（本体属性 ID）");
+            }
+            if ((params.getSteps() != null && !params.getSteps().isEmpty())
+                    || params.getCohortWindow() != null || params.getStepWindow() != null
+                    || params.getDeduplication() != null || params.getConversionDenominator() != null
+                    || params.getPeriod() != null
+                    || params.getCohortEvent() != null || params.getReturnEvent() != null
+                    || params.getPeriodUnit() != null || params.getPeriods() != null) {
+                throw exception(DSL_INVALID, "attribution 不接受其他分析模式的专属参数");
+            }
+            return;
         }
         if (retention) {
             if (isBlank(params.getCohortEvent()) || isBlank(params.getReturnEvent())) {
@@ -799,8 +1004,10 @@ public class DslValidator {
             if ((params.getSteps() != null && !params.getSteps().isEmpty())
                     || params.getCohortWindow() != null || params.getStepWindow() != null
                     || params.getDeduplication() != null || params.getConversionDenominator() != null
-                    || params.getPeriod() != null) {
-                throw exception(DSL_INVALID, "retention 不接受 funnel / yoy_mom 专属参数");
+                    || params.getPeriod() != null
+                    || params.getConversionEvent() != null || params.getTouchEvent() != null
+                    || params.getAttributionWindow() != null || params.getModel() != null) {
+                throw exception(DSL_INVALID, "retention 不接受其他分析模式的专属参数");
             }
             return;
         }
@@ -829,8 +1036,10 @@ public class DslValidator {
                 throw exception(DSL_INVALID, "funnel 不接受 period");
             }
             if (params.getCohortEvent() != null || params.getReturnEvent() != null
-                    || params.getPeriodUnit() != null || params.getPeriods() != null) {
-                throw exception(DSL_INVALID, "funnel 不接受 retention 专属参数");
+                    || params.getPeriodUnit() != null || params.getPeriods() != null
+                    || params.getConversionEvent() != null || params.getTouchEvent() != null
+                    || params.getAttributionWindow() != null || params.getModel() != null) {
+                throw exception(DSL_INVALID, "funnel 不接受其他分析模式的专属参数");
             }
             return;
         }
@@ -846,8 +1055,10 @@ public class DslValidator {
             throw exception(DSL_INVALID, "yoy_mom 不接受 funnel 专属参数");
         }
         if (params.getCohortEvent() != null || params.getReturnEvent() != null
-                || params.getPeriodUnit() != null || params.getPeriods() != null) {
-            throw exception(DSL_INVALID, "yoy_mom 不接受 retention 专属参数");
+                || params.getPeriodUnit() != null || params.getPeriods() != null
+                || params.getConversionEvent() != null || params.getTouchEvent() != null
+                || params.getAttributionWindow() != null || params.getModel() != null) {
+            throw exception(DSL_INVALID, "yoy_mom 不接受其他分析模式的专属参数");
         }
     }
 

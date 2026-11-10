@@ -11,6 +11,7 @@ import com.ontos.module.query.core.time.TimeExpressionParser.ParseResult;
 import org.springframework.stereotype.Component;
 
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
+import static com.ontos.module.query.enums.ErrorCodeConstants.ATTRIBUTION_EVENT_NOT_FOUND;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
 import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_TIME_WINDOW_MISSING;
 import static com.ontos.module.query.enums.ErrorCodeConstants.RETENTION_EVENT_NOT_FOUND;
@@ -58,6 +59,11 @@ public class TimeWindowResolver {
             resolveRetention(dsl, manifest);
             return;
         }
+        // M6/T1.4：attribution 的转化窗同理，field 由服务端按转化事件 timeProperty 回填
+        if (dsl.getMode() == QueryDsl.AnalysisMode.ATTRIBUTION) {
+            resolveAttribution(dsl, manifest);
+            return;
+        }
 
         String raw = dsl.getTimeExpressionRaw();
         boolean hasRaw = raw != null && !raw.isBlank();
@@ -98,29 +104,47 @@ public class TimeWindowResolver {
     }
 
     /**
-     * retention 观察窗解析（M6/T1.3，模式规格 v1.1 §1.1）：只接受顶层 timeExpressionRaw，
-     * 必须命中已发布时间模式；timeRange.field 由服务端按 cohort 事件 timeProperty 回填，
-     * 客户端提交 timeRange 即拒绝（服务端回填通道不可被客户端占用）。
+     * retention 观察窗解析（M6/T1.3，模式规格 v1.1 §1.1）：观察窗只接受顶层 timeExpressionRaw。
      */
     private void resolveRetention(QueryDsl dsl, PublishedManifest manifest) {
-        if (dsl.getTimeRange() != null) {
-            throw exception(DSL_INVALID, "retention 的时间窗由服务端按 cohort 事件回填，客户端不得提交 timeRange");
-        }
         QueryDsl.AnalysisParams params = dsl.getAnalysisParams();
-        String cohortEventType = params == null ? null : params.getCohortEvent();
-        if (cohortEventType == null || cohortEventType.isBlank()) {
-            throw exception(DSL_INVALID, "retention 缺少 analysisParams.cohortEvent");
+        resolveEventWindow(dsl, manifest,
+                params == null ? null : params.getCohortEvent(),
+                "retention", "cohortEvent", RETENTION_EVENT_NOT_FOUND);
+    }
+
+    /** attribution 转化窗解析（M6/T1.4，模式规格 v1.1 §2.1）：field = 转化事件时间属性。 */
+    private void resolveAttribution(QueryDsl dsl, PublishedManifest manifest) {
+        QueryDsl.AnalysisParams params = dsl.getAnalysisParams();
+        resolveEventWindow(dsl, manifest,
+                params == null ? null : params.getConversionEvent(),
+                "attribution", "conversionEvent", ATTRIBUTION_EVENT_NOT_FOUND);
+    }
+
+    /**
+     * 事件锚点模式的观察窗：只接受顶层 timeExpressionRaw，必须命中已发布时间模式；
+     * timeRange.field 由服务端按事件 timeProperty 回填，客户端提交 timeRange 即拒绝
+     * （服务端回填通道不可被客户端占用，否则可伪造时间字段）。
+     */
+    private void resolveEventWindow(QueryDsl dsl, PublishedManifest manifest, String eventType,
+                                    String mode, String field, com.ontos.framework.common.exception.ErrorCode
+                                            eventNotFound) {
+        if (dsl.getTimeRange() != null) {
+            throw exception(DSL_INVALID, mode + " 的时间窗由服务端按事件回填，客户端不得提交 timeRange");
         }
-        OntologySnapshot.EventDef cohort = manifest.getOntology().getEvents().stream()
-                .filter(event -> cohortEventType.equals(event.getEventType()))
+        if (eventType == null || eventType.isBlank()) {
+            throw exception(DSL_INVALID, mode + " 缺少 analysisParams." + field);
+        }
+        OntologySnapshot.EventDef event = manifest.getOntology().getEvents().stream()
+                .filter(candidate -> eventType.equals(candidate.getEventType()))
                 .findFirst()
-                .orElseThrow(() -> exception(RETENTION_EVENT_NOT_FOUND, cohortEventType));
-        if (cohort.getTimeProperty() == null || cohort.getTimeProperty().isBlank()) {
-            throw exception(RETENTION_EVENT_NOT_FOUND, cohort.getId() + " 缺少 timeProperty");
+                .orElseThrow(() -> exception(eventNotFound, eventType));
+        if (event.getTimeProperty() == null || event.getTimeProperty().isBlank()) {
+            throw exception(eventNotFound, event.getId() + " 缺少 timeProperty");
         }
         String raw = dsl.getTimeExpressionRaw();
         if (raw == null || raw.isBlank()) {
-            throw exception(TIME_PARSE_FAILED, "retention 缺少 timeExpressionRaw（观察窗）");
+            throw exception(TIME_PARSE_FAILED, mode + " 缺少 timeExpressionRaw（观察窗）");
         }
         ParseResult result = new TimeExpressionParser(manifest.getTimeExpressionPatterns())
                 .parse(raw, LocalDate.now(clock));
@@ -128,7 +152,7 @@ public class TimeWindowResolver {
             throw exception(TIME_PARSE_FAILED, result.failReason());
         }
         QueryDsl.TimeRange resolved = new QueryDsl.TimeRange();
-        resolved.setField(cohort.getTimeProperty());
+        resolved.setField(event.getTimeProperty());
         resolved.setFrom(result.resolved().from());
         resolved.setTo(result.resolved().to());
         resolved.setSource(QueryDsl.TimeRange.SOURCE_EXPRESSION);

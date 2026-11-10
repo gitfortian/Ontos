@@ -56,10 +56,10 @@ class DslValidatorTest {
     @Test
     void shouldRejectNonQueryModeEvenWhenWhitelisted() {
         // 白名单放行不够，未实现的模式必须 fail-closed（PoC-04）。
-        // 已实现 QUERY/LOOKUP/LOOKUP_BATCH/YOY_MOM/FUNNEL；ATTRIBUTION 仍未实现。
-        manifest.getSemantic().getMetrics().get(0).setAllowedModes(List.of("QUERY", "ATTRIBUTION"));
+        // 已实现 QUERY/LOOKUP/LOOKUP_BATCH/YOY_MOM/FUNNEL/RETENTION/ATTRIBUTION；DISCOVERY 仍未实现（M6 决策 3）。
+        manifest.getSemantic().getMetrics().get(0).setAllowedModes(List.of("QUERY", "DISCOVERY"));
         QueryDsl dsl = TestFixtures.query();
-        dsl.setMode(QueryDsl.AnalysisMode.ATTRIBUTION);
+        dsl.setMode(QueryDsl.AnalysisMode.DISCOVERY);
         ServiceException ex = assertThrows(ServiceException.class, () -> validator.validate(dsl, manifest));
         assertEquals(ANALYSIS_MODE_NOT_IMPLEMENTED.getCode(), ex.getCode());
     }

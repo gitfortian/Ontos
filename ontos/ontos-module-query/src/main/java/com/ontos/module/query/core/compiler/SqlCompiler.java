@@ -33,6 +33,7 @@ import org.springframework.stereotype.Component;
 
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ANALYSIS_MODE_NOT_IMPLEMENTED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.ATTRIBUTION_EVENT_NOT_FOUND;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
 import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_EVENT_MAPPING_MISSING;
 import static com.ontos.module.query.enums.ErrorCodeConstants.FUNNEL_EVENT_NOT_FOUND;
@@ -59,6 +60,13 @@ public class SqlCompiler {
 
     private static final String VALUE_ALIAS = "value";
     private static final String IDENTITY_ALIAS = "__identity";
+    /** 首发约定的渠道维度与渠道实体属性（模式规格 §2.1「首发固定支撑 dim.channel」）。 */
+    private static final String CHANNEL_DIMENSION_ID = "dim.channel";
+    private static final String CHANNEL_ID_PROPERTY_ID = "property.channel.channel_id";
+    private static final String CHANNEL_NAME_PROPERTY_ID = "property.channel.name";
+    /** 事件标识与去重键属性：转化去重计数与 last_touch 稳定排序的物理来源（清单 v12 发布）。 */
+    private static final String EVENT_ID_PROPERTY_ID = "property.event.event_id";
+    private static final String EVENT_DEDUP_KEY_PROPERTY_ID = "property.event.dedup_key";
 
     private final DSLContext dsl = DSL.using(SQLDialect.POSTGRES);
     /** 留存观察锚点时钟（Asia/Shanghai）；单测注入固定时钟保证「完整周期」判定可复现。 */
@@ -88,6 +96,10 @@ public class SqlCompiler {
         // M6/T1.3：留存走事件锚点 + cohort 周期骨架构造器
         if (mode == QueryDsl.AnalysisMode.RETENTION) {
             return compileRetention(queryDsl, manifest);
+        }
+        // M6/T1.4：归因走聚合锚点 + 末次触点构造器
+        if (mode == QueryDsl.AnalysisMode.ATTRIBUTION) {
+            return compileAttribution(queryDsl, manifest);
         }
         // 纵深防御（PoC-04 缺陷修复）：即使调用方绕过校验器，编译器也绝不把
         // 未实现的模式静默编译成聚合 SQL——只拒绝，不实现（funnel / yoy_mom 归 T3.3）。
@@ -806,6 +818,276 @@ public class SqlCompiler {
     private static LocalDate lastCompletePeriodStart(LocalDate today, String unit) {
         LocalDate currentStart = retentionPeriodStart(today, unit);
         return "week".equals(unit) ? currentStart.minusWeeks(1) : currentStart.minusMonths(1);
+    }
+
+    /**
+     * attribution 简单归因构造器（M6/T1.4，模式规格 v1.1 §2）：末次触点 + 显式 UNATTRIBUTED 桶。
+     *
+     * <p>口径：逐笔转化事件独立归因；回溯窗口 `[转化时刻 - window, 转化时刻)` 左闭右开；
+     * 窗口内 `(occurred_at, dedup_key)` 双降序取首行触点的渠道获得该笔转化 100% 权重；
+     * 无触点转化归入 `UNATTRIBUTED`（不丢弃、不冒泡）；无主体的转化/触点排除。
+     * 指标值经清单关系（指标表 ↔ 事件表）结构化 Join 得到，物理列全部来自已发布清单。
+     */
+    private CompiledQuery compileAttribution(QueryDsl queryDsl, PublishedManifest manifest) {
+        OntologySnapshot ontology = manifest.getOntology();
+        SemanticManifest semantic = manifest.getSemantic();
+        QueryDsl.AnalysisParams params = queryDsl.getAnalysisParams();
+        if (params == null || params.getConversionEvent() == null || params.getTouchEvent() == null) {
+            throw exception(DSL_INVALID, "attribution 缺少 conversionEvent / touchEvent");
+        }
+        QueryDsl.TimeRange range = queryDsl.getTimeRange();
+        if (range == null || range.getFrom() == null || range.getTo() == null) {
+            throw exception(DSL_INVALID, "attribution 缺少已解析的 timeRange");
+        }
+        SemanticManifest.Metric metric = semantic.requireMetric(queryDsl.getMetricId());
+        if (!metric.getAllowedModes().contains(QueryDsl.AnalysisMode.ATTRIBUTION.name())) {
+            throw exception(DSL_INVALID, "指标未开放 ATTRIBUTION: " + metric.getId());
+        }
+        String windowInterval = attributionInterval(params.getAttributionWindow());
+
+        OntologySnapshot.EventDef conversionEvent = attributionEvent(ontology, params.getConversionEvent());
+        OntologySnapshot.EventDef touchEvent = attributionEvent(ontology, params.getTouchEvent());
+        OntologySnapshot.Property convType =
+                attributionProperty(ontology, conversionEvent.getEventTypeProperty());
+        OntologySnapshot.Property convTime =
+                attributionProperty(ontology, conversionEvent.getTimeProperty());
+        OntologySnapshot.Property convParticipant =
+                attributionProperty(ontology, conversionEvent.getParticipantProperty());
+        OntologySnapshot.Property touchType = attributionProperty(ontology, touchEvent.getEventTypeProperty());
+        OntologySnapshot.Property touchTime = attributionProperty(ontology, touchEvent.getTimeProperty());
+        OntologySnapshot.Property touchParticipant =
+                attributionProperty(ontology, touchEvent.getParticipantProperty());
+        OntologySnapshot.Property touchChannel =
+                attributionProperty(ontology, touchEvent.getChannelPropertyId());
+        OntologySnapshot.Property eventId = attributionProperty(ontology, EVENT_ID_PROPERTY_ID);
+        OntologySnapshot.Property eventDedup = attributionProperty(ontology, EVENT_DEDUP_KEY_PROPERTY_ID);
+        OntologySnapshot.Property channelName = attributionProperty(ontology, CHANNEL_NAME_PROPERTY_ID);
+        OntologySnapshot.Property channelId = attributionProperty(ontology, CHANNEL_ID_PROPERTY_ID);
+        String eventTable = tableOf(convTime.getColumn());
+        if (eventTable == null
+                || !eventTable.equals(tableOf(touchTime.getColumn()))
+                || !eventTable.equals(tableOf(convType.getColumn()))
+                || !eventTable.equals(tableOf(convParticipant.getColumn()))
+                || !eventTable.equals(tableOf(touchType.getColumn()))
+                || !eventTable.equals(tableOf(touchParticipant.getColumn()))
+                || !eventTable.equals(tableOf(touchChannel.getColumn()))
+                || !eventTable.equals(tableOf(eventId.getColumn()))
+                || !eventTable.equals(tableOf(eventDedup.getColumn()))) {
+            throw exception(DSL_INVALID, "attribution 转化 / 触点事件映射未落在同一物理表");
+        }
+        OntologySnapshot.Relation relation =
+                requireMetricEventRelation(ontology, metric.getTable(), eventTable);
+        boolean metricSideIsFrom = metric.getTable().equals(tableOf(relation.getFromColumn()));
+        String metricKeyColumn = metricSideIsFrom ? relation.getFromColumn() : relation.getToColumn();
+        String eventKeyColumn = metricSideIsFrom ? relation.getToColumn() : relation.getFromColumn();
+
+        List<String> dimensionIds = queryDsl.getDimensions() == null ? List.of() : queryDsl.getDimensions();
+        List<SemanticManifest.Dimension> dimensions = new ArrayList<>();
+        boolean channelDimension = false;
+        for (String dimensionId : dimensionIds) {
+            SemanticManifest.Dimension dimension = semantic.requireDimension(dimensionId);
+            dimensions.add(dimension);
+            channelDimension |= CHANNEL_DIMENSION_ID.equals(dimensionId);
+        }
+
+        // 外层事件限定列（别名 e）与触点子查询限定列（别名 t），逐列限定避免自连接歧义
+        Field<String> eId = DSL.field(DSL.name("e", lastSegment(eventId.getColumn())), String.class);
+        Field<String> eOrder = DSL.field(DSL.name("e", lastSegment(eventKeyColumn)), String.class);
+        Field<Timestamp> eTime = DSL.field(DSL.name("e", lastSegment(convTime.getColumn())), Timestamp.class);
+        Field<String> eType = DSL.field(DSL.name("e", lastSegment(convType.getColumn())), String.class);
+        Field<String> eParticipant =
+                DSL.field(DSL.name("e", lastSegment(convParticipant.getColumn())), String.class);
+        Field<String> tType = DSL.field(DSL.name("t", lastSegment(touchType.getColumn())), String.class);
+        Field<Timestamp> tTime = DSL.field(DSL.name("t", lastSegment(touchTime.getColumn())), Timestamp.class);
+        Field<String> tParticipant =
+                DSL.field(DSL.name("t", lastSegment(touchParticipant.getColumn())), String.class);
+        Field<String> tChannel =
+                DSL.field(DSL.name("t", lastSegment(touchChannel.getColumn())), String.class);
+        Field<String> tDedup =
+                DSL.field(DSL.name("t", lastSegment(eventDedup.getColumn())), String.class);
+
+        // last_touch：窗口内最近触点（同一时刻按 dedup_key 降序取一，全序显式、同输入同输出）
+        var lastTouch = dsl.select(tChannel)
+                .from(DSL.table(tableName(eventTable)).as("t"))
+                .where(tParticipant.eq(eParticipant),
+                        tType.eq(touchEvent.getEventTypeValue()),
+                        tChannel.isNotNull(),
+                        tTime.ge(DSL.field("{0} - cast({1} as interval)", Timestamp.class,
+                                eTime, DSL.inline(windowInterval))),
+                        tTime.lt(eTime))
+                .orderBy(tTime.desc(), tDedup.desc())
+                .limit(1);
+
+        SelectQuery<Record> conversions = dsl.selectQuery();
+        conversions.addSelect(eId.as("conversion_id"));
+        conversions.addSelect(eOrder.as("order_id"));
+        conversions.addSelect(DSL.field(lastTouch).as("attributed_channel_id"));
+        conversions.addFrom(DSL.table(tableName(eventTable)).as("e"));
+        conversions.addConditions(
+                eType.eq(conversionEvent.getEventTypeValue()),
+                eParticipant.isNotNull(),
+                eTime.ge(DSL.val(shanghaiTimestamp(range.getFrom()))),
+                eTime.lt(DSL.val(shanghaiTimestamp(range.getTo()))));
+
+        // 渠道名映射：触点渠道 id → channel.name（渠道维度值来源；禁止自由文本渠道）
+        // 注意：JOIN 后表只能用别名 ch 限定——沿用未限定的 channel.* 会撞 missing FROM-clause
+        Field<String> chId = DSL.field(DSL.name("ch", lastSegment(channelId.getColumn())), String.class);
+        Field<String> chName = DSL.field(DSL.name("ch", lastSegment(channelName.getColumn())), String.class);
+        SelectQuery<Record> attributed = dsl.selectQuery();
+        attributed.addSelect(DSL.field(DSL.name("c", "conversion_id")).as("conversion_id"));
+        attributed.addSelect(DSL.field(DSL.name("c", "order_id")).as("order_id"));
+        attributed.addSelect(chName.as("channel_name"));
+        attributed.addFrom(DSL.table(DSL.name("conversions")).as("c"));
+        attributed.addJoin(DSL.table(tableName(tableOf(channelName.getColumn()))).as("ch"),
+                org.jooq.JoinType.LEFT_OUTER_JOIN,
+                chId.eq(DSL.field(DSL.name("c", "attributed_channel_id"), String.class)));
+
+        // facts：转化经清单关系 Join 指标表（指标值与订单维度同源，一转化一行）
+        SelectQuery<Record> facts = dsl.selectQuery();
+        facts.addSelect(DSL.field(DSL.name("a", "conversion_id")).as("conversion_id"));
+        facts.addSelect(DSL.field(DSL.name("a", "channel_name")).as("channel_name"));
+        facts.addSelect(DSL.field(DSL.name("o", lastSegment(metric.getColumn()))).as("metric_value"));
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            if (CHANNEL_DIMENSION_ID.equals(dimension.getId())) {
+                continue;
+            }
+            facts.addSelect(DSL.field(DSL.name("o", lastSegment(dimension.getColumn())))
+                    .as(DSL.name(dimension.getId())));
+        }
+        facts.addFrom(DSL.table(DSL.name("attributed")).as("a"));
+        facts.addJoin(DSL.table(tableName(metric.getTable())).as("o"), org.jooq.JoinType.JOIN,
+                DSL.field(DSL.name("o", lastSegment(metricKeyColumn)))
+                        .eq(DSL.field(DSL.name("a", "order_id"))));
+
+        // 外层聚合：渠道（UNATTRIBUTED 显式桶）+ 订单维度 + 指标值 + 转化数 / 命中触点数
+        Field<String> outConversionId = DSL.field(DSL.name("f", "conversion_id"), String.class);
+        Field<String> outChannelName = DSL.field(DSL.name("f", "channel_name"), String.class);
+        Field<Object> outMetricValue = DSL.field(DSL.name("f", "metric_value"));
+        Field<String> channelBucket =
+                DSL.field("coalesce({0}, 'UNATTRIBUTED')", String.class, outChannelName);
+        List<Field<?>> outerFields = new ArrayList<>();
+        List<Field<?>> groupFields = new ArrayList<>();
+        List<Field<?>> orderFields = new ArrayList<>();
+        if (channelDimension) {
+            outerFields.add(channelBucket.as(DSL.name(CHANNEL_DIMENSION_ID)));
+            groupFields.add(channelBucket);
+            orderFields.add(channelBucket);
+        }
+        for (SemanticManifest.Dimension dimension : dimensions) {
+            if (CHANNEL_DIMENSION_ID.equals(dimension.getId())) {
+                continue;
+            }
+            Field<?> field = DSL.field(DSL.name("f", dimension.getId()));
+            outerFields.add(field.as(DSL.name(dimension.getId())));
+            groupFields.add(field);
+            orderFields.add(field);
+        }
+        outerFields.add(attributionAggregate(metric, outMetricValue).as("attributed_metric_value"));
+        outerFields.add(DSL.countDistinct(outConversionId).as("converted_events"));
+        outerFields.add(DSL.field(
+                "count(distinct case when {0} is not null then {1} end)", Integer.class,
+                outChannelName, outConversionId).as("touched_events"));
+
+        List<CommonTableExpression<Record>> ctes = new ArrayList<>();
+        ctes.add(DSL.name("conversions").as(conversions));
+        ctes.add(DSL.name("attributed").as(attributed));
+        ctes.add(DSL.name("facts").as(facts));
+        int limit = queryDsl.getLimit() == null ? 500 : queryDsl.getLimit();
+        org.jooq.Select<? extends Record> query = dsl.with(ctes)
+                .select(outerFields.toArray(new Field[0]))
+                .from(DSL.table(DSL.name("facts")).as("f"))
+                .groupBy(groupFields)
+                .orderBy(orderFields)
+                .limit(limit);
+
+        CompiledQuery compiled = new CompiledQuery();
+        compiled.setManifestId(manifest.getManifestId());
+        compiled.setContentHash(manifest.getContentHash());
+        compiled.setMode(QueryDsl.AnalysisMode.ATTRIBUTION.name());
+        compiled.setMetricId(metric.getId());
+        compiled.setDimensions(dimensionIds);
+        compiled.setJoins(List.of());
+        compiled.setDialect("postgresql");
+        compiled.setSql(query.getSQL(ParamType.INDEXED));
+        compiled.setBindValues(query.getBindValues());
+        compiled.setAppliedLimit(limit);
+        compiled.setCompiledAt(Instant.now());
+        return compiled;
+    }
+
+    /**
+     * 指标表 ↔ 事件表的关联关系（物理列来自已发布 Relation，不按命名习惯猜 Join）。
+     * 缺失或并列一律拒绝：归因指标值必须能确定性地落回转化订单。
+     */
+    private static OntologySnapshot.Relation requireMetricEventRelation(OntologySnapshot ontology,
+                                                                       String metricTable, String eventTable) {
+        List<OntologySnapshot.Relation> matched = ontology.getRelations().stream()
+                .filter(OntologySnapshot.Relation::isQueryable)
+                .filter(relation -> {
+                    String from = tableOf(relation.getFromColumn());
+                    String to = tableOf(relation.getToColumn());
+                    return (metricTable.equals(from) && eventTable.equals(to))
+                            || (eventTable.equals(from) && metricTable.equals(to));
+                })
+                .toList();
+        if (matched.size() != 1) {
+            throw exception(DSL_INVALID,
+                    "attribution 需要唯一的指标表 ↔ 事件表关联关系，实际命中 " + matched.size());
+        }
+        return matched.get(0);
+    }
+
+    private static OntologySnapshot.EventDef attributionEvent(OntologySnapshot ontology, String eventType) {
+        List<OntologySnapshot.EventDef> matched = ontology.getEvents().stream()
+                .filter(event -> eventType != null && eventType.equals(event.getEventType()))
+                .toList();
+        if (matched.size() != 1) {
+            throw exception(ATTRIBUTION_EVENT_NOT_FOUND, String.valueOf(eventType));
+        }
+        return matched.get(0);
+    }
+
+    private static OntologySnapshot.Property attributionProperty(OntologySnapshot ontology, String propertyId) {
+        OntologySnapshot.Property property = propertyId == null ? null : ontology.propertyIndex().get(propertyId);
+        if (property == null) {
+            throw exception(ATTRIBUTION_EVENT_NOT_FOUND, "归因映射属性未发布: " + propertyId);
+        }
+        return property;
+    }
+
+    /** 触点回溯窗口封闭枚举 → PostgreSQL interval（值来自封闭枚举，不是用户输入）。 */
+    private static String attributionInterval(String window) {
+        if ("7d".equals(window)) {
+            return "7 days";
+        }
+        if ("14d".equals(window)) {
+            return "14 days";
+        }
+        if ("30d".equals(window)) {
+            return "30 days";
+        }
+        throw exception(DSL_INVALID, "attribution attributionWindow 仅允许 7d / 14d / 30d: " + window);
+    }
+
+    /** 指标聚合落到归因事实行上（列已由 facts CTE 投影，这里只选聚合函数）。 */
+    private static Field<?> attributionAggregate(SemanticManifest.Metric metric, Field<?> value) {
+        if (metric.getAggregation() == null) {
+            throw exception(DSL_INVALID, "指标缺少 aggregation: " + metric.getId());
+        }
+        Field<BigDecimal> decimalValue = value.coerce(BigDecimal.class);
+        return switch (metric.getAggregation()) {
+            case SUM -> DSL.sum(decimalValue);
+            case AVG -> DSL.avg(decimalValue);
+            case MIN -> DSL.min(decimalValue);
+            case MAX -> DSL.max(decimalValue);
+            case COUNT -> DSL.count();
+            case COUNT_DISTINCT -> DSL.countDistinct(value);
+        };
+    }
+
+    private static String lastSegment(String column) {
+        int index = column == null ? -1 : column.lastIndexOf('.');
+        return index < 0 ? column : column.substring(index + 1);
     }
 
     private static OntologySnapshot.Property requireEventProperty(OntologySnapshot ontology, String propertyId) {
