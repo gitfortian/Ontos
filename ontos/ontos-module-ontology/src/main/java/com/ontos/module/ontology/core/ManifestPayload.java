@@ -24,6 +24,8 @@ public class ManifestPayload {
     private List<CopyTemplate> copyTemplates = List.of();
     private List<TimeExpressionPattern> timeExpressionPatterns = List.of();
     private List<ScenarioMeta> scenarios = List.of();
+    /** Skill 资产（v1.4 §5.8，M6/T3.1）：能力单元注册表，运行时 SkillRegistry 按清单扩展段消费。 */
+    private List<SkillMeta> skills = List.of();
 
     /** 判定标准（ADR-0004 2.3）：随清单版本化，运行时只认 published。 */
     @Data
@@ -197,6 +199,39 @@ public class ManifestPayload {
         /** string | metric_id | field_id */
         private String type;
         private String value;
+    }
+
+    /**
+     * Skill 资产（v1.4 §5.8，M6/W3/T3.1）：能力单元，不是用户脚本容器。
+     * implementation_ref 只指向应用内审核过的构造器（builtin.<mode>.<impl>@<semver>，
+     * 命名空间由注册中心统一分配，Scenario 作者不可自定义）；reviewer/reviewedAt 是
+     * 人工审核记录（T3.1 特有，生命周期 published 必有审核人）。
+     */
+    @Data
+    public static class SkillMeta {
+        private String skillId;
+        private String name;
+        private String owner;
+        /** SemVer。 */
+        private String version;
+        /** draft | reviewing | published | retired（与 rules.status 同词表）。 */
+        private String status;
+        /** QUERY | LOOKUP | LOOKUP_BATCH | YOY_MOM | FUNNEL | RETENTION | ATTRIBUTION（大写枚举，同 skill_definition 列）。 */
+        private String analysisMode;
+        /** 指向已发布且版本固定的参数 Schema（如 schema.lookup.v1）。 */
+        private String paramsSchemaRef;
+        private String implementationRef;
+        /** 必须被部署的受控工具注册表全部满足（编译期校验归 T3.2）。 */
+        private List<String> requiredCapabilities = List.of();
+        /** 空 = 全局可用（自由问数可路由）；非空 = 只允许列出的 Scenario。 */
+        private List<String> allowedScenarioIds = List.of();
+        /** 批量参数上界（LOOKUP_BATCH 的 limit ≤ 此值）；null = 不限。 */
+        private Integer maxBatchSize;
+        /** 预声明近似（§3.3）：本 Skill 是被引用 Skill 所在模式的近似承担者；跨模式引用。 */
+        private String approximationOf;
+        /** 人工审核记录：published 必有 reviewer。 */
+        private String reviewer;
+        private String reviewedAt;
     }
 
     /** Scenario 绑定的已发布 Skill。 */

@@ -59,6 +59,7 @@ public final class ManifestStructureValidator {
         validateOntology(payload.getOntology(), violations);
         validateRules(payload, violations);
         validateScenarios(payload, violations);
+        validateSkills(payload, violations);
         validateCopyTemplates(payload, violations);
         validateTimePatterns(payload, violations);
         return violations;
@@ -355,6 +356,11 @@ public final class ManifestStructureValidator {
                 violations.add(new Violation(at, "expression.threshold 必填"));
             }
         }
+    }
+
+    private void validateSkills(ManifestPayload payload, List<Violation> violations) {
+        // v1.4 §5.8 规则集中在 SkillValidator：发布预检与资产管理面共用同一套判定
+        violations.addAll(new SkillValidator().validate(payload));
     }
 
     private void validateScenarios(ManifestPayload payload, List<Violation> violations) {

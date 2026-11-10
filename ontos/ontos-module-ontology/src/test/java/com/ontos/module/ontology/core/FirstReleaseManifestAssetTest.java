@@ -149,6 +149,48 @@ class FirstReleaseManifestAssetTest {
     }
 
     @Test
+    void shouldAcceptV14ManifestWithSevenPublishedSkills() throws Exception {
+        // M6/T3.1：Skill 资产进清单（首发 7 条内置，覆盖全部非 discovery 模式）
+        ManifestPayload payload = load("first-release-v14.json");
+        List<ManifestStructureValidator.Violation> violations =
+                new ManifestStructureValidator().validate(payload);
+
+        assertTrue(violations.isEmpty(), "v14 清单结构校验失败: " + violations);
+        assertEquals(7, payload.getSkills().size());
+        var skillIds = payload.getSkills().stream()
+                .map(ManifestPayload.SkillMeta::getSkillId).toList();
+        assertTrue(skillIds.contains("skill.entity_lookup"),
+                "M3 entity_lookup 迁移注册制，既有 skillId 保留");
+        // 每条 published Skill 必有审核人（生命周期 + T3.1 审核记录）
+        assertTrue(payload.getSkills().stream().allMatch(
+                skill -> "project-team".equals(skill.getReviewer())));
+        // batch 有上界；attribution 绑定首发场景
+        var batch = payload.getSkills().stream()
+                .filter(skill -> "LOOKUP_BATCH".equals(skill.getAnalysisMode())).findFirst().orElseThrow();
+        assertEquals(100, batch.getMaxBatchSize());
+        var attribution = payload.getSkills().stream()
+                .filter(skill -> "ATTRIBUTION".equals(skill.getAnalysisMode())).findFirst().orElseThrow();
+        assertEquals(List.of("scenario.sales"), attribution.getAllowedScenarioIds());
+    }
+
+    @Test
+    void shouldRoundTripV14SkillWithoutDroppingLifecycleKeys() throws Exception {
+        String json = Files.readString(Path.of("..", "..", "ontos-assets", "first-release-v14.json"));
+        java.util.Map<?, ?> submitted = JsonUtils.parseObject(json, java.util.Map.class);
+        ManifestPayload typed = JsonUtils.parseObject(json, ManifestPayload.class);
+        java.util.Map<?, ?> roundTrip = JsonUtils.parseObject(
+                JsonUtils.toJsonString(typed), java.util.Map.class);
+
+        java.util.Map<?, ?> submittedSkill = (java.util.Map<?, ?>) ((List<?>) submitted.get("skills")).get(0);
+        java.util.Map<?, ?> roundTripSkill = (java.util.Map<?, ?>) ((List<?>) roundTrip.get("skills")).get(0);
+        assertTrue(roundTripSkill.keySet().containsAll(submittedSkill.keySet()),
+                "回装不得丢弃 Skill 生命周期字段: " + submittedSkill.keySet());
+        assertTrue(roundTripSkill.containsKey("implementationRef"));
+        assertTrue(roundTripSkill.containsKey("reviewer"));
+        assertTrue(roundTripSkill.containsKey("maxBatchSize"));
+    }
+
+    @Test
     void shouldRoundTripV13ScenarioWithoutDroppingLifecycleKeys() throws Exception {
         String json = Files.readString(Path.of("..", "..", "ontos-assets", "first-release-v13.json"));
         java.util.Map<?, ?> submitted = JsonUtils.parseObject(json, java.util.Map.class);
