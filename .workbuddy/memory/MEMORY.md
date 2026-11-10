@@ -82,3 +82,12 @@
 - **硬约束**：roadmap 所有「并行 / 同步建设 / 不许后置」项与主线同等跟踪；状态「待启动」不等于可略过。每阶段收口（验收报告 / 深度审核 / 进度快照）必须逐项点名，欠账写清触发点 / 负责人 / 证据并同步台账；**未点名不得宣告阶段关闭**。见 `AGENTS.md` §6.4、ADR-0014、`docs/README.md` §7.8。
 - **机器强制**：`docs/00-governance/parallel-obligations.json`（状态仅 `done` / `deferred`）＋ `check-parallel-obligations.mjs`（接入 `verify-baseline.mjs`，基线 5 项）；禁止放宽脚本或删改 roadmap 硬约束文本绕过。
 - **当前欠账**：OBL-M4 触发 M5（M5 启动前必须完成 M4）；OBL-M7 最小框架三件已按《M7 最小框架验收记录 v1》有条件通过验收，按 ADR-0015 把触发阶段由 M4 重定为 **M6**（全量交付物收敛点），状态仍 `deferred`。M6 一经通过而未闭环即 `FAIL`。不得事后追认、不得把 dev/validation 结果当 test 集结论、不得把主线素材算作 M7 交付物。
+
+## M6 状态（2026-11-09，进行中）
+- 规格 **v1.0 已冻结**（`docs/03-plans/stages/M6/M6-分析模式ScenarioSkill与复合意图-实施规格-v1.0.md`）：两轮自审 11 项 + 二轮深度 review 10 项闭环，八项决策定档，编码放行。
+- W1/T1.1 契约规格 v1 冻结（`docs/04-specs/analysis-mode-retention-attribution-规格-v1.md`）：RETENTION 事件锚点 / ATTRIBUTION 聚合锚点，§9.5 八项 + §9.6 七项定档，funnel 顶层 filters=全局过滤。
+- **W1/T1.2 完成**：`OntologySnapshot.EventDef.channelPropertyId` + 结构校验（存在/可过滤/同表）；queryds V3 触点种子；**当前生效清单 v11 = `2026.11.09-eleventh`，hash `4c92a62ad4b1f0013…`**（v10 为 `6b1f4e33…`）。基线 `mvn test` 401 例。
+- **教训**：JsonUtils 回装输出 null 键——给已有类型加可选字段会改变「提交树 vs 回装树」键集；键差分断言方向应是「提交键不丢」子集语义，别断言键集相等。测试不得直接写 `docs/06-verification/evaluation/` 下的冻结证据（已改 target/ 软名）。
+- **待办**：T1.3 留存构造器 → T1.4 归因构造器 → T1.5 funnel filters → W2 catalog → W3 Skill/VQR → W4 复合 → W5 OBL-M7 收敛。清单 v11 使《M7 最小框架验收记录 v1》资产一致性判据过期，归 W5/T5.1 重跑 + 证据 v2。
+- **M6 阶段中深度审核 v1（2026-11-09）**：`docs/06-verification/checklists/M6-阶段中深度审核-v1.md`；7 项发现（2 修 5 登记），判定通过但不宣告 M6 关闭。**P1 修复**：queryds V3 事件 ID 与 `scripts/verify/funnel-semantics.sql` fixture 主键冲突（真库 duplicate key），已改 `e-m6-*` 前缀 + 证据脚本 append-only 更正段。**硬欠账 D-3**：OBL-M7 test ≥200 题按决策 8 应自 W1 起并行编写但未启动（台账 reason 已登记，触发 M6 收口）。T1.3 编码约束：4 个 RETENTION_*/ATTRIBUTION_* 错误码须追加；RETENTION 独立分流 + 拒绝客户端 timeRange。生效清单 v11、模式规格 v1.1 为权威状态（M6 规格 v1.0 §2/§4 的 v10/v1 已由进度「更正」条目覆盖）。
+- **接手（2026-11-10，新 agent）**：复核基线全绿（`mvn test` 43 类/401 例、`pnpm check` 21 单测+token、docs 97/838、并行义务 PASS）；M6/W1 未提交成果已补提交 `99580ab`；roadmap M6 状态由「待启动」修正为「进行中」；接手快照 `docs/05-progress/2026/2026-11-10.md`。编码入口 **T1.3 RETENTION 构造器**，D-3（test ≥200 题）自 T1.3 起并行。
