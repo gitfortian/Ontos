@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="OntosApplication (local)" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <option name="ACTIVE_PROFILES" value="local" />
+    <envs>
+      <env name="ONTOS_AGENT_API_KEY" value="tp-c4zrq8di7721xy2hbnckpnpy45fc87o4glyqwkisqaqgdnu4" />
+      <env name="ONTOS_AGENT_BASE_URL" value="https://token-plan-cn.xiaomimimo.com/v1" />
+      <env name="ONTOS_AGENT_MODEL" value="mimo-v2.6-flash" />
+    </envs>
+    <module name="ontos-server" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.ontos.OntosApplication" />
+    <option name="VM_PARAMETERS" value="-Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
