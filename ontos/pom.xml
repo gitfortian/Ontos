@@ -21,6 +21,7 @@
   <modules>
     <module>ontos-framework</module>
     <module>ontos-module-ontology</module>
+    <module>ontos-module-catalog</module>
     <module>ontos-module-query</module>
     <module>ontos-module-system</module>
     <module>ontos-module-session</module>
@@ -65,6 +66,11 @@
       <dependency>
         <groupId>com.ontos</groupId>
         <artifactId>ontos-module-ontology</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.ontos</groupId>
+        <artifactId>ontos-module-catalog</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
