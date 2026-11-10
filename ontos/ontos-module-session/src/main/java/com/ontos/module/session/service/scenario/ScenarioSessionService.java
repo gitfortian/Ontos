@@ -118,14 +118,17 @@ public class ScenarioSessionService {
             target = ScenarioRouteState.IN_SCENARIO;
             scenarioId = candidate.assetId();
         }
-        sessionStateService.ensure(context.tenantId(), context.userId(), context.sessionId());
-        // M5 原子消费：candidateId 不在候选集合内即拒绝（伪造确认不能绕过）
-        sessionStateService.consumeClarificationChoice(context, candidateId);
         if (!current.state().canTransitionTo(target)) {
+            // 消费前判定（失败无副作用）；表内 PENDING_CONFIRM → IN_SCENARIO/FREE 恒合法，此处为防御
             throw exception(SCENARIO_STATE_INVALID, current.state().code(), target.code());
         }
-        mapper.updateScenarioState(context.tenantId(), context.userId(), context.sessionId(),
-                JsonUtils.toJsonString(state(target, scenarioId)));
+        sessionStateService.ensure(context.tenantId(), context.userId(), context.sessionId());
+        // T23-7 修复：候选校验 + 清候选 + 写状态原子完成（M5 同款 containment 判定）；
+        // 并发下候选已被另一请求消费 → 返回 false 拒绝，不存在「候选已清状态未写」的中间态
+        if (!mapper.consumeClarificationAndUpdateScenarioState(context.tenantId(), context.userId(),
+                context.sessionId(), candidateId, JsonUtils.toJsonString(state(target, scenarioId)))) {
+            throw exception(SESSION_CLARIFICATION_CHOICE_INVALID, candidateId);
+        }
         return new ScenarioRouteDecision(
                 target == ScenarioRouteState.IN_SCENARIO
                         ? ScenarioRouteDecision.Action.ENTER_SCENARIO

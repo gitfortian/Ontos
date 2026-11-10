@@ -91,32 +91,67 @@ class ScenarioSessionServiceTest {
     @Test
     void shouldConfirmEntryViaClarificationChannel() {
         when(sessionStateService.read(any(), any(), any())).thenReturn(pendingState());
-        when(sessionStateService.consumeClarificationChoice(any(), eq("scenario:" + SALES)))
-                .thenReturn(new SessionStateService.ClarificationCandidate(
-                        "scenario:" + SALES, "进入场景", SALES));
+        when(mapper.consumeClarificationAndUpdateScenarioState(eq("demo"), eq("alice"), eq("s-1"),
+                eq("scenario:" + SALES), org.mockito.ArgumentMatchers.contains("in_scenario")))
+                .thenReturn(true);
 
         ScenarioRouteDecision decision = service.confirm(context, "scenario:" + SALES,
                 scenariosMeta(), Set.of(SALES));
 
         assertEquals(ScenarioRouteDecision.Action.ENTER_SCENARIO, decision.action());
         assertEquals(ScenarioEntrySource.CONFIRMED_RECOMMENDATION, decision.source());
-        verify(mapper).updateScenarioState(eq("demo"), eq("alice"), eq("s-1"),
-                org.mockito.ArgumentMatchers.contains("in_scenario"));
+        // T23-7：消费与状态写入必须同一条 UPDATE，不得再出现分离调用
+        verify(mapper, org.mockito.Mockito.never())
+                .updateScenarioState(any(), any(), any(), any());
+        verify(sessionStateService, org.mockito.Mockito.never())
+                .consumeClarificationChoice(any(), any());
     }
 
     @Test
     void shouldConfirmExitViaClarificationChannel() {
         when(sessionStateService.read(any(), any(), any())).thenReturn(pendingState());
-        when(sessionStateService.consumeClarificationChoice(any(),
-                eq(ScenarioRouteDecision.EXIT_CANDIDATE_ID)))
-                .thenReturn(new SessionStateService.ClarificationCandidate(
-                        ScenarioRouteDecision.EXIT_CANDIDATE_ID, "退出", null));
+        when(mapper.consumeClarificationAndUpdateScenarioState(eq("demo"), eq("alice"), eq("s-1"),
+                eq(ScenarioRouteDecision.EXIT_CANDIDATE_ID), org.mockito.ArgumentMatchers.contains("free")))
+                .thenReturn(true);
 
         ScenarioRouteDecision decision = service.confirm(context,
                 ScenarioRouteDecision.EXIT_CANDIDATE_ID, scenariosMeta(), Set.of(SALES));
 
         assertEquals(ScenarioRouteDecision.Action.EXIT_SCENARIO, decision.action());
         assertEquals(ScenarioRouteState.FREE, decision.targetState());
+    }
+
+    @Test
+    void shouldRejectConfirmWhenCandidateConcurrentlyConsumed() {
+        // T23-7：并发下候选已被另一请求消费 → 原子 UPDATE 影响 0 行，拒绝且不再写状态
+        when(sessionStateService.read(any(), any(), any())).thenReturn(pendingState());
+        when(mapper.consumeClarificationAndUpdateScenarioState(any(), any(), any(),
+                any(), any())).thenReturn(false);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service.confirm(context, "scenario:" + SALES, scenariosMeta(), Set.of(SALES)));
+
+        assertEquals(1_004_000_002, ex.getCode());
+        verify(mapper, org.mockito.Mockito.never())
+                .updateScenarioState(any(), any(), any(), any());
+    }
+
+    @Test
+    void shouldClearStaleCandidatesOnExplicitEnterFromPending() {
+        // T23-8：pending_confirm 中直传已授权场景 → 显式 ENTER，状态写入必须同时清残留候选
+        SessionStateDO stale = pendingState();
+        when(sessionStateService.read(any(), any(), any())).thenReturn(stale);
+
+        ScenarioRouteDecision decision = service.apply(context, new ScenarioRouter.RouteInput(
+                ScenarioRouteState.PENDING_CONFIRM, SALES, SALES, ScenarioEntrySource.EXPLICIT,
+                false, false, List.of(), scenariosMeta(), Set.of(SALES), List.of()));
+
+        assertEquals(ScenarioRouteDecision.Action.ENTER_SCENARIO, decision.action());
+        assertEquals(ScenarioRouteState.IN_SCENARIO, decision.targetState());
+        verify(mapper).updateScenarioState(eq("demo"), eq("alice"), eq("s-1"),
+                org.mockito.ArgumentMatchers.contains("in_scenario"));
+        verify(mapper, org.mockito.Mockito.never())
+                .updateScenarioStateWithClarification(any(), any(), any(), any(), any());
     }
 
     @Test

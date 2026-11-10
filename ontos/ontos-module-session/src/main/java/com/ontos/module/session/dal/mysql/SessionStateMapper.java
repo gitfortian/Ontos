@@ -132,9 +132,11 @@ public class SessionStateMapper {
                                     String scenarioStateJson) {
         Map<String, Object> params = params(tenantId, userId, sessionId);
         params.put("scenarioState", scenarioStateJson);
+        // T23-8：空候选的状态写入意味着离开 pending_confirm（候选只由 WithClarification 建立），
+        // 顺带清残留，防止显式 ENTER 后旧候选挂在 M5 通道里
         jdbcTemplate.update(
                 "UPDATE session_state SET scenario_state = cast(:scenarioState as jsonb),"
-                        + " updated_at = now()"
+                        + " pending_clarification = NULL, updated_at = now()"
                         + " WHERE tenant_id = :tenantId AND user_id = :userId"
                         + " AND session_id = :sessionId",
                 params);
@@ -152,6 +154,31 @@ public class SessionStateMapper {
                         + " WHERE tenant_id = :tenantId AND user_id = :userId"
                         + " AND session_id = :sessionId",
                 params);
+    }
+
+    /** 澄清选择消费（原子）：candidateId 属于当前 pending_clarification 才清除并返回 true——
+     * 伪造 candidateId（不在候选集内）返回 false，不能绕过澄清（v1.2 R5）。
+     */
+    /**
+     * 确认消费原子化（T23-7 修复）：候选归属校验 + 清候选 + 写新状态在**同一条 UPDATE** 内完成。
+     * 返回 false = candidateId 不在当前候选集合（已被并发消费 / 伪造）——调用方须拒绝，
+     * 不允许出现「候选已清但状态未写」的中间态。
+     */
+    public boolean consumeClarificationAndUpdateScenarioState(String tenantId, String userId,
+                                                              String sessionId, String candidateId,
+                                                              String scenarioStateJson) {
+        Map<String, Object> params = params(tenantId, userId, sessionId);
+        params.put("candidateId", candidateId);
+        params.put("scenarioState", scenarioStateJson);
+        return jdbcTemplate.update(
+                "UPDATE session_state SET pending_clarification = NULL,"
+                        + " scenario_state = cast(:scenarioState as jsonb), updated_at = now()"
+                        + " WHERE tenant_id = :tenantId AND user_id = :userId"
+                        + " AND session_id = :sessionId"
+                        + " AND pending_clarification IS NOT NULL"
+                        + " AND pending_clarification->'candidates' @>"
+                        + "   to_jsonb(jsonb_build_array(jsonb_build_object('candidateId', :candidateId)))",
+                params) == 1;
     }
 
     /**
