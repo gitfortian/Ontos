@@ -31,7 +31,10 @@ CREATE TABLE scenario_definition (
     CONSTRAINT ck_scenario_published_at
         CHECK ((status IN ('published', 'retired')) OR published_at IS NULL),
     CONSTRAINT ck_scenario_published_at_required
-        CHECK (status <> 'published' OR published_at IS NOT NULL)
+        CHECK (status <> 'published' OR published_at IS NOT NULL),
+    -- 形状闸门：definition 必须是对象；错误形状在写入时就拒绝，不让下游解析器兜底
+    CONSTRAINT ck_scenario_definition_object
+        CHECK (jsonb_typeof(definition) = 'object')
 );
 CREATE INDEX idx_scenario_status ON scenario_definition (status);
 COMMENT ON TABLE scenario_definition IS 'Scenario 资产生命周期（管理面）；运行时只读已发布清单 scenarios 段';
@@ -65,7 +68,11 @@ CREATE TABLE skill_definition (
     CONSTRAINT ck_skill_published_at
         CHECK ((status IN ('published', 'retired')) OR published_at IS NULL),
     CONSTRAINT ck_skill_published_at_required
-        CHECK (status <> 'published' OR published_at IS NOT NULL)
+        CHECK (status <> 'published' OR published_at IS NOT NULL),
+    CONSTRAINT ck_skill_capabilities_array
+        CHECK (jsonb_typeof(required_capabilities) = 'array'),
+    CONSTRAINT ck_skill_allowed_scenarios_array
+        CHECK (jsonb_typeof(allowed_scenario_ids) = 'array')
 );
 CREATE INDEX idx_skill_status_mode ON skill_definition (status, analysis_mode);
 COMMENT ON TABLE skill_definition IS 'Skill 资产生命周期（管理面）；运行时 SkillRegistry 读清单 skills 段 + implementation_ref 内置映射';
@@ -97,7 +104,13 @@ CREATE TABLE vqr_definition (
     CONSTRAINT ck_vqr_published_at
         CHECK ((status IN ('published', 'retired')) OR published_at IS NULL),
     CONSTRAINT ck_vqr_published_at_required
-        CHECK (status <> 'published' OR published_at IS NOT NULL)
+        CHECK (status <> 'published' OR published_at IS NOT NULL),
+    CONSTRAINT ck_vqr_dsl_template_object
+        CHECK (jsonb_typeof(dsl_template) = 'object'),
+    CONSTRAINT ck_vqr_params_schema_object
+        CHECK (jsonb_typeof(params_schema) = 'object'),
+    CONSTRAINT ck_vqr_invalidation_array
+        CHECK (jsonb_typeof(invalidation_conditions) = 'array')
 );
 CREATE INDEX idx_vqr_status ON vqr_definition (status);
 COMMENT ON TABLE vqr_definition IS 'VQR 参数化模板资产生命周期（管理面）；运行时只读已发布清单 vqrs 段，命中后仍走八步重校验';
