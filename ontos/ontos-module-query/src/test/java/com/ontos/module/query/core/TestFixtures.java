@@ -451,6 +451,29 @@ public final class TestFixtures {
         return skill;
     }
 
+    /** 清单 vqrs 段样例（T3.5）：模板引用 metric.gmv + dim.channel + ${param.days}。 */
+    public static ManifestPayload.VqrMeta sampleVqrMeta() {
+        ManifestPayload.VqrMeta vqr = new ManifestPayload.VqrMeta();
+        vqr.setVqrId("vqr.sales.daily_gmv_by_channel");
+        vqr.setName("近 N 天各渠道成交金额");
+        vqr.setOwner("platform-data");
+        vqr.setVersion("1.0.0");
+        vqr.setStatus("published");
+        vqr.setQuestionPattern("近{days}天各渠道成交金额");
+        vqr.setDslTemplate(new java.util.HashMap<>(java.util.Map.of(
+                "mode", "query",
+                "metric_id", "gmv",
+                "dimensions", java.util.List.of("region"),
+                "time_dimension", "order_date",
+                "time_expression_raw", "近 ${param.days} 天")));
+        vqr.setParamsSchema(java.util.Map.of("days", java.util.Map.of("type", "integer")));
+        vqr.setGoldenRef("golden:x");
+        vqr.setResultCheckRef("e2e:x");
+        vqr.setFreshnessLimitHours(24);
+        vqr.setReviewer("project-team");
+        return vqr;
+    }
+
     public static QueryDsl ruleLookupDsl() {
         QueryDsl dsl = singleLookup();
         dsl.setBooleanMetricId(BOOLEAN_METRIC_ID);

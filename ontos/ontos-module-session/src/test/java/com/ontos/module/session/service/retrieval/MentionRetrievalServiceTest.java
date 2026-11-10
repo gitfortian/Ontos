@@ -42,7 +42,8 @@ class MentionRetrievalServiceTest {
     }
 
     private MentionRetrievalService service() {
-        return new MentionRetrievalService(manifestService, policySnapshotService, scenarioScopeService());
+        return new MentionRetrievalService(manifestService, policySnapshotService,
+                scenarioScopeService(), new VqrCandidateMatcher());
     }
 
     /** 缺省场景桩：无场景清单 → free 态 STAY（授权全域透传）。 */
@@ -311,7 +312,8 @@ class MentionRetrievalServiceTest {
                 org.mockito.ArgumentMatchers.any())).thenReturn(decision);
         com.ontos.module.session.service.scenario.ScenarioScopeService scopeService =
                 new com.ontos.module.session.service.scenario.ScenarioScopeService(sessionService);
-        return new MentionRetrievalService(manifestService, policySnapshotService, scopeService);
+        return new MentionRetrievalService(manifestService, policySnapshotService, scopeService,
+                new VqrCandidateMatcher());
     }
 
     private static com.ontos.module.session.core.scenario.ScenarioRouteDecision enterDecision() {

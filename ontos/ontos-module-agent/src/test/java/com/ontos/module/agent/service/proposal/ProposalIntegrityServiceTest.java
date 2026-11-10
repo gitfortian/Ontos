@@ -50,6 +50,38 @@ class ProposalIntegrityServiceTest {
                 List.of(), List.of(), false, "hash");
     }
 
+    // ---------- VQR 命中对账（T3.5） ----------
+
+    @Test
+    void vqrIdInCandidateSetPasses() {
+        // 提案引用本轮瀑布命中的 vqr_id → 对账通过
+        Map<String, Object> subIntent = new java.util.LinkedHashMap<>();
+        subIntent.put("vqr_id", "vqr.sales.daily_gmv_by_channel");
+        subIntent.put("params", java.util.Map.of("days", "7"));
+        subIntent.put("analysis_mode", "query");
+        Map<String, Object> proposal = proposal(subIntent);
+        RetrievalOutcome withVqr = new RetrievalOutcome(
+                List.of(), List.of(), List.of(), List.of(), false, "hash", null,
+                List.of(new RetrievalOutcome.VqrCandidate("vqr.sales.daily_gmv_by_channel",
+                        "近 N 天各渠道成交金额", java.util.Map.of("days", "7"),
+                        "近{days}天各渠道成交金额")));
+        var result = service.check(proposal, withVqr, "近 7 天各渠道成交金额", context);
+        assertTrue(result.passed(), "命中候选的 vqr_id 通过: " + result.reason());
+    }
+
+    @Test
+    void forgedVqrIdIsRejected() {
+        // 伪造 vqr_id（候选集外）→ 拦截（M5 完整性闸门覆盖 VQR 引用）
+        Map<String, Object> subIntent = new java.util.LinkedHashMap<>();
+        subIntent.put("vqr_id", "vqr.ghost");
+        subIntent.put("analysis_mode", "query");
+        Map<String, Object> proposal = proposal(subIntent);
+        var result = service.check(proposal, outcome, "近 7 天各渠道成交金额", context);
+        assertFalse(result.passed(), "伪造 vqr_id 必须拦截");
+        assertTrue(result.reason().startsWith("ID_NOT_IN_SET:vqr.ghost"),
+                "reason 指向伪造 ID: " + result.reason());
+    }
+
     // ---------- 对抗样例（≥5 全拦截） ----------
 
     @Test

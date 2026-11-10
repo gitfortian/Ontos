@@ -53,6 +53,13 @@ public interface QueryService {
                                           String originalMode);
 
     /**
+     * VQR 命中执行（M6/W3/T3.5，v1.4 §10.3/§11.4）：模板绑定参数后组装 DSL 走既有
+     * execute 全链（八步重校验天然覆盖——重绑版本、重校权限、重编译、重做成本检查），
+     * 不保存也不绕过任何权限编译；审计记 {@code VQR_HIT} + vqrId/版本/参数。
+     */
+    QueryResult executeVqr(String vqrId, java.util.Map<String, Object> params);
+
+    /**
      * 复合意图执行（M2 只支持无依赖子集）：逐子独立校验 → 编译 → 授权 → 执行 → 审计，
      * 子间不合并 SQL、不共享中间结果。任一子失败整单拒绝（fail-closed，不返回部分结果）；
      * 结果依赖类子意图（dependsOn 非空）直接拒绝转澄清，全链路归 M6。

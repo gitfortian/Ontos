@@ -105,6 +105,11 @@ public class ProposalIntegrityService {
     }
 
     private String firstOutOfScopeId(Map<String, Object> subIntent, Set<String> inScope) {
+        // T3.5：vqr_id 先于 metric_id——VQR 命中提案引用模板而非散装资产
+        String vqrId = stringOf(subIntent.get("vqr_id"));
+        if (vqrId != null && !inScope.contains(vqrId)) {
+            return vqrId;
+        }
         String metricId = stringOf(subIntent.get("metric_id"));
         if (metricId != null && !inScope.contains(metricId)) {
             return metricId;
@@ -139,6 +144,10 @@ public class ProposalIntegrityService {
         outcome.dslReady().forEach(candidate -> ids.add(candidate.assetId()));
         outcome.fuzzyOnly().forEach(candidate -> ids.add(candidate.assetId()));
         outcome.prevTurn().forEach(candidate -> ids.add(candidate.assetId()));
+        // T3.5：VQR 命中候选进对账集——提案的 vqr_id 必须在本轮瀑布命中（§7.5 完整性）
+        if (outcome.vqrCandidates() != null) {
+            outcome.vqrCandidates().forEach(candidate -> ids.add(candidate.vqrId()));
+        }
         return ids;
     }
 

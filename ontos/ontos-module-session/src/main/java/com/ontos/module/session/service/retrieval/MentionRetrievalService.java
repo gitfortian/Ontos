@@ -41,14 +41,18 @@ public class MentionRetrievalService {
     private volatile MentionIndex cachedIndex;
 
     private final com.ontos.module.session.service.scenario.ScenarioScopeService scenarioScopeService;
+    /** 瀑布第 7 步：VQR 候选匹配（T3.5）。 */
+    private final VqrCandidateMatcher vqrCandidateMatcher;
 
     @Autowired
     public MentionRetrievalService(ManifestService manifestService,
                                    PolicySnapshotService policySnapshotService,
-                                   com.ontos.module.session.service.scenario.ScenarioScopeService scenarioScopeService) {
+                                   com.ontos.module.session.service.scenario.ScenarioScopeService scenarioScopeService,
+                                   VqrCandidateMatcher vqrCandidateMatcher) {
         this.manifestService = manifestService;
         this.policySnapshotService = policySnapshotService;
         this.scenarioScopeService = scenarioScopeService;
+        this.vqrCandidateMatcher = vqrCandidateMatcher;
     }
 
     /**
@@ -180,10 +184,17 @@ public class MentionRetrievalService {
                     calibersOf(scenario));
         }
 
+        // 瀑布第 7 步（§7.5，T3.5）：VQR 候选匹配——确定性模板匹配已发布 VQR，
+        // 场景内限于场景引用集（defaultVqrIds ∪ coldStartSamples）；命中带已提取参数，
+        // 编排提案引用 vqrId（候选集外引用被完整性闸门拦截；命中后仍走 execute 全链重校验）
+        List<RetrievalOutcome.VqrCandidate> vqrCandidates = vqrCandidateMatcher.match(
+                text, manifest, scoped.scenarioId());
+
         return new RetrievalOutcome(distinct(exact, dictionary), distinct(fuzzy), prevTurn,
                 clarifications, projectionStale,
-                contextHash(manifest, authorizedKeys, scopedKeys), scenarioContext);
+                contextHash(manifest, authorizedKeys, scopedKeys), scenarioContext, vqrCandidates);
     }
+
 
     /** 场景决策 → 澄清载荷（候选 = 进入/切换/退出；不足 2 个时补「留在场景改写问法」）。 */
     private ClarificationPayload scenarioClarification(

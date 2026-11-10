@@ -15,6 +15,9 @@ public class QueryDsl {
     /** 必填：请求固定到单一发布清单，保证可复现。 */
     private String manifestId;
     private String scenarioId;
+    /** VQR 命中通道（T3.5）：命中的模板 ID + 版本（进缓存键 cache-key-1.2 与 VQR_HIT 审计）。 */
+    private String vqrId;
+    private String vqrVersion;
     private AnalysisMode mode = AnalysisMode.QUERY;
     private String metricId;
     private List<String> dimensions = new ArrayList<>();

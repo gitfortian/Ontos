@@ -35,7 +35,20 @@ public class DeterministicProposalPlanner {
      */
     public Map<String, Object> plan(String utterance, RetrievalOutcome outcome,
                                     boolean clarificationConsumed, boolean approximationConsumed) {
-        // 1. 瀑布已给出澄清（同词多资产歧义 / 模糊候选）→ 原样透传四要素；
+        // 1. VQR 完整命中（T35-2，瀑布第 7 步产出）：questionPattern 全串匹配 + 参数提取成功
+        //    = 用户话术整体落在一个人工审核的参数化模板上——模板已消歧（维度/口径在模板内定死），
+        //    优先于资产级歧义澄清（与 T24-4「入口级语义优先」同一原则）；澄清存在时若模板未命中
+        //    则维持澄清。命中后仍走 execute 全链重校验（§11.4），不是绕过校验的捷径。
+        if (outcome.vqrCandidates() != null && !outcome.vqrCandidates().isEmpty()) {
+            RetrievalOutcome.VqrCandidate hit = outcome.vqrCandidates().get(0);
+            Map<String, Object> subIntent = new LinkedHashMap<>();
+            subIntent.put("vqr_id", hit.vqrId());
+            subIntent.put("params", new LinkedHashMap<>(hit.params()));
+            subIntent.put("analysis_mode", "query");
+            return proposal("query", List.of(subIntent), null, null, outcome);
+        }
+
+        // 2. 瀑布已给出澄清（同词多资产歧义 / 模糊候选）→ 原样透传四要素；
         //    近似同意轮跳过（用户已决策，本轮歧义不问）
         if (!outcome.clarifications().isEmpty() && !approximationConsumed) {
             com.ontos.module.session.service.retrieval.ClarificationPayload payload =

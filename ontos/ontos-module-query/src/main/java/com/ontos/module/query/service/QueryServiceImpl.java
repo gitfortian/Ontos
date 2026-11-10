@@ -10,6 +10,7 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.Set;
 import java.util.Optional;
 import java.util.TreeSet;
@@ -443,6 +444,167 @@ public class QueryServiceImpl implements QueryService {
         audit.setDevMode(context.devMode());
         auditService.record(audit);
         return execute(dsl);
+    }
+
+    /** 模板占位符：${param.x}。 */
+    private static final java.util.regex.Pattern PARAM_PLACEHOLDER =
+            java.util.regex.Pattern.compile("\\$\\{param\\.([A-Za-z0-9_]+)}");
+
+    /**
+     * VQR 命中执行（T3.5，§10.3/§11.4）：published VQR 模板绑定参数 → 组装 DSL →
+     * 既有 execute 全链（八步重校验天然覆盖：重绑版本/授权/模式/口径/编译/RLS/成本）。
+     * 不保存绕过权限的最终 SQL——模板只含资产 ID 与参数占位符；绑定产物仍过全部校验。
+     */
+    @Override
+    public QueryResult executeVqr(String vqrId, Map<String, Object> params) {
+        RequestContext context = RequestContextHolder.require();
+        PublishedManifest active = manifestService.getActiveManifestOrNull();
+        if (active == null) {
+            throw exception(MANIFEST_NOT_FOUND);
+        }
+        // 未知 / 未发布同形拒绝（fail-closed 不泄露存在性；注册制语义与 SkillRegistry 一致）
+        ManifestPayload.VqrMeta meta = active.getVqrs() == null ? null
+                : active.getVqrs().stream()
+                        .filter(vqr -> vqrId.equals(vqr.getVqrId()))
+                        .findFirst().orElse(null);
+        if (meta == null || !"published".equals(meta.getStatus())) {
+            throw exception(DSL_INVALID, "未知能力: " + vqrId);
+        }
+        Map<String, Object> template = meta.getDslTemplate() == null
+                ? Map.of() : meta.getDslTemplate();
+        QueryDsl dsl = bindTemplate(vqrId, meta, template, params, active.getManifestId());
+        auditVqrHit(context, vqrId, meta.getVersion(), params);
+        return execute(dsl);
+    }
+
+    /**
+     * 模板绑定：占位符替换 + 资产 ID 直取。绑定失败（required 参数缺失 / 未知参数 /
+     * 未知槽位 / mode 缺失）结构化拒绝——绑定期不做语义校验，DSL 校验由 execute 全链承担。
+     */
+    private QueryDsl bindTemplate(String vqrId, ManifestPayload.VqrMeta meta,
+                                  Map<String, Object> template, Map<String, Object> params,
+                                  String manifestId) {
+        Map<String, Object> input = params == null ? Map.of() : params;
+        // 未知参数拒绝（params 声明之外 = 拼写错误或越权注入）
+        java.util.Set<String> declared = meta.getParamsSchema() == null
+                ? java.util.Set.of() : meta.getParamsSchema().keySet();
+        for (String key : input.keySet()) {
+            if (!declared.contains(key)) {
+                throw exception(DSL_INVALID, "VQR 参数未在 paramsSchema 声明: " + key);
+            }
+        }
+        QueryDsl dsl = new QueryDsl();
+        dsl.setManifestId(manifestId);
+        dsl.setVqrId(vqrId);
+        dsl.setVqrVersion(meta.getVersion());
+        for (Map.Entry<String, Object> entry : template.entrySet()) {
+            Object value = entry.getValue();
+            if (value instanceof String text) {
+                value = substitute(entry.getKey(), text, input, declared);
+            } else if (value instanceof List<?> list) {
+                List<Object> bound = new java.util.ArrayList<>();
+                for (Object item : list) {
+                    bound.add(item instanceof String text
+                            ? substitute(entry.getKey(), text, input, declared) : item);
+                }
+                value = bound;
+            }
+            applyTemplateField(dsl, entry.getKey(), value);
+        }
+        if (dsl.getMode() == null) {
+            throw exception(DSL_INVALID, "VQR 模板缺少 mode: " + vqrId);
+        }
+        return dsl;
+    }
+
+    /** 单值替换：${param.x} → 参数值；required 参数缺失即拒绝（不注入空值）。 */
+    private String substitute(String field, String text, Map<String, Object> params,
+                              java.util.Set<String> declared) {
+        Matcher matcher = PARAM_PLACEHOLDER.matcher(text);
+        StringBuilder result = new StringBuilder();
+        int last = 0;
+        while (matcher.find()) {
+            String name = matcher.group(1);
+            Object value = params.get(name);
+            if (value == null) {
+                if (!declared.contains(name)) {
+                    throw exception(DSL_INVALID, "VQR 占位符未声明: " + field);
+                }
+                throw exception(DSL_INVALID, "VQR 必填参数缺失: " + name);
+            }
+            result.append(text, last, matcher.start()).append(value);
+            last = matcher.end();
+        }
+        result.append(text.substring(last));
+        return result.toString();
+    }
+
+    /** 模板字段 → DSL（词表与 ask 提案一致：mode/metric_id/dimensions/time_expression_raw/limit）。 */
+    private void applyTemplateField(QueryDsl dsl, String key, Object value) {
+        switch (key) {
+            case "mode" -> {
+                if (value instanceof String mode && !mode.isBlank()) {
+                    dsl.setMode(QueryDsl.AnalysisMode.valueOf(mode.trim().toUpperCase()));
+                }
+            }
+            case "metric_id" -> {
+                if (value instanceof String metric && !metric.isBlank()) {
+                    dsl.setMetricId(metric);
+                }
+            }
+            case "dimensions" -> {
+                if (value instanceof List<?> dimensions) {
+                    dimensions.forEach(dimension -> {
+                        if (dimension instanceof String id && !id.isBlank()) {
+                            dsl.getDimensions().add(id);
+                        }
+                    });
+                }
+            }
+            case "time_expression_raw" -> {
+                if (value instanceof String time && !time.isBlank()) {
+                    dsl.setTimeExpressionRaw(time);
+                }
+            }
+            case "time_dimension" -> {
+                // 模板声明的时间维度资产 ID → timeRange.field（query 模式相对时间解析的前置）
+                if (value instanceof String field && !field.isBlank()) {
+                    QueryDsl.TimeRange timeRange = dsl.getTimeRange() == null
+                            ? new QueryDsl.TimeRange() : dsl.getTimeRange();
+                    timeRange.setField(field);
+                    dsl.setTimeRange(timeRange);
+                }
+            }
+            case "limit" -> {
+                if (value instanceof Number number) {
+                    dsl.setLimit(number.intValue());
+                }
+            }
+            default -> {
+                // 模板未知字段：清单结构校验（VqrValidator）不限制额外键——绑定期忽略，
+                // 语义校验由 execute 全链承担（未知资产引用会被 manifest 校验拒绝）
+            }
+        }
+    }
+
+    /** VQR 命中审计：独立于 EXECUTE/SKILL_EXECUTE——回答「这次查询由哪个模板、什么版本、什么参数发起」。 */
+    private void auditVqrHit(RequestContext context, String vqrId, String version,
+                             Map<String, Object> params) {
+        AuditLogCreateReqDTO audit = new AuditLogCreateReqDTO();
+        audit.setRequestId(context.traceId());
+        audit.setTenantId(context.tenantId());
+        audit.setUserId(context.userId());
+        audit.setSessionId(context.sessionId());
+        audit.setTurnIndex(context.turnIndex());
+        audit.setAction("VQR_HIT");
+        Map<String, Object> auditBody = new java.util.LinkedHashMap<>();
+        auditBody.put("vqrId", vqrId);
+        auditBody.put("vqrVersion", version);
+        auditBody.put("params", params == null ? Map.of() : params);
+        audit.setDslJson(JsonUtils.toJsonString(auditBody));
+        audit.setTraceId(context.traceId());
+        audit.setDevMode(context.devMode());
+        auditService.record(audit);
     }
 
     /** 能力来源审计：与 EXECUTE 行分开，回答「这次查询是由哪个能力、带什么槽位发起的」。 */

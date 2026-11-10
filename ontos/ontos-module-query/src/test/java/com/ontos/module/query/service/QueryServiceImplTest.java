@@ -233,6 +233,63 @@ class QueryServiceImplTest {
     }
 
     @Test
+    void shouldExecuteVqrThroughUnifiedChannel() {
+        // T3.5：模板绑定 → 组装 DSL → 既有 execute 全链（八步重校验）→ VQR_HIT 审计
+        // manifestWithPatterns：模板带 time_expression_raw，execute 链相对时间解析需要词表
+        PublishedManifest manifest = manifestWithPatterns();
+        manifest.setVqrs(java.util.List.of(TestFixtures.sampleVqrMeta()));
+        when(manifestService.getActiveManifestOrNull()).thenReturn(manifest);
+        when(manifestService.validateManifest("manifest-001")).thenReturn(manifest);
+        when(requestStateService.findState(any())).thenReturn(java.util.Optional.empty());
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
+        when(queryExecutor.execute(any(), any())).thenReturn(rows(2));
+
+        QueryResult result = service(new TimeWindowResolver()).executeVqr(
+                "vqr.sales.daily_gmv_by_channel", Map.of("days", "7"));
+        assertEquals(2, result.getRowCount(), "命中通道走统一执行链");
+        verify(auditService).record(org.mockito.ArgumentMatchers.argThat(dto ->
+                "VQR_HIT".equals(dto.getAction())
+                        && dto.getDslJson().contains("vqr.sales.daily_gmv_by_channel")
+                        && dto.getDslJson().contains("1.0.0")));
+    }
+
+    @Test
+    void shouldRejectUnknownOrUnpublishedVqrSameShape() {
+        PublishedManifest manifest = TestFixtures.ruleManifest();
+        manifest.setVqrs(java.util.List.of(TestFixtures.sampleVqrMeta()));
+        manifest.getVqrs().get(0).setStatus("draft");
+        when(manifestService.getActiveManifestOrNull()).thenReturn(manifest);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).executeVqr(
+                        "vqr.sales.daily_gmv_by_channel", Map.of("days", "7")));
+        assertEquals(1_002_000_000, ex.getCode(), "未知/未发布同形拒绝");
+        ServiceException ghost = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).executeVqr("vqr.ghost", Map.of()));
+        assertEquals(1_002_000_000, ghost.getCode(), "不泄露存在性");
+    }
+
+    @Test
+    void shouldRejectVqrBindingFailures() {
+        PublishedManifest manifest = TestFixtures.ruleManifest();
+        manifest.setVqrs(java.util.List.of(TestFixtures.sampleVqrMeta()));
+        when(manifestService.getActiveManifestOrNull()).thenReturn(manifest);
+
+        // 必填参数缺失（不注入空值）
+        ServiceException missing = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).executeVqr(
+                        "vqr.sales.daily_gmv_by_channel", Map.of()));
+        assertTrue(missing.getMessage().contains("必填参数缺失"), "days 未提供: "
+                + missing.getMessage());
+        // 未知参数拒绝（paramsSchema 声明之外）
+        ServiceException unknown = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).executeVqr(
+                        "vqr.sales.daily_gmv_by_channel", Map.of("days", "7", "evil", "x")));
+        assertTrue(unknown.getMessage().contains("未在 paramsSchema 声明"),
+                "越权注入参数: " + unknown.getMessage());
+        verify(queryExecutor, never()).execute(any(), any());
+    }
+
+    @Test
     void shouldFallBackToLegacyWhenManifestLacksSkillsSection() {
         // T32-6：清单**没有** skills 段（v13 及更早存量清单）= M3 直挂兼容态——entity_lookup 仍可执行
         PublishedManifest manifest = TestFixtures.ruleManifest();

@@ -97,6 +97,14 @@ public class SessionCandidateContextProvider implements AgentContextProvider {
                 });
             }
         }
+        // T3.5：published VQR 进词表（提案可引用 vqr_id；越权防线在 execute 全链 RLS/策略，
+        // 词表只约束「提案引用的 ID 必须真实存在」）
+        if (manifest.getVqrs() != null) {
+            manifest.getVqrs().stream()
+                    .filter(vqr -> "published".equals(vqr.getStatus()))
+                    .forEach(vqr -> vocabulary.add(
+                            new CandidateAsset(vqr.getVqrId(), vqr.getName(), java.util.Set.of())));
+        }
         return List.copyOf(vocabulary);
     }
 

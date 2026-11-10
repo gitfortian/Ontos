@@ -31,7 +31,14 @@ public record RetrievalOutcome(List<RetrievedCandidate> dslReady,
                                List<ClarificationPayload> clarifications,
                                boolean projectionStale,
                                String contextHash,
-                               ScenarioContext scenario) {
+                               ScenarioContext scenario,
+                               List<VqrCandidate> vqrCandidates) {
+
+    /** 空结果（无候选/无澄清/无场景/无 VQR）。 */
+    public static RetrievalOutcome empty() {
+        return new RetrievalOutcome(List.of(), List.of(), List.of(), List.of(), false, "",
+                null, List.of());
+    }
 
     /** 旧签名兼容构造器（场景上下文缺省 = 无场景语义）。 */
     public RetrievalOutcome(List<RetrievedCandidate> dslReady,
@@ -40,7 +47,19 @@ public record RetrievalOutcome(List<RetrievedCandidate> dslReady,
                             List<ClarificationPayload> clarifications,
                             boolean projectionStale,
                             String contextHash) {
-        this(dslReady, fuzzyOnly, prevTurn, clarifications, projectionStale, contextHash, null);
+        this(dslReady, fuzzyOnly, prevTurn, clarifications, projectionStale, contextHash, null, List.of());
+    }
+
+    /** 兼容构造器（VQR 候选缺省 = 瀑布未启用第 7 步或未命中）。 */
+    public RetrievalOutcome(List<RetrievedCandidate> dslReady,
+                            List<RetrievedCandidate> fuzzyOnly,
+                            List<RetrievedCandidate> prevTurn,
+                            List<ClarificationPayload> clarifications,
+                            boolean projectionStale,
+                            String contextHash,
+                            ScenarioContext scenario) {
+        this(dslReady, fuzzyOnly, prevTurn, clarifications, projectionStale, contextHash,
+                scenario, List.of());
     }
 
     public RetrievalOutcome {
@@ -61,6 +80,19 @@ public record RetrievalOutcome(List<RetrievedCandidate> dslReady,
     /** 是否完全无候选（连模糊/指代都没有）——编排层据此走能力发现或拒答。 */
     public boolean isEmpty() {
         return dslReady.isEmpty() && fuzzyOnly.isEmpty() && prevTurn.isEmpty();
+    }
+
+    /**
+     * VQR 命中候选（M6/W3/T3.5，瀑布第 7 步）：questionPattern 与话术确定性匹配的
+     * 参数化模板；候选带**已提取的参数**，编排提案引用 vqrId（候选集外引用被完整性闸门拦截）。
+     */
+    public record VqrCandidate(String vqrId,
+                               String name,
+                               Map<String, String> params,
+                               String matchedPattern) {
+        public VqrCandidate {
+            params = params == null ? Map.of() : Map.copyOf(params);
+        }
     }
 
     /** 场景路由上下文（M6/W2/T2.4）。 */

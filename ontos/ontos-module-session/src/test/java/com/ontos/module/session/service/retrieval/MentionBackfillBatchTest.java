@@ -87,7 +87,8 @@ class MentionBackfillBatchTest {
                         com.ontos.module.session.core.scenario.ScenarioEntrySource.SESSION_INHERIT,
                         null, List.of()));
         service = new MentionRetrievalService(manifestService, policySnapshotService,
-                new com.ontos.module.session.service.scenario.ScenarioScopeService(sessionService));
+                new com.ontos.module.session.service.scenario.ScenarioScopeService(sessionService),
+                new VqrCandidateMatcher());
 
         Map<String, Object> sampleSet = JsonUtils.parseObject(
                 Files.readString(SAMPLES_JSON, StandardCharsets.UTF_8),

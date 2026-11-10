@@ -10,6 +10,7 @@ import java.util.TreeMap;
 
 import com.ontos.framework.common.util.json.JsonUtils;
 import com.ontos.framework.web.core.context.RequestContext;
+import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.query.core.dsl.QueryDsl;
 import com.ontos.module.query.core.time.TimeExpressionParser;
@@ -26,8 +27,12 @@ import com.ontos.module.query.core.time.TimeExpressionParser;
  */
 public final class QueryCacheKey {
 
-    /** 键结构版本：任何字段语义变化都必须升这里，旧键随之失效（禁止原地改口径）。 */
-    public static final String SCHEMA_VERSION = "cache-key-1.1";
+    /**
+     * 键结构版本：任何字段语义变化都必须升这里，旧键随之失效（禁止原地改口径）。
+     * 1.2（M6/W3/T3.5，v0.2 F-5）：补 scenario_version 与 vqrId/vqrVersion——
+     * VQR 版本变化必须失效（§3.6 缓存隔离）；skill 版本随清单 contentHash 失效（在清单内）。
+     */
+    public static final String SCHEMA_VERSION = "cache-key-1.2";
 
     private static final String NONE = "none";
 
@@ -58,6 +63,11 @@ public final class QueryCacheKey {
         input.put("tenantId", text(context.tenantId()));
         input.put("userScopeHash", userScopeHash(context));
         input.put("scenarioId", text(queryDsl.getScenarioId()));
+        // 场景版本入键（1.2）：场景升级即换键，旧结果不复用
+        input.put("scenarioVersion", text(scenarioVersionOf(manifest, queryDsl.getScenarioId())));
+        // VQR 命中通道（1.2）：模板版本变化必须失效（§3.6），即使绑定产物相同
+        input.put("vqrId", text(queryDsl.getVqrId()));
+        input.put("vqrVersion", text(queryDsl.getVqrVersion()));
         // 查询本体：规范化 DSL（含服务端回填的 timeRange/joins/limit），等价于 §4.9 的 query_parameters
         input.put("queryParameters", JsonUtils.toJsonString(queryDsl));
         input.put("queryShape", queryDsl.getMode() == null ? NONE : queryDsl.getMode().name());
@@ -70,6 +80,17 @@ public final class QueryCacheKey {
         input.put("timezone", TimeExpressionParser.ZONE);
         input.put("timeAnchorDate", anchorDate.toString());
         return sha256(JsonUtils.toJsonString(input));
+    }
+
+    /** 场景版本解析（1.2）：生效清单场景段按 ID 查 version；无场景/未找到返回 none。 */
+    private static String scenarioVersionOf(PublishedManifest manifest, String scenarioId) {
+        if (scenarioId == null || manifest.getScenarios() == null) {
+            return NONE;
+        }
+        return manifest.getScenarios().stream()
+                .filter(scenario -> scenarioId.equals(scenario.getId()))
+                .map(ManifestPayload.ScenarioMeta::getVersion)
+                .findFirst().orElse(NONE);
     }
 
     /** 用户范围哈希：userId + 角色集合（排序后），角色变更即换键，避免降权后复用旧结果。 */

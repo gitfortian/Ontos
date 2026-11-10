@@ -1277,7 +1277,8 @@
         "dimensions": [
           "dim.channel"
         ],
-        "time_expression_raw": "近 ${param.days} 天"
+        "time_expression_raw": "近 ${param.days} 天",
+        "time_dimension": "dim.order_date"
       },
       "paramsSchema": {
         "days": {

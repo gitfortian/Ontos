@@ -478,6 +478,29 @@ public class AskOrchestrationService {
     private static final Pattern APPROVAL_ID_PATTERN =
             Pattern.compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
 
+    /** VQR 命中终端（T3.5）：参数透传 queryService.executeVqr（模板绑定 + execute 全链 + VQR_HIT 审计）。 */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> executeVqrTerminal(RequestContext context, String runId,
+                                                   Map<String, Object> box) {
+        String vqrId = String.valueOf(box.get("vqr_id"));
+        Map<String, Object> params = box.get("params") instanceof Map<?, ?> map
+                ? new java.util.LinkedHashMap<>((Map<String, Object>) map) : Map.of();
+        try {
+            var result = queryService.executeVqr(vqrId, params);
+            eventService.emit(runId, AskEventService.TEXT_MESSAGE,
+                    Map.of("delta", "已按已审核的查询模板回答（" + vqrId + "）"));
+            Map<String, Object> terminal = terminalAssembler.query(context.traceId(),
+                    result.getRowCount(),
+                    result.getRows() == null ? List.of() : result.getRows(), false);
+            terminalAssembler.emitTerminal(eventService, runId, terminal);
+            return terminal;
+        } catch (RuntimeException ex) {
+            // 命中后重校验拒绝（越权/失效/口径冲突）如实透出业务码——fail-closed 不静默降级
+            log.info("[executeVqrTerminal][vqr({}) 拒绝: {}]", vqrId, ex.getMessage());
+            throw ex;
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> executeQueryTerminal(RequestContext context, String runId,
                                                      Map<String, Object> proposal,
@@ -486,6 +509,11 @@ public class AskOrchestrationService {
         if (!(raw instanceof List<?> subIntents) || subIntents.isEmpty()
                 || !(subIntents.get(0) instanceof Map<?, ?> box)) {
             return terminalAssembler.outOfCapability(context, "PROPOSAL_CONTRACT_INVALID");
+        }
+        // T3.5 VQR 命中：提案引用 vqr_id（完整性闸门已对账候选集）→ 模板绑定 + 既有 execute
+        // 全链（八步重校验）；vqr_id 不经 assembleDsl（散装槽位路径），vqrId 不由本层再解释
+        if (box.containsKey("vqr_id")) {
+            return executeVqrTerminal(context, runId, (Map<String, Object>) box);
         }
         QueryDsl dsl = assembleDsl(context, (Map<String, Object>) box);
 
