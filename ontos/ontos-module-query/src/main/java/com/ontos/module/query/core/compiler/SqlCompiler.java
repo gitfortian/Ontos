@@ -936,6 +936,8 @@ public class SqlCompiler {
         SelectQuery<Record> attributed = dsl.selectQuery();
         attributed.addSelect(DSL.field(DSL.name("c", "conversion_id")).as("conversion_id"));
         attributed.addSelect(DSL.field(DSL.name("c", "order_id")).as("order_id"));
+        attributed.addSelect(DSL.field(DSL.name("c", "attributed_channel_id"), String.class)
+                .as("attributed_channel_id"));
         attributed.addSelect(chName.as("channel_name"));
         attributed.addFrom(DSL.table(DSL.name("conversions")).as("c"));
         attributed.addJoin(DSL.table(tableName(tableOf(channelName.getColumn()))).as("ch"),
@@ -945,6 +947,8 @@ public class SqlCompiler {
         // facts：转化经清单关系 Join 指标表（指标值与订单维度同源，一转化一行）
         SelectQuery<Record> facts = dsl.selectQuery();
         facts.addSelect(DSL.field(DSL.name("a", "conversion_id")).as("conversion_id"));
+        facts.addSelect(DSL.field(DSL.name("a", "attributed_channel_id"), String.class)
+                .as("attributed_channel_id"));
         facts.addSelect(DSL.field(DSL.name("a", "channel_name")).as("channel_name"));
         facts.addSelect(DSL.field(DSL.name("o", lastSegment(metric.getColumn()))).as("metric_value"));
         for (SemanticManifest.Dimension dimension : dimensions) {
@@ -962,9 +966,13 @@ public class SqlCompiler {
         // 外层聚合：渠道（UNATTRIBUTED 显式桶）+ 订单维度 + 指标值 + 转化数 / 命中触点数
         Field<String> outConversionId = DSL.field(DSL.name("f", "conversion_id"), String.class);
         Field<String> outChannelName = DSL.field(DSL.name("f", "channel_name"), String.class);
+        Field<String> outChannelId = DSL.field(DSL.name("f", "attributed_channel_id"), String.class);
         Field<Object> outMetricValue = DSL.field(DSL.name("f", "metric_value"));
-        Field<String> channelBucket =
-                DSL.field("coalesce({0}, 'UNATTRIBUTED')", String.class, outChannelName);
+        // UNATTRIBUTED 只收「已知主体、无触点」的转化（规格 §2.2）；有触点但渠道主数据缺失时
+        // 回退显示渠道 id，不能伪装成无触点（否则 touched_events 与桶语义同时错位）
+        Field<String> channelBucket = DSL.field(
+                "case when {0} is null then 'UNATTRIBUTED' else coalesce({1}, {0}) end",
+                String.class, outChannelId, outChannelName);
         List<Field<?>> outerFields = new ArrayList<>();
         List<Field<?>> groupFields = new ArrayList<>();
         List<Field<?>> orderFields = new ArrayList<>();
@@ -986,7 +994,7 @@ public class SqlCompiler {
         outerFields.add(DSL.countDistinct(outConversionId).as("converted_events"));
         outerFields.add(DSL.field(
                 "count(distinct case when {0} is not null then {1} end)", Integer.class,
-                outChannelName, outConversionId).as("touched_events"));
+                outChannelId, outConversionId).as("touched_events"));
 
         List<CommonTableExpression<Record>> ctes = new ArrayList<>();
         ctes.add(DSL.name("conversions").as(conversions));

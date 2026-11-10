@@ -39,8 +39,10 @@ class AttributionCompilerTest {
         assertTrue(sql.contains("order by \"t\".\"occurred_at\" desc, \"t\".\"dedup_key\" desc"),
                 "last_touch 全序显式（时间 + 去重键双降序）: " + sql);
         assertTrue(sql.contains("cast('30 days' as interval)"), "回溯窗口来自封闭枚举: " + sql);
-        assertTrue(sql.contains("coalesce(\"f\".\"channel_name\", 'unattributed')"),
-                "无触点转化进显式 UNATTRIBUTED 桶: " + sql);
+        assertTrue(sql.contains("case when \"f\".\"attributed_channel_id\" is null then 'unattributed'"),
+                "无触点转化进显式 UNATTRIBUTED 桶（按有无触点判定，非按渠道名解析结果）: " + sql);
+        assertTrue(sql.contains("coalesce(\"f\".\"channel_name\", \"f\".\"attributed_channel_id\")"),
+                "有触点但渠道主数据缺失时回退渠道 id，不伪装成无触点: " + sql);
         assertTrue(sql.contains("left outer join \"channel\""), "触点渠道左连 channel 主数据: " + sql);
         assertTrue(sql.contains("join \"orders\""), "指标值经清单关系 Join 订单: " + sql);
         assertTrue(sql.contains("\"attributed_metric_value\""), "归因指标值列: " + sql);
