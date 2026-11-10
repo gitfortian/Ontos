@@ -9,6 +9,9 @@ import com.ontos.framework.common.util.json.JsonUtils;
 import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.core.ManifestStructureValidator;
 import com.ontos.module.ontology.core.OntologyPublishValidator;
+import com.ontos.module.ontology.core.PublishedManifest;
+import com.ontos.module.ontology.core.VqrInvalidationAnalyzer;
+import com.ontos.module.ontology.service.manifest.ManifestService;
 import com.ontos.module.ontology.dal.mysql.PublishedSnapshotRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,12 +36,16 @@ public class PublishServiceImpl implements PublishService {
 
     private final PublishedSnapshotRepository repository;
     private final PublishGuard publishGuard;
+    private final ManifestService manifestService;
     private final ManifestStructureValidator structureValidator = new ManifestStructureValidator();
     private final OntologyPublishValidator publishValidator = new OntologyPublishValidator();
+    private final VqrInvalidationAnalyzer vqrInvalidationAnalyzer = new VqrInvalidationAnalyzer();
 
-    public PublishServiceImpl(PublishedSnapshotRepository repository, PublishGuard publishGuard) {
+    public PublishServiceImpl(PublishedSnapshotRepository repository, PublishGuard publishGuard,
+                              ManifestService manifestService) {
         this.repository = repository;
         this.publishGuard = publishGuard;
+        this.manifestService = manifestService;
     }
 
     @Override
@@ -68,6 +75,23 @@ public class PublishServiceImpl implements PublishService {
                 new ManifestStructureValidator.Violation("payload." + field,
                         "未知字段（清单结构没有该键，疑似拼写错误）：发布将静默丢弃，请修正或删除").toString()));
 
+        // M6/W3/T3.4（§11.3 / F-7）：VQR 依赖影响分析——对照当前生效清单，命中失效条件的
+        // VQR 从新清单移除（失效经发布流水线生效；不静默——报告随发布响应透出）。
+        // 移除先于结构校验：本次升级有意废弃的资产不应被残留 VQR 卡住整个发布。
+        PublishedManifest activeManifest = manifestService.getActiveManifestOrNull();
+        ManifestPayload oldPayload = activeManifest == null || activeManifest.getPayloadJson() == null
+                ? null : JsonUtils.parseObject(activeManifest.getPayloadJson(), ManifestPayload.class);
+        List<VqrInvalidationAnalyzer.Invalidation> invalidatedVqrs =
+                vqrInvalidationAnalyzer.analyze(oldPayload, payload);
+        if (!invalidatedVqrs.isEmpty()) {
+            // 失效生效 = 移除 VQR + 级联清理场景引用（T34-8：悬空引用会把后续发布卡死）
+            int cascadeRemoved = vqrInvalidationAnalyzer.apply(payload, invalidatedVqrs);
+            invalidatedVqrs.forEach(invalidation -> log.info(
+                    "[publish][VQR 自动失效] vqr({}) reason({})", invalidation.vqrId(),
+                    invalidation.reason()));
+            log.info("[publish][VQR 失效级联清理] scenario 引用移除 {} 条", cascadeRemoved);
+        }
+
         structureValidator.validate(payload).forEach(v -> violations.add(v.toString()));
         publishValidator.validate(payload.getOntology()).forEach(v -> violations.add(v.toString()));
         boolean alreadyExists = repository.selectByManifestId(request.manifestId()).isPresent();
@@ -78,7 +102,8 @@ public class PublishServiceImpl implements PublishService {
             log.info("[publish][dry-run] manifestId({}) violations({}) alreadyExists({})",
                     request.manifestId(), violations.size(), alreadyExists);
             return new PublishReportVO(request.manifestId(), violations.isEmpty() && !alreadyExists,
-                    violations, alreadyExists, null, assetCounts(payload));
+                    violations, alreadyExists, null, assetCounts(payload),
+                    invalidatedVqrs.stream().map(i -> i.vqrId() + ": " + i.reason()).toList());
         }
 
         if (alreadyExists) {
@@ -93,7 +118,8 @@ public class PublishServiceImpl implements PublishService {
         log.info("[publish][确认发布] manifestId({}) contentHash({}) publisher({})",
                 request.manifestId(), contentHash, publisher);
         return new PublishReportVO(request.manifestId(), true, List.of(), false, contentHash,
-                assetCounts(payload));
+                assetCounts(payload),
+                invalidatedVqrs.stream().map(i -> i.vqrId() + ": " + i.reason()).toList());
     }
 
     /** 递归键差分：提交树里有、类型化回装树里没有的键 = 未知字段（会被丢弃）。 */
@@ -136,6 +162,8 @@ public class PublishServiceImpl implements PublishService {
             counts.put("events", size(payload.getOntology().getEvents()));
         }
         counts.put("rules", size(payload.getRules()));
+        counts.put("skills", size(payload.getSkills()));
+        counts.put("vqrs", size(payload.getVqrs()));
         counts.put("scenarios", size(payload.getScenarios()));
         return counts;
     }

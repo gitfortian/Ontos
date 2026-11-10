@@ -60,6 +60,7 @@ public final class ManifestStructureValidator {
         validateRules(payload, violations);
         validateScenarios(payload, violations);
         validateSkills(payload, violations);
+        validateVqrs(payload, violations);
         validateCopyTemplates(payload, violations);
         validateTimePatterns(payload, violations);
         return violations;
@@ -366,7 +367,14 @@ public final class ManifestStructureValidator {
     private void validateScenarios(ManifestPayload payload, List<Violation> violations) {
         // v1.4 §5.7 规则集中在 ScenarioValidator：发布预检与资产管理面共用同一套判定，
         // 历史扁平形态（v12 及以前）由校验器按 legacy 走最小校验。
-        violations.addAll(new ScenarioValidator().validate(payload));
+        // T3.4：引用集合从 payload 自建（vqrs 段落地后 defaultVqrIds/coldStartSamples 可验）。
+        violations.addAll(new ScenarioValidator().validate(payload,
+                ScenarioValidator.PublishedRefs.of(payload)));
+    }
+
+    private void validateVqrs(ManifestPayload payload, List<Violation> violations) {
+        // v1.4 §11 规则集中在 VqrValidator：发布预检与资产管理面共用同一套判定
+        violations.addAll(new VqrValidator().validate(payload));
     }
 
     /**

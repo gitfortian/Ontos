@@ -26,6 +26,8 @@ public class ManifestPayload {
     private List<ScenarioMeta> scenarios = List.of();
     /** Skill 资产（v1.4 §5.8，M6/T3.1）：能力单元注册表，运行时 SkillRegistry 按清单扩展段消费。 */
     private List<SkillMeta> skills = List.of();
+    /** VQR 资产（v1.4 §11，M6/T3.4）：参数化查询模板——只存模板与资产引用，不存可执行 SQL。 */
+    private List<VqrMeta> vqrs = List.of();
 
     /** 判定标准（ADR-0004 2.3）：随清单版本化，运行时只认 published。 */
     @Data
@@ -229,6 +231,41 @@ public class ManifestPayload {
         private Integer maxBatchSize;
         /** 预声明近似（§3.3）：本 Skill 是被引用 Skill 所在模式的近似承担者；跨模式引用。 */
         private String approximationOf;
+        /** 人工审核记录：published 必有 reviewer。 */
+        private String reviewer;
+        private String reviewedAt;
+    }
+
+    /**
+     * VQR 资产（v1.4 §11，M6/W3/T3.4）：参数化查询模板，不保存绕过权限的最终 SQL。
+     * dslTemplate 只引用资产 ID + {@code ${param.x}} 占位符；goldenRef / resultCheckRef
+     * 是入库七条件（§11.2）中执行类证据的**引用**（ADR-0017 D4：证据由 catalog 之外流水线
+     * 产生，catalog/清单校验只验引用存在与格式，不连库执行）。
+     */
+    @Data
+    public static class VqrMeta {
+        private String vqrId;
+        private String name;
+        private String summary;
+        private String owner;
+        /** SemVer。 */
+        private String version;
+        /** draft | reviewing | published | retired（与 skills.status 同词表）。 */
+        private String status;
+        /** 问题模式（T3.5 候选匹配用；free/场景话术与此模式匹配时进入候选）。 */
+        private String questionPattern;
+        /** 参数化 DSL 模板：资产 ID 引用 + {@code ${param.x}} 占位符（object）。 */
+        private Map<String, Object> dslTemplate;
+        /** 参数 Schema（object）：键 = 参数名，值 = 类型/约束声明。 */
+        private Map<String, Object> paramsSchema;
+        /** Golden Query 证据引用（D4 外置：外部流水线产物 ID/路径）。 */
+        private String goldenRef;
+        /** 结果校验证据引用（D4 外置）。 */
+        private String resultCheckRef;
+        /** 数据新鲜度上限（小时，≥1）。 */
+        private Integer freshnessLimitHours;
+        /** 声明式失效条件（§11.3）：{assetId, trigger}；trigger ∈ deprecated | incompatible_change。 */
+        private List<Map<String, Object>> invalidationConditions = List.of();
         /** 人工审核记录：published 必有 reviewer。 */
         private String reviewer;
         private String reviewedAt;

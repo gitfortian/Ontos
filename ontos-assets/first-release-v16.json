@@ -1,0 +1,1311 @@
+{
+  "rules": [
+    {
+      "id": "rule.high_value_customer",
+      "name": "高价值客户",
+      "scope": "global",
+      "status": "published",
+      "summary": "累计消费金额满 5 万的客户",
+      "reviewer": "m1-seed",
+      "expression": {
+        "metricId": "metric.gmv",
+        "operator": "GTE",
+        "threshold": 50000
+      }
+    }
+  ],
+  "ontology": {
+    "enums": [
+      {
+        "id": "enum.order_status",
+        "name": "订单状态",
+        "values": [
+          {
+            "label": "已创建",
+            "value": "CREATED"
+          },
+          {
+            "label": "已支付",
+            "value": "PAID"
+          },
+          {
+            "label": "已取消",
+            "value": "CANCELLED"
+          }
+        ]
+      }
+    ],
+    "events": [
+      {
+        "id": "event.order_placed",
+        "name": "下单事件",
+        "aliases": [
+          "提交订单"
+        ],
+        "summary": "客户提交一笔订单",
+        "dedupKey": "order_id:ORDER_PLACED",
+        "eventType": "ORDER_PLACED",
+        "timeProperty": "property.event.occurred_at",
+        "participantClass": "concept.customer",
+        "eventTypeProperty": "property.event.event_type",
+        "eventTypeValue": "ORDER_PLACED",
+        "participantProperty": "property.event.customer_id"
+      },
+      {
+        "id": "event.refund",
+        "name": "退款事件",
+        "aliases": [
+          "退货"
+        ],
+        "summary": "客户退回订单或商品",
+        "dedupKey": "order_id:REFUND",
+        "eventType": "REFUND",
+        "timeProperty": "property.event.occurred_at",
+        "participantClass": "concept.customer",
+        "eventTypeProperty": "property.event.event_type",
+        "eventTypeValue": "REFUND",
+        "participantProperty": "property.event.customer_id"
+      },
+      {
+        "id": "event.channel_touch",
+        "name": "渠道触点",
+        "summary": "客户在渠道上的触点行为（广告曝光、渠道访问），用于末次触点归因",
+        "aliases": [
+          "触点",
+          "广告触点",
+          "渠道访问"
+        ],
+        "eventType": "CHANNEL_TOUCH",
+        "timeProperty": "property.event.occurred_at",
+        "participantClass": "concept.customer",
+        "participantProperty": "property.event.customer_id",
+        "eventTypeProperty": "property.event.event_type",
+        "eventTypeValue": "CHANNEL_TOUCH",
+        "channelPropertyId": "property.event.channel_id",
+        "dedupKey": "id:CHANNEL_TOUCH"
+      }
+    ],
+    "concepts": [
+      {
+        "id": "concept.customer",
+        "name": "客户",
+        "domain": "customer",
+        "aliases": [
+          "顾客",
+          "买家"
+        ],
+        "summary": "和我们做买卖的人——下过单或登记过信息的都算",
+        "identityProperty": "property.customer.customer_id"
+      },
+      {
+        "id": "concept.order",
+        "name": "订单",
+        "domain": "trade",
+        "aliases": [
+          "单"
+        ],
+        "summary": "客户下的每一次购买",
+        "identityProperty": "property.order.order_no"
+      },
+      {
+        "id": "concept.order_item",
+        "name": "订单明细",
+        "domain": "trade",
+        "aliases": [
+          "明细行"
+        ],
+        "summary": "订单里买的每一种商品及数量",
+        "identityProperty": "property.order_item.item_id"
+      },
+      {
+        "id": "concept.product",
+        "name": "商品",
+        "domain": "product",
+        "aliases": [
+          "产品"
+        ],
+        "summary": "我们卖的东西",
+        "identityProperty": "property.product.product_id"
+      },
+      {
+        "id": "concept.channel",
+        "name": "渠道",
+        "domain": "trade",
+        "aliases": [
+          "通路"
+        ],
+        "summary": "订单来源的销售通路",
+        "identityProperty": "property.channel.channel_id"
+      },
+      {
+        "id": "concept.event",
+        "name": "业务事件",
+        "domain": "trade",
+        "aliases": [
+          "动作"
+        ],
+        "summary": "客户或订单上发生的动作记录",
+        "identityProperty": "property.event.event_id"
+      }
+    ],
+    "synonyms": [
+      {
+        "term": "卖了多少",
+        "assetId": "metric.gmv"
+      },
+      {
+        "term": "出了多少单",
+        "assetId": "metric.order_count"
+      }
+    ],
+    "relations": [
+      {
+        "id": "ontology.Customer.placesOrder",
+        "to": "concept.order",
+        "from": "concept.customer",
+        "name": "下了",
+        "aliases": [
+          "购买",
+          "下单"
+        ],
+        "summary": "客户下的订单",
+        "toColumn": "orders.customer_id",
+        "queryable": true,
+        "fromColumn": "customer.id",
+        "goldenPath": true,
+        "cardinality": "1:N",
+        "reverseLabel": "被下单"
+      },
+      {
+        "id": "ontology.Order.containsItem",
+        "to": "concept.order_item",
+        "from": "concept.order",
+        "name": "包含",
+        "aliases": [
+          "含有"
+        ],
+        "summary": "订单里的每一行明细",
+        "toColumn": "order_item.order_id",
+        "queryable": true,
+        "fromColumn": "orders.id",
+        "goldenPath": true,
+        "cardinality": "1:N",
+        "reverseLabel": "属于订单"
+      },
+      {
+        "id": "ontology.OrderItem.refersProduct",
+        "to": "concept.product",
+        "from": "concept.order_item",
+        "name": "买了",
+        "aliases": [
+          "购买的商品"
+        ],
+        "summary": "明细行指向的商品",
+        "toColumn": "product.id",
+        "queryable": true,
+        "fromColumn": "order_item.product_id",
+        "goldenPath": true,
+        "cardinality": "N:1",
+        "reverseLabel": "被购买"
+      },
+      {
+        "id": "ontology.Customer.performsEvent",
+        "to": "concept.event",
+        "from": "concept.customer",
+        "name": "产生了",
+        "aliases": [
+          "发生"
+        ],
+        "summary": "客户身上的业务事件（阶段一元数据，阶段三开放）",
+        "toColumn": "event.customer_id",
+        "queryable": true,
+        "fromColumn": "customer.id",
+        "goldenPath": false,
+        "cardinality": "1:N",
+        "reverseLabel": "由客户产生"
+      },
+      {
+        "id": "ontology.Order.recordsEvent",
+        "to": "concept.event",
+        "from": "concept.order",
+        "name": "记录了",
+        "aliases": [
+          "关联事件"
+        ],
+        "summary": "订单上的业务事件（阶段一元数据，阶段三开放）",
+        "toColumn": "event.order_id",
+        "queryable": true,
+        "fromColumn": "orders.id",
+        "goldenPath": false,
+        "cardinality": "1:N",
+        "reverseLabel": "发生于订单"
+      },
+      {
+        "id": "ontology.Event.attributedToChannel",
+        "to": "concept.channel",
+        "from": "concept.event",
+        "name": "归因于",
+        "aliases": [
+          "来自渠道"
+        ],
+        "summary": "事件归因的渠道（分析模式阶段三开放；路径阶段一可查询）",
+        "toColumn": "channel.id",
+        "queryable": true,
+        "fromColumn": "event.channel_id",
+        "goldenPath": false,
+        "cardinality": "N:1",
+        "reverseLabel": "归因事件"
+      },
+      {
+        "id": "ontology.Order.attributedToChannel",
+        "to": "concept.channel",
+        "from": "concept.order",
+        "name": "经由",
+        "aliases": [
+          "销售渠道"
+        ],
+        "summary": "订单经由哪个渠道售出",
+        "toColumn": "channel.id",
+        "queryable": true,
+        "fromColumn": "orders.channel_id",
+        "goldenPath": true,
+        "cardinality": "N:1",
+        "reverseLabel": "售出订单"
+      }
+    ],
+    "properties": [
+      {
+        "id": "property.customer.customer_id",
+        "name": "客户编号",
+        "column": "customer.id",
+        "aliases": [
+          "客户ID"
+        ],
+        "summary": "客户的唯一编号",
+        "conceptId": "concept.customer",
+        "valueType": "string",
+        "filterable": true,
+        "sensitivity": "INTERNAL",
+        "displayHints": [],
+        "lookupProjectable": true,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.customer.email",
+        "name": "邮箱",
+        "column": "customer.email",
+        "aliases": [
+          "电子邮件",
+          "邮箱地址"
+        ],
+        "summary": "客户的联系邮箱",
+        "conceptId": "concept.customer",
+        "valueType": "string",
+        "filterable": false,
+        "sensitivity": "PII",
+        "displayHints": [
+          "mask"
+        ],
+        "lookupProjectable": true,
+        "existenceSensitive": true
+      },
+      {
+        "id": "property.customer.tier",
+        "name": "客户等级",
+        "column": "customer.tier",
+        "aliases": [
+          "会员等级"
+        ],
+        "summary": "客户的会员级别",
+        "conceptId": "concept.customer",
+        "valueType": "string",
+        "filterable": true,
+        "sensitivity": "INTERNAL",
+        "displayHints": [
+          "enum_label"
+        ],
+        "lookupProjectable": true,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.order.order_no",
+        "name": "订单编号",
+        "column": "orders.id",
+        "aliases": [
+          "单号"
+        ],
+        "summary": "一笔订单的唯一编号",
+        "conceptId": "concept.order",
+        "valueType": "string",
+        "filterable": true,
+        "sensitivity": "INTERNAL",
+        "displayHints": [],
+        "lookupProjectable": true,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.order.order_date",
+        "name": "下单日期",
+        "column": "orders.order_date",
+        "aliases": [
+          "订单日期"
+        ],
+        "summary": "订单创建日期",
+        "conceptId": "concept.order",
+        "valueType": "date",
+        "filterable": true,
+        "sensitivity": "INTERNAL",
+        "displayHints": [
+          "date_fmt"
+        ],
+        "lookupProjectable": true,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.order.amount",
+        "name": "订单金额",
+        "column": "orders.amount",
+        "aliases": [
+          "金额"
+        ],
+        "summary": "这笔订单的金额",
+        "conceptId": "concept.order",
+        "valueType": "decimal",
+        "filterable": true,
+        "sensitivity": "INTERNAL",
+        "displayHints": [],
+        "lookupProjectable": true,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.order_item.item_id",
+        "name": "明细编号",
+        "column": "order_item.id",
+        "aliases": [
+          "明细ID"
+        ],
+        "summary": "一行明细的唯一编号",
+        "conceptId": "concept.order_item",
+        "valueType": "string",
+        "filterable": false,
+        "sensitivity": "INTERNAL",
+        "displayHints": [],
+        "lookupProjectable": false,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.order_item.quantity",
+        "name": "购买数量",
+        "column": "order_item.quantity",
+        "aliases": [
+          "数量"
+        ],
+        "summary": "这一行买了几件",
+        "conceptId": "concept.order_item",
+        "valueType": "integer",
+        "filterable": true,
+        "sensitivity": "INTERNAL",
+        "displayHints": [],
+        "lookupProjectable": true,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.product.product_id",
+        "name": "商品编号",
+        "column": "product.id",
+        "aliases": [
+          "商品ID"
+        ],
+        "summary": "商品的唯一编号",
+        "conceptId": "concept.product",
+        "valueType": "string",
+        "filterable": true,
+        "sensitivity": "INTERNAL",
+        "displayHints": [],
+        "lookupProjectable": true,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.product.category",
+        "name": "品类",
+        "column": "product.category",
+        "aliases": [
+          "类目"
+        ],
+        "summary": "商品所属的分类",
+        "conceptId": "concept.product",
+        "valueType": "string",
+        "filterable": true,
+        "sensitivity": "INTERNAL",
+        "displayHints": [],
+        "lookupProjectable": true,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.channel.channel_id",
+        "name": "渠道编号",
+        "column": "channel.id",
+        "aliases": [
+          "渠道ID"
+        ],
+        "summary": "渠道的唯一编号",
+        "conceptId": "concept.channel",
+        "valueType": "string",
+        "filterable": true,
+        "sensitivity": "INTERNAL",
+        "displayHints": [],
+        "lookupProjectable": true,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.channel.name",
+        "name": "渠道名称",
+        "column": "channel.name",
+        "aliases": [
+          "渠道名",
+          "渠道"
+        ],
+        "summary": "渠道的业务名称（线上 / 线下）；归因模式的渠道维度值来源",
+        "conceptId": "concept.channel",
+        "valueType": "string",
+        "filterable": true,
+        "sensitivity": "PUBLIC",
+        "displayHints": [
+          "enum_label"
+        ],
+        "lookupProjectable": true,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.event.event_id",
+        "name": "事件编号",
+        "column": "event.id",
+        "aliases": [
+          "事件ID"
+        ],
+        "summary": "一条事件记录的唯一编号",
+        "conceptId": "concept.event",
+        "valueType": "string",
+        "filterable": false,
+        "sensitivity": "INTERNAL",
+        "displayHints": [],
+        "lookupProjectable": false,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.event.event_type",
+        "name": "事件类型",
+        "column": "event.event_type",
+        "aliases": [
+          "事件类型编码",
+          "事件动作"
+        ],
+        "summary": "事件记录的类型标识，如 ORDER_PLACED / REFUND",
+        "conceptId": "concept.event",
+        "valueType": "string",
+        "filterable": true,
+        "sensitivity": "INTERNAL",
+        "displayHints": [],
+        "lookupProjectable": false,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.event.occurred_at",
+        "name": "事件发生时间",
+        "column": "event.occurred_at",
+        "aliases": [
+          "事件时间",
+          "发生时刻"
+        ],
+        "summary": "事件实际发生的时刻（业务时间）",
+        "conceptId": "concept.event",
+        "valueType": "timestamp",
+        "filterable": true,
+        "sensitivity": "INTERNAL",
+        "displayHints": [],
+        "lookupProjectable": false,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.event.customer_id",
+        "name": "事件主体编号",
+        "column": "event.customer_id",
+        "aliases": [
+          "事件客户编号",
+          "主体ID"
+        ],
+        "summary": "事件关联的客户编号",
+        "conceptId": "concept.event",
+        "valueType": "string",
+        "filterable": true,
+        "sensitivity": "INTERNAL",
+        "displayHints": [],
+        "lookupProjectable": false,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.event.order_id",
+        "name": "事件订单编号",
+        "column": "event.order_id",
+        "aliases": [
+          "事件订单号"
+        ],
+        "summary": "事件关联的订单编号",
+        "conceptId": "concept.event",
+        "valueType": "string",
+        "filterable": true,
+        "sensitivity": "INTERNAL",
+        "displayHints": [],
+        "lookupProjectable": false,
+        "existenceSensitive": false
+      },
+      {
+        "id": "property.event.channel_id",
+        "name": "渠道标识",
+        "summary": "触点或订单事件关联的渠道标识，用于归因的触点渠道来源",
+        "aliases": [
+          "触点渠道",
+          "渠道ID"
+        ],
+        "conceptId": "concept.event",
+        "valueType": "string",
+        "sensitivity": "INTERNAL",
+        "lookupProjectable": false,
+        "filterable": true,
+        "existenceSensitive": false,
+        "displayHints": [],
+        "column": "event.channel_id"
+      },
+      {
+        "id": "property.event.dedup_key",
+        "name": "事件去重键",
+        "column": "event.dedup_key",
+        "aliases": [
+          "去重键"
+        ],
+        "summary": "事件的业务去重键；归因在触点同一时刻时按 (occurred_at, dedup_key) 双降序取首行的稳定排序依据",
+        "conceptId": "concept.event",
+        "valueType": "string",
+        "filterable": true,
+        "sensitivity": "INTERNAL",
+        "displayHints": [],
+        "lookupProjectable": false,
+        "existenceSensitive": false
+      }
+    ],
+    "constraints": [],
+    "ontologyVersion": "2026.11.9"
+  },
+  "semantic": {
+    "metrics": [
+      {
+        "id": "metric.gmv",
+        "name": "GMV",
+        "table": "orders",
+        "column": "amount",
+        "aliases": [
+          "成交金额",
+          "成交额",
+          "销售额",
+          "流水",
+          "卖了多少",
+          "营收"
+        ],
+        "summary": "成交金额：已支付订单的金额合计",
+        "sensitive": false,
+        "aggregation": "SUM",
+        "allowedModes": [
+          "QUERY",
+          "LOOKUP",
+          "YOY_MOM",
+          "ATTRIBUTION"
+        ],
+        "allowedDimensions": [
+          "dim.region",
+          "dim.channel",
+          "dim.order_date",
+          "dim.customer_tier",
+          "dim.product_category"
+        ]
+      },
+      {
+        "id": "metric.paid_gmv",
+        "name": "已支付 GMV",
+        "table": "orders",
+        "column": "amount",
+        "aliases": [
+          "支付GMV",
+          "已支付成交额",
+          "支付金额"
+        ],
+        "summary": "已支付订单的成交金额合计，可按渠道口径细分",
+        "sensitive": false,
+        "aggregation": "SUM",
+        "allowedModes": [
+          "QUERY",
+          "YOY_MOM"
+        ],
+        "allowedDimensions": [
+          "dim.region",
+          "dim.channel",
+          "dim.order_date",
+          "dim.customer_tier",
+          "dim.product_category"
+        ],
+        "caliberVariants": [
+          {
+            "variantId": "metric.paid_gmv.online",
+            "alias": [
+              "线上支付口径",
+              "线上 GMV"
+            ],
+            "condition": {
+              "fieldId": "dim.channel",
+              "operator": "EQ",
+              "values": [
+                "线上"
+              ]
+            },
+            "version": "1.0.0"
+          },
+          {
+            "variantId": "metric.paid_gmv.offline",
+            "alias": [
+              "线下支付口径",
+              "线下 GMV"
+            ],
+            "condition": {
+              "fieldId": "dim.channel",
+              "operator": "EQ",
+              "values": [
+                "线下"
+              ]
+            },
+            "version": "1.0.0"
+          }
+        ]
+      },
+      {
+        "id": "metric.gmv_created",
+        "name": "GMV（下单口径）",
+        "table": "orders",
+        "column": "amount",
+        "aliases": [
+          "下单金额"
+        ],
+        "summary": "下单口径的成交金额：含未支付订单，与支付口径对比用",
+        "sensitive": false,
+        "aggregation": "SUM",
+        "allowedModes": [
+          "QUERY"
+        ],
+        "allowedDimensions": [
+          "dim.region",
+          "dim.channel",
+          "dim.order_date",
+          "dim.customer_tier",
+          "dim.product_category"
+        ]
+      },
+      {
+        "id": "metric.order_count",
+        "name": "订单数",
+        "table": "orders",
+        "column": "id",
+        "aliases": [
+          "单量",
+          "下单数",
+          "订单量",
+          "几单"
+        ],
+        "summary": "下了多少笔订单",
+        "sensitive": false,
+        "aggregation": "COUNT_DISTINCT",
+        "allowedModes": [
+          "QUERY",
+          "YOY_MOM",
+          "ATTRIBUTION"
+        ],
+        "allowedDimensions": [
+          "dim.region",
+          "dim.channel",
+          "dim.order_date",
+          "dim.customer_tier",
+          "dim.product_category"
+        ]
+      },
+      {
+        "id": "metric.distinct_customers",
+        "name": "下单客户数",
+        "table": "orders",
+        "column": "customer_id",
+        "aliases": [
+          "成交客户数",
+          "购买客户数",
+          "有多少个客户买过东西",
+          "多少客户买过",
+          "多少客户",
+          "几个客户"
+        ],
+        "summary": "有多少个客户下过单，按客户去重",
+        "sensitive": false,
+        "aggregation": "COUNT_DISTINCT",
+        "allowedModes": [
+          "QUERY"
+        ],
+        "allowedDimensions": [
+          "dim.region",
+          "dim.channel",
+          "dim.order_date",
+          "dim.customer_tier",
+          "dim.product_category"
+        ]
+      },
+      {
+        "id": "metric.avg_order_value",
+        "name": "客单价",
+        "table": "orders",
+        "column": "amount",
+        "aliases": [
+          "平均订单金额",
+          "单均金额",
+          "平均每单",
+          "一单平均",
+          "平均一单"
+        ],
+        "summary": "平均每笔订单的金额",
+        "sensitive": false,
+        "aggregation": "AVG",
+        "allowedModes": [
+          "QUERY",
+          "YOY_MOM"
+        ],
+        "allowedDimensions": [
+          "dim.region",
+          "dim.channel",
+          "dim.order_date",
+          "dim.customer_tier",
+          "dim.product_category"
+        ]
+      },
+      {
+        "id": "metric.refund_amount",
+        "name": "退款金额",
+        "table": "orders",
+        "column": "refund_amount",
+        "aliases": [
+          "退货金额",
+          "退款额",
+          "退了多少"
+        ],
+        "summary": "客户退回的金额合计",
+        "sensitive": false,
+        "aggregation": "SUM",
+        "allowedModes": [
+          "QUERY"
+        ],
+        "allowedDimensions": [
+          "dim.region",
+          "dim.channel",
+          "dim.order_date",
+          "dim.customer_tier",
+          "dim.product_category"
+        ]
+      },
+      {
+        "id": "metric.high_value_customer",
+        "name": "高价值客户",
+        "ruleId": "rule.high_value_customer",
+        "aliases": [
+          "大客户",
+          "VIP客户"
+        ],
+        "summary": "按判定标准认定的重点客户：累计消费满 5 万",
+        "sensitive": false,
+        "allowedModes": [
+          "LOOKUP",
+          "LOOKUP_BATCH"
+        ],
+        "allowedDimensions": []
+      }
+    ],
+    "dimensions": [
+      {
+        "id": "dim.region",
+        "name": "区域",
+        "table": "orders",
+        "column": "region",
+        "aliases": [
+          "大区",
+          "地区"
+        ],
+        "summary": "订单发货所属的大区",
+        "sensitive": false
+      },
+      {
+        "id": "dim.channel",
+        "name": "渠道",
+        "table": "orders",
+        "column": "channel",
+        "aliases": [
+          "通路"
+        ],
+        "summary": "订单来源的销售渠道",
+        "sensitive": false
+      },
+      {
+        "id": "dim.order_date",
+        "name": "下单日期",
+        "table": "orders",
+        "column": "order_date",
+        "aliases": [
+          "订单日期",
+          "什么时候"
+        ],
+        "summary": "订单创建的日期",
+        "sensitive": false
+      },
+      {
+        "id": "dim.customer_tier",
+        "name": "客户等级",
+        "table": "customer",
+        "column": "tier",
+        "aliases": [
+          "会员等级",
+          "级别"
+        ],
+        "summary": "客户的会员级别",
+        "sensitive": false
+      },
+      {
+        "id": "dim.product_category",
+        "name": "品类",
+        "table": "product",
+        "column": "category",
+        "aliases": [
+          "商品类目",
+          "类目"
+        ],
+        "summary": "商品所属的分类",
+        "sensitive": false
+      }
+    ],
+    "semanticVersion": "2026.11.9"
+  },
+  "scenarios": [
+    {
+      "id": "scenario.sales",
+      "name": "销售分析",
+      "summary": "围绕交易域的日常销售分析（首发仅开放自由问数）",
+      "entryMode": "recommend_or_confirm",
+      "defaultVqrIds": [
+        "vqr.sales.daily_gmv_by_channel"
+      ],
+      "owner": "project-team",
+      "version": "1.0.0",
+      "status": "published",
+      "domainId": "domain.trade",
+      "policyRefs": [],
+      "ontologyScope": {
+        "rootConcepts": [
+          "concept.order",
+          "concept.customer",
+          "concept.channel",
+          "concept.event"
+        ],
+        "allowedRelations": [
+          "ontology.Customer.placesOrder",
+          "ontology.Customer.performsEvent",
+          "ontology.Order.recordsEvent",
+          "ontology.Event.attributedToChannel",
+          "ontology.Order.attributedToChannel"
+        ],
+        "maxPathHops": 3,
+        "excludedConcepts": [
+          "concept.product",
+          "concept.order_item"
+        ]
+      },
+      "semanticScope": {
+        "metrics": [
+          "metric.gmv",
+          "metric.order_count",
+          "metric.avg_order_value",
+          "metric.distinct_customers",
+          "metric.refund_amount"
+        ],
+        "dimensions": [
+          "dim.region",
+          "dim.channel",
+          "dim.customer_tier",
+          "dim.order_date"
+        ],
+        "frozenCalibers": {
+          "timezone": {
+            "type": "string",
+            "value": "Asia/Shanghai"
+          },
+          "revenue_metric": {
+            "type": "metric_id",
+            "value": "metric.gmv"
+          },
+          "default_time_field": {
+            "type": "field_id",
+            "value": "dim.order_date"
+          }
+        }
+      },
+      "allowedAnalysisModes": [
+        "query"
+      ],
+      "skills": [],
+      "entryHints": [
+        "成交金额分析",
+        "订单趋势",
+        "渠道对比",
+        "客户分层"
+      ],
+      "coldStartSamples": [
+        "vqr.sales.daily_gmv_by_channel"
+      ],
+      "versionCompatibility": {
+        "ontology": "2026.11.*",
+        "semantic": "2026.11.*"
+      },
+      "invalidation": {
+        "onScopeAssetDeprecation": "block",
+        "onSkillDeprecation": "block"
+      }
+    }
+  ],
+  "copyTemplates": [
+    {
+      "templateId": "template.reason.OUT_OF_MANIFEST",
+      "reasonCode": "OUT_OF_MANIFEST",
+      "locale": "zh-CN",
+      "text": "您问的内容不在当前可查范围内。可以换个说法，或先看看有哪些指标可用。",
+      "allowedPlaceholders": [],
+      "version": "1.0.0"
+    },
+    {
+      "templateId": "template.reason.NO_RULE",
+      "reasonCode": "NO_RULE",
+      "locale": "zh-CN",
+      "text": "这类判断还没有已审核的判定标准，暂时无法回答。",
+      "allowedPlaceholders": [],
+      "version": "1.0.0"
+    },
+    {
+      "templateId": "template.reason.OUT_OF_SCOPE",
+      "reasonCode": "OUT_OF_SCOPE",
+      "locale": "zh-CN",
+      "text": "这个问题超出了问数的能力范围。",
+      "allowedPlaceholders": [],
+      "version": "1.0.0"
+    },
+    {
+      "templateId": "template.reason.CALIBER_AMBIGUOUS",
+      "reasonCode": "CALIBER_AMBIGUOUS",
+      "locale": "zh-CN",
+      "text": "这个指标有多个口径：{variant_aliases}。请选择其中一个。",
+      "allowedPlaceholders": [
+        "variant_aliases"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "templateId": "template.reason.ATTRIBUTE_NOT_AVAILABLE",
+      "reasonCode": "ATTRIBUTE_NOT_AVAILABLE",
+      "locale": "zh-CN",
+      "text": "这条属性的值当前不可查看，或该记录不存在。",
+      "allowedPlaceholders": [],
+      "version": "1.0.0"
+    },
+    {
+      "templateId": "template.reason.TIME_PARSE_FAILED",
+      "reasonCode": "TIME_PARSE_FAILED",
+      "locale": "zh-CN",
+      "text": "没能理解时间表达「{expression}」，可以试试「上个月」「上季度」或「近 7 天」。",
+      "allowedPlaceholders": [
+        "expression"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "templateId": "template.reason.SENSITIVE_BULK_EXPORT_REJECTED",
+      "reasonCode": "SENSITIVE_BULK_EXPORT_REJECTED",
+      "locale": "zh-CN",
+      "text": "这类数据不支持一次导出这么多行，请加上分组条件或缩小查询范围。",
+      "allowedPlaceholders": [],
+      "version": "1.0.0"
+    },
+    {
+      "templateId": "template.reason.LOOKUP_NOT_UNIQUE",
+      "reasonCode": "LOOKUP_NOT_UNIQUE",
+      "locale": "zh-CN",
+      "text": "找到多条匹配记录，无法确定是哪一条，请提供更精确的标识。",
+      "allowedPlaceholders": [],
+      "version": "1.0.0"
+    },
+    {
+      "templateId": "template.reason.GENERIC",
+      "reasonCode": "GENERIC",
+      "locale": "zh-CN",
+      "text": "这次没能完成查询，可以换个说法或缩小范围后再试。",
+      "allowedPlaceholders": [],
+      "version": "1.0.0"
+    },
+    {
+      "templateId": "template.reason.SENSITIVE_QUERY_SEQUENCE",
+      "reasonCode": "SENSITIVE_QUERY_SEQUENCE",
+      "locale": "zh-CN",
+      "text": "这次查询触发了敏感数据访问保护，已生成审批单。审批通过后可重试同一查询。",
+      "allowedPlaceholders": [],
+      "version": "v1"
+    },
+    {
+      "templateId": "template.reason.SENSITIVE_QUERY_REJECTED",
+      "reasonCode": "SENSITIVE_QUERY_REJECTED",
+      "locale": "zh-CN",
+      "text": "相关审批未获通过，本次查询无法执行。可咨询管理员或调整查询范围。",
+      "allowedPlaceholders": [],
+      "version": "v1"
+    },
+    {
+      "templateId": "template.reason.SENSITIVE_QUERY_EXPIRED",
+      "reasonCode": "SENSITIVE_QUERY_EXPIRED",
+      "locale": "zh-CN",
+      "text": "审批等待超时。审批单在有效期内仍可批准，批准后携带审批号重试同一查询。",
+      "allowedPlaceholders": [
+        "approval_id"
+      ],
+      "version": "v1"
+    }
+  ],
+  "timeExpressionPatterns": [
+    {
+      "pattern": "近 N 天",
+      "patternId": "tep.last_n_days",
+      "offsetUnit": "DAY",
+      "granularity": "DAY",
+      "offsetAmount": 1
+    },
+    {
+      "pattern": "上个月",
+      "patternId": "tep.last_month",
+      "offsetUnit": "MONTH",
+      "granularity": "MONTH",
+      "offsetAmount": 1
+    },
+    {
+      "pattern": "这个月",
+      "patternId": "tep.this_month",
+      "offsetUnit": "MONTH",
+      "granularity": "MONTH",
+      "offsetAmount": 0
+    },
+    {
+      "pattern": "今年",
+      "patternId": "tep.this_year",
+      "offsetUnit": "YEAR",
+      "granularity": "YEAR",
+      "offsetAmount": 0
+    },
+    {
+      "pattern": "上季度",
+      "patternId": "tep.last_quarter",
+      "offsetUnit": "QUARTER",
+      "granularity": "QUARTER",
+      "offsetAmount": -1
+    }
+  ],
+  "skills": [
+    {
+      "skillId": "skill.query.basic",
+      "name": "基础聚合查询",
+      "owner": "platform-data",
+      "version": "1.0.0",
+      "status": "published",
+      "analysisMode": "QUERY",
+      "paramsSchemaRef": "schema.query.v1",
+      "implementationRef": "builtin.QUERY.basic@1.0.0",
+      "requiredCapabilities": [
+        "semantic.query"
+      ],
+      "allowedScenarioIds": [],
+      "maxBatchSize": null,
+      "reviewer": "project-team",
+      "reviewedAt": "2026-11-10"
+    },
+    {
+      "skillId": "entity_lookup",
+      "name": "实体属性直查/布尔判定",
+      "owner": "platform-data",
+      "version": "1.0.0",
+      "status": "published",
+      "analysisMode": "LOOKUP",
+      "paramsSchemaRef": "schema.lookup.v1",
+      "implementationRef": "builtin.LOOKUP.entity@1.1.0",
+      "requiredCapabilities": [
+        "semantic.query",
+        "rule.evaluate"
+      ],
+      "allowedScenarioIds": [],
+      "maxBatchSize": null,
+      "reviewer": "project-team",
+      "reviewedAt": "2026-11-10"
+    },
+    {
+      "skillId": "skill.lookup.batch",
+      "name": "实体批量直查",
+      "owner": "platform-data",
+      "version": "1.0.0",
+      "status": "published",
+      "analysisMode": "LOOKUP_BATCH",
+      "paramsSchemaRef": "schema.lookup_batch.v1",
+      "implementationRef": "builtin.LOOKUP_BATCH.batch@1.1.0",
+      "requiredCapabilities": [
+        "semantic.query"
+      ],
+      "allowedScenarioIds": [],
+      "maxBatchSize": 100,
+      "reviewer": "project-team",
+      "reviewedAt": "2026-11-10"
+    },
+    {
+      "skillId": "skill.yoy_mom.period",
+      "name": "同环比",
+      "owner": "platform-data",
+      "version": "1.0.0",
+      "status": "published",
+      "analysisMode": "YOY_MOM",
+      "paramsSchemaRef": "schema.yoy_mom.v1",
+      "implementationRef": "builtin.YOY_MOM.period@1.0.0",
+      "requiredCapabilities": [
+        "semantic.query"
+      ],
+      "allowedScenarioIds": [],
+      "maxBatchSize": null,
+      "reviewer": "project-team",
+      "reviewedAt": "2026-11-10"
+    },
+    {
+      "skillId": "skill.funnel.standard",
+      "name": "标准漏斗",
+      "owner": "platform-data",
+      "version": "1.0.0",
+      "status": "published",
+      "analysisMode": "FUNNEL",
+      "paramsSchemaRef": "schema.funnel.v1",
+      "implementationRef": "builtin.FUNNEL.standard@1.0.0",
+      "requiredCapabilities": [
+        "semantic.query"
+      ],
+      "allowedScenarioIds": [],
+      "maxBatchSize": null,
+      "reviewer": "project-team",
+      "reviewedAt": "2026-11-10"
+    },
+    {
+      "skillId": "skill.retention.period",
+      "name": "周期留存",
+      "owner": "platform-data",
+      "version": "1.0.0",
+      "status": "published",
+      "analysisMode": "RETENTION",
+      "paramsSchemaRef": "schema.retention.v1",
+      "implementationRef": "builtin.RETENTION.period@1.0.0",
+      "requiredCapabilities": [
+        "semantic.query"
+      ],
+      "allowedScenarioIds": [],
+      "maxBatchSize": null,
+      "reviewer": "project-team",
+      "reviewedAt": "2026-11-10"
+    },
+    {
+      "skillId": "skill.attribution.last_touch",
+      "name": "末次触点归因",
+      "owner": "platform-data",
+      "version": "1.0.0",
+      "status": "published",
+      "analysisMode": "ATTRIBUTION",
+      "paramsSchemaRef": "schema.attribution.v1",
+      "implementationRef": "builtin.ATTRIBUTION.last_touch@1.0.0",
+      "requiredCapabilities": [
+        "semantic.query"
+      ],
+      "allowedScenarioIds": [
+        "scenario.sales"
+      ],
+      "maxBatchSize": null,
+      "reviewer": "project-team",
+      "reviewedAt": "2026-11-10"
+    },
+    {
+      "skillId": "skill.query.approx",
+      "name": "聚合查询（漏斗近似）",
+      "owner": "platform-data",
+      "version": "1.0.0",
+      "status": "published",
+      "analysisMode": "QUERY",
+      "paramsSchemaRef": "schema.query.v1",
+      "implementationRef": "builtin.QUERY.approx@1.0.0",
+      "requiredCapabilities": [
+        "semantic.query"
+      ],
+      "allowedScenarioIds": [
+        "scenario.sales"
+      ],
+      "approximationOf": "skill.funnel.standard",
+      "reviewer": "project-team",
+      "reviewedAt": "2026-11-10"
+    }
+  ],
+  "vqrs": [
+    {
+      "vqrId": "vqr.sales.daily_gmv_by_channel",
+      "name": "近 N 天各渠道成交金额",
+      "summary": "销售分析场景高频稳定问题的参数化模板",
+      "owner": "platform-data",
+      "version": "1.0.0",
+      "status": "published",
+      "questionPattern": "近{days}天各渠道成交金额",
+      "dslTemplate": {
+        "mode": "query",
+        "metric_id": "metric.gmv",
+        "dimensions": [
+          "dim.channel"
+        ],
+        "time_expression_raw": "近 ${param.days} 天"
+      },
+      "paramsSchema": {
+        "days": {
+          "type": "integer",
+          "required": true,
+          "minimum": 1,
+          "maximum": 365
+        }
+      },
+      "goldenRef": "golden:m6-golden-v1#golden-gmv-by-channel",
+      "resultCheckRef": "e2e:t24-e2e#direct-gmv-query-compiled",
+      "freshnessLimitHours": 24,
+      "invalidationConditions": [
+        {
+          "assetId": "metric.gmv",
+          "trigger": "deprecated"
+        },
+        {
+          "assetId": "metric.gmv",
+          "trigger": "incompatible_change"
+        },
+        {
+          "assetId": "dim.channel",
+          "trigger": "deprecated"
+        }
+      ],
+      "reviewer": "project-team",
+      "reviewedAt": "2026-11-10"
+    }
+  ]
+}

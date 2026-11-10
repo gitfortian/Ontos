@@ -26,10 +26,28 @@ public final class ScenarioValidator {
     private static final int MAX_PATH_HOPS_LIMIT = 5;
     private static final int MAX_ENTRY_HINTS = 50;
 
-    /** 已发布 Skill / VQR / Golden Query 引用集合；首版 W2 为空，T3.x 起由清单扩展段填充。 */
+    /** 已发布 Skill / VQR / Golden Query 引用集合（T3.4 起从清单扩展段自建）。 */
     public record PublishedRefs(Set<String> skillIds, Set<String> vqrIds, Set<String> goldenQueryIds) {
         public static PublishedRefs empty() {
             return new PublishedRefs(Set.of(), Set.of(), Set.of());
+        }
+
+        /** 从清单 payload 自建（skills/vqrs 段的 published 条目；golden 段不存在保持空）。 */
+        public static PublishedRefs of(ManifestPayload payload) {
+            if (payload == null) {
+                return empty();
+            }
+            Set<String> skillIds = payload.getSkills() == null ? Set.of()
+                    : payload.getSkills().stream()
+                            .filter(skill -> "published".equals(skill.getStatus()))
+                            .map(ManifestPayload.SkillMeta::getSkillId)
+                            .collect(java.util.stream.Collectors.toSet());
+            Set<String> vqrIds = payload.getVqrs() == null ? Set.of()
+                    : payload.getVqrs().stream()
+                            .filter(vqr -> "published".equals(vqr.getStatus()))
+                            .map(ManifestPayload.VqrMeta::getVqrId)
+                            .collect(java.util.stream.Collectors.toSet());
+            return new PublishedRefs(skillIds, vqrIds, Set.of());
         }
     }
 

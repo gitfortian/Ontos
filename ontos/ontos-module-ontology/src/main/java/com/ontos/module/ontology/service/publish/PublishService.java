@@ -37,7 +37,9 @@ public interface PublishService {
     /** 预检/发布结果。 */
     record PublishReportVO(String manifestId, boolean valid, List<String> violations,
                            boolean alreadyExists, String contentHash,
-                           Map<String, Integer> assetCounts) {
+                           Map<String, Integer> assetCounts,
+                           /** T3.4：本次发布被依赖影响分析移除的 VQR（vqrId: 原因），失效不静默。 */
+                           List<String> invalidatedVqrs) {
     }
 
 }

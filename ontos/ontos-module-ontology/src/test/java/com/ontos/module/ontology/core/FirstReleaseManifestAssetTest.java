@@ -149,6 +149,46 @@ class FirstReleaseManifestAssetTest {
     }
 
     @Test
+    void shouldAcceptV16ManifestWithPublishedVqr() throws Exception {
+        // M6/T3.4：VQR 资产进清单（首发 1 条，含入库七条件证据引用与声明式失效条件）
+        ManifestPayload payload = load("first-release-v16.json");
+        List<ManifestStructureValidator.Violation> violations =
+                new ManifestStructureValidator().validate(payload);
+
+        assertTrue(violations.isEmpty(), "v16 清单结构校验失败: " + violations);
+        assertEquals(1, payload.getVqrs().size());
+        var vqr = payload.getVqrs().get(0);
+        assertEquals("vqr.sales.daily_gmv_by_channel", vqr.getVqrId());
+        // 入库七条件的清单侧可判定项全部就位（D4：证据是引用不是内容）
+        assertTrue(vqr.getGoldenRef() != null && vqr.getResultCheckRef() != null);
+        assertEquals(24, vqr.getFreshnessLimitHours());
+        assertTrue(vqr.getInvalidationConditions().size() >= 3);
+        // 场景引用闭环：defaultVqrIds / coldStartSamples 指向已发布 VQR
+        var scenario = payload.getScenarios().get(0);
+        assertEquals(List.of("vqr.sales.daily_gmv_by_channel"), scenario.getDefaultVqrIds());
+        assertEquals(List.of("vqr.sales.daily_gmv_by_channel"), scenario.getColdStartSamples());
+    }
+
+    @Test
+    void shouldRoundTripV16VqrWithoutDroppingLifecycleKeys() throws Exception {
+        String json = Files.readString(Path.of("..", "..", "ontos-assets", "first-release-v16.json"));
+        java.util.Map<?, ?> submitted = JsonUtils.parseObject(json, java.util.Map.class);
+        ManifestPayload typed = JsonUtils.parseObject(json, ManifestPayload.class);
+        java.util.Map<?, ?> roundTrip = JsonUtils.parseObject(
+                JsonUtils.toJsonString(typed), java.util.Map.class);
+
+        java.util.Map<?, ?> submittedVqr = (java.util.Map<?, ?>) ((List<?>) submitted.get("vqrs")).get(0);
+        java.util.Map<?, ?> roundTripVqr = (java.util.Map<?, ?>) ((List<?>) roundTrip.get("vqrs")).get(0);
+        assertTrue(roundTripVqr.keySet().containsAll(submittedVqr.keySet()),
+                "回装不得丢弃 VQR 生命周期字段: " + submittedVqr.keySet());
+        assertTrue(roundTripVqr.containsKey("dslTemplate"));
+        assertTrue(roundTripVqr.containsKey("goldenRef"));
+        assertTrue(roundTripVqr.containsKey("invalidationConditions"));
+        // 模板形状：dslTemplate 是 object 且占位符在 paramsSchema
+        assertTrue(roundTripVqr.get("dslTemplate") instanceof java.util.Map<?, ?>);
+    }
+
+    @Test
     void shouldAcceptV14ManifestWithSevenPublishedSkills() throws Exception {
         // M6/T3.1：Skill 资产进清单（首发 7 条内置，覆盖全部非 discovery 模式）
         ManifestPayload payload = load("first-release-v14.json");

@@ -38,6 +38,8 @@ public class PublishedManifest {
     private List<ManifestPayload.ScenarioMeta> scenarios = List.of();
     /** Skill 资产（M6/T3.2）：运行时注册表按清单段解析 implementation_ref。 */
     private List<ManifestPayload.SkillMeta> skills = List.of();
+    /** VQR 资产（M6/T3.4）：参数化模板，候选匹配（T3.5）与命中重校验消费。 */
+    private List<ManifestPayload.VqrMeta> vqrs = List.of();
     private LocalDateTime createdAt;
 
     public boolean hashMatches() {

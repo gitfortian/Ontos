@@ -9,6 +9,7 @@ import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.SemanticManifest;
 import com.ontos.module.ontology.dal.mysql.PublishedSnapshotRepository;
+import com.ontos.module.ontology.service.manifest.ManifestService;
 import com.ontos.module.ontology.service.publish.PublishService.PublishRequest;
 import com.ontos.module.ontology.service.publish.PublishService.PublishReportVO;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,8 @@ class PublishServiceImplTest {
 
     private final PublishedSnapshotRepository repository = mock(PublishedSnapshotRepository.class);
     private final PublishGuard guard = mock(PublishGuard.class);
-    private final PublishServiceImpl service = new PublishServiceImpl(repository, guard);
+    private final ManifestService manifestService = org.mockito.Mockito.mock(ManifestService.class);
+    private final PublishServiceImpl service = new PublishServiceImpl(repository, guard, manifestService);
 
     /** 最小合法载荷（业务字段齐全）。 */
     private ManifestPayload validPayload() {
