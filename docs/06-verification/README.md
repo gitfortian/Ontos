@@ -25,6 +25,7 @@
 - [M6 · W3/T3.3 近似降级机制 深度审核 v1](checklists/M6-W3-T3.3-深度审核-v1.md)（已冻结：QuerySkill 首发样例 + approximationCarriersFor + 同意走 M5 回传通道（D3）+ MODE_APPROXIMATED 审计；**端到端驱动出 T32-8（P1）场景确认断链**并修复——消费点前缀分流；真服务 3/3，全量 59/562）
 - [M6 · W3/T3.4 VQR 资产与自动失效 深度审核 v1](checklists/M6-W3-T3.4-深度审核-v1.md)（已冻结：VqrMeta 全字段 + VqrValidator 七条件清单侧判定 + catalog 生命周期（D4 证据外置——不连库）+ VqrInvalidationAnalyzer 六族失效接入发布流水线（F-7 移除 + 报告不静默）；2 项 P2 当场修复；清单 v16 首发样例与场景引用闭环）
 - [M6 · W3/T3.5 VQR 命中通道 深度审核 v1](checklists/M6-W3-T3.5-深度审核-v1.md)（已冻结：瀑布第 7 步确定性匹配（场景切片限缩）+ 提案 vqr_id 完整性对账 + execute 全链八步重校验 + VQR_HIT 审计 + cache-key-1.2；**v16 激活（sixteenth）**，Golden 零回退；3 项 P2 处置——模板命中优先于资产级歧义（T35-2）、time_dimension 模板键（T35-3）、v17 路线否决记录（T35-1））
+- [M6 · W4 收口深度审核 v1](checklists/M6-W4-收口深度审核-v1.md)（已冻结：T4.1–T4.5 全覆盖——《结果引用规格 v1》兑现、依赖拓扑 044、注入参数化绑定、部分失败双路径统一、R-27/R-29 不扩边界；**PoC #8 M6 复跑 30 题全部符合预期**（pass 20 + 决策 7 拒绝 6 + 部分失败 4 + 粒度拒绝 3）；2 项 P1 端到端驱动修复——失败子响应 NPE（T45-1）、无依赖整单拒绝与规格冲突（T45-2））
 - [M6 · ADR-0004 三触发条件核对 v2](checklists/M6-ADR0004三触发条件核对-v2.md)（已冻结：③ scope 裁剪取证通过 → **三条全满足，Router 接入瀑布放行**；激活语义与 T5.2 补充探针在档；v1 已归档）
 - [M6 · ADR-0004 三触发条件核对 v1](../99-archive/verification/M6-ADR0004三触发条件核对-v1.md)（已冻结：①编译器覆盖+fail-closed 满足、②路径规划满足、③scope 裁剪归 T2.4 **未满足** → **Scenario Entry Router 不接入瀑布，v13 只发布元数据**；T2.4 后升 v2 复核）
 - [M5 收口后深度审核 v1](checklists/M5-收口后深度审核-v1.md)（已归档：全局复核 4 项发现全部当场修复复验——OBL-M7 evidence 补提及样本回填凭据、索引错位与过时状态修正、**HITL 放行重放 requestId 分裂统一（-replay 同源实证）**、事件表保留策略登记 M6；M5 判定不变：通过）

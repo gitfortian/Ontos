@@ -32,6 +32,12 @@ public class QueryCompositeRespVO {
         @Schema(description = "子意图 ID")
         private String subIntentId;
 
+        @Schema(description = "该子失败的业务码（部分失败可解释；成功为 null，失败时其余结果字段为空）")
+        private Integer errorCode;
+
+        @Schema(description = "该子失败原因（文案模板渲染前的结构化原因）")
+        private String errorMessage;
+
         @Schema(description = "清单 ID")
         private String manifestId;
 

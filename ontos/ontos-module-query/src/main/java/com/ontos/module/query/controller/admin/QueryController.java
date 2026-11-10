@@ -168,8 +168,14 @@ public class QueryController {
         vo.setTotalRowCount(outcome.totalRowCount());
         vo.setResults(outcome.results().stream().map(sub -> {
             QueryCompositeRespVO.SubResultVO subVO = new QueryCompositeRespVO.SubResultVO();
-            QueryResult result = sub.result();
             subVO.setSubIntentId(sub.subIntentId());
+            // T4.3 部分失败可解释：失败子带原因码、其余结果字段为空（不产出部分结果）
+            if (sub.result() == null) {
+                subVO.setErrorCode(sub.errorCode());
+                subVO.setErrorMessage(sub.errorMessage());
+                return subVO;
+            }
+            QueryResult result = sub.result();
             subVO.setManifestId(result.getManifestId());
             subVO.setContentHash(result.getContentHash());
             subVO.setColumns(result.getColumns());

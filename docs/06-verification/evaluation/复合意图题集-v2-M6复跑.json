@@ -1,0 +1,1243 @@
+{
+  "set": "poc08-composite-v2",
+  "depth": "M6/W4/T4.5（依赖注入 + 部分失败可解释 + 决策 7 拒绝复验）",
+  "manifestId": "2026.11.10-sixteenth",
+  "generatedAt": "2026-11-10T13:31:11.374Z",
+  "total": 30,
+  "counters": {
+    "pass": 20,
+    "pass_rejected_by_design": 6,
+    "pass_partial_failure": 4
+  },
+  "results": [
+    {
+      "id": "c01",
+      "category": "result_dependent",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 2,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 2
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": null
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [],
+          "dependsOn": [
+            "s1"
+          ],
+          "filters": [
+            {
+              "fieldId": "region",
+              "operator": "EQ",
+              "values": []
+            }
+          ],
+          "resultRef": {
+            "fromSubIntentId": "s1",
+            "selector": {
+              "type": "ordered_top",
+              "row": 1,
+              "column": "region"
+            },
+            "inject": {
+              "type": "filter_value",
+              "filterIndex": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "c02",
+      "category": "result_dependent",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 1,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": null
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.channel"
+          ],
+          "dependsOn": [
+            "s1"
+          ],
+          "filters": [
+            {
+              "fieldId": "dim.channel",
+              "operator": "EQ",
+              "values": []
+            }
+          ],
+          "resultRef": {
+            "fromSubIntentId": "s1",
+            "selector": {
+              "type": "ordered_top",
+              "row": 1,
+              "column": "dim.channel"
+            },
+            "inject": {
+              "type": "filter_value",
+              "filterIndex": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "c03",
+      "category": "result_dependent",
+      "subCount": 3,
+      "status": "pass",
+      "reason": "逐子返回 3 份结果，顺序与请求一致",
+      "totalRowCount": 16,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 8
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 8
+        },
+        {
+          "subIntentId": "s3",
+          "rowCount": null
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.order_date"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.order_date"
+          ]
+        },
+        {
+          "subIntentId": "s3",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [],
+          "dependsOn": [
+            "s1",
+            "s2"
+          ],
+          "filters": [
+            {
+              "fieldId": "region",
+              "operator": "EQ",
+              "values": []
+            }
+          ],
+          "resultRef": {
+            "fromSubIntentId": "s1",
+            "selector": {
+              "type": "ordered_top",
+              "row": 1,
+              "column": "region"
+            },
+            "inject": {
+              "type": "filter_value",
+              "filterIndex": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "c04",
+      "category": "result_dependent",
+      "subCount": 3,
+      "status": "pass",
+      "reason": "逐子返回 3 份结果，顺序与请求一致",
+      "totalRowCount": 5,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 2
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 2
+        },
+        {
+          "subIntentId": "s3",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ]
+        },
+        {
+          "subIntentId": "s3",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ],
+          "dependsOn": [
+            "s1",
+            "s2"
+          ],
+          "filters": [
+            {
+              "fieldId": "dim.region",
+              "operator": "EQ",
+              "values": []
+            }
+          ],
+          "resultRef": {
+            "fromSubIntentId": "s1",
+            "selector": {
+              "type": "ordered_top",
+              "row": 1,
+              "column": "dim.region"
+            },
+            "inject": {
+              "type": "filter_value",
+              "filterIndex": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "c05",
+      "category": "result_dependent",
+      "subCount": 2,
+      "status": "pass_rejected_by_design",
+      "reason": "非 QUERY 子意图被拒（决策 7 维持）：1002000000: 查询 DSL 校验失败: DSL 字段类型不合法: Cannot deserialize value of type `com.ontos.module.que",
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.high_value_customer",
+          "mode": "BOOLEAN_RULE",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [],
+          "dependsOn": [
+            "s1"
+          ],
+          "filters": [
+            {
+              "fieldId": "region",
+              "operator": "EQ",
+              "values": []
+            }
+          ],
+          "resultRef": {
+            "fromSubIntentId": "s1",
+            "selector": {
+              "type": "ordered_top",
+              "row": 1,
+              "column": "region"
+            },
+            "inject": {
+              "type": "filter_value",
+              "filterIndex": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "c06",
+      "category": "result_dependent",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 3,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 2
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.channel"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.channel"
+          ],
+          "dependsOn": [
+            "s1"
+          ],
+          "filters": [
+            {
+              "fieldId": "dim.channel",
+              "operator": "EQ",
+              "values": []
+            }
+          ],
+          "resultRef": {
+            "fromSubIntentId": "s1",
+            "selector": {
+              "type": "ordered_top",
+              "row": 1,
+              "column": "dim.channel"
+            },
+            "inject": {
+              "type": "filter_value",
+              "filterIndex": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "c07",
+      "category": "result_dependent",
+      "subCount": 3,
+      "status": "pass",
+      "reason": "逐子返回 3 份结果，顺序与请求一致",
+      "totalRowCount": 2,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s3",
+          "rowCount": null
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s3",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [],
+          "dependsOn": [
+            "s1",
+            "s2"
+          ],
+          "filters": [
+            {
+              "fieldId": "region",
+              "operator": "EQ",
+              "values": []
+            }
+          ],
+          "resultRef": {
+            "fromSubIntentId": "s1",
+            "selector": {
+              "type": "ordered_top",
+              "row": 1,
+              "column": "region"
+            },
+            "inject": {
+              "type": "filter_value",
+              "filterIndex": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "c08",
+      "category": "result_dependent",
+      "subCount": 2,
+      "status": "pass_rejected_by_design",
+      "reason": "非 QUERY 子意图被拒（决策 7 维持）：1001000003: 语义资产不存在: concept.product",
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "concept.product",
+          "mode": "LOOKUP",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.product_category"
+          ],
+          "dependsOn": [
+            "s1"
+          ],
+          "filters": [
+            {
+              "fieldId": "dim.product_category",
+              "operator": "EQ",
+              "values": []
+            }
+          ],
+          "resultRef": {
+            "fromSubIntentId": "s1",
+            "selector": {
+              "type": "ordered_top",
+              "row": 1,
+              "column": "dim.product_category"
+            },
+            "inject": {
+              "type": "filter_value",
+              "filterIndex": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "c09",
+      "category": "parallel_independent",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 4,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 2
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 2
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.channel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c10",
+      "category": "parallel_independent",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 2,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.distinct_customers",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c11",
+      "category": "parallel_independent",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 2,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": null
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 2
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.product_category"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.refund_amount",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.channel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c12",
+      "category": "parallel_independent",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 2,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c13",
+      "category": "parallel_independent",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 4,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 2
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 2
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.avg_order_value",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c14",
+      "category": "parallel_independent",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 4,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 3
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.distinct_customers",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.customer_tier"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c15",
+      "category": "failure_single",
+      "subCount": 2,
+      "status": "pass_partial_failure",
+      "reason": "失败子 s2#1001000003（含预期粒度拒绝）；健康子 1 个照常返回",
+      "perSub": [
+        {
+          "subIntentId": "s1",
+          "errorCode": null,
+          "rowCount": null
+        },
+        {
+          "subIntentId": "s2",
+          "errorCode": 1001000003,
+          "rowCount": null
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.nonexistent_injection"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c16",
+      "category": "failure_single",
+      "subCount": 2,
+      "status": "pass_rejected_by_design",
+      "reason": "非 QUERY 子意图在 DSL 层被拒（决策 7 同型）：1002000000",
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.high_value_customer",
+          "mode": "BOOLEAN_RULE",
+          "dimensions": [
+            "dim.nonexistent_injection"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c17",
+      "category": "failure_single",
+      "subCount": 2,
+      "status": "pass_partial_failure",
+      "reason": "失败子 s2#1001000003（含预期粒度拒绝）；健康子 1 个照常返回",
+      "perSub": [
+        {
+          "subIntentId": "s1",
+          "errorCode": null,
+          "rowCount": null
+        },
+        {
+          "subIntentId": "s2",
+          "errorCode": 1001000003,
+          "rowCount": null
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.nonexistent_injection"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c18",
+      "category": "failure_single",
+      "subCount": 2,
+      "status": "pass_partial_failure",
+      "reason": "失败子 s1#1002000014,s2#1001000003（含预期粒度拒绝）；健康子 0 个照常返回",
+      "perSub": [
+        {
+          "subIntentId": "s1",
+          "errorCode": 1002000014,
+          "rowCount": null
+        },
+        {
+          "subIntentId": "s2",
+          "errorCode": 1001000003,
+          "rowCount": null
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.product_category"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.avg_order_value",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.nonexistent_injection"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c19",
+      "category": "failure_single",
+      "subCount": 2,
+      "status": "pass_partial_failure",
+      "reason": "失败子 s2#1001000003（含预期粒度拒绝）；健康子 1 个照常返回",
+      "perSub": [
+        {
+          "subIntentId": "s1",
+          "errorCode": null,
+          "rowCount": null
+        },
+        {
+          "subIntentId": "s2",
+          "errorCode": 1001000003,
+          "rowCount": null
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.distinct_customers",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.nonexistent_injection"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c20",
+      "category": "cross_scope",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 2,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.distinct_customers",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c21",
+      "category": "cross_scope",
+      "subCount": 2,
+      "status": "pass_rejected_by_design",
+      "reason": "非 QUERY 子意图被拒（决策 7 维持）：1002000000: 查询 DSL 校验失败: DSL 字段类型不合法: Cannot deserialize value of type `com.ontos.module.que",
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.high_value_customer",
+          "mode": "BOOLEAN_RULE",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c22",
+      "category": "cross_scope",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 5,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 2
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 3
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.channel"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.distinct_customers",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.customer_tier"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c23",
+      "category": "cross_scope",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 1,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": null
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.product_category"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c24",
+      "category": "cross_scope",
+      "subCount": 2,
+      "status": "pass_rejected_by_design",
+      "reason": "非 QUERY 子意图被拒（决策 7 维持）：1001000003: 语义资产不存在: property.customer.email",
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "property.customer.email",
+          "mode": "LOOKUP",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c25",
+      "category": "composite_time",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 2,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c26",
+      "category": "composite_time",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 4,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 2
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 2
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.region"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c27",
+      "category": "composite_time",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 2,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c28",
+      "category": "composite_time",
+      "subCount": 3,
+      "status": "pass",
+      "reason": "逐子返回 3 份结果，顺序与请求一致",
+      "totalRowCount": 3,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 1
+        },
+        {
+          "subIntentId": "s3",
+          "rowCount": 1
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s3",
+          "metricId": "metric.avg_order_value",
+          "mode": "QUERY",
+          "dimensions": []
+        }
+      ]
+    },
+    {
+      "id": "c29",
+      "category": "composite_time",
+      "subCount": 2,
+      "status": "pass",
+      "reason": "逐子返回 2 份结果，顺序与请求一致",
+      "totalRowCount": 4,
+      "perSubRowCount": [
+        {
+          "subIntentId": "s1",
+          "rowCount": 2
+        },
+        {
+          "subIntentId": "s2",
+          "rowCount": 2
+        }
+      ],
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.channel"
+          ]
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [
+            "dim.channel"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c30",
+      "category": "composite_time",
+      "subCount": 3,
+      "status": "pass_rejected_by_design",
+      "reason": "非 QUERY 子意图被拒（决策 7 维持）：1002000000: 查询 DSL 校验失败: DSL 字段类型不合法: Cannot deserialize value of type `com.ontos.module.que",
+      "subs": [
+        {
+          "subIntentId": "s1",
+          "metricId": "metric.high_value_customer",
+          "mode": "BOOLEAN_RULE",
+          "dimensions": []
+        },
+        {
+          "subIntentId": "s2",
+          "metricId": "metric.order_count",
+          "mode": "QUERY",
+          "dimensions": [],
+          "dependsOn": [
+            "s1"
+          ],
+          "filters": [
+            {
+              "fieldId": "region",
+              "operator": "EQ",
+              "values": []
+            }
+          ],
+          "resultRef": {
+            "fromSubIntentId": "s1",
+            "selector": {
+              "type": "ordered_top",
+              "row": 1,
+              "column": "region"
+            },
+            "inject": {
+              "type": "filter_value",
+              "filterIndex": 0
+            }
+          }
+        },
+        {
+          "subIntentId": "s3",
+          "metricId": "metric.gmv",
+          "mode": "QUERY",
+          "dimensions": [],
+          "dependsOn": [
+            "s1"
+          ],
+          "filters": [
+            {
+              "fieldId": "region",
+              "operator": "EQ",
+              "values": []
+            }
+          ],
+          "resultRef": {
+            "fromSubIntentId": "s1",
+            "selector": {
+              "type": "ordered_top",
+              "row": 1,
+              "column": "region"
+            },
+            "inject": {
+              "type": "filter_value",
+              "filterIndex": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

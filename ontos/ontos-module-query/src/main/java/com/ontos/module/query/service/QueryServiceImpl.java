@@ -713,48 +713,44 @@ public class QueryServiceImpl implements QueryService {
         }
     }
 
-    /** 无依赖复合请求（M2 原路径，行为零变化）：阶段一全编译 + 阶段二统一执行。 */
+    /**
+     * 无依赖复合请求（T4.3：部分失败可解释——单子失败不阻断其它子返回）。
+     * 逐子「prepare → 编译 → 执行 → 记账」单循环；任一 ServiceException 该子结构化失败
+     * （errorCode/message + result=null），失败子不产出部分结果、审计照落，其余子照常。
+     * （M2 的「阶段一全编译 + 整单拒绝」原子性由规格 §3.5 部分失败语义取代——M6 行为。）
+     */
     private CompositeOutcome executeCompositeIndependent(QueryDsl queryDsl,
                                                           PublishedManifest manifest,
                                                           RequestContext context,
                                                           String parentRequestId) {
-        List<PreparedSub> prepared = new ArrayList<>();
+        List<CompositeOutcome.SubResult> results = new ArrayList<>();
+        int totalRowCount = 0;
         for (QueryDsl.SubIntent sub : queryDsl.getSubIntents()) {
             QueryDsl child = toChildDsl(queryDsl, sub);
-            Map<String, java.util.Set<String>> subSensitivity = new LinkedHashMap<>();
             try {
+                Map<String, java.util.Set<String>> subSensitivity = new LinkedHashMap<>();
                 prepareWith(child, context, manifest, subSensitivity);
                 CompiledQuery compiled = sqlCompiler.compile(child, manifest);
                 persistArtifact(context, childRequestId(parentRequestId, sub.getSubIntentId()),
                         compiled, null);
-                prepared.add(new PreparedSub(sub, child, compiled, subSensitivity));
-            } catch (ServiceException ex) {
-                auditSubIntent(context, parentRequestId, sub, child, null, null, ex.getCode());
-                throw ex;
-            }
-        }
-        List<CompositeOutcome.SubResult> results = new ArrayList<>();
-        int totalRowCount = 0;
-        for (PreparedSub item : prepared) {
-            try {
-                QueryResult result = queryExecutor.execute(item.compiled(), context);
-                assembleLookupRows(item.child(), manifest, item.compiled(), result);
+                QueryResult result = queryExecutor.execute(compiled, context);
+                assembleLookupRows(child, manifest, compiled, result);
                 SensitiveEventService.SensitiveDecision decision = recordSensitiveEvents(
-                        context, item.child(), item.sensitivity(), manifest, result.getRowCount());
+                        context, child, subSensitivity, manifest, result.getRowCount());
                 if (decision.triggered()) {
-                    auditSubIntent(context, parentRequestId, item.sub(), item.child(),
-                            item.compiled(), result.getRowCount(),
+                    auditSubIntent(context, parentRequestId, sub, child,
+                            compiled, result.getRowCount(),
                             SENSITIVE_QUERY_SEQUENCE.getCode());
                     throw exception(SENSITIVE_QUERY_SEQUENCE, decision.approvalId());
                 }
                 totalRowCount += result.getRowCount();
-                results.add(new CompositeOutcome.SubResult(item.sub().getSubIntentId(), result));
-                auditSubIntent(context, parentRequestId, item.sub(), item.child(),
-                        item.compiled(), result.getRowCount(), null);
+                results.add(new CompositeOutcome.SubResult(sub.getSubIntentId(), result));
+                auditSubIntent(context, parentRequestId, sub, child,
+                        compiled, result.getRowCount(), null);
             } catch (ServiceException ex) {
-                auditSubIntent(context, parentRequestId, item.sub(), item.child(),
-                        item.compiled(), null, ex.getCode());
-                throw ex;
+                auditSubIntent(context, parentRequestId, sub, child, null, null, ex.getCode());
+                results.add(new CompositeOutcome.SubResult(sub.getSubIntentId(), null,
+                        ex.getCode(), truncate(ex.getMessage())));
             }
         }
         requestStateService.transition(context, parentRequestId, RequestStatus.EXECUTED,

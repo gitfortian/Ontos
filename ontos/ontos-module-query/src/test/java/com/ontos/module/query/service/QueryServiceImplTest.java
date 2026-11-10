@@ -707,26 +707,35 @@ class QueryServiceImplTest {
     }
 
     @Test
-    void shouldRejectWholeCompositeWhenOneSubFails() {
+    void shouldFailSingleSubWithoutBlockingOthers() {
+        // T4.3（M6 规格 §3.5 取代 M2 整单拒绝）：s1 被拒（授权失败）→ s1 结构化失败（带码、
+        // 无结果），s2 照常编译执行返回——部分失败可解释，失败子不产出部分结果
         when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
         when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
         when(queryExecutor.execute(any(), any())).thenReturn(rows(1));
-        doThrow(exception(ARTIFACT_NOT_FOUND, "denied")).when(policyService)
-                .check(any(), any(), any());
+        // 仅 s1 的授权检查失败（首次调用抛，其后放行）——隔离单子失败
+        when(policyService.check(any(), any(), any()))
+                .thenThrow(exception(ARTIFACT_NOT_FOUND, "denied"))
+                .thenReturn(null);
 
-        ServiceException ex = assertThrows(ServiceException.class,
-                () -> service(new TimeWindowResolver()).executeComposite(compositeDsl(2)));
+        CompositeOutcome outcome = service(new TimeWindowResolver()).executeComposite(compositeDsl(2));
 
-        assertEquals(ARTIFACT_NOT_FOUND.getCode(), ex.getCode());
-        verify(requestStateService).transition(any(), eq("trace-1"), eq(RequestStatus.REJECTED), any());
-        // 两阶段：校验阶段就失败，不能有任何子意图真的查过库
-        verify(queryExecutor, never()).execute(any(), any());
-        // 失败也要把定位钉在具体子意图上
+        assertEquals(2, outcome.results().size(), "逐子状态：两子都有结果");
+        var failed = outcome.results().get(0);
+        assertEquals("s1", failed.subIntentId());
+        assertEquals(ARTIFACT_NOT_FOUND.getCode(), failed.errorCode(), "失败子带业务码");
+        assertEquals(null, failed.result(), "失败子不产出部分结果");
+        var healthy = outcome.results().get(1);
+        assertEquals("s2", healthy.subIntentId());
+        assertEquals(1, healthy.result().getRowCount(), "其余子照常返回");
+        verify(requestStateService).transition(any(), eq("trace-1"), eq(RequestStatus.EXECUTED), any());
+        // 失败子审计钉在具体子意图上
         ArgumentCaptor<AuditLogCreateReqDTO> captor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);
-        verify(auditService).record(captor.capture());
-        assertEquals("SUB_INTENT_REJECTED", captor.getValue().getAction());
-        assertEquals("s1", captor.getValue().getSubIntentId());
-        assertEquals(String.valueOf(ARTIFACT_NOT_FOUND.getCode()), captor.getValue().getReasonCode());
+        verify(auditService, org.mockito.Mockito.atLeastOnce()).record(captor.capture());
+        var rejected = captor.getAllValues().stream()
+                .filter(dto -> "SUB_INTENT_REJECTED".equals(dto.getAction())).findFirst().orElseThrow();
+        assertEquals("s1", rejected.getSubIntentId());
+        assertEquals(String.valueOf(ARTIFACT_NOT_FOUND.getCode()), rejected.getReasonCode());
     }
 
     @Test
