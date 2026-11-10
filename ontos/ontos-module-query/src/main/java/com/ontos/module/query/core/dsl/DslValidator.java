@@ -179,7 +179,8 @@ public class DslValidator {
         }
         // fail-closed（PoC-04 缺陷修复）：只有已落地确定性构造的模式才放行。
         // QUERY / YOY_MOM / ATTRIBUTION 在本类或专用分支编译；LOOKUP / LOOKUP_BATCH / FUNNEL / RETENTION 在入口分流；
-        // DISCOVERY 一律拒绝。
+        // DISCOVERY 一律拒绝——它不进 DSL，由 M5 discovery 终态承载
+        // （见 docs/04-specs/analysis-mode-discovery-边界声明-v1.md）。
         if (mode != QueryDsl.AnalysisMode.QUERY && mode != QueryDsl.AnalysisMode.YOY_MOM
                 && mode != QueryDsl.AnalysisMode.ATTRIBUTION) {
             throw exception(ANALYSIS_MODE_NOT_IMPLEMENTED, mode.name());

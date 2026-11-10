@@ -198,6 +198,7 @@ node docs/00-governance/check-docs.mjs
 | ontology · 业务化命名 规格 | 规格 | 已冻结 | v1 | [`04-specs/ontology-业务化命名-规格-v1.md`](04-specs/ontology-业务化命名-规格-v1.md) |
 | analysis-mode · funnel 与 yoy_mom 规格 | 规格 | 已冻结 | v1 | [`04-specs/analysis-mode-funnel-yoy-mom-规格-v1.md`](04-specs/analysis-mode-funnel-yoy-mom-规格-v1.md) |
 | analysis-mode · retention 与 attribution 规格（含 funnel filters 修订） | 规格 | 已冻结 | v1.1 | [`04-specs/analysis-mode-retention-attribution-规格-v1.1.md`](04-specs/analysis-mode-retention-attribution-规格-v1.1.md) |
+| analysis-mode · discovery 边界声明 | 规格 | 已冻结 | v1 | [`04-specs/analysis-mode-discovery-边界声明-v1.md`](04-specs/analysis-mode-discovery-边界声明-v1.md) |
 | M0 验收报告 | 验证 | 已冻结 | v2 | [`06-verification/checklists/M0-验收报告-v2.md`](06-verification/checklists/M0-验收报告-v2.md) |
 | M1 验收报告 | 验证 | 已冻结 | v2 | [`06-verification/checklists/M1-验收报告-v2.md`](06-verification/checklists/M1-验收报告-v2.md) |
 | M0 基线自检归档输出 | 验证 | 已归档 | — | [`06-verification/checklists/M0-基线自检-2026-11-07.txt`](06-verification/checklists/M0-基线自检-2026-11-07.txt) |
@@ -213,6 +214,8 @@ node docs/00-governance/check-docs.mjs
 | M6 · W1/T1.4 深度审核 | 验证 | 已冻结 | v1 | [`06-verification/checklists/M6-W1-T1.4-深度审核-v1.md`](06-verification/checklists/M6-W1-T1.4-深度审核-v1.md) |
 | M6 · W1/T1.4 再次深度审核 | 验证 | 已冻结 | v1 | [`06-verification/checklists/M6-W1-T1.4-再次深度审核-v1.md`](06-verification/checklists/M6-W1-T1.4-再次深度审核-v1.md) |
 | M6 · W1/T1.5 深度审核 | 验证 | 已冻结 | v1 | [`06-verification/checklists/M6-W1-T1.5-深度审核-v1.md`](06-verification/checklists/M6-W1-T1.5-深度审核-v1.md) |
+| M6 · W1/T1.5 再次深度审核 | 验证 | 已冻结 | v1 | [`06-verification/checklists/M6-W1-T1.5-再次深度审核-v1.md`](06-verification/checklists/M6-W1-T1.5-再次深度审核-v1.md) |
+| M6 · W1 收口深度审核 | 验证 | 已冻结 | v1 | [`06-verification/checklists/M6-W1-收口深度审核-v1.md`](06-verification/checklists/M6-W1-收口深度审核-v1.md) |
 | M6 实施规格 | 计划 | **已冻结（编码放行）**（v1.0：两轮自审 + 一轮深度 review 共 21 项发现闭环，八项决策定档；实施中） | v1.0 | [`03-plans/stages/M6/M6-分析模式ScenarioSkill与复合意图-实施规格-v1.0.md`](03-plans/stages/M6/M6-分析模式ScenarioSkill与复合意图-实施规格-v1.0.md)（[v0.1](99-archive/plans/M6-分析模式ScenarioSkill与复合意图-实施规格-v0.1.md) / [v0.2](99-archive/plans/M6-分析模式ScenarioSkill与复合意图-实施规格-v0.2.md) 已归档） |
 | M3 Golden 增量 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/M3-Golden-v1.json`](06-verification/evaluation/M3-Golden-v1.json) |
 | M6 Golden 增量（留存 + 归因 + 漏斗过滤段） | 验证 | 已冻结 | v1 | [`06-verification/evaluation/M6-Golden-v1.json`](06-verification/evaluation/M6-Golden-v1.json) |

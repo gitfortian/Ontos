@@ -102,7 +102,8 @@ public class SqlCompiler {
             return compileAttribution(queryDsl, manifest);
         }
         // 纵深防御（PoC-04 缺陷修复）：即使调用方绕过校验器，编译器也绝不把
-        // 未实现的模式静默编译成聚合 SQL——只拒绝，不实现（funnel / yoy_mom 归 T3.3）。
+        // 未实现的模式静默编译成聚合 SQL——只拒绝，不实现（funnel / yoy_mom / retention / attribution 均已在上面分流；
+        // DISCOVERY 不进 DSL，见 docs/04-specs/analysis-mode-discovery-边界声明-v1.md）。
         if (mode != QueryDsl.AnalysisMode.QUERY) {
             throw exception(ANALYSIS_MODE_NOT_IMPLEMENTED, mode.name());
         }
