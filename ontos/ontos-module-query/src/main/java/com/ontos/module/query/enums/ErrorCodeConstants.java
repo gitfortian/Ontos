@@ -56,5 +56,12 @@ public interface ErrorCodeConstants {
             "Skill 不允许在当前场景调用: {} 仅限 {}");
     ErrorCode SKILL_BATCH_LIMIT_EXCEEDED = new ErrorCode(1_002_000_043,
             "批量参数超出 Skill 上界: {} > {}");
+    // M6/W4/T4.1（规格 composite-resultRef v1 §5）：复合依赖三码，只追加
+    ErrorCode DEPENDENCY_CYCLE = new ErrorCode(1_002_000_044,
+            "复合意图依赖图非法: {}");
+    ErrorCode DEPENDENCY_VALUE_MISSING = new ErrorCode(1_002_000_045,
+            "依赖取值缺失（G-6）: {}");
+    ErrorCode DEPENDENCY_VALUE_AMBIGUOUS = new ErrorCode(1_002_000_046,
+            "依赖取值歧义（single_row 父结果多行）: {}");
 
 }

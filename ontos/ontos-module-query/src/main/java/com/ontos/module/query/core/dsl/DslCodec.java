@@ -46,7 +46,11 @@ public class DslCodec {
     private static final Set<String> COHORT_WINDOW = Set.of("timeExpressionRaw");
     private static final Set<String> SUB_INTENT = Set.of(
             "subIntentId", "metricId", "mode", "dimensions", "filters",
-            "timeExpressionRaw", "timeRange", "dependsOn");
+            "timeExpressionRaw", "timeRange", "dependsOn", "resultRef");
+    /** M6/W4/T4.2 结果引用（规格 composite-resultRef v1）。 */
+    private static final Set<String> RESULT_REF = Set.of("fromSubIntentId", "selector", "inject");
+    private static final Set<String> SELECTOR = Set.of("type", "row", "column");
+    private static final Set<String> INJECT = Set.of("type", "filterIndex");
 
     /** 把请求体严格解码为类型化 DSL；任何未知字段/结构错误都在进入编译链路前拒绝。 */
     public QueryDsl decode(JsonNode body) {
@@ -80,6 +84,17 @@ public class DslCodec {
                 }
                 if (sub.containsKey("timeRange")) {
                     checkObject(sub.get("timeRange"), TIME_RANGE, "subIntents[].timeRange");
+                }
+                if (sub.containsKey("resultRef")) {
+                    // M6/W4/T4.2（规格 composite-resultRef v1）：结构化引用逐层键校验——
+                    // 拼写错误的槽位会被 Jackson 静默丢弃，这里显式拒绝
+                    Map<String, Object> resultRef = asMap(sub.get("resultRef"),
+                            "subIntents[].resultRef");
+                    checkKeys(resultRef, RESULT_REF, "subIntents[].resultRef");
+                    checkObject(resultRef.get("selector"), SELECTOR,
+                            "subIntents[].resultRef.selector");
+                    checkObject(resultRef.get("inject"), INJECT,
+                            "subIntents[].resultRef.inject");
                 }
             }
         }

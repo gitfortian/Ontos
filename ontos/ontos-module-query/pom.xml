@@ -15,6 +15,11 @@
   <description>类型化 DSL、确定性编译器、只读执行器与查询编排</description>
 
   <dependencies>
+      <!-- M6/W4/T4.1：dependsOn 拓扑定序（技术选型 §4.6） -->
+      <dependency>
+          <groupId>org.jgrapht</groupId>
+          <artifactId>jgrapht-core</artifactId>
+      </dependency>
     <dependency>
       <groupId>com.ontos</groupId>
       <artifactId>ontos-common</artifactId>

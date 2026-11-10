@@ -57,6 +57,8 @@ import static com.ontos.module.ontology.enums.ErrorCodeConstants.MANIFEST_MISMAT
 import static com.ontos.module.ontology.enums.ErrorCodeConstants.MANIFEST_NOT_FOUND;
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.ontos.module.query.enums.ErrorCodeConstants.ARTIFACT_NOT_FOUND;
+import static com.ontos.module.query.enums.ErrorCodeConstants.DEPENDENCY_VALUE_AMBIGUOUS;
+import static com.ontos.module.query.enums.ErrorCodeConstants.DEPENDENCY_VALUE_MISSING;
 import static com.ontos.module.query.enums.ErrorCodeConstants.DSL_INVALID;
 import static com.ontos.module.query.enums.ErrorCodeConstants.SKILL_BATCH_LIMIT_EXCEEDED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.SKILL_CAPABILITY_MISSING;
@@ -74,6 +76,7 @@ public class QueryServiceImpl implements QueryService {
     /** 与 SqlCompiler 的投影别名保持一致，用于批量结果按标识回填。 */
     private static final String IDENTITY_ALIAS = "__identity";
 
+    private final com.ontos.module.query.core.dependency.CompositeDependencyPlanner dependencyPlanner;
     private final ManifestService manifestService;
     private final DslValidator dslValidator;
     private final ScenarioRouteGuard scenarioRouteGuard;
@@ -93,6 +96,7 @@ public class QueryServiceImpl implements QueryService {
     public QueryServiceImpl(ManifestService manifestService,
                             DslValidator dslValidator,
                             ScenarioRouteGuard scenarioRouteGuard,
+                            com.ontos.module.query.core.dependency.CompositeDependencyPlanner dependencyPlanner,
                             PolicyService policyService,
                             SqlCompiler sqlCompiler,
                             QueryExecutor queryExecutor,
@@ -108,6 +112,7 @@ public class QueryServiceImpl implements QueryService {
         this.manifestService = manifestService;
         this.dslValidator = dslValidator;
         this.scenarioRouteGuard = scenarioRouteGuard;
+        this.dependencyPlanner = dependencyPlanner;
         this.policyService = policyService;
         this.sqlCompiler = sqlCompiler;
         this.queryExecutor = queryExecutor;
@@ -647,47 +652,51 @@ public class QueryServiceImpl implements QueryService {
             requestStateService.transition(context, parentRequestId, RequestStatus.PROPOSED,
                     "复合意图结构校验通过");
 
-            // 阶段一：逐子校验 + 编译 + 落产物（此时还没有任何业务查询发生）
-            List<PreparedSub> prepared = new ArrayList<>();
-            for (QueryDsl.SubIntent sub : queryDsl.getSubIntents()) {
+            // 依赖路径判定（T4.1）：无依赖复合请求保持 M2 两阶段原路径（回归零变化）；
+            // 有依赖请求按拓扑序逐子「校验→编译→执行→注入」——依赖子的取值必须来自
+            // 父结果，无法先全量编译（阶段一原子性只对无依赖形状成立）。
+            if (!dependencyPlanner.hasDependencies(queryDsl.getSubIntents())) {
+                return executeCompositeIndependent(queryDsl, manifest, context, parentRequestId);
+            }
+            List<QueryDsl.SubIntent> ordered =
+                    dependencyPlanner.topologicalOrder(queryDsl.getSubIntents());
+            List<CompositeOutcome.SubResult> results = new ArrayList<>();
+            Map<String, QueryResult> resultsBySubIntentId = new LinkedHashMap<>();
+            int totalRowCount = 0;
+            for (QueryDsl.SubIntent sub : ordered) {
                 QueryDsl child = toChildDsl(queryDsl, sub);
-                Map<String, java.util.Set<String>> subSensitivity = new LinkedHashMap<>();
                 try {
+                    if (sub.getResultRef() != null) {
+                        // T4.2 结果注入（规格 composite-resultRef v1 §3/§4）：父结果取值 →
+                        // filter_value 注入；取值失败（G-6）结构化失败该子，不注入空值，
+                        // 不阻断其它子（部分失败可解释）
+                        injectDependencyValue(sub, child, resultsBySubIntentId);
+                    }
+                    Map<String, java.util.Set<String>> subSensitivity = new LinkedHashMap<>();
                     prepareWith(child, context, manifest, subSensitivity);
                     CompiledQuery compiled = sqlCompiler.compile(child, manifest);
                     persistArtifact(context, childRequestId(parentRequestId, sub.getSubIntentId()),
                             compiled, null);
-                    prepared.add(new PreparedSub(sub, child, compiled, subSensitivity));
-                } catch (ServiceException ex) {
-                    auditSubIntent(context, parentRequestId, sub, child, null, null, ex.getCode());
-                    throw ex;
-                }
-            }
-
-            // 阶段二：统一执行（全部子意图已确认可编译、已授权）
-            List<CompositeOutcome.SubResult> results = new ArrayList<>();
-            int totalRowCount = 0;
-            for (PreparedSub item : prepared) {
-                try {
-                    QueryResult result = queryExecutor.execute(item.compiled(), context);
-                    assembleLookupRows(item.child(), manifest, item.compiled(), result);
-                    // M4/W2：每个子意图独立记账（各子各自授权与敏感面），触发即中断后续子（fail-closed）
+                    QueryResult result = queryExecutor.execute(compiled, context);
+                    assembleLookupRows(child, manifest, compiled, result);
                     SensitiveEventService.SensitiveDecision decision = recordSensitiveEvents(
-                            context, item.child(), item.sensitivity(), manifest, result.getRowCount());
+                            context, child, subSensitivity, manifest, result.getRowCount());
                     if (decision.triggered()) {
-                        auditSubIntent(context, parentRequestId, item.sub(), item.child(),
-                                item.compiled(), result.getRowCount(),
+                        auditSubIntent(context, parentRequestId, sub, child,
+                                compiled, result.getRowCount(),
                                 SENSITIVE_QUERY_SEQUENCE.getCode());
                         throw exception(SENSITIVE_QUERY_SEQUENCE, decision.approvalId());
                     }
                     totalRowCount += result.getRowCount();
-                    results.add(new CompositeOutcome.SubResult(item.sub().getSubIntentId(), result));
-                    auditSubIntent(context, parentRequestId, item.sub(), item.child(),
-                            item.compiled(), result.getRowCount(), null);
+                    results.add(new CompositeOutcome.SubResult(sub.getSubIntentId(), result));
+                    resultsBySubIntentId.put(sub.getSubIntentId(), result);
+                    auditSubIntent(context, parentRequestId, sub, child,
+                            compiled, result.getRowCount(), null);
                 } catch (ServiceException ex) {
-                    auditSubIntent(context, parentRequestId, item.sub(), item.child(),
-                            item.compiled(), null, ex.getCode());
-                    throw ex;
+                    auditSubIntent(context, parentRequestId, sub, child, null, null, ex.getCode());
+                    // G-6 / 注入失败：该子结构化失败（带原因码的空结果），不阻断其它子
+                    results.add(new CompositeOutcome.SubResult(sub.getSubIntentId(), null,
+                            ex.getCode(), truncate(ex.getMessage())));
                 }
             }
             requestStateService.transition(context, parentRequestId, RequestStatus.EXECUTED,
@@ -702,6 +711,108 @@ public class QueryServiceImpl implements QueryService {
             safeTransition(context, parentRequestId, RequestStatus.FAILED, truncate(String.valueOf(ex)));
             throw ex;
         }
+    }
+
+    /** 无依赖复合请求（M2 原路径，行为零变化）：阶段一全编译 + 阶段二统一执行。 */
+    private CompositeOutcome executeCompositeIndependent(QueryDsl queryDsl,
+                                                          PublishedManifest manifest,
+                                                          RequestContext context,
+                                                          String parentRequestId) {
+        List<PreparedSub> prepared = new ArrayList<>();
+        for (QueryDsl.SubIntent sub : queryDsl.getSubIntents()) {
+            QueryDsl child = toChildDsl(queryDsl, sub);
+            Map<String, java.util.Set<String>> subSensitivity = new LinkedHashMap<>();
+            try {
+                prepareWith(child, context, manifest, subSensitivity);
+                CompiledQuery compiled = sqlCompiler.compile(child, manifest);
+                persistArtifact(context, childRequestId(parentRequestId, sub.getSubIntentId()),
+                        compiled, null);
+                prepared.add(new PreparedSub(sub, child, compiled, subSensitivity));
+            } catch (ServiceException ex) {
+                auditSubIntent(context, parentRequestId, sub, child, null, null, ex.getCode());
+                throw ex;
+            }
+        }
+        List<CompositeOutcome.SubResult> results = new ArrayList<>();
+        int totalRowCount = 0;
+        for (PreparedSub item : prepared) {
+            try {
+                QueryResult result = queryExecutor.execute(item.compiled(), context);
+                assembleLookupRows(item.child(), manifest, item.compiled(), result);
+                SensitiveEventService.SensitiveDecision decision = recordSensitiveEvents(
+                        context, item.child(), item.sensitivity(), manifest, result.getRowCount());
+                if (decision.triggered()) {
+                    auditSubIntent(context, parentRequestId, item.sub(), item.child(),
+                            item.compiled(), result.getRowCount(),
+                            SENSITIVE_QUERY_SEQUENCE.getCode());
+                    throw exception(SENSITIVE_QUERY_SEQUENCE, decision.approvalId());
+                }
+                totalRowCount += result.getRowCount();
+                results.add(new CompositeOutcome.SubResult(item.sub().getSubIntentId(), result));
+                auditSubIntent(context, parentRequestId, item.sub(), item.child(),
+                        item.compiled(), result.getRowCount(), null);
+            } catch (ServiceException ex) {
+                auditSubIntent(context, parentRequestId, item.sub(), item.child(),
+                        item.compiled(), null, ex.getCode());
+                throw ex;
+            }
+        }
+        requestStateService.transition(context, parentRequestId, RequestStatus.EXECUTED,
+                "复合意图执行完成");
+        requestStateService.recordRowCount(parentRequestId, totalRowCount);
+        auditComposite(context, queryDsl, manifest, totalRowCount);
+        return new CompositeOutcome(parentRequestId, totalRowCount, results);
+    }
+
+    /**
+     * 结果注入（T4.2，规格 §3/§4）：按 selector 从父结果取值写入子意图 filter——
+     * single_row（0 行 → 045 / ≥2 行 → 046 / 1 行取列）、ordered_top（越界 → 045）；
+     * 列缺失 → 045。取值原样进 filter.values（参数化绑定，无 SQL 拼接面）。
+     */
+    private void injectDependencyValue(QueryDsl.SubIntent sub, QueryDsl child,
+                                       Map<String, QueryResult> resultsBySubIntentId) {
+        QueryDsl.ResultRef ref = sub.getResultRef();
+        QueryResult parent = resultsBySubIntentId.get(ref.getFromSubIntentId());
+        String at = sub.getSubIntentId() + " <- " + ref.getFromSubIntentId();
+        if (parent == null) {
+            // 父子失败（前序子结构化失败没有结果）→ 取值缺失
+            throw exception(DEPENDENCY_VALUE_MISSING, at + "（父结果不可用）");
+        }
+        String column = ref.getSelector().getColumn();
+        List<String> columns = parent.getColumns() == null ? List.of() : parent.getColumns();
+        int columnIndex = columns.indexOf(column);
+        if (columnIndex < 0) {
+            throw exception(DEPENDENCY_VALUE_MISSING, at + "（列不存在: " + column + "）");
+        }
+        int rowIndex;
+        if ("single_row".equals(ref.getSelector().getType())) {
+            if (parent.getRows() != null && parent.getRows().size() > 1) {
+                throw exception(DEPENDENCY_VALUE_AMBIGUOUS,
+                        at + "（父结果 " + parent.getRows().size() + " 行）");
+            }
+            rowIndex = 0;
+        } else {
+            rowIndex = ref.getSelector().getRow() - 1;
+        }
+        if (parent.getRows() == null || rowIndex < 0 || rowIndex >= parent.getRows().size()) {
+            throw exception(DEPENDENCY_VALUE_MISSING, at + "（行缺失）");
+        }
+        Object cell = parent.getRows().get(rowIndex);
+        Object value;
+        if (cell instanceof Map<?, ?> rowMap) {
+            // QueryResult 行形状 = Map（列名 → 值；M3 起 rows 不携带 __identity）
+            value = rowMap.get(column);
+        } else if (cell instanceof List<?> rowCells) {
+            value = columnIndex < rowCells.size() ? rowCells.get(columnIndex) : null;
+        } else {
+            // 单列行形状（行即值）
+            value = columnIndex == 0 ? cell : null;
+        }
+        if (value == null) {
+            throw exception(DEPENDENCY_VALUE_MISSING, at + "（单元格为空）");
+        }
+        QueryDsl.Filter target = child.getFilters().get(ref.getInject().getFilterIndex());
+        target.setValues(new ArrayList<>(List.of(String.valueOf(value))));
     }
 
     /** 阶段一产物：子意图 + 其子 DSL + 编译产物；阶段二只做「执行 + 审计」，不再校验。 */

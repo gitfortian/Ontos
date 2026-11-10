@@ -13,7 +13,15 @@ import com.ontos.module.query.core.executor.QueryResult;
 public record CompositeOutcome(String requestId, int totalRowCount, List<SubResult> results) {
 
     /** 单个子意图的结果：subIntentId 与请求里的一致，调用方可逐项对齐。 */
-    public record SubResult(String subIntentId, QueryResult result) {
+    /**
+     * 子结果（M6/W4/T4.3 部分失败可解释）：errorCode/message 非空 = 该子结构化失败
+     * （G-6 / 注入失败 / 敏感拒绝），result 为 null——失败子不产出部分结果。
+     */
+    public record SubResult(String subIntentId, QueryResult result,
+                            Integer errorCode, String errorMessage) {
+        public SubResult(String subIntentId, QueryResult result) {
+            this(subIntentId, result, null, null);
+        }
     }
 
 }

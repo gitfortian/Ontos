@@ -1084,9 +1084,6 @@ public class DslValidator {
                 throw exception(DSL_INVALID, "subIntents 缺少 metricId: " + sub.getSubIntentId());
             }
             semantic.requireMetric(sub.getMetricId());
-            if (sub.getDependsOn() != null && !sub.getDependsOn().isEmpty()) {
-                throw exception(DSL_INVALID, "M2 不支持结果依赖子意图，转澄清（全链路归 M6）");
-            }
             QueryDsl.AnalysisMode subMode = sub.getMode() == null
                     ? QueryDsl.AnalysisMode.QUERY : sub.getMode();
             if (subMode != QueryDsl.AnalysisMode.QUERY) {
@@ -1094,6 +1091,61 @@ public class DslValidator {
                 // 表达不了 lookup 的实体与标识，也表达不了 yoy_mom 的周期参数。
                 throw exception(DSL_INVALID, "M2 复合意图仅支持 QUERY 子意图: " + sub.getSubIntentId());
             }
+            // M6/W4/T4.1（规格 composite-resultRef v1）：依赖子意图合法化——
+            // dependsOn 非空必须携带 resultRef（依赖了却不说怎么取值 = 自由文本洞）；
+            // resultRef 引用一致性与取值槽位校验在此，环/自依赖/缺失由 CompositeDependencyPlanner 拒绝
+            if (sub.getDependsOn() != null && !sub.getDependsOn().isEmpty()
+                    && sub.getResultRef() == null) {
+                throw exception(DSL_INVALID, "依赖子意图缺少 resultRef（取值方式必须结构化声明）: "
+                        + sub.getSubIntentId());
+            }
+            if (sub.getResultRef() != null) {
+                validateResultRef(sub);
+            }
+        }
+    }
+
+    /** resultRef 结构校验（规格 §2）：引用一致 + 选择器闭枚举 + 注入槽位合法。 */
+    private void validateResultRef(QueryDsl.SubIntent sub) {
+        QueryDsl.ResultRef ref = sub.getResultRef();
+        String at = sub.getSubIntentId();
+        if (isBlank(ref.getFromSubIntentId())) {
+            throw exception(DSL_INVALID, "resultRef.fromSubIntentId 必填: " + at);
+        }
+        if (sub.getDependsOn() == null || !sub.getDependsOn().contains(ref.getFromSubIntentId())) {
+            throw exception(DSL_INVALID, "resultRef.fromSubIntentId 必须在 dependsOn 中声明: "
+                    + at + " -> " + ref.getFromSubIntentId());
+        }
+        QueryDsl.Selector selector = ref.getSelector();
+        if (selector == null || isBlank(selector.getType()) || isBlank(selector.getColumn())) {
+            throw exception(DSL_INVALID, "resultRef.selector 必填 type 与 column: " + at);
+        }
+        switch (selector.getType()) {
+            case "single_row" -> {
+                // 至多 1 行语义：携带 row 是形状混用（越界/歧义在取值期判定）
+                if (selector.getRow() != null) {
+                    throw exception(DSL_INVALID, "single_row 不允许携带 row: " + at);
+                }
+            }
+            case "ordered_top" -> {
+                if (selector.getRow() == null || selector.getRow() < 1) {
+                    throw exception(DSL_INVALID, "ordered_top.row 必须 ≥1: " + at);
+                }
+            }
+            default -> throw exception(DSL_INVALID,
+                    "selector.type 只允许 single_row | ordered_top: " + at);
+        }
+        QueryDsl.Inject inject = ref.getInject();
+        if (inject == null || !"filter_value".equals(inject.getType())) {
+            throw exception(DSL_INVALID, "inject.type 首发仅 filter_value: " + at);
+        }
+        if (inject.getFilterIndex() == null || inject.getFilterIndex() < 0
+                || sub.getFilters() == null || inject.getFilterIndex() >= sub.getFilters().size()) {
+            throw exception(DSL_INVALID, "inject.filterIndex 越界: " + at);
+        }
+        QueryDsl.Filter target = sub.getFilters().get(inject.getFilterIndex());
+        if (target.getOperator() != QueryDsl.Operator.EQ) {
+            throw exception(DSL_INVALID, "注入目标 filter 的 operator 必须是 EQ（单值算子）: " + at);
         }
     }
 

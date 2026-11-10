@@ -107,6 +107,7 @@ class QueryServiceImplTest {
     private QueryServiceImpl service(TimeWindowResolver resolver) {
         return new QueryServiceImpl(manifestService, new DslValidator(TestFixtures.queryProperties()),
                 (context, scenarioId, mode, timeRangeField, referencedAssetIds) -> { },
+                new com.ontos.module.query.core.dependency.CompositeDependencyPlanner(),
                 policyService, sqlCompiler, queryExecutor, auditService, requestStateService, resolver,
                 new JoinPathResolver(() -> Set.of()), queryArtifactRepository, queryCacheService,
                 new SkillRegistry(List.of(new EntityLookupSkill()), manifestService), sensitiveEventService,
@@ -608,6 +609,39 @@ class QueryServiceImplTest {
 
     // ---- 复合意图逐子编译（M2/W4/T4.3）----
 
+    /** 依赖复合 fixture（T4.2）：s2 依赖 s1 并以 resultRef 注入 filter。 */
+    private static QueryDsl dependencyDsl(String selectorType, Integer row) {
+        QueryDsl dsl = new QueryDsl();
+        dsl.setManifestId("manifest-001");
+        dsl.setMode(QueryDsl.AnalysisMode.QUERY);
+        QueryDsl.SubIntent s1 = new QueryDsl.SubIntent();
+        s1.setSubIntentId("s1");
+        s1.setMetricId(TestFixtures.METRIC_ID);
+        s1.setDimensions(List.of(TestFixtures.DIMENSION_ID));
+        QueryDsl.SubIntent s2 = new QueryDsl.SubIntent();
+        s2.setSubIntentId("s2");
+        s2.setMetricId(TestFixtures.METRIC_ID);
+        QueryDsl.Filter filter = new QueryDsl.Filter();
+        filter.setFieldId(TestFixtures.DIMENSION_ID);
+        filter.setOperator(QueryDsl.Operator.EQ);
+        s2.setFilters(new ArrayList<>(List.of(filter)));
+        s2.setDependsOn(List.of("s1"));
+        QueryDsl.ResultRef ref = new QueryDsl.ResultRef();
+        ref.setFromSubIntentId("s1");
+        QueryDsl.Selector selector = new QueryDsl.Selector();
+        selector.setType(selectorType);
+        selector.setRow(row);
+        selector.setColumn(TestFixtures.DIMENSION_ID);
+        ref.setSelector(selector);
+        QueryDsl.Inject inject = new QueryDsl.Inject();
+        inject.setType("filter_value");
+        inject.setFilterIndex(0);
+        ref.setInject(inject);
+        s2.setResultRef(ref);
+        dsl.setSubIntents(new ArrayList<>(List.of(s1, s2)));
+        return dsl;
+    }
+
     private static QueryDsl compositeDsl(int subCount) {
         QueryDsl dsl = new QueryDsl();
         dsl.setManifestId("manifest-001");
@@ -693,6 +727,82 @@ class QueryServiceImplTest {
         assertEquals("SUB_INTENT_REJECTED", captor.getValue().getAction());
         assertEquals("s1", captor.getValue().getSubIntentId());
         assertEquals(String.valueOf(ARTIFACT_NOT_FOUND.getCode()), captor.getValue().getReasonCode());
+    }
+
+    @Test
+    void shouldInjectDependencyValueIntoChildFilter() {
+        // T4.2：ordered_top 第 1 行取 region 列 → 注入 s2 的 filter.values（参数化绑定）
+        PublishedManifest manifest = TestFixtures.manifest();
+        when(manifestService.validateManifest("manifest-001")).thenReturn(manifest);
+        when(requestStateService.findState(any())).thenReturn(java.util.Optional.empty());
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
+        QueryResult parentResult = new QueryResult();
+        parentResult.setColumns(List.of("region", "value"));
+        parentResult.setRows(List.of(java.util.Map.of("region", "华北", "value", 100),
+                java.util.Map.of("region", "华东", "value", 80)));
+        parentResult.setRowCount(2);
+        QueryResult childResult = rows(1);
+        when(queryExecutor.execute(any(), any())).thenReturn(parentResult, childResult);
+
+        QueryDsl dsl = dependencyDsl("ordered_top", 1);
+        CompositeOutcome outcome = service(new TimeWindowResolver()).executeComposite(dsl);
+
+        ArgumentCaptor<QueryDsl> captor = ArgumentCaptor.forClass(QueryDsl.class);
+        verify(sqlCompiler, times(2)).compile(captor.capture(), any());
+        QueryDsl child = captor.getAllValues().get(1);
+        assertEquals(List.of("华北"), child.getFilters().get(0).getValues(),
+                "依赖值已注入 filter（参数化绑定，值不进 SQL 文本）");
+        assertEquals(2, outcome.results().size());
+        assertEquals(List.of("s1", "s2"),
+                outcome.results().stream().map(CompositeOutcome.SubResult::subIntentId).toList());
+    }
+
+    @Test
+    void shouldFailSubStructuredOnAmbiguousSingleRow() {
+        // G-6 / 规格 §3：single_row 父结果 ≥2 行 → DEPENDENCY_VALUE_AMBIGUOUS，失败子不产出结果
+        PublishedManifest manifest = TestFixtures.manifest();
+        when(manifestService.validateManifest("manifest-001")).thenReturn(manifest);
+        when(requestStateService.findState(any())).thenReturn(java.util.Optional.empty());
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
+        QueryResult parentResult = new QueryResult();
+        parentResult.setColumns(List.of("region"));
+        parentResult.setRows(List.of(java.util.Map.of("region", "华北"),
+                java.util.Map.of("region", "华东")));
+        parentResult.setRowCount(2);
+        QueryResult childResult = rows(1);
+        when(queryExecutor.execute(any(), any())).thenReturn(parentResult, childResult);
+
+        QueryDsl dsl = dependencyDsl("single_row", null);
+        CompositeOutcome outcome = service(new TimeWindowResolver()).executeComposite(dsl);
+
+        assertEquals(2, outcome.results().size(), "部分失败可解释：两子都有状态");
+        var failed = outcome.results().stream()
+                .filter(result -> "s2".equals(result.subIntentId())).findFirst().orElseThrow();
+        assertEquals(1_002_000_046, failed.errorCode(), "single_row 歧义 → 046");
+        assertEquals(null, failed.result(), "失败子不产出部分结果");
+    }
+
+    @Test
+    void shouldFailSubStructuredOnMissingDependencyRow() {
+        // G-6：ordered_top 越界 → DEPENDENCY_VALUE_MISSING，不注入空值
+        PublishedManifest manifest = TestFixtures.manifest();
+        when(manifestService.validateManifest("manifest-001")).thenReturn(manifest);
+        when(requestStateService.findState(any())).thenReturn(java.util.Optional.empty());
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
+        QueryResult parentResult = new QueryResult();
+        parentResult.setColumns(List.of("region"));
+        parentResult.setRows(List.of(java.util.Map.of("region", "华北")));
+        parentResult.setRowCount(1);
+        QueryResult childResult = rows(1);
+        when(queryExecutor.execute(any(), any())).thenReturn(parentResult, childResult);
+
+        QueryDsl dsl = dependencyDsl("ordered_top", 3);
+        CompositeOutcome outcome = service(new TimeWindowResolver()).executeComposite(dsl);
+
+        var failed = outcome.results().stream()
+                .filter(result -> "s2".equals(result.subIntentId())).findFirst().orElseThrow();
+        assertEquals(1_002_000_045, failed.errorCode(), "越界行 → 045");
+        assertEquals(null, failed.result(), "不注入空值");
     }
 
     @Test

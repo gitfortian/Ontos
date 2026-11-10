@@ -624,13 +624,61 @@ class DslValidatorTest {
 
     @Test
     void shouldRejectResultDependentSubIntent() {
+        // M6（规格 composite-resultRef v1）：dependsOn 非空必须携带 resultRef——
+        // 依赖了却不说怎么取值 = 自由文本洞，结构校验拒绝（M2 的「一律拒绝」已被全链路取代）
         QueryDsl.SubIntent dependent = sub("s2", TestFixtures.METRIC_ID);
         dependent.setDependsOn(List.of("s1"));
         QueryDsl dsl = compositeDsl(sub("s1", TestFixtures.METRIC_ID), dependent);
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> validator.validateComposite(dsl, manifest));
         assertEquals(DSL_INVALID.getCode(), ex.getCode());
-        assertTrue(ex.getMessage().contains("结果依赖"));
+        assertTrue(ex.getMessage().contains("resultRef"), ex.getMessage());
+    }
+
+    @Test
+    void shouldRejectResultRefPointingOutsideDependsOn() {
+        // 规格校验：fromSubIntentId 必须在 dependsOn 中声明（引用一致）
+        QueryDsl.SubIntent dependent = sub("s2", TestFixtures.METRIC_ID);
+        dependent.setDependsOn(List.of("s1"));
+        QueryDsl.ResultRef ref = new QueryDsl.ResultRef();
+        ref.setFromSubIntentId("s3");
+        QueryDsl.Selector selector = new QueryDsl.Selector();
+        selector.setType("ordered_top");
+        selector.setRow(1);
+        selector.setColumn("region");
+        ref.setSelector(selector);
+        QueryDsl.Inject inject = new QueryDsl.Inject();
+        inject.setType("filter_value");
+        inject.setFilterIndex(0);
+        ref.setInject(inject);
+        dependent.setResultRef(ref);
+        QueryDsl dsl = compositeDsl(sub("s1", TestFixtures.METRIC_ID), dependent);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> validator.validateComposite(dsl, manifest));
+        assertTrue(ex.getMessage().contains("dependsOn"), ex.getMessage());
+    }
+
+    @Test
+    void shouldRejectSelectorShapeMismatch() {
+        // single_row 携带 row = 形状混用
+        QueryDsl.SubIntent dependent = sub("s2", TestFixtures.METRIC_ID);
+        dependent.setDependsOn(List.of("s1"));
+        QueryDsl.ResultRef ref = new QueryDsl.ResultRef();
+        ref.setFromSubIntentId("s1");
+        QueryDsl.Selector selector = new QueryDsl.Selector();
+        selector.setType("single_row");
+        selector.setRow(1);
+        selector.setColumn("region");
+        ref.setSelector(selector);
+        QueryDsl.Inject inject = new QueryDsl.Inject();
+        inject.setType("filter_value");
+        inject.setFilterIndex(0);
+        ref.setInject(inject);
+        dependent.setResultRef(ref);
+        QueryDsl dsl = compositeDsl(sub("s1", TestFixtures.METRIC_ID), dependent);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> validator.validateComposite(dsl, manifest));
+        assertTrue(ex.getMessage().contains("single_row"), ex.getMessage());
     }
 
     @Test

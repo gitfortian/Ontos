@@ -102,8 +102,44 @@ public class QueryDsl {
          * 避免复合请求绕过「绝对日期只走 explicitRange」的唯一放行路径。
          */
         private TimeRange timeRange;
-        /** M2 仅支持无依赖子集；非空即拒绝并转澄清（全链路归 M6）。 */
+        /** M2 仅支持无依赖子集；M6/W4 起全链路（拓扑定序 + resultRef 结构化取值）。 */
         private List<String> dependsOn = new ArrayList<>();
+        /**
+         * 结果引用（M6/W4/T4.2，规格 composite-resultRef v1）：依赖取值的结构化 Schema——
+         * 每子意图至多一个；dependsOn 非空而 resultRef 缺失 = 结构校验拒绝
+         * （依赖了却不说怎么取值 = M2 遗留自由文本的洞，由本字段封死）。
+         */
+        private ResultRef resultRef;
+    }
+
+    /**
+     * 结果引用（规格 composite-resultRef v1 §2）：fromSubIntentId 必须在 dependsOn 内；
+     * selector 闭枚举 single_row（至多 1 行）/ ordered_top（按服务端返回顺序取第 row 行，1 起）；
+     * inject 首发仅 filter_value（注入本子意图 filters[filterIndex].value，op 必须 EQ）。
+     */
+    @Data
+    public static class ResultRef {
+        private String fromSubIntentId;
+        private Selector selector;
+        private Inject inject;
+    }
+
+    @Data
+    public static class Selector {
+        /** single_row | ordered_top（闭枚举，规格 §3）。 */
+        private String type;
+        /** ordered_top 必填（1 起）；single_row 禁止携带。 */
+        private Integer row;
+        /** 父结果列名；取值时必须存在于父结果列集。 */
+        private String column;
+    }
+
+    @Data
+    public static class Inject {
+        /** filter_value（首发闭枚举）。 */
+        private String type;
+        /** 本子意图 filters 下标（0 起）；目标 filter 的 op 必须 EQ。 */
+        private Integer filterIndex;
     }
 
     /** funnel / yoy_mom / retention 的 analysis_params（字段名按 DSL camelCase 契约，语义见规格 v1 / v1.1）。 */
