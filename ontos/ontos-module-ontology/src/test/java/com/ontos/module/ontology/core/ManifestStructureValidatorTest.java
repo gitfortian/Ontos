@@ -96,8 +96,14 @@ class ManifestStructureValidatorTest {
         scenario.setName("销售分析");
         scenario.setSummary("围绕交易域的日常销售分析");
         scenario.setEntryMode("recommend_or_confirm");
-        scenario.setOntologyScope(List.of("concept.order"));
-        scenario.setSemanticScope(List.of("metric.gmv"));
+        ManifestPayload.OntologyScope ontologyScope = new ManifestPayload.OntologyScope();
+        ontologyScope.setRootConcepts(List.of("concept.order"));
+        ontologyScope.setLegacyShape(true);
+        scenario.setOntologyScope(ontologyScope);
+        ManifestPayload.SemanticScope semanticScope = new ManifestPayload.SemanticScope();
+        semanticScope.setMetrics(List.of("metric.gmv"));
+        semanticScope.setLegacyShape(true);
+        scenario.setSemanticScope(semanticScope);
         payload.setScenarios(List.of(scenario));
         return payload;
     }
@@ -164,7 +170,10 @@ class ManifestStructureValidatorTest {
     @Test
     void shouldRejectScenarioScopeReferencingUnknownAsset() {
         ManifestPayload payload = validPayload();
-        payload.getScenarios().get(0).setSemanticScope(List.of("metric.unknown"));
+        ManifestPayload.SemanticScope unknownScope = new ManifestPayload.SemanticScope();
+        unknownScope.setMetrics(List.of("metric.unknown"));
+        unknownScope.setLegacyShape(true);
+        payload.getScenarios().get(0).setSemanticScope(unknownScope);
         assertTrue(codes(payload).stream().anyMatch(code -> code.contains("metric.unknown")));
     }
 

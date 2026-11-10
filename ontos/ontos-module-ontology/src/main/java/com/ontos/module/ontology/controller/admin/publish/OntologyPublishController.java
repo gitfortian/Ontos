@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.ontos.framework.common.pojo.CommonResult;
+import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.service.manifest.ManifestService;
 import com.ontos.module.ontology.service.publish.PublishService;
@@ -128,8 +129,7 @@ public class OntologyPublishController {
                 .map(rule -> rule.getId())
                 .toList();
         List<String> scenarios = manifest.getScenarios().stream()
-                .filter(scenario -> scenario.getSemanticScope().contains(assetId)
-                        || scenario.getOntologyScope().contains(assetId))
+                .filter(scenario -> references(scenario, assetId))
                 .map(scenario -> scenario.getId())
                 .toList();
         List<String> metrics = new ArrayList<>();
@@ -142,6 +142,11 @@ public class OntologyPublishController {
         result.put("scenarios", scenarios);
         result.put("metricsAllowedDimensions", metrics);
         return success(result);
+    }
+
+    /** 场景是否引用该资产（引用口径统一在 ScenarioReferences）。 */
+    private static boolean references(ManifestPayload.ScenarioMeta scenario, String assetId) {
+        return com.ontos.module.ontology.core.ScenarioReferences.references(scenario, assetId);
     }
 
     private static Map<String, Set<String>> assetIdSections(PublishedManifest manifest) {

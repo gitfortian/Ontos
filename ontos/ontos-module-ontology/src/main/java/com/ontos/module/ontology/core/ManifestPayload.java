@@ -3,7 +3,10 @@ package com.ontos.module.ontology.core;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
+import tools.jackson.databind.JsonNode;
 
 /**
  * 发布清单 payload 的结构（v2）。payload 原文参与 content_hash 计算，解析结果只用于运行时读取。
@@ -78,7 +81,7 @@ public class ManifestPayload {
         private Integer offsetAmount;
     }
 
-    /** 业务场景元数据（v1.4 §5.7）：路由归 M6，M1 只承载与校验。 */
+    /** 业务场景资产（v1.4 §5.7）：M6 完整模型；M1 的扁平数组形态仍可加载。 */
     @Data
     public static class ScenarioMeta {
         private String id;
@@ -86,8 +89,145 @@ public class ManifestPayload {
         private String summary;
         /** manual_only | recommend_or_confirm | auto_if_confident */
         private String entryMode;
-        private List<String> ontologyScope = List.of();
-        private List<String> semanticScope = List.of();
+        private List<String> defaultVqrIds = List.of();
+        private String owner;
+        private String version;
+        /** draft | reviewing | published | retired */
+        private String status;
+        private String domainId;
+        private List<String> policyRefs = List.of();
+        /** 旧清单（v12 及以前）为概念 ID 数组；v13 起为完整对象。 */
+        private OntologyScope ontologyScope = new OntologyScope();
+        /** 旧清单（v12 及以前）为资产 ID 数组；v13 起为完整对象。 */
+        private SemanticScope semanticScope = new SemanticScope();
         private List<String> allowedAnalysisModes = List.of();
+        private List<SkillBinding> skills = List.of();
+        private List<String> entryHints = List.of();
+        /** 必须是已发布 VQR / Golden Query 的引用，不得是自由文本。 */
+        private List<String> coldStartSamples = List.of();
+        private VersionCompatibility versionCompatibility;
+        private Invalidation invalidation;
+
+        /** 旧扁平形态（无 owner/version/status）：只做最小校验，保证历史清单可加载。 */
+        public boolean isLegacyShape() {
+            return ontologyScope != null && ontologyScope.isLegacyShape();
+        }
+    }
+
+    /** 本体 scope：根对象、允许关系、最大路径跳数、排除对象。 */
+    @Data
+    public static class OntologyScope {
+        private List<String> rootConcepts = List.of();
+        private List<String> allowedRelations = List.of();
+        private Integer maxPathHops;
+        private List<String> excludedConcepts = List.of();
+        @JsonIgnore
+        private boolean legacyShape;
+
+        /** 兼容 v12 及以前的 `ontologyScope: [concept...]`。 */
+        @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+        public static OntologyScope from(JsonNode node) {
+            OntologyScope scope = new OntologyScope();
+            if (node == null || node.isNull()) {
+                return scope;
+            }
+            if (node.isArray()) {
+                scope.setRootConcepts(texts(node));
+                scope.setLegacyShape(true);
+                return scope;
+            }
+            if (!node.isObject()) {
+                throw new IllegalArgumentException("ontologyScope 必须是对象或概念数组");
+            }
+            scope.setRootConcepts(texts(node.get("rootConcepts")));
+            scope.setAllowedRelations(texts(node.get("allowedRelations")));
+            scope.setExcludedConcepts(texts(node.get("excludedConcepts")));
+            if (node.hasNonNull("maxPathHops")) {
+                scope.setMaxPathHops(node.get("maxPathHops").asInt());
+            }
+            return scope;
+        }
+    }
+
+    /** 语义 scope：指标/维度白名单与冻结口径。 */
+    @Data
+    public static class SemanticScope {
+        private List<String> metrics = List.of();
+        private List<String> dimensions = List.of();
+        private Map<String, FrozenCaliber> frozenCalibers = Map.of();
+        @JsonIgnore
+        private boolean legacyShape;
+
+        /** 兼容 v12 及以前的 `semanticScope: [asset...]`。 */
+        @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+        public static SemanticScope from(JsonNode node) {
+            SemanticScope scope = new SemanticScope();
+            if (node == null || node.isNull()) {
+                return scope;
+            }
+            if (node.isArray()) {
+                scope.setMetrics(texts(node));
+                scope.setLegacyShape(true);
+                return scope;
+            }
+            if (!node.isObject()) {
+                throw new IllegalArgumentException("semanticScope 必须是对象或资产数组");
+            }
+            scope.setMetrics(texts(node.get("metrics")));
+            scope.setDimensions(texts(node.get("dimensions")));
+            JsonNode calibers = node.get("frozenCalibers");
+            if (calibers != null && calibers.isObject()) {
+                Map<String, FrozenCaliber> map = new java.util.LinkedHashMap<>();
+                calibers.properties().forEach(entry -> {
+                    JsonNode value = entry.getValue();
+                    FrozenCaliber caliber = new FrozenCaliber();
+                    caliber.setType(value.path("type").asString(null));
+                    caliber.setValue(value.path("value").asString(null));
+                    map.put(entry.getKey(), caliber);
+                });
+                scope.setFrozenCalibers(map);
+            }
+            return scope;
+        }
+    }
+
+    /** 冻结口径：带类型的只读约束（v1.4 §5.7）。 */
+    @Data
+    public static class FrozenCaliber {
+        /** string | metric_id | field_id */
+        private String type;
+        private String value;
+    }
+
+    /** Scenario 绑定的已发布 Skill。 */
+    @Data
+    public static class SkillBinding {
+        private String skillId;
+        private String analysisMode;
+        private String paramsSchemaRef;
+    }
+
+    /** 版本兼容约束：SemVer（^1.2.3）或日期前缀（2026.11 / 2026.11.*）。 */
+    @Data
+    public static class VersionCompatibility {
+        private String ontology;
+        private String semantic;
+    }
+
+    /** 失效策略：依赖资产废弃时阻断而非静默降级。 */
+    @Data
+    public static class Invalidation {
+        /** block | warn */
+        private String onScopeAssetDeprecation;
+        private String onSkillDeprecation;
+    }
+
+    private static List<String> texts(JsonNode node) {
+        if (node == null || !node.isArray()) {
+            return List.of();
+        }
+        List<String> result = new java.util.ArrayList<>();
+        node.forEach(item -> result.add(item.asString()));
+        return List.copyOf(result);
     }
 }

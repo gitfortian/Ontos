@@ -122,6 +122,49 @@ class FirstReleaseManifestAssetTest {
     }
 
     @Test
+    void shouldAcceptV13ManifestWithFullScenarioModel() throws Exception {
+        // M6/T2.2：ScenarioMeta 升级为 v1.4 §5.7 完整模型，v13 必须通过结构校验
+        ManifestPayload payload = load("first-release-v13.json");
+        List<ManifestStructureValidator.Violation> violations =
+                new ManifestStructureValidator().validate(payload);
+
+        assertTrue(violations.isEmpty(), "v13 清单结构校验失败: " + violations);
+        assertEquals(1, payload.getScenarios().size());
+        ManifestPayload.ScenarioMeta scenario = payload.getScenarios().get(0);
+        assertFalse(scenario.isLegacyShape(), "v13 必须是完整模型，不得走 legacy 分支");
+        assertEquals("project-team", scenario.getOwner());
+        assertEquals("1.0.0", scenario.getVersion());
+        assertEquals("published", scenario.getStatus());
+        assertEquals("domain.trade", scenario.getDomainId());
+        assertEquals(List.of("concept.order", "concept.customer", "concept.channel", "concept.event"),
+                scenario.getOntologyScope().getRootConcepts());
+        assertEquals(3, scenario.getOntologyScope().getMaxPathHops());
+        assertEquals("metric.gmv", scenario.getSemanticScope().getFrozenCalibers()
+                .get("revenue_metric").getValue());
+        assertEquals("dim.order_date", scenario.getSemanticScope().getFrozenCalibers()
+                .get("default_time_field").getValue());
+        assertEquals("block", scenario.getInvalidation().getOnScopeAssetDeprecation());
+        assertTrue(scenario.getColdStartSamples().isEmpty(),
+                "首版无已发布 VQR / Golden 引用，冷启动样例必须为空");
+    }
+
+    @Test
+    void shouldRoundTripV13ScenarioWithoutDroppingLifecycleKeys() throws Exception {
+        String json = Files.readString(Path.of("..", "..", "ontos-assets", "first-release-v13.json"));
+        java.util.Map<?, ?> submitted = JsonUtils.parseObject(json, java.util.Map.class);
+        ManifestPayload typed = JsonUtils.parseObject(json, ManifestPayload.class);
+        java.util.Map<?, ?> roundTrip = JsonUtils.parseObject(
+                JsonUtils.toJsonString(typed), java.util.Map.class);
+
+        java.util.Map<?, ?> submittedScenario = (java.util.Map<?, ?>) ((List<?>) submitted.get("scenarios")).get(0);
+        java.util.Map<?, ?> roundTripScenario = (java.util.Map<?, ?>) ((List<?>) roundTrip.get("scenarios")).get(0);
+        assertTrue(roundTripScenario.keySet().containsAll(submittedScenario.keySet()),
+                "回装不得丢弃 Scenario 生命周期字段: " + submittedScenario.keySet());
+        assertTrue(((java.util.Map<?, ?>) roundTripScenario.get("ontologyScope")).containsKey("rootConcepts"));
+        assertTrue(((java.util.Map<?, ?>) roundTripScenario.get("semanticScope")).containsKey("frozenCalibers"));
+    }
+
+    @Test
     void shouldRoundTripV11WithoutDroppingChannelPropertyKey() throws Exception {
         // 发布链路未知字段键差分：channelPropertyId 若被 Jackson 静默丢弃，v11 发布会被拒绝
         String json = Files.readString(Path.of("..", "..", "ontos-assets", "first-release-v11.json"));

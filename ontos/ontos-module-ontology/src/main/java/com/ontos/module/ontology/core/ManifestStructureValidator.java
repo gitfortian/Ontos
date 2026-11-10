@@ -30,7 +30,6 @@ public final class ManifestStructureValidator {
     private static final Set<String> CARDINALITIES = Set.of("1:1", "1:N", "N:1", "N:M");
     private static final Set<String> RULE_SCOPES = Set.of("domain", "tenant", "global");
     private static final Set<String> RULE_STATUSES = Set.of("draft", "reviewing", "published", "retired");
-    private static final Set<String> ENTRY_MODES = Set.of("manual_only", "recommend_or_confirm", "auto_if_confident");
     /** 判定表达式允许的比较算子（封闭枚举，禁止内联脚本）。 */
     private static final Set<String> EXPRESSION_OPERATORS = Set.of("EQ", "NEQ", "GT", "GTE", "LT", "LTE", "IN");
     /** 信息项值类型封闭词表。 */
@@ -359,43 +358,9 @@ public final class ManifestStructureValidator {
     }
 
     private void validateScenarios(ManifestPayload payload, List<Violation> violations) {
-        Set<String> conceptIds = payload.getOntology() == null ? Set.of()
-                : payload.getOntology().getConcepts().stream()
-                        .map(OntologySnapshot.Concept::getId)
-                        .collect(java.util.stream.Collectors.toSet());
-        Set<String> assetIds = new HashSet<>();
-        if (payload.getSemantic() != null) {
-            orEmpty(payload.getSemantic().getMetrics()).forEach(m -> assetIds.add(m.getId()));
-            orEmpty(payload.getSemantic().getDimensions()).forEach(d -> assetIds.add(d.getId()));
-        }
-        for (ManifestPayload.ScenarioMeta scenario : orEmpty(payload.getScenarios())) {
-            String at = "scenario." + scenario.getId();
-            requireId(scenario.getId(), at, violations);
-            if (blank(scenario.getName())) {
-                violations.add(new Violation(at, "业务名 name 必填"));
-            }
-            if (blank(scenario.getSummary())) {
-                violations.add(new Violation(at, "一句话说明 summary 必填"));
-            }
-            if (scenario.getEntryMode() == null || !ENTRY_MODES.contains(scenario.getEntryMode())) {
-                violations.add(new Violation(at, "entryMode 非法: " + scenario.getEntryMode()));
-            }
-            for (String conceptId : orEmpty(scenario.getOntologyScope())) {
-                if (!conceptIds.contains(conceptId)) {
-                    violations.add(new Violation(at, "ontologyScope 引用不存在的业务对象: " + conceptId));
-                }
-            }
-            for (String assetId : orEmpty(scenario.getSemanticScope())) {
-                if (!assetIds.contains(assetId)) {
-                    violations.add(new Violation(at, "semanticScope 引用不存在的资产: " + assetId));
-                }
-            }
-            for (String mode : orEmpty(scenario.getAllowedAnalysisModes())) {
-                if (!ANALYSIS_MODES.contains(mode)) {
-                    violations.add(new Violation(at, "allowedAnalysisModes 不在封闭枚举内: " + mode));
-                }
-            }
-        }
+        // v1.4 §5.7 规则集中在 ScenarioValidator：发布预检与资产管理面共用同一套判定，
+        // 历史扁平形态（v12 及以前）由校验器按 legacy 走最小校验。
+        violations.addAll(new ScenarioValidator().validate(payload));
     }
 
     /**

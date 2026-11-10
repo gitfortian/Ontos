@@ -29,6 +29,16 @@ public enum CatalogAssetStatus {
         return name().toLowerCase();
     }
 
+    /** 文本状态反解；未知值一律拒绝（不猜测、不默认 draft）。 */
+    public static CatalogAssetStatus fromCode(String code) {
+        for (CatalogAssetStatus status : values()) {
+            if (status.code().equalsIgnoreCase(code)) {
+                return status;
+            }
+        }
+        throw new IllegalArgumentException("未知资产状态: " + code);
+    }
+
     public boolean isTerminal() {
         return this == RETIRED;
     }
