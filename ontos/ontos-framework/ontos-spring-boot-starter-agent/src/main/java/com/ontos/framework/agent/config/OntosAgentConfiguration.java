@@ -1,6 +1,8 @@
 package com.ontos.framework.agent.config;
 
 import com.ontos.framework.agent.core.OntosAgentFactory;
+import com.ontos.framework.agent.trace.LlmCallOriginProvider;
+import com.ontos.framework.common.trace.LlmCallTraceSink;
 import com.ontos.framework.common.agent.AgentContextProvider;
 import io.agentscope.spring.boot.agui.common.AguiAgentRegistryCustomizer;
 import org.springframework.beans.factory.ObjectProvider;
@@ -26,9 +28,12 @@ public class OntosAgentConfiguration {
 
     @Bean
     public OntosAgentFactory ontosAgentFactory(AgentProperties properties, ResourceLoader resourceLoader,
-                                               ObjectProvider<AgentContextProvider> contextProviders) {
+                                               ObjectProvider<AgentContextProvider> contextProviders,
+                                               ObjectProvider<LlmCallTraceSink> traceSinks,
+                                               ObjectProvider<LlmCallOriginProvider> originProviders) {
         List<AgentContextProvider> providers = contextProviders.orderedStream().toList();
-        return new OntosAgentFactory(properties, resourceLoader, providers);
+        return new OntosAgentFactory(properties, resourceLoader, providers,
+                traceSinks.orderedStream().toList(), originProviders.getIfAvailable());
     }
 
     @Bean

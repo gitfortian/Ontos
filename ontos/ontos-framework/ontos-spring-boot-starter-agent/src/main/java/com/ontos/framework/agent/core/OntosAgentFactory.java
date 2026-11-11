@@ -7,6 +7,10 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.ontos.framework.agent.config.AgentProperties;
+import com.ontos.framework.agent.trace.LlmCallOrigin;
+import com.ontos.framework.agent.trace.LlmCallOriginProvider;
+import com.ontos.framework.common.trace.LlmCallTraceSink;
+import com.ontos.framework.agent.trace.TracingModel;
 import com.ontos.framework.common.agent.AgentContextProvider;
 import com.ontos.framework.common.agent.CandidateAsset;
 import io.agentscope.core.agent.Agent;
@@ -40,6 +44,8 @@ public class OntosAgentFactory {
     private final AgentProperties properties;
     private final ResourceLoader resourceLoader;
     private final List<AgentContextProvider> contextProviders;
+    private final List<LlmCallTraceSink> traceSinks;
+    private final LlmCallOriginProvider originProvider;
 
     public OntosAgentFactory(AgentProperties properties, ResourceLoader resourceLoader) {
         this(properties, resourceLoader, List.of());
@@ -47,17 +53,38 @@ public class OntosAgentFactory {
 
     public OntosAgentFactory(AgentProperties properties, ResourceLoader resourceLoader,
                              List<AgentContextProvider> contextProviders) {
+        this(properties, resourceLoader, contextProviders, List.of(), null);
+    }
+
+    /**
+     * @param traceSinks     模型调用追踪落点（M7/W5/T5.1）；为空则不装饰模型，零开销
+     * @param originProvider AG-UI 路径的调用来源解析；为空则 {@link #create()} 不记录追踪
+     */
+    public OntosAgentFactory(AgentProperties properties, ResourceLoader resourceLoader,
+                             List<AgentContextProvider> contextProviders,
+                             List<LlmCallTraceSink> traceSinks, LlmCallOriginProvider originProvider) {
         this.properties = properties;
         this.resourceLoader = resourceLoader;
         this.contextProviders = contextProviders == null ? List.of() : List.copyOf(contextProviders);
+        this.traceSinks = traceSinks == null ? List.of() : List.copyOf(traceSinks);
+        this.originProvider = originProvider;
     }
 
+    /** 无显式来源：AG-UI 等由框架按请求创建的路径，经 {@link LlmCallOriginProvider} 解析身份。 */
     public Agent create() {
+        return create(originProvider == null ? null : originProvider.current());
+    }
+
+    /**
+     * 带调用来源创建（M7/W5/T5.1）：来源只影响追踪，不影响提示词、工具与模型参数。
+     * 来源为空或不可落库时跳过追踪（不写无租户的脏行）。
+     */
+    public Agent create(LlmCallOrigin origin) {
         HarnessAgent.Builder builder = HarnessAgent.builder()
                 .name("ontos")
                 .agentId("ontos")
                 .sysPrompt(buildSystemPrompt())
-                .model(resolveModel())
+                .model(traceModel(resolveModel(), origin))
                 .workspace(properties.getWorkspace())
                 .maxIters(properties.getMaxIters())
                 // 每次构建使用独立 session：AguiAgentRegistry 只接受 Supplier<Agent>，
@@ -95,6 +122,17 @@ public class OntosAgentFactory {
         // memory_* / session_* / task_* / agent_* 这 13 个暂无公开开关关闭，
         // 登记为 M1 待办：用 PermissionContextState 的 deny 规则按工具名收敛。
         return builder.build();
+    }
+
+    /**
+     * 包装模型调用追踪（M7/W5/T5.1）。没有 sink 或没有可用来源时原样返回——
+     * 未配置追踪的部署不该多一层装饰器（也不会产生空记录）。
+     */
+    private Model traceModel(Model model, LlmCallOrigin origin) {
+        if (traceSinks.isEmpty() || origin == null || !origin.traceable()) {
+            return model;
+        }
+        return new TracingModel(model, traceSinks, origin);
     }
 
     /** 候选资产词表：聚合全部 Provider，供输出契约做 ID 白名单与「点名资产」判定。 */

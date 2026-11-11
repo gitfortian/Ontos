@@ -1,0 +1,109 @@
+{
+  "task": "M7/W5/T5.1",
+  "generatedAt": "2026-11-11T06:26:44.305Z",
+  "serviceBaseUrl": "http://127.0.0.1:8080",
+  "modelSide": "local OpenAI-compatible stub（仅验证追踪链路，不代表模型效果）",
+  "traceId": "llmtrace-1794378403114",
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0
+  },
+  "results": [
+    {
+      "id": "T1a",
+      "name": "响应回显同一 traceId",
+      "pass": true,
+      "detail": {
+        "echoed": "llmtrace-1794378403114",
+        "traceId": "llmtrace-1794378403114"
+      }
+    },
+    {
+      "id": "T1b",
+      "name": "ask 请求成功受理",
+      "pass": true,
+      "detail": {
+        "code": 0,
+        "terminal": "out_of_capability",
+        "msg": ""
+      }
+    },
+    {
+      "id": "T2a",
+      "name": "同一 traceId 命中模型调用记录",
+      "pass": true,
+      "detail": {
+        "count": 3
+      }
+    },
+    {
+      "id": "T2b",
+      "name": "记录字段完整（模型/用量/耗时/终态）",
+      "pass": true,
+      "detail": {
+        "traceId": "llmtrace-1794378403114",
+        "model": "stub-model",
+        "tokens": 144,
+        "latencyMs": 159,
+        "status": "success"
+      }
+    },
+    {
+      "id": "T2c",
+      "name": "调用目的标记为 ask.agent",
+      "pass": true,
+      "detail": {
+        "purpose": "ask.agent"
+      }
+    },
+    {
+      "id": "T2d",
+      "name": "会话与轮次随记录落库",
+      "pass": true,
+      "detail": {
+        "sessionId": "s-llmtrace-1794378403114",
+        "turnIndex": 1
+      }
+    },
+    {
+      "id": "T3",
+      "name": "每次模型调用恰好一条记录",
+      "pass": true,
+      "detail": {
+        "mockCalls": 3,
+        "traceRows": 3
+      }
+    },
+    {
+      "id": "T4",
+      "name": "最近调用入口可用",
+      "pass": true,
+      "detail": {
+        "count": 5
+      }
+    }
+  ],
+  "observations": [
+    "本次 ask 共落 3 条模型调用记录：意图提案 + Harness 的 MemoryConsolidator 后台整理（合规提案下两次运行均为 1+2）。",
+    "成本与 E-7 统计必须按调用累加，不能假设「一次问数一次模型调用」；单条记录 token 取模型返回的 usage 汇总。",
+    "提案不合规时会触发修复轮，调用数成倍放大（实测缺 reason_code 时单次 ask 达 13 条），修复轮的调用同样被记录。"
+  ],
+  "sample": {
+    "id": 33,
+    "traceId": "llmtrace-1794378403114",
+    "sessionId": "s-llmtrace-1794378403114",
+    "turnIndex": 1,
+    "purpose": "ask.agent",
+    "model": "stub-model",
+    "inputTokens": 128,
+    "outputTokens": 16,
+    "totalTokens": 144,
+    "latencyMs": 159,
+    "status": "success",
+    "errorType": null,
+    "errorMessage": null,
+    "finishReason": "stop",
+    "createdAt": "2026-11-11 14:26:44.164219"
+  }
+}

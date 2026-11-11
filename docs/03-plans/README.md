@@ -19,7 +19,7 @@
 - [M5 · 会话意图编排与 AG-UI 链路 实施规格 v1.2](stages/M5/M5-会话意图编排与AG-UI链路-实施规格-v1.2.md)（**已执行并验收**：三轮自审闭环后放行编码，W1–W5 完成，[验收报告 v1](../06-verification/checklists/M5-验收报告-v1.md) E1–E7 满足；[v0.1](../99-archive/plans/M5-会话意图编排与AG-UI链路-实施规格-v0.1.md) / [v0.2](../99-archive/plans/M5-会话意图编排与AG-UI链路-实施规格-v0.2.md) / [v1.0](../99-archive/plans/M5-会话意图编排与AG-UI链路-实施规格-v1.0.md) / [v1.1](../99-archive/plans/M5-会话意图编排与AG-UI链路-实施规格-v1.1.md) 已归档）
 - [M6 · 分析模式、Scenario / Skill 与复合意图 实施规格 v1.0](stages/M6/M6-分析模式ScenarioSkill与复合意图-实施规格-v1.0.md)（**已通过验收**：W1–W5 全部完成并逐包深度审核，[验收报告 v2](../06-verification/checklists/M6-验收报告-v2.md) E1–E8 满足；OBL-M7 全量交付物 8/8 收敛，M7 放行）
   - 历史版本：[v0.1](../99-archive/plans/M6-分析模式ScenarioSkill与复合意图-实施规格-v0.1.md)、[v0.2](../99-archive/plans/M6-分析模式ScenarioSkill与复合意图-实施规格-v0.2.md)（均已归档）
-- [M7 · 评测、对抗防线与可观测 实施规格 v1.0](stages/M7/M7-评测对抗防线与可观测-实施规格-v1.0.md)（**已冻结（编码放行）**：13 项深度 review 闭环、八项决策定档；W1–W5 任务分解与 E1–E8 退出条件）
+- [M7 · 评测、对抗防线与可观测 实施规格 v1.2](stages/M7/M7-评测对抗防线与可观测-实施规格-v1.2.md)（**已冻结（编码放行）**：13 项深度 review 闭环、八项决策定档；W1–W5 任务分解与 E1–E8 退出条件；v1.2 修正 T5.1 追踪身份口径——复用请求级 traceId，OTel exporter 归 M8）
   - 历史版本：[v0.1](../99-archive/plans/M7-评测对抗防线与可观测-实施规格-v0.1.md)（已归档）
 
 本目录遵循 `../README.md`（文档规范与总索引）：统一头块、生命周期、单一事实源与相对链接规则。

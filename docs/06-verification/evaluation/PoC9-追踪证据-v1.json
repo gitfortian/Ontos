@@ -1,7 +1,7 @@
 {
-  "runId": "p91794321644883",
-  "ranAt": "2026-11-10T14:40:47.553Z",
-  "manifestId": "2026.11.10-sixteenth",
+  "runId": "p91794378574545",
+  "ranAt": "2026-11-11T06:29:37.164Z",
+  "manifestId": "2026.11.11-eighteenth",
   "scriptVersion": "poc09-trace-v1",
   "chain": "问题(utterance/DSL) → [X-Request-Id/MDC traceId] → 编译 DSL(audit.dsl) → SQL(audit.sql_text) → 结果(audit.row_count / 事件流重放)",
   "infra": "复用既有机制（不自研埋点）：OntosRequestContextFilter traceId + audit_log 四要素 + ask_run_event 重放 + Actuator",
@@ -20,8 +20,8 @@
       "name": "响应回显 X-Request-Id（traceId 贯穿响应）",
       "pass": true,
       "detail": {
-        "echoed": "poc9-dry-p91794321644883",
-        "requestId": "poc9-dry-p91794321644883"
+        "echoed": "poc9-dry-p91794378574545",
+        "requestId": "poc9-dry-p91794378574545"
       }
     },
     {
@@ -56,6 +56,7 @@
       "detail": {
         "types": [
           "RUN_STARTED",
+          "TEXT_MESSAGE_CONTENT",
           "TOOL_CALL_END",
           "CUSTOM",
           "RUN_FINISHED"
@@ -91,7 +92,7 @@
       "name": "/actuator/metrics 可达（运行时指标暴露）",
       "pass": true,
       "detail": {
-        "metricCount": 63
+        "metricCount": 65
       }
     },
     {

@@ -10,6 +10,7 @@ import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.module.agent.config.AskProperties;
 import com.ontos.framework.agent.core.IntentProposalContract;
 import com.ontos.framework.agent.core.OntosAgentFactory;
+import com.ontos.framework.agent.trace.LlmCallOrigin;
 import com.ontos.framework.common.util.json.JsonUtils;
 import com.ontos.framework.web.core.context.RequestContext;
 import com.ontos.module.agent.dal.dataobject.AskRunDO;
@@ -453,7 +454,8 @@ public class AskOrchestrationService {
 
     /** 调用模型产出意图提案；修复反馈逐轮注入，超限返回契约兜底拒答（fail-closed）。 */
     private Map<String, Object> callModel(OntosAgentFactory factory, String utterance) {
-        var agent = factory.create();
+        // 调用来源在请求线程解析（T5.1）：模型流可能在别的线程完成，不能依赖那里的 ThreadLocal
+        var agent = factory.create(llmCallOrigin());
         List<IntentProposalContract.Violation> lastViolations = List.of();
         for (int attempt = 0; attempt <= agentProperties.getOutputMaxRepairs(); attempt++) {
             Msg prompt = lastViolations.isEmpty()
@@ -474,6 +476,22 @@ public class AskOrchestrationService {
         log.warn("[callModel][模型输出连续 {} 次未过契约，确定性拒答]",
                 agentProperties.getOutputMaxRepairs() + 1);
         return JsonUtils.parseMap(IntentProposalContract.rejectFallback());
+    }
+
+    /**
+     * 模型调用来源（T5.1）：身份取自请求上下文，缺失时不记录追踪（不写无租户行）。
+     *
+     * <p>purpose 标识**角色**而非单次调用：同一个 agent 实例在一次请求内可能产生多条记录
+     * （意图提案 + Harness 的 MemoryConsolidator 后台整理，实测 1+2），
+     * 成本统计必须按调用累加，不能假设「一次问数一次模型调用」。
+     */
+    private static LlmCallOrigin llmCallOrigin() {
+        var context = com.ontos.framework.web.core.context.RequestContextHolder.get();
+        if (context == null) {
+            return null;
+        }
+        return LlmCallOrigin.of(context.tenantId(), context.traceId(), context.sessionId(),
+                context.turnIndex(), "ask.agent");
     }
 
     private static String textOf(Msg reply) {
