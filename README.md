@@ -207,7 +207,7 @@ DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、F
 - **M4 已通过**（2026-11-09）：[验收报告 v1](docs/06-verification/checklists/M4-验收报告-v1.md) E1–E6 满足——策略快照、RLS 终态、审批/审计/脱敏、跨轮累计防护（PoC #7 32/32）。
 - **M5 已通过**（2026-11-09）：[验收报告 v1](docs/06-verification/checklists/M5-验收报告-v1.md) E1–E7 满足——服务端会话状态机、检索瀑布、Intent Proposal、澄清/HITL、AG-UI 六类事件（PoC #3 20/20）。
 - **M6 已通过**（2026-11-11）：[验收报告 v2](docs/06-verification/checklists/M6-验收报告-v2.md) E1–E8 满足——8 种分析模式构造器、Scenario 五态路由与 scope 收窄、SkillRegistry 注册制与近似降级、VQR 运营闭环、复合意图结果引用与部分失败（PoC #8 30/30）；全量深度审核 22 项发现（2 项 P1）闭环，附条件项见报告 §7。
-- **M7 进行中**（评测、对抗防线与可观测）：OBL-M7 全量交付物 8/8 已在 M6 触发点收敛（[报告 v2](docs/06-verification/checklists/M7-全量交付物收敛验收报告-v2.md)）；阶段本体（LLM 路径评测 E-7、auto 入口 E-6、品类粒度 E-5、纠正样本自动回流等）按 [M7 实施规格 v0.1](docs/03-plans/stages/M7/M7-评测对抗防线与可观测-实施规格-v0.1.md) 推进（草稿，决策待定档）。
+- **M7 进行中**（评测、对抗防线与可观测）：OBL-M7 全量交付物 8/8 已在 M6 触发点收敛（[报告 v2](docs/06-verification/checklists/M7-全量交付物收敛验收报告-v2.md)）；阶段本体（LLM 路径评测 E-7、auto 入口 E-6、品类粒度 E-5、纠正样本自动回流等）按 [M7 实施规格 v1.0](docs/03-plans/stages/M7/M7-评测对抗防线与可观测-实施规格-v1.0.md) 推进（已冻结，编码放行）。
 - **M8 待启动**：网关 / 部署 / 灰度回滚 / SLO / 灾备，需 M7 验收 + v1.4 §18/§19 关闭。
 
 当前生效清单 `2026.11.10-sixteenth`（8 skills + 1 vqr + `scenario.sales`）。
