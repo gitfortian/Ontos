@@ -1,0 +1,116 @@
+{
+  "runId": "L71794379780626",
+  "ranAt": "2026-11-11T06:49:48.020Z",
+  "manifestId": "2026.11.11-eighteenth",
+  "scriptVersion": "load-m7-v1",
+  "target": "阶段本体 T5.2：确定性三档 + LLM 链路抽样（追踪完整性与开销）",
+  "sloFrozenBeforeRun": {
+    "p95Ms": 2000,
+    "errorRate": 0,
+    "timeoutRate": 0,
+    "llmP95Ms": 6000,
+    "llmTokensPerCall": 8000
+  },
+  "sloBasis": "SLO与成本预算-v1（2026-11-11 冻结，看正式结果前）",
+  "agentMode": "agent.enabled=true → 本地 OpenAI 协议桩（确定性端点不经过模型；ask 抽样经过）",
+  "deterministic": {
+    "trials": 3,
+    "phases": [
+      {
+        "name": "确定性 · 并发 1",
+        "concurrency": 1,
+        "total": 60,
+        "p50": 9,
+        "p95": 19,
+        "p99": 23,
+        "max": 23,
+        "errorCount": 0,
+        "timeoutCount": 0,
+        "throughputRps": 89.29,
+        "perTrialP95": [
+          25,
+          19,
+          18
+        ]
+      },
+      {
+        "name": "确定性 · 并发 8",
+        "concurrency": 8,
+        "total": 240,
+        "p50": 28,
+        "p95": 49,
+        "p99": 61,
+        "max": 61,
+        "errorCount": 0,
+        "timeoutCount": 0,
+        "throughputRps": 273.04,
+        "perTrialP95": [
+          295,
+          49,
+          41
+        ]
+      },
+      {
+        "name": "确定性 · 并发 16",
+        "concurrency": 16,
+        "total": 480,
+        "p50": 56,
+        "p95": 80,
+        "p99": 125,
+        "max": 162,
+        "errorCount": 0,
+        "timeoutCount": 0,
+        "throughputRps": 275.39,
+        "perTrialP95": [
+          193,
+          80,
+          76
+        ]
+      }
+    ],
+    "verdict": {
+      "p95WithinBudget": true,
+      "errorRateZero": true,
+      "timeoutRateZero": true,
+      "totalRequests": 780,
+      "totalErrors": 0,
+      "totalTimeouts": 0,
+      "allSamplesP95": 141
+    }
+  },
+  "baseline": {
+    "source": "压测-M6证据-v2.json（并发 16）",
+    "m6P95": 145,
+    "currentP95": 80,
+    "ratio": 0.552,
+    "withinThirtyPercent": true
+  },
+  "llm": {
+    "phase": {
+      "name": "LLM · 并发 4",
+      "concurrency": 4,
+      "total": 12,
+      "p50": 298,
+      "p95": 1521,
+      "p99": 1521,
+      "max": 1521,
+      "errorCount": 0,
+      "timeoutCount": 0,
+      "throughputRps": 5.57
+    },
+    "traces": 12,
+    "missingTraces": 0,
+    "maxCallsPerTrace": 3,
+    "maxTokensPerTrace": 432,
+    "traceComplete": true,
+    "tokenBudgetRespected": true,
+    "modelSide": "本地 OpenAI 协议桩（只测编排 + 追踪开销；延迟/成本不代表真实模型）"
+  },
+  "verdict": {
+    "deterministicPass": true,
+    "baselineNote": "劣化 ≤30%（未触发解释项）",
+    "overall": "SLO 全满足",
+    "llmSamplingPass": true,
+    "llmNote": "模型侧为本地 OpenAI 协议桩：只验证编排与追踪写入开销，真实模型延迟/成本以 E-7 为准"
+  }
+}

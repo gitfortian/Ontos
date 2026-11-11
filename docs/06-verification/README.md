@@ -52,6 +52,7 @@
 - [失败看板闭环证据 v1](evaluation/失败看板闭环证据-v1.json)（M7/W4：登记→分类→分诊→修复→回流 dev 全链 + 非法迁移/回流 test/跨租户负例；V17 只追加未改写）
 - [失败看板联动证据 v1](evaluation/失败看板T4.3联动证据-v1.json)（M7/W4/T4.3：单维联动过滤 8/8 探针——分布仍基于全集、非白名单维度/空值/非布尔值一律 `1003000012`、`GET /categories` 30 类闭词表；前端 `pnpm check` 26 例 + `vite build` 通过）
 - [LLM 调用追踪证据 v1](evaluation/LLM调用追踪证据-v1.json)（M7/W5/T5.1：同一次 ask 的 traceId 串起 3 条模型调用记录（提案 1 + MemoryConsolidator 2）、token/耗时/终态齐全、桩侧计数与落库条数一致 8/8；模型侧为本地 OpenAI 协议桩，只证追踪链路，不代表模型效果）
+- [压测证据 v1](evaluation/压测-M7证据-v1.json)（M7/W5/T5.2：确定性三档 × 3 轮取中位数——并发 1/8/16 P95=19/49/80ms、错误 0、超时 0，M6 基线 145ms → 0.552×；LLM 抽样 12 trace 全部有记录、单 trace ≤3 次调用 ≤432 token；模型侧为本地协议桩，只测编排与追踪开销）
 - [零号冒烟评测证据 v3](evaluation/零号冒烟-评测证据-v3.json)（版本化固化，SHA-256 `c6b2b87a…`；`-latest` 为每次复跑覆盖的软名结果）
 - [M3 验收报告 v1](checklists/M3-验收报告-v1.md)（已冻结，E1–E6 全部满足，M5 放行）
 - [M2 验收报告 v1](checklists/M2-验收报告-v1.md)（已冻结，E2–E8 满足、E1 按 [ADR-0013](../01-decisions/ADR-0013-Golden不可构造案例处置口径.md) 附条件关闭，M3 放行）

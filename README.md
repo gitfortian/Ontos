@@ -207,9 +207,9 @@ DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、F
 - **M4 已通过**（2026-11-09）：[验收报告 v1](docs/06-verification/checklists/M4-验收报告-v1.md) E1–E6 满足——策略快照、RLS 终态、审批/审计/脱敏、跨轮累计防护（PoC #7 32/32）。
 - **M5 已通过**（2026-11-09）：[验收报告 v1](docs/06-verification/checklists/M5-验收报告-v1.md) E1–E7 满足——服务端会话状态机、检索瀑布、Intent Proposal、澄清/HITL、AG-UI 六类事件（PoC #3 20/20）。
 - **M6 已通过**（2026-11-11）：[验收报告 v2](docs/06-verification/checklists/M6-验收报告-v2.md) E1–E8 满足——8 种分析模式构造器、Scenario 五态路由与 scope 收窄、SkillRegistry 注册制与近似降级、VQR 运营闭环、复合意图结果引用与部分失败（PoC #8 30/30）；全量深度审核 22 项发现（2 项 P1）闭环，附条件项见报告 §7。
-- **M7 进行中**（评测、对抗防线与可观测）：OBL-M7 全量交付物 8/8 已在 M6 触发点收敛（[报告 v2](docs/06-verification/checklists/M7-全量交付物收敛验收报告-v2.md)）；阶段本体（LLM 路径评测 E-7、auto 入口 E-6、品类粒度 E-5、纠正样本自动回流等）按 [M7 实施规格 v1.2](docs/03-plans/stages/M7/M7-评测对抗防线与可观测-实施规格-v1.2.md) 推进（已冻结，编码放行）；W1（E-5/E-6/SLO）、W4（失败看板闭环 + D-22 三项）、W5/T5.1（V20 模型调用追踪）已落地。
+- **M7 进行中**（评测、对抗防线与可观测）：OBL-M7 全量交付物 8/8 已在 M6 触发点收敛（[报告 v2](docs/06-verification/checklists/M7-全量交付物收敛验收报告-v2.md)）；阶段本体（LLM 路径评测 E-7、auto 入口 E-6、品类粒度 E-5、纠正样本自动回流等）按 [M7 实施规格 v1.2](docs/03-plans/stages/M7/M7-评测对抗防线与可观测-实施规格-v1.2.md) 推进（已冻结，编码放行）；W1（E-5/E-6/SLO）、W4（失败看板闭环 + D-22 三项）、W5/T5.1–T5.2（V20 模型调用追踪、三档压测）已落地。
 - **M8 待启动**：网关 / 部署 / 灰度回滚 / SLO / 灾备，需 M7 验收 + v1.4 §18/§19 关闭。
 
 当前生效清单 `2026.11.11-eighteenth`（8 skills + 1 vqr + 2 scenarios：`scenario.sales` / `scenario.sales.auto`；9 指标，contentHash `ba3affaa…`）。
-实测基线（2026-11-11）：`mvn test` 658 例 / 0 失败、`pnpm check` 通过（26 单测）、`vite build` 通过、docs 治理 145 文档 / 1411 链接、并行义务 `deferred 0`、live 基线 7 PASS / 0 FAIL / 0 SKIP（本轮未复跑）。
+实测基线（2026-11-11）：`mvn test` 658 例 / 0 失败、`pnpm check` 通过（26 单测）、`vite build` 通过、docs 治理 145 文档 / 1413 链接、并行义务 `deferred 0`、live 基线 7 PASS / 0 FAIL / 0 SKIP（本轮未复跑）。
 进度与状态口径以 `docs/05-progress/2026/` 和 `docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md` 为准。
