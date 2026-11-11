@@ -63,6 +63,19 @@ if (!manifestId) {
 }
 console.log(`当前清单: ${manifestId}`);
 
+// T55-1（P2，M6/W5/T5.5 基线复跑发现）：V16 迁移派生并激活了新快照
+// seed-2026.11.10-v2（含 scenario.sales 授权）。原脚本硬编码 seed-2026.11.09-v2
+// 作为 T8 策略切换的复制源与恢复目标——会把 active 快照降回旧版、丢失场景授权。
+// 改为运行时读取当前 active 版本（兼容纪律：消费路径不得假设版本号）。
+const ACTIVE_POLICY_VERSION = sql(
+  "SELECT policy_version FROM policy_snapshot WHERE tenant_id='demo' AND active=TRUE"
+  + " ORDER BY created_at DESC LIMIT 1");
+if (!ACTIVE_POLICY_VERSION) {
+  console.error("demo 租户无 active 策略快照（fail-closed）");
+  process.exit(1);
+}
+console.log(`当前生效策略快照: ${ACTIVE_POLICY_VERSION}`);
+
 sql("DELETE FROM sensitive_query_event WHERE tenant_id = 'demo'");
 sql("DELETE FROM approval_request WHERE tenant_id = 'demo' AND kind = 'SENSITIVE_SEQUENCE'");
 sql("DELETE FROM query_cache");
@@ -292,7 +305,7 @@ note("T7", "INTERRUPT 事件携带审批单 ID（可直连决策端点）",
 sql("DELETE FROM policy_snapshot WHERE tenant_id='demo'"
   + " AND policy_version IN ('probe-revoke-v1', 'probe-label-v1')");
 sql("UPDATE policy_snapshot SET active=TRUE WHERE tenant_id='demo'"
-  + " AND policy_version='seed-2026.11.09-v2'");
+  + ` AND policy_version='${ACTIVE_POLICY_VERSION}'`);
 const injectionTrigger = await postWithApproval("/api/v1/query/execute", {
   manifestId, mode: "LOOKUP", entityId: "concept.customer",
   attributes: ["property.customer.email"],
@@ -352,7 +365,7 @@ sql(`INSERT INTO policy_snapshot (tenant_id, policy_version, payload, active, cr
       (SELECT jsonb_agg(a) FROM jsonb_array_elements(s.payload->'assets') a
         WHERE a->>'assetId' <> 'metric.gmv')),
     FALSE, 'w4-probe'
-  FROM policy_snapshot s WHERE s.tenant_id='demo' AND s.policy_version='seed-2026.11.09-v2'`);
+  FROM policy_snapshot s WHERE s.tenant_id='demo' AND s.policy_version='${ACTIVE_POLICY_VERSION}'`);
 sql("UPDATE policy_snapshot SET active=FALSE WHERE tenant_id='demo' AND active=TRUE");
 sql("UPDATE policy_snapshot SET active=TRUE WHERE tenant_id='demo' AND policy_version='probe-revoke-v1'");
 await new Promise((resolve) => setTimeout(resolve, 61000)); // 越过 60s 快照缓存 TTL
@@ -365,7 +378,7 @@ const revokedUse = await postWithApproval("/api/v1/query/execute", gmvQuery,
 note("T8", "降权后旧令牌被策略层拒绝（策略先于令牌，1003000005）",
   revokedUse?.code === 1003000005, { code: revokedUse?.code });
 sql("UPDATE policy_snapshot SET active=FALSE WHERE tenant_id='demo' AND policy_version='probe-revoke-v1'");
-sql("UPDATE policy_snapshot SET active=TRUE WHERE tenant_id='demo' AND policy_version='seed-2026.11.09-v2'");
+sql(`UPDATE policy_snapshot SET active=TRUE WHERE tenant_id='demo' AND policy_version='${ACTIVE_POLICY_VERSION}'`);
 await new Promise((resolve) => setTimeout(resolve, 61000)); // 快照缓存 TTL 内不误判后续探针
 
 // T8.5 label 快照切换：布尔指标标 label → 个体判定拒绝（1003000006），聚合放行
@@ -377,7 +390,7 @@ sql(`INSERT INTO policy_snapshot (tenant_id, policy_version, payload, active, cr
         THEN jsonb_set(a, '{sensitivityClass}', to_jsonb('label'::text)) ELSE a END)
         FROM jsonb_array_elements(s.payload->'assets') a)),
     FALSE, 'w4-probe'
-  FROM policy_snapshot s WHERE s.tenant_id='demo' AND s.policy_version='seed-2026.11.09-v2'`);
+  FROM policy_snapshot s WHERE s.tenant_id='demo' AND s.policy_version='${ACTIVE_POLICY_VERSION}'`);
 sql("UPDATE policy_snapshot SET active=FALSE WHERE tenant_id='demo' AND active=TRUE");
 sql("UPDATE policy_snapshot SET active=TRUE WHERE tenant_id='demo' AND policy_version='probe-label-v1'");
 await new Promise((resolve) => setTimeout(resolve, 61000));
@@ -390,7 +403,7 @@ const labelIndividual = await postWithApproval("/api/v1/query/execute", {
 note("T8", "label 级布尔判定个体返回被拒（1003000006）",
   labelIndividual?.code === 1003000006, { code: labelIndividual?.code });
 sql("UPDATE policy_snapshot SET active=FALSE WHERE tenant_id='demo' AND policy_version='probe-label-v1'");
-sql("UPDATE policy_snapshot SET active=TRUE WHERE tenant_id='demo' AND policy_version='seed-2026.11.09-v2'");
+sql(`UPDATE policy_snapshot SET active=TRUE WHERE tenant_id='demo' AND policy_version='${ACTIVE_POLICY_VERSION}'`);
 await new Promise((resolve) => setTimeout(resolve, 61000));
 
 // ---------- 汇总 ----------

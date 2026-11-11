@@ -28,12 +28,12 @@ YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路
 ## 并行义务纪律
 阶段收口必须逐项点名欠账（触发点/负责人/证据）。机器强制：`docs/00-governance/parallel-obligations.json` + check-parallel-obligations.mjs。OBL-M7 触发 M6，status=deferred（2026-11-10 W5/T5.1 数据面 6/8 子件后仍欠失败看板+M7 报告）。
 
-## M6 进度（进行中，2026-11-10）
-- W1–W3 完成：模式构造器（Golden M6 23/0）；Scenario 资产化+五态路由（ADR-0004 核对放行）；SkillRegistry 注册制+近似降级+VQR 全链（v16=sixteenth 激活：8 skills+1 vqr+scenario.sales）。
-- W4 完成（commit `4d57c5c`）：《结果引用规格 v1》冻结+JGraphT 拓扑+resultRef 注入+部分失败语义（T45-1/T45-2 P1 修复）+PoC #8 复跑 30/30。
-- **W5/T5.1 评测数据面收敛（commit `406c2b0`，6/8 子件）**：smoke v2 20/20（G-9 六 skip 转 ask 实测+拒绝映射收紧）；test 集 v3 271 题（E-1 场景 15+E-2 增量 30 闭环）；test-runner v1 首轮 269/0/2/0 成功率 1.0；消融 6 组+10 N/A；PoC #9 11/11；压测 P95 259ms@并发16 SLO 全满足。正式评测集 v4。
-- **T51 修复（真服务评测驱动）**：T51-1(P1) 场景确认误设 consumed→契约拒答（确认只迁移状态）；T51-2(P2) 注入审计冗余双写 JSONB 失败（统一走 checkpoint）；T51-3(P1) 中文注入启发 10 题仅 1 中（正则逐族扩充+空格容差+误伤兜底）。
-- 关键教训：端到端是回归唯一可靠证明（T32-6/T45-1/T51-1/T51-3 均单测全绿下真服务抓到）；评测执行路径固定确定性降级（E-7 LLM 评测登记 M7）；auto 入口需 auto_if_confident 场景资产（E-6）。
-- 基线：`mvn clean test` **617 例/0 失败**；docs 128/1124。
-- **欠账**：T5.1 残——失败看板 5 维下钻+纠正样本回流（表+API+前端 audit 域）、M7 验收报告+OBL-M7 置 done；E-6 auto 题；E-7 LLM 评测。
-- **下一步**：T5.1 残项 → T5.2 对抗扩充 ≥7（Scenario 越界/DSL scenarioId 直传 G-2/VQR 越权/Skill capabilities 缺失/未声明近似/冷启动注入/dependsOn 篡改）→ T5.3 运维面（ask_run_event 保留策略 G-5+run 线程池；拒绝映射已随 G-9 完成）→ T5.4 移交核对（CopilotKit 复查 ADR-0010/R-31 边界声明）→ T5.5 基线全绿+M6 验收报告。
+## M6 已完成验收（2026-11-11）
+
+- W1–W4：模式构造器（Golden 23/0）；Scenario 资产化+五态路由（ADR-0004 3/3）；SkillRegistry/VQR 全链（生效清单 `2026.11.10-sixteenth`：8 skills+1 vqr+scenario.sales）；复合意图 resultRef+拓扑+部分失败（PoC#8 30/30）。
+- **W5/T5.1–T5.5 全部完成**：OBL-M7 全量收敛 8/8（test v3 271 题/269 有效；分层接线 269/0/2/0；G-9 冒烟 20/20；消融 6+10；失败看板 V17 表+API+前端；PoC#9 11/11；压测并发16 P95=259ms；M7 收敛报告）；T5.2 对抗 8/8 全拒；T5.3 运维面（保留策略默认永久+线程池 4→16）；T5.4 移交核对（CopilotKit 观察项非阻塞、R-31 单域边界）；T5.5 live 基线 **7 PASS/0 FAIL/0 SKIP**。
+- **M6 验收报告 v1 E1–E8 全满足，roadmap M6 已通过，OBL-M7 台账 done，检查器 deferred 0**；W5 收口+M6 全局审核通过。`mvn clean test` **628/0**；docs 133/1177。
+- **T51/T53/T55 修复**：T51-1(P1) 场景确认误设 consumed；T51-2(P2) 注入审计双写 JSONB 失败；T51-3(P1) 中文注入启发 10 题仅 1 中（逐族扩充）；T51-5(P3) ArchUnit 拦 VO 带 DO；T53-1(P3) TIMESTAMPTZ cutoff 改 OffsetDateTime；**T55-1(P2)** PoC#7 需 `--ontos.policy.dev-allow-all=false` + 动态取 active 策略快照（V16 派生 `seed-2026.11.10-v2`，硬编码旧版会丢场景授权）。
+- 关键教训：端到端是回归唯一可靠证明（T32-6/T45-1/T51-1/T51-3/T55-1 均单测全绿下真服务/基线抓到）；评测固定确定性降级路径；冻结证据哈希按磁盘字节；单独 -Dtest 需 -am + `-Dsurefire.failIfNoSpecifiedTests=false`；服务运行时别跑 mvn clean。
+- **附条件项（非阻塞，按触发点）**：E-5 品类×订单事实指标（M7 资产决策）、E-6 auto 入口题（需 auto_if_confident 场景资产）、E-7 LLM 路径评测（M7）、CopilotKit spike（多域/AG-UI 稳定后）、R-31（多域 ADR）、T45-4（规格升版）。
+- **下一步：M7 阶段**（评测、对抗防线与可观测的后续建设；LLM 路径评测需稳定模型服务与多次统计运行）。
