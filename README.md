@@ -28,12 +28,15 @@ ontos/                          后端（唯一部署单元是 ontos-server）
 │   ├── ontos-spring-boot-starter-jdbc/   双数据源 + jOOQ DSLContext
 │   └── ontos-spring-boot-starter-agent/  HarnessAgent 工厂 + AG-UI 注册
 ├── ontos-module-ontology/      本体快照、发布校验、不可变清单
-├── ontos-module-query/         类型化 DSL → 校验 → 编译 → 只读执行
-├── ontos-module-system/        策略、审计、审批
+├── ontos-module-catalog/       Scenario / Skill / VQR 资产生命周期与发布校验（管理面）
+├── ontos-module-query/         类型化 DSL → 校验 → 编译 → 只读执行 + 模式构造器
+├── ontos-module-system/        策略、审计、审批、失败看板
+├── ontos-module-session/       会话状态机、检索瀑布、Scenario 入口路由
+├── ontos-module-agent/         意图编排、Intent Proposal、AG-UI 事件流
 └── ontos-server/               启动模块 + application.yml + Flyway 迁移 + prompt
 ontos-ui/                       前端 workspaces（工程规范见 ontos-ui/FRONTEND_RULES.md）
 ├── apps/web/                   产品应用：app/<域> · service/<域> · service/http · context · hooks · themes
-├── packages/ontos-ui/          迁移期临时组件库（M0 内按附录 A 替换为 shadcn/ui + Radix）
+├── packages/ontos-ui/          shadcn/ui + Radix 共享 UI 包（附录 A 归位已完成，见 ADR-0001）
 ├── scripts/                    架构边界、导入方向、设计 token 的可执行约束
 ├── FRONTEND_RULES.md           前端工程规范（参考 yak-ops-ui；组件选型见附录 A）
 └── docs/tooling.md             工具链与验证命令
@@ -156,11 +159,12 @@ pnpm dev             # http://localhost:5173，/api 与 /agent 自动代理到 8
 **4) 验证**
 
 ```bash
-cd ontos && mvn test             # 32 个测试（含 5 条 ArchUnit 架构规则）
+cd ontos && mvn test             # 631 例（含 9 条 ArchUnit 架构规则）
 cd ontos-ui && pnpm check        # Oxfmt / Oxlint / TS / 架构边界 / 静态契约 / 单测
 cd ontos-ui && pnpm build        # Vite 生产构建
-node docs/00-governance/check-docs.mjs   # docs 治理：分层 / 命名 / 链接
-node scripts/verify-baseline.mjs          # 上面四项 + jar 启动探活，一条命令全绿
+node docs/00-governance/check-docs.mjs                   # docs 治理：分层 / 命名 / 链接
+node docs/00-governance/check-parallel-obligations.mjs   # 并行义务与阶段状态
+node scripts/verify-baseline.mjs          # 上面四项 + jar 启动探活；--live <url> 追加 PoC #1/#7 探针
 ```
 
 ## API 一览
@@ -173,7 +177,7 @@ node scripts/verify-baseline.mjs          # 上面四项 + jar 启动探活，�
 | POST | `/api/v1/query/dry-plan` | 同一编译产物 + EXPLAIN 计划与成本（不触数据表） |
 | POST | `/api/v1/query/dry-run` | 受限执行（更紧的超时/行数，成本超限拒绝），返回结果与执行元数据 |
 | GET | `/api/v1/query/plan/{requestId}` | 回放最近一次编译产物（SQL / 绑定值 / Join 路径 / 计划） |
-| POST | `/api/v1/query/composite/execute` | 复合意图执行（无依赖子集逐子独立编译/授权/审计，失败整单拒绝） |
+| POST | `/api/v1/query/composite/execute` | 复合意图执行（逐子独立编译/授权/审计、结果隔离；依赖拓扑 + 部分失败结构化返回，不合并 SQL） |
 | POST | `/api/v1/query/execute` | 编译并执行，返回行数据 |
 | GET | `/api/v1/approvals` | 审批单分页（按租户隔离） |
 | POST | `/api/v1/approvals/{id}/decide` | 批准 / 拒绝 PENDING 单据 |
@@ -189,33 +193,23 @@ node scripts/verify-baseline.mjs          # 上面四项 + jar 启动探活，�
 | GET | `/actuator/health` | 健康检查 |
 
 统一响应为 `CommonResult<T>`（`code=0` 成功），分页为 `PageResult<T>`。
-发布/激活/规划等管理端点经策略闸门（M4 前非 local profile 整体 403）。
+发布/激活/规划等管理端点经策略快照闸门（非 local 必须显式授权；`dev-allow-all` 仅限 `local`）。
 
-## 当前状态（M3 · 简单问法最小闭环，已通过）
+## 当前状态（M6 已通过 · M7 进行中）
 
 已落地：多模块骨架、yudao 风格通用层、双数据源、发布清单加载与哈希校验、
 DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、Flyway 迁移、AG-UI 注册、前端页面与 SSE 客户端、架构守护测试。
 
-- **M0 已通过**（2026-11-07）：阶段零 PoC 全链验收，G1–G8 关闭，见 `docs/06-verification/checklists/M0-验收报告-v2.md`。
-- **M1 已通过**（2026-11-08）：[验收报告 v2](docs/06-verification/checklists/M1-验收报告-v2.md) E1–E8 全部满足——
-  清单 payload v2 与本体元模型、首发清单与发布链路（dry-run/确认/激活/回滚）、路径规划器、
-  请求级八态状态机与迁移审计、管理界面三页；G2 三批 100% 维持关闭；ADR-0007~0010 冻结。
-- **M2 已通过（E1 附条件）**（2026-11-08）：[验收报告 v1](docs/06-verification/checklists/M2-验收报告-v1.md) 冻结，
-  E2–E8 满足、E1 可构造子集 27/27 逐字一致（3 条不可构造案例按
-  [ADR-0013](docs/01-decisions/ADR-0013-Golden不可构造案例处置口径.md) 由两条单测与 M4 域策略接替）。
-  W1–W6 全部完成：DSL 来源标记与 fail-closed 白名单、时间解析器与「今年」模式、UNIQUE 路径 → 结构化 Join、
-  5 模式构造器（query/lookup/lookup_batch/funnel/yoy_mom）、Rule 求值、敏感资产 guardrail、
-  dry-plan/dry-run 与成本闸门、复合意图两阶段逐子编译、编译产物持久化与 `/plan/{id}` 回放、
-  query_cache 与激活失效钩子、编译调试页。当前生效清单 `2026.11.08-eighth`（M3/W1：新增带两个口径变体的 `metric.paid_gmv`、「上季度」时间模式与 9 条原因码文案模板）。
+- **M0 已通过**（2026-11-07）：阶段零 PoC 全链验收，G1–G8 关闭，见 [验收报告 v2](docs/06-verification/checklists/M0-验收报告-v2.md)。
+- **M1 已通过**（2026-11-08）：[验收报告 v2](docs/06-verification/checklists/M1-验收报告-v2.md) E1–E8 满足——清单 payload v2 与本体元模型、发布链路、路径规划器、八态状态机、管理界面三页。
+- **M2 已通过（E1 附条件）**（2026-11-08）：[验收报告 v1](docs/06-verification/checklists/M2-验收报告-v1.md) E2–E8 满足、E1 可构造子集 27/27 逐字一致；5 模式构造器、Rule 求值、dry-plan/dry-run、复合两阶段编译、编译产物回放。
+- **M3 已通过**（2026-11-09）：[验收报告 v1](docs/06-verification/checklists/M3-验收报告-v1.md) E1–E6 满足——口径变体、`skill.entity_lookup`、文案模板、前端澄清卡片。
+- **M4 已通过**（2026-11-09）：[验收报告 v1](docs/06-verification/checklists/M4-验收报告-v1.md) E1–E6 满足——策略快照、RLS 终态、审批/审计/脱敏、跨轮累计防护（PoC #7 32/32）。
+- **M5 已通过**（2026-11-09）：[验收报告 v1](docs/06-verification/checklists/M5-验收报告-v1.md) E1–E7 满足——服务端会话状态机、检索瀑布、Intent Proposal、澄清/HITL、AG-UI 六类事件（PoC #3 20/20）。
+- **M6 已通过**（2026-11-11）：[验收报告 v2](docs/06-verification/checklists/M6-验收报告-v2.md) E1–E8 满足——8 种分析模式构造器、Scenario 五态路由与 scope 收窄、SkillRegistry 注册制与近似降级、VQR 运营闭环、复合意图结果引用与部分失败（PoC #8 30/30）；全量深度审核 22 项发现（2 项 P1）闭环，附条件项见报告 §7。
+- **M7 进行中**（评测、对抗防线与可观测）：OBL-M7 全量交付物 8/8 已在 M6 触发点收敛（[报告 v2](docs/06-verification/checklists/M7-全量交付物收敛验收报告-v2.md)）；阶段本体（LLM 路径评测 E-7、auto 入口 E-6、品类粒度 E-5、纠正样本自动回流等）按 [M7 实施规格 v0.1](docs/03-plans/stages/M7/M7-评测对抗防线与可观测-实施规格-v0.1.md) 推进（草稿，决策待定档）。
+- **M8 待启动**：网关 / 部署 / 灰度回滚 / SLO / 灾备，需 M7 验收 + v1.4 §18/§19 关闭。
 
-- **M3 已通过**（2026-11-09，[验收报告 v1](docs/06-verification/checklists/M3-验收报告-v1.md) 冻结，E1–E6 满足）：
-  W1 资产与清单 v8（带两个口径变体的 `metric.paid_gmv`、「上季度」模式、9 条文案模板）、
-  W2 口径变体闭环（`caliberVariantId` + `CALIBER_AMBIGUOUS` 1002000033，歧义澄清不允许 LLM 二选一）、
-  W3 能力注册与 lookup 产品化（`skill.entity_lookup`、`rows` 不再携带内部列 `__identity`）、
-  W4 文案模板服务（`GET /api/v1/copy-templates/{reasonCode}`，占位符白名单渲染 + GENERIC 兜底）、
-  W5 前端（口径澄清卡片、entity_lookup 结果与逐行可用性、`/plan/{requestId}` 回放 UI、
-  时间列 Asia/Shanghai 本地化）。当前生效清单 `2026.11.08-eighth`。
-
-实测基线（2026-11-08）：`mvn test` 全绿、`pnpm check` 通过、`vite build` 通过（新输出目录）、
-文档治理检查通过。进度与状态口径以 `docs/05-progress/2026/` 和
-`docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md` 为准。
+当前生效清单 `2026.11.10-sixteenth`（8 skills + 1 vqr + `scenario.sales`）。
+实测基线（2026-11-11）：`mvn test` 631 例 / 0 失败、`pnpm check` 通过（21 单测）、docs 治理 138 文档 / 1270 链接、并行义务 `deferred 0`、live 基线 7 PASS / 0 FAIL / 0 SKIP。
+进度与状态口径以 `docs/05-progress/2026/` 和 `docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md` 为准。
