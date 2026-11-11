@@ -24,4 +24,13 @@ public class FailureDashboardRespVO {
 
     private Integer recentLimit;
 
+    /** 当前生效的单维联动维度（为空 = 未过滤；分布始终基于全集）。 */
+    private String drillDimension;
+
+    /** 当前生效的联动取值（与 drillDimension 同时出现）。 */
+    private String drillValue;
+
+    /** 联动过滤命中条数（未过滤时等于 total）。 */
+    private long filteredTotal;
+
 }

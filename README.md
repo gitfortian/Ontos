@@ -159,7 +159,7 @@ pnpm dev             # http://localhost:5173，/api 与 /agent 自动代理到 8
 **4) 验证**
 
 ```bash
-cd ontos && mvn test             # 631 例（含 9 条 ArchUnit 架构规则）
+cd ontos && mvn test             # 648 例（含 9 条 ArchUnit 架构规则）
 cd ontos-ui && pnpm check        # Oxfmt / Oxlint / TS / 架构边界 / 静态契约 / 单测
 cd ontos-ui && pnpm build        # Vite 生产构建
 node docs/00-governance/check-docs.mjs                   # docs 治理：分层 / 命名 / 链接
@@ -210,6 +210,6 @@ DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、F
 - **M7 进行中**（评测、对抗防线与可观测）：OBL-M7 全量交付物 8/8 已在 M6 触发点收敛（[报告 v2](docs/06-verification/checklists/M7-全量交付物收敛验收报告-v2.md)）；阶段本体（LLM 路径评测 E-7、auto 入口 E-6、品类粒度 E-5、纠正样本自动回流等）按 [M7 实施规格 v1.0](docs/03-plans/stages/M7/M7-评测对抗防线与可观测-实施规格-v1.0.md) 推进（已冻结，编码放行）。
 - **M8 待启动**：网关 / 部署 / 灰度回滚 / SLO / 灾备，需 M7 验收 + v1.4 §18/§19 关闭。
 
-当前生效清单 `2026.11.10-sixteenth`（8 skills + 1 vqr + `scenario.sales`）。
-实测基线（2026-11-11）：`mvn test` 631 例 / 0 失败、`pnpm check` 通过（21 单测）、docs 治理 138 文档 / 1270 链接、并行义务 `deferred 0`、live 基线 7 PASS / 0 FAIL / 0 SKIP。
+当前生效清单 `2026.11.11-eighteenth`（8 skills + 1 vqr + 2 scenarios：`scenario.sales` / `scenario.sales.auto`；9 指标，contentHash `ba3affaa…`）。
+实测基线（2026-11-11）：`mvn test` 648 例 / 0 失败、`pnpm check` 通过（26 单测）、`vite build` 通过、docs 治理 145 文档 / 1409 链接、并行义务 `deferred 0`、live 基线 7 PASS / 0 FAIL / 0 SKIP。
 进度与状态口径以 `docs/05-progress/2026/` 和 `docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md` 为准。

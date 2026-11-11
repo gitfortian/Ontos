@@ -1,0 +1,119 @@
+{
+  "task": "M7/W4/T4.3",
+  "generatedAt": "2026-11-11T06:04:06.847Z",
+  "serviceBaseUrl": "http://127.0.0.1:8080/api/v1/evaluation/failure-samples",
+  "frontend": {
+    "command": "pnpm check && pnpm build",
+    "unitTests": 26,
+    "result": "PASS",
+    "build": "PASS"
+  },
+  "checks": [
+    {
+      "name": "categories closed word list",
+      "request": "GET /categories",
+      "expected": "code=0 & 30 items",
+      "actual": {
+        "code": 0,
+        "count": 30
+      },
+      "pass": true
+    },
+    {
+      "name": "dashboard unfiltered",
+      "request": "GET /dashboard?setId=ui-drill-check",
+      "expected": "total=4 filteredTotal=4 no drill",
+      "actual": {
+        "total": 4,
+        "filteredTotal": 4,
+        "drill": null
+      },
+      "pass": true
+    },
+    {
+      "name": "drill by risk_type=injection",
+      "request": "GET /dashboard?drillDimension=risk_type&drillValue=injection",
+      "expected": "filteredTotal=2, only injection questions, distribution stays full-set",
+      "actual": {
+        "filteredTotal": 2,
+        "total": 4,
+        "questions": [
+          "q-inj-2",
+          "q-inj-1"
+        ],
+        "riskDimension": [
+          {
+            "value": "injection",
+            "count": 2
+          },
+          {
+            "value": "normal",
+            "count": 2
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "name": "drill by is_composite=true (boolean column)",
+      "request": "GET /dashboard?drillDimension=is_composite&drillValue=true",
+      "expected": "filteredTotal=2, all composite",
+      "actual": {
+        "filteredTotal": 2,
+        "questions": [
+          "q-nor-2",
+          "q-inj-2"
+        ],
+        "isComposite": [
+          true,
+          true
+        ]
+      },
+      "pass": true
+    },
+    {
+      "name": "reject non-whitelisted dimension (column injection)",
+      "request": "GET /dashboard?drillDimension=reason; DROP TABLE x",
+      "expected": "1003000012",
+      "actual": {
+        "code": 1003000012,
+        "msg": "评测失败样本登记非法: 非法下钻维度: reason; DROP TABLE x"
+      },
+      "pass": true
+    },
+    {
+      "name": "reject blank drill value",
+      "request": "GET /dashboard?drillValue=%20",
+      "expected": "1003000012",
+      "actual": {
+        "code": 1003000012,
+        "msg": "评测失败样本登记非法: 联动取值必填: risk_type"
+      },
+      "pass": true
+    },
+    {
+      "name": "reject non-boolean is_composite value",
+      "request": "GET /dashboard?drillDimension=is_composite&drillValue=maybe",
+      "expected": "1003000012",
+      "actual": {
+        "code": 1003000012,
+        "msg": "评测失败样本登记非法: is_composite 只接受 true/false: maybe"
+      },
+      "pass": true
+    },
+    {
+      "name": "no-match value returns empty, not error",
+      "request": "GET /dashboard?drillDimension=risk_type&drillValue=nope",
+      "expected": "code=0 filteredTotal=0",
+      "actual": {
+        "code": 0,
+        "filteredTotal": 0
+      },
+      "pass": true
+    }
+  ],
+  "summary": {
+    "total": 8,
+    "passed": 8
+  }
+}

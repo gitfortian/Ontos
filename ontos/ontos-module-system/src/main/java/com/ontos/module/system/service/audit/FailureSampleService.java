@@ -75,6 +75,16 @@ public class FailureSampleService {
 
     /** 五维下钻看板：一次返回全部五维分布（G-5）+ 最近样本明细。 */
     public FailureDashboardRespVO dashboard(String tenantId, String setId, int recentLimit) {
+        return dashboard(tenantId, setId, recentLimit, null, null);
+    }
+
+    /**
+     * 五维下钻看板 + 单维联动（M7/W4/T4.3）：分布始终基于全集，联动只收窄样本明细。
+     * 维度必须属于五维白名单，取值按维度类型严格解析（{@code is_composite} 只接受 true/false），
+     * 非法维度/取值 fail-closed 拒绝（不静默忽略 → 否则前端会误以为已过滤）。
+     */
+    public FailureDashboardRespVO dashboard(String tenantId, String setId, int recentLimit,
+                                            String drillDimension, String drillValue) {
         FailureDashboardRespVO respVO = new FailureDashboardRespVO();
         respVO.setSetId(setId);
         respVO.setTotal(mapper.count(tenantId, setId));
@@ -83,10 +93,43 @@ public class FailureSampleService {
             dimensions.put(drill, mapper.drillDown(tenantId, setId, drill));
         }
         respVO.setDimensions(dimensions);
-        respVO.setRecentSamples(mapper.selectRecent(tenantId, setId, recentLimit).stream()
-                .map(FailureSampleService::toItemVO).toList());
+        boolean filtered = drillDimension != null && !drillDimension.isBlank();
+        if (filtered) {
+            String dimension = drillDimension.trim();
+            // 白名单在 service 层先判：请求参数非法应是 4xx 业务拒绝，不能落到 mapper 的 IllegalArgumentException（500）
+            if (!EvaluationFailureSampleMapper.DRILL_DIMENSIONS.contains(dimension)) {
+                throw exception(FAILURE_SAMPLE_INVALID, "非法下钻维度: " + drillDimension);
+            }
+            Object value = drillValue(dimension, drillValue);
+            respVO.setDrillDimension(dimension);
+            respVO.setDrillValue(String.valueOf(value));
+            respVO.setFilteredTotal(mapper.countFiltered(tenantId, setId, dimension, value));
+            respVO.setRecentSamples(mapper.selectRecentFiltered(tenantId, setId, dimension, value,
+                            recentLimit).stream()
+                    .map(FailureSampleService::toItemVO).toList());
+        } else {
+            respVO.setFilteredTotal(respVO.getTotal());
+            respVO.setRecentSamples(mapper.selectRecent(tenantId, setId, recentLimit).stream()
+                    .map(FailureSampleService::toItemVO).toList());
+        }
         respVO.setRecentLimit(recentLimit);
         return respVO;
+    }
+
+    /** 联动取值按维度类型解析：布尔列只接受 true/false（不做 Boolean.parseBoolean 的静默兜底）。 */
+    private static Object drillValue(String dimension, String raw) {
+        String value = raw == null ? "" : raw.trim();
+        if (value.isEmpty()) {
+            throw exception(FAILURE_SAMPLE_INVALID, "联动取值必填: " + dimension);
+        }
+        if ("is_composite".equals(dimension)) {
+            if (!"true".equalsIgnoreCase(value) && !"false".equalsIgnoreCase(value)) {
+                throw exception(FAILURE_SAMPLE_INVALID,
+                        "is_composite 只接受 true/false: " + raw);
+            }
+            return Boolean.parseBoolean(value);
+        }
+        return value;
     }
 
     private static FailureSampleItemVO toItemVO(EvaluationFailureSampleDO item) {

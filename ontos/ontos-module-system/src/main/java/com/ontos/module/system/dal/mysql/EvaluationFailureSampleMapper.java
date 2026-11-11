@@ -87,14 +87,58 @@ public class EvaluationFailureSampleMapper {
 
     /** 单维下钻聚合：dimension ∈ 五维白名单（调用方约束），返回 value → count 降序。 */
     public List<Map<String, Object>> drillDown(String tenantId, String setId, String dimensionColumn) {
-        if (!DRILL_DIMENSIONS.contains(dimensionColumn)) {
-            throw new IllegalArgumentException("非法下钻维度: " + dimensionColumn);
-        }
+        requireDrillDimension(dimensionColumn);
         String sql = "SELECT " + dimensionColumn + " AS value, count(*) AS count FROM evaluation_failure_sample"
                 + " WHERE tenant_id = :tenantId AND set_id = :setId"
                 + " GROUP BY " + dimensionColumn + " ORDER BY count DESC, value";
         Map<String, Object> params = Map.of("tenantId", tenantId, "setId", setId);
         return jdbcTemplate.queryForList(sql, params);
+    }
+
+    /**
+     * 单维联动过滤命中数（M7/W4/T4.3）：维度走白名单，取值始终参数化。
+     * {@code is_composite} 为布尔列，调用方需传 Boolean（字符串会在 PG 上类型不匹配）。
+     */
+    public long countFiltered(String tenantId, String setId, String dimensionColumn, Object value) {
+        requireDrillDimension(dimensionColumn);
+        String sql = "SELECT count(*) FROM evaluation_failure_sample"
+                + " WHERE tenant_id = :tenantId AND set_id = :setId AND " + dimensionColumn + " = :value";
+        Map<String, Object> params = new HashMap<String, Object>();
+        params.put("tenantId", tenantId);
+        params.put("setId", setId);
+        params.put("value", value);
+        Long count = jdbcTemplate.queryForObject(sql, params, Long.class);
+        return count == null ? 0 : count;
+    }
+
+    /** 单维联动过滤后的最近样本（时间倒序）。 */
+    public List<EvaluationFailureSampleDO> selectRecentFiltered(String tenantId, String setId,
+                                                                String dimensionColumn, Object value,
+                                                                int limit) {
+        requireDrillDimension(dimensionColumn);
+        String sql = """
+                SELECT id, tenant_id, set_id, question_id, run_id,
+                       scenario_entry_mode, query_shape, turn_type, is_composite, risk_type,
+                       expected_terminal, actual_terminal, error_code, reason,
+                       created_at::text AS created_at
+                FROM evaluation_failure_sample
+                WHERE tenant_id = :tenantId AND set_id = :setId AND %s = :value
+                ORDER BY created_at DESC, id DESC
+                LIMIT :limit
+                """.formatted(dimensionColumn);
+        Map<String, Object> params = new HashMap<String, Object>();
+        params.put("tenantId", tenantId);
+        params.put("setId", setId);
+        params.put("value", value);
+        params.put("limit", Math.min(Math.max(limit, 1), 200));
+        return jdbcTemplate.query(sql, params, ROW_MAPPER);
+    }
+
+    /** 下钻维度白名单（§12.3 / G-5 五维）；非白名单列名一律拒绝（列名无法参数化）。 */
+    public static void requireDrillDimension(String dimensionColumn) {
+        if (!DRILL_DIMENSIONS.contains(dimensionColumn)) {
+            throw new IllegalArgumentException("非法下钻维度: " + dimensionColumn);
+        }
     }
 
     public long count(String tenantId, String setId) {

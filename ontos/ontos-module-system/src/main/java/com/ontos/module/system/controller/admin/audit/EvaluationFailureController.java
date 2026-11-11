@@ -1,5 +1,7 @@
 package com.ontos.module.system.controller.admin.audit;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import com.ontos.framework.common.pojo.CommonResult;
@@ -10,6 +12,7 @@ import com.ontos.module.system.controller.admin.audit.vo.FailureSampleClassifyRe
 import com.ontos.module.system.controller.admin.audit.vo.FailureSampleRegisterReqVO;
 import com.ontos.module.system.controller.admin.audit.vo.FailureSampleReturnReqVO;
 import com.ontos.module.system.controller.admin.audit.vo.FailureSampleStatusReqVO;
+import com.ontos.module.system.enums.FailureCauseCategory;
 import com.ontos.module.system.service.audit.FailureSampleLifecycleService;
 import com.ontos.module.system.service.audit.FailureSampleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,13 +51,23 @@ public class EvaluationFailureController {
     }
 
     @GetMapping("/dashboard")
-    @Operation(summary = "失败看板五维下钻（G-5）+ 最近样本明细（一次返回全部五维）")
+    @Operation(summary = "失败看板五维下钻（G-5）+ 单维联动过滤 + 最近样本明细")
     public CommonResult<FailureDashboardRespVO> dashboard(
             @RequestParam String setId,
-            @RequestParam(required = false, defaultValue = "50") Integer recentLimit) {
+            @RequestParam(required = false, defaultValue = "50") Integer recentLimit,
+            @RequestParam(required = false) String drillDimension,
+            @RequestParam(required = false) String drillValue) {
         RequestContext context = RequestContextHolder.require();
         return success(failureSampleService.dashboard(context.tenantId(), setId,
-                recentLimit == null ? 50 : recentLimit));
+                recentLimit == null ? 50 : recentLimit, drillDimension, drillValue));
+    }
+
+    @GetMapping("/categories")
+    @Operation(summary = "根因分类闭词表（前端分类下拉的唯一来源）")
+    public CommonResult<List<Map<String, String>>> categories() {
+        return success(Arrays.stream(FailureCauseCategory.values())
+                .map(category -> Map.of("code", category.code(), "label", category.label()))
+                .toList());
     }
 
     @GetMapping("/{id}")

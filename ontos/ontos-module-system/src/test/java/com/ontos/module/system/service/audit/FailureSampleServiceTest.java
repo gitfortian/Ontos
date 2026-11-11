@@ -148,10 +148,69 @@ class FailureSampleServiceTest {
         assertTrue(dashboard.getDimensions().containsKey("is_composite"));
         assertEquals(2L, dashboard.getDimensions().get("risk_type").get(0).get("count"));
         assertEquals(1, dashboard.getRecentSamples().size());
+        // 未过滤：filteredTotal 与 total 一致，无联动维度
+        assertEquals(3L, dashboard.getFilteredTotal());
+        org.junit.jupiter.api.Assertions.assertNull(dashboard.getDrillDimension());
         // 五维全部下钻（白名单逐维调用）
         for (String dimension : EvaluationFailureSampleMapper.DRILL_DIMENSIONS) {
             verify(mapper).drillDown("demo", "test-v3", dimension);
         }
+    }
+
+    // ---------- T4.3 单维联动 ----------
+
+    @Test
+    void dashboardFiltersSamplesByDrillDimension() {
+        when(mapper.count("demo", "test-v5")).thenReturn(10L);
+        when(mapper.drillDown(eq("demo"), eq("test-v5"), anyString())).thenReturn(List.of());
+        when(mapper.countFiltered("demo", "test-v5", "risk_type", "injection")).thenReturn(4L);
+        when(mapper.selectRecentFiltered("demo", "test-v5", "risk_type", "injection", 50))
+                .thenReturn(List.of(new EvaluationFailureSampleDO()));
+
+        FailureDashboardRespVO dashboard = service.dashboard("demo", "test-v5", 50, "risk_type",
+                "injection");
+
+        // 分布仍基于全集；联动只收窄明细
+        assertEquals(10L, dashboard.getTotal());
+        assertEquals(4L, dashboard.getFilteredTotal());
+        assertEquals("risk_type", dashboard.getDrillDimension());
+        assertEquals("injection", dashboard.getDrillValue());
+        assertEquals(1, dashboard.getRecentSamples().size());
+        verify(mapper, never()).selectRecent(anyString(), anyString(), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
+    void dashboardParsesCompositeFlagStrictly() {
+        when(mapper.count("demo", "test-v5")).thenReturn(2L);
+        when(mapper.drillDown(eq("demo"), eq("test-v5"), anyString())).thenReturn(List.of());
+        when(mapper.countFiltered("demo", "test-v5", "is_composite", Boolean.TRUE)).thenReturn(2L);
+        when(mapper.selectRecentFiltered("demo", "test-v5", "is_composite", Boolean.TRUE, 50))
+                .thenReturn(List.of());
+
+        FailureDashboardRespVO dashboard = service.dashboard("demo", "test-v5", 50, "is_composite",
+                "TRUE");
+
+        assertEquals("true", dashboard.getDrillValue());
+        assertEquals(2L, dashboard.getFilteredTotal());
+        // 非 true/false 不做 Boolean.parseBoolean 的静默兜底
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.dashboard("demo", "test-v5", 50, "is_composite", "maybe"));
+        assertEquals(FAILURE_SAMPLE_INVALID.getCode(), exception.getCode());
+    }
+
+    @Test
+    void dashboardRejectsUnknownDrillDimensionAndBlankValue() {
+        ServiceException badDimension = assertThrows(ServiceException.class,
+                () -> service.dashboard("demo", "test-v5", 50, "reason; DROP TABLE x", "a"));
+        assertEquals(FAILURE_SAMPLE_INVALID.getCode(), badDimension.getCode());
+
+        ServiceException blankValue = assertThrows(ServiceException.class,
+                () -> service.dashboard("demo", "test-v5", 50, "risk_type", "  "));
+        assertEquals(FAILURE_SAMPLE_INVALID.getCode(), blankValue.getCode());
+
+        verify(mapper, never()).countFiltered(anyString(), anyString(), anyString(), any());
+        verify(mapper, never()).selectRecentFiltered(anyString(), anyString(), anyString(), any(),
+                org.mockito.ArgumentMatchers.anyInt());
     }
 
 }
