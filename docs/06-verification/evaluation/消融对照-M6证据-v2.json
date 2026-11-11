@@ -1,0 +1,151 @@
+{
+  "runId": "a1794363037267",
+  "ranAt": "2026-11-11T02:10:37.442Z",
+  "manifestId": "2026.11.10-sixteenth",
+  "scriptVersion": "ablation-m6-v1",
+  "agentMode": "ontos.agent.enabled=false（确定性降级路径）",
+  "pairMethod": "同一封存测试集（test 集 v3 / 冒烟 v3）+ 同一运行实例配对比较；确定性路径终态级判据",
+  "results": [
+    {
+      "id": "A1",
+      "clause": "§13.3-4 加入 VQR vs 无 VQR",
+      "withVqr": {
+        "channel": "ask",
+        "utterance": "近 7 天各渠道成交金额",
+        "code": 0,
+        "terminal": "query",
+        "note": "VQR questionPattern 全串命中 → 模板参数化绑定（模板内定死维度/口径）"
+      },
+      "withoutVqr": {
+        "channel": "ask",
+        "utterance": "按渠道看成交金额",
+        "code": 0,
+        "terminal": "clarification",
+        "note": "非模板问法 → 散装检索路径（指标别名+维度歧义独立裁决）"
+      },
+      "dryRunReference": "同 DSL dry-run 可编译执行（rows>0）",
+      "conclusion": "A1 配对断言通过（实测见本行字段）",
+      "pass": true
+    },
+    {
+      "id": "A2",
+      "clause": "§13.3-5 无 Scenario 全域 vs 进 Scenario scope 收窄",
+      "withScenario": {
+        "code": 1004000007,
+        "msg": "引用资产超出场景范围: dim.product_category 不在 scenario.sales 的 scope 内",
+        "expect": "1004000007 SCENARIO_SCOPE_VIOLATION（dim.product_category 不在场景 scope）"
+      },
+      "withoutScenario": {
+        "code": 1002000014,
+        "msg": "跨表路径存在粒度扩散，违反一行一事实: ontology.Order.containsItem forward 归一化基数=1:N",
+        "note": "自由问数（自由问数下品类维度是否可用取决于本体规划器；订单事实指标会触发 1002000014 粒度扩散 fail-closed——见 E-5）"
+      },
+      "conclusion": "A2 配对断言通过（实测见本行字段）",
+      "pass": true
+    },
+    {
+      "id": "A3",
+      "clause": "§13.3-7 手动指定无权/错误 Scenario 的拒答正确率与越权成功率",
+      "unauthorizedScenario": {
+        "code": 1004000003,
+        "msg": "Scenario 不可用（未发布 / 无权限 / 已失效）: scenario.nonexistent",
+        "expect": "1004000003（授权 + 已发布校验前置，ADR-0017 D1）"
+      },
+      "authorizedScenario": {
+        "code": 0,
+        "expect": "0（同用户已授权场景正常执行）"
+      },
+      "conclusion": "A3 配对断言通过（实测见本行字段）",
+      "pass": true
+    },
+    {
+      "id": "A4",
+      "clause": "§13.3-11 加入复合意图拆分 vs 仅答首个子问题",
+      "composite": {
+        "code": 0,
+        "subResultCount": 2,
+        "note": "复合端点逐子独立编译、结果隔离、顺序保持"
+      },
+      "single": {
+        "code": 0,
+        "note": "单子查询仅返回首问结果"
+      },
+      "conclusion": "A4 配对断言通过（实测见本行字段）",
+      "pass": true
+    },
+    {
+      "id": "A5",
+      "clause": "§13.3-14 加入提示注入检查点 vs 无检查点",
+      "checkpointOn": {
+        "samples": 4,
+        "rejected": 4,
+        "note": "T51-3 修复后（启发覆盖中文变体 + SQL 关键词 + 租户篡改）"
+      },
+      "checkpointBeforeFix": {
+        "samples": 10,
+        "rejected": 1,
+        "source": "2026-11-10 test 集 v2 注入族实测（T51-3 修复前）"
+      },
+      "conclusion": "注入检查点：修复后本次 4/4 拒答；修复前历史实测 1/10（来源：2026-11-10 test 集 v2 注入族实测（T51-3 修复前））——启发覆盖缺口修复的真实对照",
+      "pass": true
+    },
+    {
+      "id": "A6",
+      "clause": "§13.3-12 加入 discovery vs 直接拒答",
+      "withDiscovery": {
+        "code": 0,
+        "terminal": "discovery",
+        "note": "零命中话术 → 能力发现（三键载荷/候选引导），不硬拒答"
+      },
+      "conclusion": "A6 配对断言通过（实测见本行字段）",
+      "pass": true
+    }
+  ],
+  "naDeclarations": [
+    {
+      "clause": "§13.3-1/2/3 基线对照（DataAgent 基线 / 直接 NL2SQL / Text2DSL+编译器）",
+      "reason": "无独立 NL2SQL 基线系统可运行——本系统即 Text2DSL+确定性编译器架构（v1.4 §6），基线对照需另建对照系统，超出 M6 收敛范围；登记为 M7+ 评测建设项"
+    },
+    {
+      "clause": "§13.3-6 手动/自动/自由/冷启动四入口对照",
+      "reason": "四入口中 auto 需 auto_if_confident 场景资产（缺口 E-6）；manual/cold_start/自由三入口已由 test 集 v3 场景族配对覆盖"
+    },
+    {
+      "clause": "§13.3-9 lookup vs 仅聚合",
+      "reason": "lookup/lookup_batch/boolean 为首发能力，无运行时开关；能力存在性由 test 集三族 61 题正向覆盖"
+    },
+    {
+      "clause": "§13.3-10 多轮锚点三方式对照",
+      "reason": "多轮完整语义属 LLM 路径（缺口 E-7）；降级路径多轮判据见 test 集 v3 §1"
+    },
+    {
+      "clause": "§13.3-13 能力边界说明 vs 普通拒答",
+      "reason": "文案级差异（reasonCode 与收尾文案），M5 终态装配已结构化（reasonCode 逐题断言）；文案质量人工评分归 M7"
+    },
+    {
+      "clause": "§13.3-16 跨域组合策略",
+      "reason": "首发单域口径（ADR-0004 §2.7，R-31 边界声明）；跨域请求拒绝率由 test 集 cross_domain 族 8 题覆盖（8/8 拒绝）"
+    },
+    {
+      "clause": "§13.3-17 受限模糊候选澄清 vs 仅精确/同义词",
+      "reason": "模糊候选澄清为 M1 首发行为且无开关；M5/W2 提及样本回填（300 条，Top-5 召回 98.82%）已按统计口径出证据"
+    },
+    {
+      "clause": "§13.3-18 混合召回",
+      "reason": "未建设（技术选型 v1.1 定档为后续里程碑）；如实声明 N/A"
+    },
+    {
+      "clause": "§13.3-15 跨轮累计敏感检测 vs 仅单次检测",
+      "reason": "运行时无开关；M4 验收报告 §3 + sensitive-probe 深度覆盖（配对证据引用，不重跑）"
+    },
+    {
+      "clause": "§13.3-19 RLS 和安全策略",
+      "reason": "运行时无开关；M4 验收 + rls-probe 全量证据引用（32/32）"
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "total": 6,
+    "naDeclarations": 10
+  }
+}

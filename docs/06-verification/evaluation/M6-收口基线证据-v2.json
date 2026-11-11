@@ -1,0 +1,48 @@
+{
+  "ranAt": "2026-11-11T02:18:24.705Z",
+  "command": "node scripts/verify-baseline.mjs --live http://127.0.0.1:8080",
+  "serviceArgs": "--spring.profiles.active=local --server.port=8080 --ontos.agent.enabled=false --ontos.policy.dev-allow-all=false",
+  "note": "M6 全量深度审核复跑（D-1~D-21 修复后）；PoC#1 输出按日期 append-only（T55-3），PoC#7 动态取 active 策略快照（T55-1）",
+  "results": [
+    {
+      "status": "PASS",
+      "name": "后端 mvn package（含测试）",
+      "detail": "64.9s"
+    },
+    {
+      "status": "PASS",
+      "name": "前端 pnpm check",
+      "detail": "19.7s"
+    },
+    {
+      "status": "PASS",
+      "name": "docs 治理检查",
+      "detail": "0.4s"
+    },
+    {
+      "status": "PASS",
+      "name": "并行义务与阶段状态检查",
+      "detail": "0.3s"
+    },
+    {
+      "status": "PASS",
+      "name": "可执行 jar 启动探活",
+      "detail": "应用已启动（health=OUT_OF_SERVICE，无数据库模式）"
+    },
+    {
+      "status": "PASS",
+      "name": "PoC #1 RLS 探针（T4.2，30 轮跨租户/存在性）",
+      "detail": "2.1s"
+    },
+    {
+      "status": "PASS",
+      "name": "PoC #7 敏感累计探针（W4 回归，含差分/冻结/令牌/对抗）",
+      "detail": "253.7s"
+    }
+  ],
+  "summary": {
+    "pass": 7,
+    "fail": 0,
+    "skip": 0
+  }
+}

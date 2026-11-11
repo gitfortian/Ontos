@@ -34,6 +34,11 @@ public enum ScenarioRouteState {
             PENDING_CONFIRM, Set.of(IN_SCENARIO, FREE));
 
     public boolean canTransitionTo(ScenarioRouteState target) {
+        // M6 全量深度审核 D-14：不可变 Set.of(...).contains(null) 会抛 NPE——
+        // 未知/空目标态必须结构化拒绝（fail-closed），不能变成 500。
+        if (target == null) {
+            return false;
+        }
         return ALLOWED.getOrDefault(this, Set.of()).contains(target);
     }
 

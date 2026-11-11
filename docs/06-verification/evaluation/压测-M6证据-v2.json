@@ -1,0 +1,62 @@
+{
+  "runId": "L1794363037796",
+  "ranAt": "2026-11-11T02:10:39.096Z",
+  "manifestId": "2026.11.10-sixteenth",
+  "scriptVersion": "load-m6-v1",
+  "agentMode": "ontos.agent.enabled=false（确定性降级路径；LLM token 成本=0，LLM 路径成本归 M7 LLM 评测）",
+  "sloFrozenBeforeRun": {
+    "p95Ms": 2000,
+    "errorRate": 0,
+    "timeoutRate": 0
+  },
+  "sloBasis": "§13.4 阈值预冻结 + §19 预设 SLO；确定性路径本地 PG18 预算 P95<2000ms、错误率 0、超时率 0",
+  "safetyLoad": "安全压测按 §3.8 复用对抗探针全量（adversarial-probe.mjs，基线独立运行 9/9）",
+  "phases": [
+    {
+      "name": "并发 1",
+      "concurrency": 1,
+      "total": 20,
+      "p50": 9,
+      "p95": 17,
+      "p99": 19,
+      "max": 19,
+      "errorCount": 0,
+      "timeoutCount": 0,
+      "throughputRps": 92.17
+    },
+    {
+      "name": "并发 8",
+      "concurrency": 8,
+      "total": 80,
+      "p50": 24,
+      "p95": 59,
+      "p99": 73,
+      "max": 73,
+      "errorCount": 0,
+      "timeoutCount": 0,
+      "throughputRps": 257.23
+    },
+    {
+      "name": "并发 16",
+      "concurrency": 16,
+      "total": 160,
+      "p50": 48,
+      "p95": 145,
+      "p99": 319,
+      "max": 335,
+      "errorCount": 0,
+      "timeoutCount": 0,
+      "throughputRps": 242.42
+    }
+  ],
+  "verdict": {
+    "p95WithinBudget": true,
+    "errorRateZero": true,
+    "timeoutRateZero": true,
+    "totalRequests": 260,
+    "totalErrors": 0,
+    "totalTimeouts": 0,
+    "allSamplesP95": 126,
+    "overall": "SLO 全满足"
+  }
+}

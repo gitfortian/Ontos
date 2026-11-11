@@ -1,6 +1,6 @@
 {
-  "runId": "t1794320412336",
-  "ranAt": "2026-11-10T14:20:18.010Z",
+  "runId": "t1794363030441",
+  "ranAt": "2026-11-11T02:10:36.812Z",
   "manifestId": "2026.11.10-sixteenth",
   "runnerVersion": "test-runner-v1",
   "agentMode": "ontos.agent.enabled=false（确定性降级路径，与 smoke-runner v2 同口径）",
@@ -25,16 +25,20 @@
   "layers": {
     "scenario_entry_mode": {
       "none": {
-        "n": 256,
+        "n": 254,
         "pass": 254,
+        "skip": 2,
+        "error": 0,
         "wilson95": [
-          0.972,
-          0.9979
+          0.9851,
+          1
         ]
       },
       "manual": {
         "n": 5,
         "pass": 5,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.5655,
           1
@@ -43,6 +47,8 @@
       "cold_start": {
         "n": 5,
         "pass": 5,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.5655,
           1
@@ -51,6 +57,8 @@
       "inherit": {
         "n": 5,
         "pass": 5,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.5655,
           1
@@ -59,16 +67,20 @@
     },
     "query_shape": {
       "aggregate": {
-        "n": 153,
+        "n": 151,
         "pass": 151,
+        "skip": 2,
+        "error": 0,
         "wilson95": [
-          0.9536,
-          0.9964
+          0.9752,
+          1
         ]
       },
       "lookup_attribute": {
         "n": 34,
         "pass": 34,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.8985,
           1
@@ -77,6 +89,8 @@
       "lookup_boolean": {
         "n": 13,
         "pass": 13,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.7719,
           1
@@ -85,6 +99,8 @@
       "lookup_batch": {
         "n": 14,
         "pass": 14,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.7847,
           1
@@ -93,6 +109,8 @@
       "composite": {
         "n": 30,
         "pass": 30,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.8865,
           1
@@ -101,6 +119,8 @@
       "discovery": {
         "n": 12,
         "pass": 12,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.7575,
           1
@@ -109,6 +129,8 @@
       "scenario_mode": {
         "n": 15,
         "pass": 15,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.7961,
           1
@@ -117,16 +139,20 @@
     },
     "turn_type": {
       "single": {
-        "n": 199,
+        "n": 197,
         "pass": 197,
+        "skip": 2,
+        "error": 0,
         "wilson95": [
-          0.9641,
-          0.9972
+          0.9809,
+          1
         ]
       },
       "multi_turn_followup": {
         "n": 30,
         "pass": 30,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.8865,
           1
@@ -135,6 +161,8 @@
       "multi_turn_incremental": {
         "n": 30,
         "pass": 30,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.8865,
           1
@@ -143,6 +171,8 @@
       "correction": {
         "n": 12,
         "pass": 12,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.7575,
           1
@@ -151,16 +181,20 @@
     },
     "risk_type": {
       "normal": {
-        "n": 235,
+        "n": 233,
         "pass": 233,
+        "skip": 2,
+        "error": 0,
         "wilson95": [
-          0.9695,
-          0.9977
+          0.9838,
+          1
         ]
       },
       "prompt_injection": {
         "n": 10,
         "pass": 10,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.7225,
           1
@@ -169,6 +203,8 @@
       "differential": {
         "n": 10,
         "pass": 10,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.7225,
           1
@@ -177,6 +213,8 @@
       "cross_domain": {
         "n": 8,
         "pass": 8,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.6756,
           1
@@ -185,6 +223,8 @@
       "existence_probe": {
         "n": 8,
         "pass": 8,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.6756,
           1
@@ -193,24 +233,30 @@
     },
     "analysis_mode": {
       "QUERY": {
-        "n": 136,
+        "n": 135,
         "pass": 135,
+        "skip": 1,
+        "error": 0,
         "wilson95": [
-          0.9595,
-          0.9987
+          0.9723,
+          1
         ]
       },
       "YOY_MOM": {
-        "n": 10,
+        "n": 9,
         "pass": 9,
+        "skip": 1,
+        "error": 0,
         "wilson95": [
-          0.5958,
-          0.9821
+          0.7008,
+          1
         ]
       },
       "FUNNEL": {
         "n": 10,
         "pass": 10,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.7225,
           1
@@ -219,6 +265,8 @@
       "RETENTION": {
         "n": 6,
         "pass": 6,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.6097,
           1
@@ -227,6 +275,8 @@
       "ATTRIBUTION": {
         "n": 6,
         "pass": 6,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.6097,
           1
@@ -235,6 +285,8 @@
       "LOOKUP": {
         "n": 47,
         "pass": 47,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.9244,
           1
@@ -243,6 +295,8 @@
       "LOOKUP_BATCH": {
         "n": 14,
         "pass": 14,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.7847,
           1
@@ -251,6 +305,8 @@
       "COMPOSITE": {
         "n": 30,
         "pass": 30,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.8865,
           1
@@ -259,6 +315,8 @@
       "DISCOVERY": {
         "n": 12,
         "pass": 12,
+        "skip": 0,
+        "error": 0,
         "wilson95": [
           0.7575,
           1
@@ -267,6 +325,11 @@
     }
   },
   "failures": [],
+  "dashboardPush": {
+    "pushed": 0,
+    "skipped": true,
+    "note": "无失败样本（看板空态）"
+  },
   "results": [
     {
       "id": "t-agg-single-01",

@@ -82,21 +82,13 @@ public class ScenarioRouteGuardImpl implements ScenarioRouteGuard {
         if (!authorizedKeys.contains(ScenarioScopeService.SCENARIO_KEY_PREFIX + scenarioId)) {
             throw exception(SCENARIO_MANUAL_UNAUTHORIZED, scenarioId);
         }
-        // ④ 显式进入/切换落会话状态（REJECT/非法迁移由 apply 转业务异常）
-        sessionStateService.ensure(context.tenantId(), context.userId(), context.sessionId());
-        scenarioSessionService.apply(context, new com.ontos.module.session.core.scenario.ScenarioRouter.RouteInput(
-                ScenarioRouteState.FREE, null, scenarioId,
-                com.ontos.module.session.core.scenario.ScenarioEntrySource.EXPLICIT,
-                false, false, java.util.List.of(),
-                Map.of(scenarioId, scenario),
-                Set.of(scenarioId), java.util.List.of()));
-        // ⑤ 模式 ∈ allowed_analysis_modes（闭白名单；场景声明为空 = 不限制）
+        // ④ 分析模式 ∈ allowed_analysis_modes（闭白名单；场景声明空 = 不限制）
         if (mode != null && scenario.getAllowedAnalysisModes() != null
                 && !scenario.getAllowedAnalysisModes().isEmpty()
-                && !scenario.getAllowedAnalysisModes().contains(mode.toLowerCase())) {
+                && !normalizedModes(scenario.getAllowedAnalysisModes()).contains(mode.toLowerCase())) {
             throw exception(SCENARIO_MODE_FORBIDDEN, scenarioId, mode);
         }
-        // ⑦ 引用资产 ⊆ 场景 scope（T24-5：显式带场景 = 声明在该业务域内查询，
+        // ⑤ 引用资产 ⊆ 场景 scope（T24-5：显式带场景 = 声明在该业务域内查询，
         // 引用场景外资产即使已授权也拒绝——场景边界独立于授权边界，只收窄不放宽）
         if (referencedAssetIds != null && !referencedAssetIds.isEmpty()) {
             Set<String> scopeIds = ScenarioScopeService.scopeAssetIds(scenario, manifest);
@@ -118,7 +110,49 @@ public class ScenarioRouteGuardImpl implements ScenarioRouteGuard {
                         defaultTimeField.getValue());
             }
         }
-        log.info("[adjudicate][scenario 显式路由通过: session={} scenario={} mode={}]",
+        log.info("[adjudicate][scenario 显式路由前置校验通过（未落状态）: session={} scenario={} mode={}]",
                 context.sessionId(), scenarioId, mode);
+    }
+
+    /**
+     * D1 第 ④ 步（M6 全量深度审核 D-1 修复）：仅在 adjudicate + prepare 全链成功后提交状态。
+     * 校验失败（模式越界 / scope 越界 / 口径冲突 / DSL / 策略 / 时间解析）不会写会话状态，
+     * 保证「失败即拒、目标状态不变」——被拒绝的请求不会把会话污染成 in_scenario 影响后续裁剪。
+     */
+    @Override
+    public void commitExplicitRoute(RequestContext context, String scenarioId) {
+        if (scenarioId == null || scenarioId.isBlank()) {
+            return;
+        }
+        PublishedManifest manifest = manifestService.getActiveManifestOrNull();
+        ManifestPayload.ScenarioMeta scenario = manifest == null || manifest.getScenarios() == null
+                ? null : manifest.getScenarios().stream()
+                .filter(candidate -> scenarioId.equals(candidate.getId())
+                        && "published".equals(candidate.getStatus()))
+                .findFirst().orElse(null);
+        if (scenario == null) {
+            // fail-closed：提交阶段清单状态漂移（发布被撤回等）不得静默进入场景
+            throw exception(SCENARIO_MANUAL_UNAUTHORIZED, scenarioId);
+        }
+        sessionStateService.ensure(context.tenantId(), context.userId(), context.sessionId());
+        scenarioSessionService.apply(context, new com.ontos.module.session.core.scenario.ScenarioRouter.RouteInput(
+                ScenarioRouteState.FREE, null, scenarioId,
+                com.ontos.module.session.core.scenario.ScenarioEntrySource.EXPLICIT,
+                false, false, java.util.List.of(),
+                Map.of(scenarioId, scenario),
+                Set.of(scenarioId), java.util.List.of()));
+        log.info("[commitExplicitRoute][场景状态已提交: session={} scenario={}]",
+                context.sessionId(), scenarioId);
+    }
+
+    /** 清单侧模式白名单统一小写规范化（M6 全量深度审核 D-2：大小写不对称会误拒）。 */
+    private static java.util.Set<String> normalizedModes(java.util.Collection<String> modes) {
+        java.util.Set<String> normalized = new java.util.HashSet<>();
+        for (String mode : modes) {
+            if (mode != null) {
+                normalized.add(mode.toLowerCase());
+            }
+        }
+        return normalized;
     }
 }

@@ -1,6 +1,6 @@
 {
-  "runId": "s1794322903040",
-  "ranAt": "2026-11-10T15:01:44.140Z",
+  "runId": "s1794363029212",
+  "ranAt": "2026-11-11T02:10:30.083Z",
   "manifestId": "2026.11.10-sixteenth",
   "runnerVersion": "smoke-runner-v2",
   "agentMode": "ontos.agent.enabled=false（确定性降级路径）",
@@ -239,6 +239,7 @@
         "n": 11,
         "pass": 11,
         "skip": 0,
+        "error": 0,
         "wilson95": [
           0.7412,
           1
@@ -248,6 +249,7 @@
         "n": 4,
         "pass": 4,
         "skip": 0,
+        "error": 0,
         "wilson95": [
           0.5101,
           1
@@ -257,6 +259,7 @@
         "n": 3,
         "pass": 3,
         "skip": 0,
+        "error": 0,
         "wilson95": [
           0.4385,
           1
@@ -266,6 +269,7 @@
         "n": 1,
         "pass": 1,
         "skip": 0,
+        "error": 0,
         "wilson95": [
           0.2065,
           1
@@ -275,6 +279,7 @@
         "n": 1,
         "pass": 1,
         "skip": 0,
+        "error": 0,
         "wilson95": [
           0.2065,
           1
@@ -285,89 +290,106 @@
       "无": {
         "n": 4,
         "pass": 4,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "别名解析（销售额→gmv）": {
         "n": 1,
         "pass": 1,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "别名解析（成交金额→gmv）": {
         "n": 1,
         "pass": 1,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "字段敏感": {
         "n": 1,
         "pass": 1,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "存在性泄露": {
         "n": 1,
         "pass": 1,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "判定口径 / label 敏感": {
         "n": 1,
         "pass": 1,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "时间解析": {
         "n": 2,
         "pass": 2,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "口径歧义（已由别名消解）": {
         "n": 1,
         "pass": 1,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "口径歧义": {
         "n": 1,
         "pass": 1,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "越权 / 敏感": {
         "n": 1,
         "pass": 1,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "越权": {
         "n": 1,
         "pass": 1,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "注入 / 自由 SQL": {
         "n": 1,
         "pass": 1,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "能力边界": {
         "n": 2,
         "pass": 2,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "复合意图": {
         "n": 1,
         "pass": 1,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "上下文": {
         "n": 1,
         "pass": 1,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       }
     },
     "byChannel": {
       "dsl": {
         "n": 14,
         "pass": 14,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       },
       "ask": {
         "n": 6,
         "pass": 6,
-        "skip": 0
+        "skip": 0,
+        "error": 0
       }
     }
   }

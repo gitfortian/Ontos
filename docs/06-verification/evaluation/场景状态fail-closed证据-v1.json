@@ -1,0 +1,54 @@
+{
+  "runId": "sc1794363104708",
+  "ranAt": "2026-11-11T02:11:45.863Z",
+  "manifestId": "2026.11.10-sixteenth",
+  "scriptVersion": "scenario-state-failclosed-v1",
+  "fix": "M6 全量深度审核 D-1：adjudicate 纯前置校验 + commitExplicitRoute 在 prepare 全链成功后提交",
+  "results": [
+    {
+      "id": "T1",
+      "name": "初始会话无场景状态（free）",
+      "pass": true,
+      "detail": {
+        "state": "NO_ROW"
+      }
+    },
+    {
+      "id": "T2",
+      "name": "scope 越界拒绝且不落 in_scenario",
+      "pass": true,
+      "detail": {
+        "code": 1004000007,
+        "state": "NO_ROW"
+      }
+    },
+    {
+      "id": "T3",
+      "name": "模式越界拒绝且不落 in_scenario",
+      "pass": true,
+      "detail": {
+        "code": 1004000005,
+        "state": "NO_ROW"
+      }
+    },
+    {
+      "id": "T4",
+      "name": "prepare 后续 DSL 校验失败不落 in_scenario",
+      "pass": true,
+      "detail": {
+        "code": 1004000007,
+        "state": "NO_ROW"
+      }
+    },
+    {
+      "id": "T5",
+      "name": "全链成功后提交 in_scenario（正向路径未破坏）",
+      "pass": true,
+      "detail": {
+        "code": 0,
+        "state": "{\"state\": \"in_scenario\", \"scenarioId\": \"scenario.sales\"}"
+      }
+    }
+  ],
+  "conclusion": "失败即拒、目标状态不变（拒绝请求零状态污染）+ 正向提交生效"
+}

@@ -22,7 +22,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const OUT = resolve(repo, "docs/06-verification/evaluation/消融对照-M6证据-v1.json");
+const OUT = resolve(repo, "docs/06-verification/evaluation/消融对照-M6证据-v2.json");
 const BASE = process.argv.includes("--base-url")
   ? process.argv[process.argv.indexOf("--base-url") + 1]
   : "http://127.0.0.1:8080";
@@ -185,6 +185,40 @@ const results = [];
   });
 }
 
+// M6 全量深度审核 D-13：原脚本每组 conclusion 是硬编码静态文字、无 assert、无失败退出——
+// 无论实测如何都写「行为差异成立」。改为按实测动态判定 + 动态结论 + 失败退出码 1。
+const byId = Object.fromEntries(results.map((r) => [r.id, r]));
+const ASSERTIONS = {
+  A1: () => byId.A1.withVqr.terminal === "query"
+    && byId.A1.withoutVqr.terminal === "clarification"
+    && byId.A1.dryRunReference.startsWith("同 DSL"),
+  A2: () => byId.A2.withScenario.code === 1004000007
+    && byId.A2.withoutScenario.code !== 0,
+  A3: () => byId.A3.unauthorizedScenario.code === 1004000003
+    && byId.A3.authorizedScenario.code === 0,
+  A4: () => byId.A4.composite.code === 0
+    && byId.A4.composite.subResultCount === 2
+    && byId.A4.single.code === 0,
+  A5: () => byId.A5.checkpointOn.rejected === byId.A5.checkpointOn.samples,
+  A6: () => byId.A6.withDiscovery.terminal === "discovery",
+};
+for (const [id, assertion] of Object.entries(ASSERTIONS)) {
+  const row = byId[id];
+  if (!row) {
+    console.error(`消融组 ${id} 缺失，不允许静默略过`);
+    process.exit(1);
+  }
+  row.pass = assertion();
+  // 动态结论（不再使用与实际解耦的静态文字）
+  row.conclusion = row.pass
+    ? `${id} 配对断言通过（实测见本行字段）`
+    : `${id} 配对断言不成立（实测见本行字段）`;
+}
+// A5 数字口径：本次脚本只跑 4 个注入样本；修复前 1/10 为历史实测（来源字段登记），
+// 不得把「10/10」写成本脚本产物。
+byId.A5.conclusion = `注入检查点：修复后本次 ${byId.A5.checkpointOn.rejected}/${byId.A5.checkpointOn.samples} 拒答；`
+  + `修复前历史实测 1/10（来源：${byId.A5.checkpointBeforeFix.source}）——启发覆盖缺口修复的真实对照`;
+
 const evidence = {
   runId,
   ranAt: new Date().toISOString(),
@@ -209,6 +243,10 @@ const evidence = {
 
 writeFileSync(OUT, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
 for (const r of results) {
-  console.log(`${r.id} ${r.clause.slice(0, 40)}… → 结论已记录`);
+  console.log(`${r.pass ? "PASS" : "FAIL"} ${r.id} ${r.clause.slice(0, 40)}… → ${r.conclusion}`);
 }
-console.log(`ablation: ${results.length} 组可运行对照 + ${evidence.naDeclarations.length} 项 N/A 声明 → ${OUT}`);
+const passed = results.filter((r) => r.pass).length;
+evidence.summary = { passed, total: results.length, naDeclarations: evidence.naDeclarations.length };
+writeFileSync(OUT, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
+console.log(`ablation: ${passed}/${results.length} 组断言通过 + ${evidence.naDeclarations.length} 项 N/A 声明 → ${OUT}`);
+process.exit(passed === results.length ? 0 : 1);

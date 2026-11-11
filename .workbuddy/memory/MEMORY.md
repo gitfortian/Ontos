@@ -37,3 +37,11 @@ YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路
 - 关键教训：端到端是回归唯一可靠证明（T32-6/T45-1/T51-1/T51-3/T55-1 均单测全绿下真服务/基线抓到）；评测固定确定性降级路径；冻结证据哈希按磁盘字节；单独 -Dtest 需 -am + `-Dsurefire.failIfNoSpecifiedTests=false`；服务运行时别跑 mvn clean。
 - **附条件项（非阻塞，按触发点）**：E-5 品类×订单事实指标（M7 资产决策）、E-6 auto 入口题（需 auto_if_confident 场景资产）、E-7 LLM 路径评测（M7）、CopilotKit spike（多域/AG-UI 稳定后）、R-31（多域 ADR）、T45-4（规格升版）。
 - **下一步：M7 阶段**（评测、对抗防线与可观测的后续建设；LLM 路径评测需稳定模型服务与多次统计运行）。
+
+## M6 全量深度审核勘误（2026-11-11）
+- M6/M7 验收报告升 v2（v1 归档 99-archive）；证据升版：冒烟 v3、test/消融/压测/对抗/基线 v2（v1/v2 旧证据归档）
+- **D-1（P1）**：ScenarioRouteGuardImpl 拆 adjudicate（纯校验）+ commitExplicitRoute（prepare 全链成功后提交）；场景状态 fail-closed E2E 5/5
+- **D-18（P1）**：冒烟冻结证据与 gold v3 二稿不同源 → 重新固化 v3；教训：修判据后必须重新固化证据
+- 其它修复：Wilson 有效分母、contentHash 三方比对、消融动态断言、全量 P95、DslValidator raw 必填、dependsOn 重复显式 null 等 500 类；详见 M6-全量深度审核-v1.md
+- 附条件（M7）：纠正样本自动回流、VQR paramsSchema 运行时约束、复合 RuntimeException 子级隔离、Skill capabilities 发布期闸门
+- 基线：mvn 631/0、live 7/0/0、docs 136/1234、OBL-M7 done（deferred 0）

@@ -115,7 +115,7 @@ v2 的 20 族（§3 见[归档 v2](../../99-archive/verification/test集-v2.md)�
 |---|---|
 | 首轮全量真服务评测（[`test-runner.mjs`](../../../scripts/verify/test-runner.mjs)） | **269 pass / 0 fail / 2 skip（E-5）/ 0 error**，成功率 1.0，Wilson95 `[0.9859, 1]` |
 | 分层 | `scenario_entry_mode`：manual 5/5、cold_start 5/5、inherit 5/5；`risk_type`：注入 10/10、跨轮差分 10/10、跨域 8/8、存在性 8/8 |
-| 证据固化 | [`test集-M6收敛评测证据-v1.json`](test集-M6收敛评测证据-v1.json)（SHA-256 `fbacd75b1fc2e415…`，runId `t1794320412336`，manifest `2026.11.10-sixteenth`） |
+| 证据固化 | [`test集-M6收敛评测证据-v2.json`](test集-M6收敛评测证据-v2.json)（SHA-256 `cf386fe1e9a9ebf3…`，runId `t1794320412336`，manifest `2026.11.10-sixteenth`） |
 | 场景题判据来源 | 真服务逐题探针（manual 直传三码、cold_start 四步流、VQR 冷启动命中、越界澄清），与 smoke-runner v2 探针同日同清单 |
 | 收敛过程中修复的产品缺陷 | T51-1（场景确认误设 consumed → 契约拒答）、T51-2（注入审计直写原文 JSONB 失败）、T51-3（中文注入启发 10 题仅 1 题命中）——见 [M6-W5-T5.1 深度审核](../checklists/M6-W5-T5.1-深度审核-v1.md) |
 | 取值域 | 订单仅 o-1..o-5、客户 c-1001..c-1003（探测题用不存在 id）、渠道线上/线下、等级 gold/silver/normal、区域华东/华南/华北 |

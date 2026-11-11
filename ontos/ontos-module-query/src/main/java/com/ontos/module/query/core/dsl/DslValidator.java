@@ -409,10 +409,12 @@ public class DslValidator {
         validateAnalysisParams(dsl, QueryDsl.AnalysisMode.RETENTION);
 
         // 时间窗：只能来自服务端对 timeExpressionRaw 的解析结果（客户端 timeRange 在解析器前置拒绝）
+        // M6 全量深度审核 D-7：校验层补 raw 必填断言（纵深防御，不依赖调用顺序）
         QueryDsl.TimeRange range = dsl.getTimeRange();
         if (range == null || range.getFrom() == null || range.getTo() == null
                 || !QueryDsl.TimeRange.SOURCE_EXPRESSION.equals(range.getSource())
-                || isBlank(range.getField()) || isBlank(dsl.getTimePatternId())
+                || isBlank(range.getField()) || isBlank(dsl.getTimeExpressionRaw())
+                || isBlank(dsl.getTimePatternId())
                 || isBlank(dsl.getTimeParserVersion())) {
             throw exception(DSL_INVALID, "retention 的时间窗必须由服务端解析 timeExpressionRaw 后回填");
         }
@@ -498,10 +500,12 @@ public class DslValidator {
         }
         validateAnalysisParams(dsl, QueryDsl.AnalysisMode.ATTRIBUTION);
 
+        // M6 全量深度审核 D-7：校验层补 raw 必填断言（纵深防御，不依赖调用顺序）
         QueryDsl.TimeRange range = dsl.getTimeRange();
         if (range == null || range.getFrom() == null || range.getTo() == null
                 || !QueryDsl.TimeRange.SOURCE_EXPRESSION.equals(range.getSource())
-                || isBlank(range.getField()) || isBlank(dsl.getTimePatternId())
+                || isBlank(range.getField()) || isBlank(dsl.getTimeExpressionRaw())
+                || isBlank(dsl.getTimePatternId())
                 || isBlank(dsl.getTimeParserVersion())) {
             throw exception(DSL_INVALID, "attribution 的时间窗必须由服务端解析 timeExpressionRaw 后回填");
         }
@@ -1102,6 +1106,14 @@ public class DslValidator {
                 // 子意图 DSL 只有 metric/dimensions/filters/timeExpressionRaw，
                 // 表达不了 lookup 的实体与标识，也表达不了 yoy_mom 的周期参数。
                 throw exception(DSL_INVALID, "M2 复合意图仅支持 QUERY 子意图: " + sub.getSubIntentId());
+            }
+            // M6 全量深度审核 D-4：dependsOn 重复元素会让 JGraphT addEdge 抛
+            // IllegalArgumentException（500 而非业务码）——在校验层结构化拒绝，fail-closed。
+            if (sub.getDependsOn() != null) {
+                Set<String> distinctDeps = new HashSet<>(sub.getDependsOn());
+                if (distinctDeps.size() != sub.getDependsOn().size()) {
+                    throw exception(DSL_INVALID, "dependsOn 不得包含重复子意图: " + sub.getSubIntentId());
+                }
             }
             // M6/W4/T4.1（规格 composite-resultRef v1）：依赖子意图合法化——
             // dependsOn 非空必须携带 resultRef（依赖了却不说怎么取值 = 自由文本洞）；

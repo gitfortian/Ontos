@@ -68,14 +68,50 @@ class ScenarioRouteGuardImplTest {
     }
 
     @Test
-    void explicitAuthorizedScenarioEntersAndPersists() {
+    void explicitAuthorizedScenarioValidatesThenCommits() {
+        // D-1（M6 全量深度审核）：adjudicate 是纯前置校验，不写会话状态
         assertDoesNotThrow(() -> guard.adjudicate(context, SALES, "query", "dim.order_date", List.of("metric.gmv")));
+        verify(scenarioSessionService, never()).apply(any(), any());
+        verify(sessionStateService, never()).ensure(any(), any(), any());
 
+        // prepare 全链成功后才提交状态
+        assertDoesNotThrow(() -> guard.commitExplicitRoute(context, SALES));
         org.mockito.ArgumentCaptor<ScenarioRouter.RouteInput> captor =
                 org.mockito.ArgumentCaptor.forClass(ScenarioRouter.RouteInput.class);
         verify(scenarioSessionService).apply(any(), captor.capture());
         assertEquals(SALES, captor.getValue().explicitScenarioId());
         verify(sessionStateService).ensure(any(), any(), any());
+    }
+
+    @Test
+    void blankScenarioCommitDoesNotPersist() {
+        assertDoesNotThrow(() -> guard.commitExplicitRoute(context, null));
+        assertDoesNotThrow(() -> guard.commitExplicitRoute(context, "  "));
+        verify(scenarioSessionService, never()).apply(any(), any());
+    }
+
+    @Test
+    void commitFailsClosedWhenScenarioNoLongerPublished() {
+        when(manifestService.getActiveManifestOrNull()).thenReturn(new PublishedManifest());
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> guard.commitExplicitRoute(context, SALES));
+        assertEquals(1_004_000_003, ex.getCode());
+        verify(scenarioSessionService, never()).apply(any(), any());
+    }
+
+    @Test
+    void allRejectionPathsLeaveSessionStateUntouched() {
+        // D-1 回归锁：模式越界 / 口径冲突 / scope 越界 / 未授权 / 未发布均不得落状态
+        assertThrows(ServiceException.class,
+                () -> guard.adjudicate(context, SALES, "funnel", null, null));
+        assertThrows(ServiceException.class,
+                () -> guard.adjudicate(context, SALES, "query", "dim.order_date_custom", null));
+        assertThrows(ServiceException.class,
+                () -> guard.adjudicate(context, SALES, "query", "dim.order_date", List.of("metric.unknown")));
+        assertThrows(ServiceException.class,
+                () -> guard.adjudicate(context, "scenario.draft", "query", null, null));
+        verify(scenarioSessionService, never()).apply(any(), any());
+        verify(sessionStateService, never()).ensure(any(), any(), any());
     }
 
     // ---------- 拒绝（fail-closed） ----------

@@ -1186,7 +1186,11 @@ public class QueryServiceImpl implements QueryService {
                 referencedAssetIds(queryDsl));
         checkManifestHeader(queryDsl, context);
         PublishedManifest manifest = manifestService.validateManifest(queryDsl.getManifestId());
-        return prepareWith(queryDsl, context, manifest, sensitivityCollector);
+        // M6 全量深度审核 D-1（P1）：状态提交延后到 prepare 全链成功（manifest / 时间解析 /
+        // DSL 校验 / 路径规划 / 策略）之后——校验失败不写会话状态，满足「失败即拒、目标状态不变」。
+        PublishedManifest prepared = prepareWith(queryDsl, context, manifest, sensitivityCollector);
+        scenarioRouteGuard.commitExplicitRoute(context, queryDsl.getScenarioId());
+        return prepared;
     }
 
     /** DSL 引用的语义资产 ID（供场景 scope 交集；T24-5）。服务端推衍字段（identityPropertyId 等）不重复收集。 */

@@ -33,8 +33,11 @@ class ScenarioRouteStateTest {
         assertFalse(ScenarioRouteState.FREE.canTransitionTo(ScenarioRouteState.FREE),
                 "同名自环不是迁移");
         assertFalse(ScenarioRouteState.PENDING_CONFIRM.canTransitionTo(ScenarioRouteState.PENDING_CONFIRM));
-        assertFalse(ScenarioRouteState.IN_SCENARIO.canTransitionTo(ScenarioRouteState.IN_SCENARIO)
-                        && false, "sanity");
+        // M6 全量深度审核 D-3：原断言 `... && false` 恒真，替换为真实边界断言
+        assertTrue(ScenarioRouteState.IN_SCENARIO.canTransitionTo(ScenarioRouteState.IN_SCENARIO),
+                "场景内切换场景（含同场景）是合法迁移");
+        assertFalse(ScenarioRouteState.IN_SCENARIO.canTransitionTo(null),
+                "未知/空目标态拒绝（getOrDefault 空集 fail-closed）");
         // 跳步：FREE 不得直接跳过 pending 确认之外的路径（本表无 FREE→FREE，已覆盖）；
         // retired 不存在——场景生命周期在 catalog，会话三态无终态。
         assertEquals(3, ScenarioRouteState.values().length);

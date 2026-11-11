@@ -9,10 +9,12 @@ import com.ontos.framework.web.core.context.RequestContext;
  * 本端口由 session 模块实现（瀑布宿主持有会话状态与授权链路），server 装配注入。
  * query 模块只依赖接口，不反向依赖 session（ArchUnit 边界）。
  *
- * <p>裁决语义（D1 四步）：① 提交 scenarioId → ② 授权 + 已发布校验（失败即拒，
- * 不静默回退）→ ③ 通过后作为 manual 路由输入落会话状态（显式进入/切换）
- * → ④ 校验通过即视为路由结果与 DSL 一致；另校验分析模式在场景
- * {@code allowed_analysis_modes} 内、时间绑定与 {@code frozen_calibers} 无冲突。
+ * <p>裁决语义（D1 四步，M6 全量深度审核 D-1 修复）：① 提交 scenarioId → ② 授权 + 已发布校验
+ * （失败即拒，不静默回退）→ ③ 分析与口径校验（模式白名单 / scope 交集 / frozen_calibers）
+ * → ④ **全部校验（含 DSL、策略、时间解析）通过后才由调用方提交会话状态**。
+ * {@link #adjudicate} 是纯前置校验、不写会话状态；状态提交由 {@link #commitExplicitRoute} 在
+ * prepare 全链成功后执行——保证「失败即拒、目标状态不变」，避免越界/非法请求把会话污染成
+ * in_scenario 后影响后续自由问数的授权裁剪。
  */
 public interface ScenarioRouteGuard {
 
@@ -29,6 +31,17 @@ public interface ScenarioRouteGuard {
      */
     void adjudicate(RequestContext context, String scenarioId, String mode, String timeRangeField,
                     java.util.Collection<String> referencedAssetIds);
+
+    /**
+     * 提交显式场景路由状态（D1 第 ④ 步，M6 全量深度审核 D-1 修复）：
+     * 仅在 {@link #adjudicate} 与 prepare 全链（manifest / 时间解析 / DSL 校验 / 策略）都成功后调用，
+     * 显式进入/切换场景落会话状态。scenarioId 为空 = 自由问数语义，不写状态。
+     *
+     * <p>默认空实现：无场景实现的装配（单测 no-op 桩）按「不迁移状态」处理。
+     */
+    default void commitExplicitRoute(RequestContext context, String scenarioId) {
+        // no-op
+    }
 
     /**
      * 当前会话的场景 ID（in_scenario 态返回场景 ID；free / pending_confirm / 无状态返回 null）。

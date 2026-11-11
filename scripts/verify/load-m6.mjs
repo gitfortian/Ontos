@@ -17,7 +17,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const OUT = resolve(repo, "docs/06-verification/evaluation/压测-M6证据-v1.json");
+const OUT = resolve(repo, "docs/06-verification/evaluation/压测-M6证据-v2.json");
 const BASE = process.argv.includes("--base-url")
   ? process.argv[process.argv.indexOf("--base-url") + 1]
   : "http://127.0.0.1:8080";
@@ -88,6 +88,9 @@ const percentile = (sorted, p) => {
   return sorted[Math.max(0, idx)];
 };
 
+// M6 全量深度审核 D-15：跨相位全量时延采集（原 allLatencies 声明后从未填充）
+const ALL_LATENCIES = [];
+
 async function phase(name, concurrency, total) {
   const latencies = [];
   let errors = 0;
@@ -99,6 +102,7 @@ async function phase(name, concurrency, total) {
       launched += 1;
       const result = await once();
       latencies.push(result.latency);
+      ALL_LATENCIES.push(result.latency);
       if (!result.ok) errors += 1;
       if (result.timeout) timeouts += 1;
     }
@@ -123,11 +127,12 @@ phases.push(await phase("并发 1", 1, 20));
 phases.push(await phase("并发 8", 8, 80));
 phases.push(await phase("并发 16", 16, 160));
 
-const allLatencies = [];
+const allLatencies = ALL_LATENCIES;
 const totalErrors = phases.reduce((s, p) => s + p.errorCount, 0);
 const totalTimeouts = phases.reduce((s, p) => s + p.timeoutCount, 0);
 const totalRequests = phases.reduce((s, p) => s + p.total, 0);
-// 全量时延重算 P95（跨相位）
+// M6 全量深度审核 D-15：跨相位全量 P95 真实重算并写入证据
+const overallP95 = percentile([...allLatencies].sort((a, b) => a - b), 95);
 const evidence = {
   runId,
   ranAt: new Date().toISOString(),
@@ -142,10 +147,11 @@ const evidence = {
     p95WithinBudget: phases.every((p) => p.p95 < SLO.p95Ms),
     errorRateZero: totalErrors === 0,
     timeoutRateZero: totalTimeouts === 0,
-    totalRequests, totalErrors, totalTimeouts,
+    totalRequests, totalErrors, totalTimeouts, allSamplesP95: overallP95,
   },
 };
-const allPass = Object.values(evidence.verdict).every((v) => v !== false);
+const allPass = evidence.verdict.p95WithinBudget && evidence.verdict.errorRateZero
+  && evidence.verdict.timeoutRateZero && overallP95 < SLO.p95Ms;
 evidence.verdict.overall = allPass ? "SLO 全满足" : "SLO 未满足（见分项）";
 writeFileSync(OUT, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
 

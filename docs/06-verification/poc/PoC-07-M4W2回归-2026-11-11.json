@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-11T00:57:04.637Z",
+  "generatedAt": "2026-11-11T02:18:09.719Z",
   "manifestId": "2026.11.10-sixteenth",
   "devAllowAll": false,
   "total": 32,
@@ -127,7 +127,7 @@
       "pass": true,
       "detail": {
         "code": 1003000008,
-        "approvalId": "a7c732f1-3a27-4278-afbe-3aab594f0121"
+        "approvalId": "41cf37bc-84b9-4f04-91d3-e9590fa14897"
       }
     },
     {
@@ -191,8 +191,8 @@
       "name": "事件行 context_delta 与审计行同值同源",
       "pass": true,
       "detail": {
-        "eventDelta": "077f0b4b1292",
-        "auditDelta": "077f0b4b1292"
+        "eventDelta": "b96263730493",
+        "auditDelta": "b96263730493"
       }
     },
     {
@@ -225,7 +225,7 @@
       "name": "INTERRUPT 事件携带审批单 ID（可直连决策端点）",
       "pass": true,
       "detail": {
-        "sample": "event:INTERRUPT ⏎ data:{\"type\":\"INTERRUPT\",\"reasonCode\":\"SENSITIVE_INDIVIDUAL_PROBE\",\"approvalId\":\"72d169b1-08b0-4f0b-b618-baefda5cc0c0\",\"sensitiveKey\":\"property.customer.email#pii\",\"decideEndpoint\":\"/api/v1/approvals/72"
+        "sample": "event:INTERRUPT ⏎ data:{\"decideEndpoint\":\"/api/v1/approvals/43df7ec0-a1ae-4433-bd9f-99a89569cc83/decide\",\"sensitiveKey\":\"property.customer.email#pii\",\"approvalId\":\"43df7ec0-a1ae-4433-bd9f-99a89569cc83\",\"reasonCode\":\"SENS"
       }
     },
     {

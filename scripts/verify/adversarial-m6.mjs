@@ -6,13 +6,13 @@
  *   P1 DSL scenarioId 直传未授权场景（G-2 直传裁决 D1 四步）→ 1004000003
  *   P2 合法场景 + scope 外资产直传 → 1004000007（SCENARIO_SCOPE_VIOLATION）
  *   P3 场景内未声明近似降级的模式请求（allowedAnalysisModes=[query] vs RETENTION）→ 1004000005
- *   P4 伪造场景回传（clarificationChoice=scenario:ghost，未持久化候选）→ 1004000002
+ *   P4 伪造场景回传（clarificationChoice=scenario:ghost，未持久化候选）→ 1004000004（场景状态机闸门）
  *   P5 伪造近似降级回传（clarificationChoice=approx:ghost）→ 1004000002
  *   P6 直连 DSL 伪造 vqrId 键（DslCodec 键白名单外）→ 形状拒绝 fail-closed
  *   P7 dependsOn 悬空引用（resultRef.fromSubIntentId 不在依赖集）→ 1002000044
  *   P8 resultRef 注入值参数化（正向泄露检查）：依赖子 SQL 零字面量、占位符绑定
  *
- * 判据：P1–P7 全部业务错误码拒绝且非 500（fail-closed，无静默回退）；P8 泄露 = 0。
+ * 判据：P1–P7 全部业务错误码拒绝且非 500（fail-closed，无静默回退）；P8 正向探针非 500 且泄露 = 0。
  * 用法：node scripts/verify/adversarial-m6.mjs --base-url http://127.0.0.1:8080
  */
 import { execSync } from "node:child_process";
@@ -21,7 +21,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const OUT = resolve(repo, "docs/06-verification/evaluation/对抗扩充-M6证据-v1.json");
+const OUT = resolve(repo, "docs/06-verification/evaluation/对抗扩充-M6证据-v2.json");
 const BASE = process.argv.includes("--base-url")
   ? process.argv[process.argv.indexOf("--base-url") + 1]
   : "http://127.0.0.1:8080";
@@ -165,7 +165,9 @@ expectReject("P7", "dependsOn 引用不存在的子意图", await dryRun({
     sql_text LIKE '%?%', sql_text IS NOT NULL
     FROM audit_log WHERE request_id = '${requestId}:s2' AND action = 'EXECUTE' LIMIT 1`);
   const [hasLiteral, hasPlaceholder, hasSql] = audit.split("|");
-  const pass = executed && hasSql === "t" && hasLiteral === "f" && hasPlaceholder === "t";
+  // M6 全量深度审核 D-16：正向探针也显式断言非 500
+  const pass = response.status < 500 && executed
+    && hasSql === "t" && hasLiteral === "f" && hasPlaceholder === "t";
   results.push({ id: "P8", name: "resultRef 注入值参数化（依赖子 SQL 零字面量）", pass,
     detail: { executed, hasLiteral, hasPlaceholder, hasSql } });
   console.log(`${pass ? "PASS" : "FAIL"} [P8] 注入值参数化 — 字面量=${hasLiteral} 占位符=${hasPlaceholder}`);
@@ -181,7 +183,7 @@ const evidence = {
   basis: "M6 规格 T5.2（≥7 新探针全拒）+ §3.8 安全压测复用对抗探针全量（M6 增量）",
   results,
   conclusion: passed === results.length
-    ? `${results.length}/${results.length} 全拒（fail-closed 无静默回退）；注入值参数化泄露 = 0`
+    ? `7 项拒绝探针全拒（fail-closed 无静默回退）+ 1 项正向泄露检查通过；注入值参数化泄露 = 0`
     : `${passed}/${results.length} 通过`,
 };
 writeFileSync(OUT, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");

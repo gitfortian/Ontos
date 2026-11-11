@@ -94,12 +94,21 @@
 
 **M6/W5 收口与 M7 全量交付物收敛（2026-11-11）**
 
-- [M6 验收报告 v1](checklists/M6-验收报告-v1.md)（已冻结：W1–W5 逐项核对、E1–E8 全满足、live 基线 7/0/0、OBL-M7 闭环 done；附非阻塞条件项 E-5/E-6/E-7、CopilotKit spike、R-31）
-- [M7 全量交付物收敛验收报告 v1](checklists/M7-全量交付物收敛验收报告-v1.md)（已冻结：§3.8 八项交付物 8/8、§13.5 硬门槛逐条对照、确定性降级路径口径与缺口如实声明；OBL-M7 台账 done 依据；不是 M7 阶段验收）
+- [M6 验收报告 v2](checklists/M6-验收报告-v2.md)（全量深度审核勘误升版；v1 归档 [99-archive](../99-archive/verification/M6-验收报告-v1.md)）（已冻结：W1–W5 逐项核对、E1–E8 全满足、live 基线 7/0/0、OBL-M7 闭环 done；附非阻塞条件项 E-5/E-6/E-7、CopilotKit spike、R-31）
+- [M7 全量交付物收敛验收报告 v2](checklists/M7-全量交付物收敛验收报告-v2.md)（证据升版 + 纠正样本回流判据勘误；v1 归档 [99-archive](../99-archive/verification/M7-全量交付物收敛验收报告-v1.md)）（已冻结：§3.8 八项交付物 8/8、§13.5 硬门槛逐条对照、确定性降级路径口径与缺口如实声明；OBL-M7 台账 done 依据；不是 M7 阶段验收）
 - [M6 · W5/T5.1 深度审核 v1](checklists/M6-W5-T5.1-深度审核-v1.md)（评测数据面 + 失败看板；T51-1/T51-3 P1、T51-2 P2、T51-4/T51-5 P3 全部当场修复）
 - [M6 · W5/T5.3 运维面深度审核 v1](checklists/M6-W5-T5.3-运维面深度审核-v1.md)（G-5 保留策略 + 线程池扩容 + 拒绝映射核对；T53-1 TIMESTAMPTZ 时区修复）
 - [M6 · W5/T5.4 移交核对 v1](checklists/M6-W5-T5.4-移交核对-v1.md)（§3.7 十一项逐项点名 + CopilotKit 复查 + R-31 边界声明）
 - [M6 · W5 收口深度审核 v1](checklists/M6-W5-收口深度审核-v1.md)（含 M6 全局审核：五维铁律复核、T55-1 P2 基线修复、提交范围）
-- [M6 收口基线证据 v1](evaluation/M6-收口基线证据-v1.json)（live 基线 7 PASS / 0 FAIL / 0 SKIP；PoC#7 32 项、PoC#1 30 轮）
-- [对抗扩充 M6 证据 v1](evaluation/对抗扩充-M6证据-v1.json)（T5.2 8 项探针 8/8 全拒 + 注入值参数化泄露 0）
+- [M6 收口基线证据 v2](evaluation/M6-收口基线证据-v2.json)（live 基线 7 PASS / 0 FAIL / 0 SKIP；PoC#7 32 项、PoC#1 30 轮）
+- [对抗扩充 M6 证据 v2](evaluation/对抗扩充-M6证据-v2.json)（T5.2 8 项探针 8/8 全拒 + 注入值参数化泄露 0）
 - [PoC-01 · M6 收口 RLS 回归证据](poc/PoC-01-M2回归-2026-11-11.json)（30 轮越权/异常 0；T55-3 修复后按日期另存，M2 冻结证据 `2026-11-08` 保持不动）
+
+**M6 全量深度审核（2026-11-11）**
+
+- [M6 · 全量深度审核 v1](checklists/M6-全量深度审核-v1.md)（独立复审：三路只读代码交叉核查 + 证据哈希复算 + 真跑；22 项发现 D-1～D-22，含 2 项 P1——场景状态污染与冒烟证据版本错配；当场修复 19 项、报告 v2 勘误 2 项、附条件登记 1 组；验收结论维持通过）
+- [零号冒烟-评测证据 v3](evaluation/零号冒烟-评测证据-v3.json)（20/20，#15/#16 = PROMPT_INJECTION_SUSPECTED；初稿 v2 归档 [99-archive](../99-archive/evaluation/零号冒烟-评测证据-v2.json)）
+- [test集-M6收敛评测证据 v2](evaluation/test集-M6收敛评测证据-v2.json)（269/0/2/0；分层 Wilson 分母改为有效样本；dashboardPush 字段在位）
+- [消融对照-M6证据 v2](evaluation/消融对照-M6证据-v2.json)（6/6 动态断言通过；A5 如实 4/4 + 历史 1/10）
+- [压测-M6证据 v2](evaluation/压测-M6证据-v2.json)（并发 16 P95=145ms / 242rps；跨相位全量 P95 字段在位）
+- [场景状态fail-closed证据 v1](evaluation/场景状态fail-closed证据-v1.json)（D-1 真服务 5/5：拒绝零状态污染 + 正向提交生效）

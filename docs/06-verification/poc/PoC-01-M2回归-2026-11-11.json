@@ -3,7 +3,7 @@
   "scope": "M2 回归：RLS 最终边界（跨租户 / 连接复用 / 存在性）",
   "manifestId": "2026.11.10-sixteenth",
   "rounds": 30,
-  "ranAt": "2026-11-11T01:04:24.891Z",
+  "ranAt": "2026-11-11T02:13:55.985Z",
   "criteria": "越权成功 0（技术选型 §7 #1）",
   "observations": {
     "ownerRowCounts": [

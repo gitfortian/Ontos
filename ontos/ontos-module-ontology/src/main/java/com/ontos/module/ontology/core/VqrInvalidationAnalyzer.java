@@ -191,15 +191,18 @@ public class VqrInvalidationAnalyzer {
             for (ManifestPayload.ScenarioMeta scenario : payload.getScenarios()) {
                 if (scenario.getDefaultVqrIds() != null
                         && scenario.getDefaultVqrIds().stream().anyMatch(dead::contains)) {
-                    removed += scenario.getDefaultVqrIds().size();
+                    int before = scenario.getDefaultVqrIds().size();
                     scenario.setDefaultVqrIds(scenario.getDefaultVqrIds().stream()
                             .filter(id -> !dead.contains(id)).toList());
+                    // M6 全量深度审核 D-6：计「实际移除条数」，不是清理前列表长度
+                    removed += before - scenario.getDefaultVqrIds().size();
                 }
                 if (scenario.getColdStartSamples() != null
                         && scenario.getColdStartSamples().stream().anyMatch(dead::contains)) {
-                    removed += scenario.getColdStartSamples().size();
+                    int before = scenario.getColdStartSamples().size();
                     scenario.setColdStartSamples(scenario.getColdStartSamples().stream()
                             .filter(id -> !dead.contains(id)).toList());
+                    removed += before - scenario.getColdStartSamples().size();
                 }
             }
         }
@@ -278,18 +281,25 @@ public class VqrInvalidationAnalyzer {
             return map;
         }
         if (payload.getSemantic() != null) {
-            payload.getSemantic().getMetrics().forEach(metric ->
+            safeForEach(payload.getSemantic().getMetrics(), metric ->
                     map.put(metric.getId(), Json.canonical(metric)));
-            payload.getSemantic().getDimensions().forEach(dimension ->
+            safeForEach(payload.getSemantic().getDimensions(), dimension ->
                     map.put(dimension.getId(), Json.canonical(dimension)));
         }
         if (payload.getOntology() != null) {
-            payload.getOntology().getProperties().forEach(property ->
+            safeForEach(payload.getOntology().getProperties(), property ->
                     map.put(property.getId(), Json.canonical(property)));
         }
-        payload.getRules().forEach(rule -> map.put(rule.getId(), Json.canonical(rule)));
-        payload.getSkills().forEach(skill -> map.put(skill.getSkillId(), Json.canonical(skill)));
+        // M6 全量深度审核 D-5：失效分析在结构校验之前执行，显式 null 段不得 NPE（500）
+        safeForEach(payload.getRules(), rule -> map.put(rule.getId(), Json.canonical(rule)));
+        safeForEach(payload.getSkills(), skill -> map.put(skill.getSkillId(), Json.canonical(skill)));
         return map;
+    }
+
+    private static <T> void safeForEach(java.util.Collection<T> items, java.util.function.Consumer<T> action) {
+        if (items != null) {
+            items.forEach(action);
+        }
     }
 
     /** 新旧清单中资产在场的并集判定源。 */
@@ -298,15 +308,15 @@ public class VqrInvalidationAnalyzer {
             Set<String> ids = new LinkedHashSet<>();
             if (payload != null) {
                 if (payload.getSemantic() != null) {
-                    payload.getSemantic().getMetrics().forEach(m -> add(ids, m.getId()));
-                    payload.getSemantic().getDimensions().forEach(d -> add(ids, d.getId()));
+                    safeForEach(payload.getSemantic().getMetrics(), m -> add(ids, m.getId()));
+                    safeForEach(payload.getSemantic().getDimensions(), d -> add(ids, d.getId()));
                 }
                 if (payload.getOntology() != null) {
-                    payload.getOntology().getConcepts().forEach(c -> add(ids, c.getId()));
-                    payload.getOntology().getProperties().forEach(p -> add(ids, p.getId()));
+                    safeForEach(payload.getOntology().getConcepts(), c -> add(ids, c.getId()));
+                    safeForEach(payload.getOntology().getProperties(), p -> add(ids, p.getId()));
                 }
-                payload.getRules().forEach(rule -> add(ids, rule.getId()));
-                payload.getSkills().forEach(skill -> add(ids, skill.getSkillId()));
+                safeForEach(payload.getRules(), rule -> add(ids, rule.getId()));
+                safeForEach(payload.getSkills(), skill -> add(ids, skill.getSkillId()));
             }
             return new AssetPresence(Set.copyOf(ids));
         }

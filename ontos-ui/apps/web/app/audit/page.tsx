@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
@@ -135,7 +136,8 @@ const columns: TableColumns<AuditLogVO> = [
 
 /** 失败看板（G-5 五维下钻）：评测失败样本分类落库后的下钻视图。 */
 function FailureDashboard() {
-  const setId = FAILURE_SET_OPTIONS[0].value;
+  // M6 全量深度审核 D-17：题集可切换（原固定 test-v3，smoke-v3 选项定义却无 UI）
+  const [setId, setSetId] = useState(FAILURE_SET_OPTIONS[0].value);
   const query = useQuery({
     queryKey: ["failure-dashboard", setId],
     queryFn: ({ signal }) => getFailureDashboard(setId, 50, signal),
@@ -149,9 +151,29 @@ function FailureDashboard() {
         title="失败看板"
         description={`评测失败样本五维下钻（G-5）· 题集 ${setId} · 共 ${data?.total ?? 0} 条失败样本；纠正样本经修复后按题集升版进回归集`}
         extra={
-          <Button size="small" onClick={() => void query.refetch()} loading={query.isFetching}>
-            刷新
-          </Button>
+          <div className="flex items-center gap-2">
+            <Select
+              size="small"
+              items={FAILURE_SET_OPTIONS}
+              value={setId}
+              onValueChange={(value) => setSetId(value ?? FAILURE_SET_OPTIONS[0].value)}
+            >
+              <SelectTrigger variant="outlined" className="w-44" aria-label="评测题集">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FAILURE_SET_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    <SelectItemText>{option.label}</SelectItemText>
+                    <SelectItemIndicator />
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button size="small" onClick={() => void query.refetch()} loading={query.isFetching}>
+              刷新
+            </Button>
+          </div>
         }
       />
       {query.isError ? (
@@ -159,7 +181,7 @@ function FailureDashboard() {
       ) : null}
       {data && data.total === 0 ? (
         <Alert className="mb-3">
-          看板空态：当前评测无失败样本（首轮收敛 269/0/2/0）。失败样本由评测 runner 自动登记。
+          看板空态：当前题集无失败样本。失败样本由评测 runner 在出现失败时自动登记。
         </Alert>
       ) : null}
       <div className="mb-4 grid grid-cols-2 gap-3 max-md:grid-cols-1 lg:grid-cols-5">

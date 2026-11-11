@@ -61,6 +61,24 @@ if (gold.contentHash !== `sha256:${contentHash}`) {
 }
 console.log(`gold contentHash 校验通过: ${contentHash.slice(0, 16)}…（${gold.gold.length} 题）`);
 
+// M6 全量深度审核 D-8：三方复算——读取题目文档 §7 声明并与磁盘字节/规范化数组比对。
+// 原实现只做「文件声明 vs 重算」两方，题目文档声明从未参与断言（口径夸大）。
+const docText = readFileSync(DOC_PATH, "utf8");
+const declaredFileHash = docText.match(/零号冒烟集-gold-v3\.json\) \| `([0-9a-f]{16})/)?.[1];
+const declaredContentHash = docText.match(/contentHash `sha256:([0-9a-f]{16})/)?.[1];
+const actualFileHash = sha256(readFileSync(GOLD_PATH));
+if (!declaredFileHash || !declaredContentHash) {
+  console.error("题目文档 §7 冻结哈希声明缺失，无法三方比对");
+  process.exit(1);
+}
+if (!actualFileHash.startsWith(declaredFileHash)
+    || !contentHash.startsWith(declaredContentHash)) {
+  console.error(`题目文档声明与磁盘不一致: 文件 ${declaredFileHash} vs ${actualFileHash.slice(0, 16)}；`
+    + `contentHash ${declaredContentHash} vs ${contentHash.slice(0, 16)}`);
+  process.exit(1);
+}
+console.log(`题目文档声明比对通过（三方一致）: ${declaredFileHash} / ${declaredContentHash}…`);
+
 const HEADERS = {
   "Content-Type": "application/json",
   "X-Ontos-Tenant": "demo",
@@ -306,7 +324,10 @@ for (const item of gold.gold) {
 const count = (layer, value) => {
   const rows = results.filter((item) => item[layer] === value);
   const pass = rows.filter((item) => item.status === "pass").length;
-  return { n: rows.length, pass, skip: rows.filter((item) => item.status === "skip").length };
+  const skip = rows.filter((item) => item.status === "skip").length;
+  const error = rows.filter((item) => item.status === "error").length;
+  // M6 全量深度审核 D-9：n = 有效样本（pass+fail），skip/error 不进分母（统计口径 v1 §2/§4）
+  return { n: rows.length - skip - error, pass, skip, error };
 };
 const wilson = (pass, n) => {
   if (n === 0) return null;
