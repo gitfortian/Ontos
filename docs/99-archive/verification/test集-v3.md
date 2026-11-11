@@ -6,7 +6,7 @@
 > **负责人**：项目组
 > **最后更新**：2026-11-10
 > **适用范围**：正式验收主指标（任务成功率）的**唯一分母**；`test` 集合见[正式评测集 v4](正式评测集-v4.md) §2
-> **上游依据**：[完整可落地方案 v1.4 §13.2/§13.4](../../02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md)、[评测统计口径 v1](评测统计口径-v1.md)、[ADR-0005 评测门槛](../../01-decisions/ADR-0005-评测门槛与PoC执行责任.md)、[ADR-0014 并行义务纪律](../../01-decisions/ADR-0014-并行义务纪律与M7同步建设偏离.md)、[M6 实施规格 v1.0 §3.8 决策 8](../../03-plans/stages/M6/M6-分析模式ScenarioSkill与复合意图-实施规格-v1.0.md)
+> **上游依据**：[完整可落地方案 v1.4 §13.2/§13.4](../../02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md)、[评测统计口径 v1](../../06-verification/evaluation/评测统计口径-v1.md)、[ADR-0005 评测门槛](../../01-decisions/ADR-0005-评测门槛与PoC执行责任.md)、[ADR-0014 并行义务纪律](../../01-decisions/ADR-0014-并行义务纪律与M7同步建设偏离.md)、[M6 实施规格 v1.0 §3.8 决策 8](../../03-plans/stages/M6/M6-分析模式ScenarioSkill与复合意图-实施规格-v1.0.md)
 > **历史版本**：[v2](../../99-archive/verification/test集-v2.md)（已归档）
 > **修订记录**：2026-11-10 **v3**（M6/W5 T5.1 收敛）——E-1 场景入口题 15 题（manual 5 / cold_start 5 / inherit 5）+ E-2 多轮增量补至 30 题（新增 16–30）；v2 的 241 题零变化。生成脚本 [`build-testset-v3.mjs`](../../../scripts/verify/build-testset-v3.mjs)（可复算）；机器可读文件 [`test集-v3.json`](test集-v3.json)（sha256 `f60c366d915d2ab2…`）。
 
@@ -115,7 +115,7 @@ v2 的 20 族（§3 见[归档 v2](../../99-archive/verification/test集-v2.md)�
 |---|---|
 | 首轮全量真服务评测（[`test-runner.mjs`](../../../scripts/verify/test-runner.mjs)） | **269 pass / 0 fail / 2 skip（E-5）/ 0 error**，成功率 1.0，Wilson95 `[0.9859, 1]` |
 | 分层 | `scenario_entry_mode`：manual 5/5、cold_start 5/5、inherit 5/5；`risk_type`：注入 10/10、跨轮差分 10/10、跨域 8/8、存在性 8/8 |
-| 证据固化 | [`test集-M6收敛评测证据-v2.json`](test集-M6收敛评测证据-v2.json)（SHA-256 `cf386fe1e9a9ebf3…`，runId `t1794320412336`，manifest `2026.11.10-sixteenth`） |
+| 证据固化 | [`test集-M6收敛评测证据-v2.json`](../../06-verification/evaluation/test集-M6收敛评测证据-v2.json)（SHA-256 `cf386fe1e9a9ebf3…`，runId `t1794320412336`，manifest `2026.11.10-sixteenth`） |
 | 场景题判据来源 | 真服务逐题探针（manual 直传三码、cold_start 四步流、VQR 冷启动命中、越界澄清），与 smoke-runner v2 探针同日同清单 |
-| 收敛过程中修复的产品缺陷 | T51-1（场景确认误设 consumed → 契约拒答）、T51-2（注入审计直写原文 JSONB 失败）、T51-3（中文注入启发 10 题仅 1 题命中）——见 [M6-W5-T5.1 深度审核](../checklists/M6-W5-T5.1-深度审核-v1.md) |
+| 收敛过程中修复的产品缺陷 | T51-1（场景确认误设 consumed → 契约拒答）、T51-2（注入审计直写原文 JSONB 失败）、T51-3（中文注入启发 10 题仅 1 题命中）——见 [M6-W5-T5.1 深度审核](../../06-verification/checklists/M6-W5-T5.1-深度审核-v1.md) |
 | 取值域 | 订单仅 o-1..o-5、客户 c-1001..c-1003（探测题用不存在 id）、渠道线上/线下、等级 gold/silver/normal、区域华东/华南/华北 |

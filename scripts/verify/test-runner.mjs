@@ -33,8 +33,10 @@ const BASE = argOf("--base-url", "http://127.0.0.1:8080");
 
 const sha256 = (buffer) => createHash("sha256").update(buffer).digest("hex");
 const set = JSON.parse(readFileSync(SET_PATH, "utf8"));
-if (set.version !== "v3") {
-  console.error(`test 集版本不是 v3：${set.version}`);
+// M7/W1/T1.1：test 集升 v4（E-5 方案 A，ADR-0018）——runner 接受 v3/v4；
+// 更早版本（v1/v2）判据不同，继续拒绝，避免旧题集被误跑。
+if (!["v3", "v4"].includes(set.version)) {
+  console.error(`test 集版本不受支持：${set.version}（仅 v3/v4）`);
   process.exit(1);
 }
 
@@ -120,7 +122,13 @@ function buildQueryDsl(expected) {
   return dsl;
 }
 
-function buildDsl(expected) {
+function buildDsl(input) {
+  // M7/W1：预期拒绝题（如 E-5 的 1002000014）只给 terminal/errorCode/metricId，无 mode。
+  // 按 period 是否存在做确定性补全（有 period → YOY_MOM，否则 QUERY），仅用于构造被拒 DSL；
+  // 不改 expected 判据（仍以 errorCode 精确匹配），也不做语义猜测。
+  const expected = !input.mode && input.metricId
+    ? { ...input, mode: input.period ? "YOY_MOM" : "QUERY" }
+    : input;
   switch (expected.mode) {
     case "QUERY":
       return buildQueryDsl(expected);
