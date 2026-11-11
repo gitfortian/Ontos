@@ -814,6 +814,22 @@ public class AskOrchestrationService {
             }
         }
         dsl.setTimeExpressionRaw(stringOf(subIntent.get("time_expression_raw")));
+        // 相对时间的时间维度由清单推导（T5.3 P1 修复）：LLM 只给表达式、不给物理字段，
+        // 而 TimeWindowResolver 解析相对时间要求 timeRange.field 已在位。
+        // 仅 QUERY / YOY_MOM 设通用时间窗——FUNNEL 走 cohortWindow、ATTRIBUTION/RETENTION
+        // 的 field 由服务端按事件回填（客户端字段一律拒绝，见 TimeWindowResolver）。
+        if (dsl.getTimeRange() == null && dsl.getTimeExpressionRaw() != null
+                && !dsl.getTimeExpressionRaw().isBlank()
+                && (dsl.getMode() == QueryDsl.AnalysisMode.QUERY
+                        || dsl.getMode() == QueryDsl.AnalysisMode.YOY_MOM)) {
+            String timeDimension = TimeDimensionResolver.resolve(
+                    manifestService.getActiveManifestOrNull(), dsl.getMetricId());
+            if (timeDimension != null) {
+                QueryDsl.TimeRange range = new QueryDsl.TimeRange();
+                range.setField(timeDimension);
+                dsl.setTimeRange(range);
+            }
+        }
         // 属性投影（LOOKUP 回显列）：提案的 attributes 是语义槽位，物理列由清单约束
         if (subIntent.get("attributes") instanceof List<?> attributes) {
             attributes.forEach(attribute -> {

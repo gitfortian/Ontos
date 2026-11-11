@@ -1,0 +1,52 @@
+{
+  "task": "M7/W2/T2.1 归因诊断（E-7 首跑 32% 通过率的根因）",
+  "generatedAt": "2026-11-11T16:40:00+08:00",
+  "method": "重放 7 个失败题 + 对照组，抓取澄清载荷与检索候选（matchedTerm）定位根因；修复后同题复测（A/B）",
+  "tokenCost": "诊断 + 修复验证共 13 次 ask，约 0.27M token",
+  "rootCauses": [
+    {
+      "id": "R-ROOT-1",
+      "cause": "资产别名缺口：metric.distinct_customers 无「客户数」、metric.order_count 无「订单数」——检索瀑布匹配不到指标，反而以垃圾词（\"数是\"→property.order_item.quantity、\"客户\"→metric.high_value_customer）触发澄清",
+      "evidence": "澄清载荷 matchedTerm=[\"数是\",\"客户\"]；v18 别名表核对",
+      "fix": "清单 v19（2026.11.11-nineteenth，contentHash 377d4616…）补两个别名；按 ADR-0005 属资产词表修正",
+      "fixed": true
+    },
+    {
+      "id": "R-ROOT-2",
+      "cause": "维度取值词表缺失：「金牌客户」是 dim.customer_tier 的取值，但取值枚举不进候选/提示词，模型无法表达 filter",
+      "evidence": "v19 后「今年金牌客户的订单数」仍 clarification",
+      "fix": "登记为 M8 优化项（维度取值注入提示词或清单声明取值枚举）",
+      "fixed": false
+    },
+    {
+      "id": "R-ROOT-3",
+      "cause": "FUNNEL / YOY_MOM 的 LLM 提案表达缺口：提案 Schema 无法承载 funnel 的 stages/cohortWindow 与 yoy 的对比参数，服务端组装缺位 → 模型只能 out_of_capability",
+      "evidence": "v19 后「从渠道触点到下单的转化」「今年各品类销量同比变化」仍 out_of_capability",
+      "fix": "登记为模式覆盖缺口（需产品决策：提示词教学 or 提案 Schema 扩展 or 保持场景化入口），M8 前定档",
+      "fixed": false
+    }
+  ],
+  "abTest": {
+    "before_v18": [
+      { "question": "今年各地区的客户数是多少", "terminal": "clarification" },
+      { "question": "上个月各渠道的客户数是多少", "terminal": "clarification" },
+      { "question": "今年各地区的成交金额，同时看各渠道的客户数", "terminal": "clarification" },
+      { "question": "今年金牌客户的订单数是多少", "terminal": "clarification" },
+      { "question": "从渠道触点到下单的转化有多少", "terminal": "out_of_capability" },
+      { "question": "今年各品类销量同比变化", "terminal": "out_of_capability" }
+    ],
+    "after_v19": [
+      { "question": "今年各地区的客户数是多少", "terminal": "query", "rows": 2 },
+      { "question": "上个月各渠道的客户数是多少", "terminal": "query", "rows": 2 },
+      { "question": "今年各地区的成交金额，同时看各渠道的客户数", "terminal": "composite" },
+      { "question": "今年金牌客户的订单数是多少", "terminal": "clarification", "note": "R-ROOT-2 未修" },
+      { "question": "从渠道触点到下单的转化有多少", "terminal": "out_of_capability", "note": "R-ROOT-3 未修" },
+      { "question": "今年各品类销量同比变化", "terminal": "out_of_capability", "note": "R-ROOT-3 未修" }
+    ]
+  },
+  "conclusion": "首跑 32% 通过率的主因是「检索别名缺口 → 垃圾澄清」（占失败题的约 1/3 强），已修；其余归因到维度取值词表与 mode 表达缺口，均为可登记的资产/产品缺口而非评测口径问题。修复后需重跑 E-7 才能得到有效通过率；按用户止损要求，重跑时机待预算确认。",
+  "notes": [
+    "澄清载荷中的垃圾匹配（matchedTerm=\"数是\"→quantity）本身也是一个检索质量问题，登记为 M8 优化项（提及解析的最小词长/停用词）",
+    "partial 证据（LLM路径评测证据-v1-partial.json）采集于 v18，与 v19 不可直接混合比较"
+  ]
+}

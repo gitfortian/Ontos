@@ -210,6 +210,6 @@ DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、F
 - **M7 已通过（有条件）**（2026-11-11，[验收报告 v1](docs/06-verification/checklists/M7-验收报告-v1.md)）：E1/E2/E4（五类）/E5/E6/E7/E8 满足——E-5 订单项销量口径、E-6 auto 入口、失败看板闭环（V19 + 前端处置卡片）、V20 模型调用追踪、三档压测 P95 80ms；**E3（E-7 LLM 路径评测）与 E4 的 LLM 新面按 [ADR-0019](docs/01-decisions/ADR-0019-M7有条件通过E7评测挂账.md) 挂账**，模型服务就绪后 5 个工作日内补测并升报告 v2；M8 可启动，发布/灰度门禁未开。
 - **M8 待启动**：网关 / 部署 / 灰度回滚 / SLO / 灾备，需 M7 验收 + v1.4 §18/§19 关闭。
 
-当前生效清单 `2026.11.11-eighteenth`（8 skills + 1 vqr + 2 scenarios：`scenario.sales` / `scenario.sales.auto`；9 指标，contentHash `ba3affaa…`）。
-实测基线（2026-11-11）：`mvn test` 658 例 / 0 失败、`pnpm check` 通过（26 单测）、`vite build` 通过、docs 治理 147 文档 / 1457 链接、并行义务 `deferred 0`、live 基线 7 PASS / 0 FAIL / 0 SKIP（本轮未复跑）。
+当前生效清单 `2026.11.11-nineteenth`（8 skills + 1 vqr + 2 scenarios；9 指标，contentHash `377d4616…`；v19 = v18 + 「客户数/订单数」别名补齐）。
+实测基线（2026-11-11）：`mvn test` 658 例 / 0 失败、`pnpm check` 通过（26 单测）、`vite build` 通过、docs 治理 148 文档 / 1473 链接、并行义务 `deferred 0`、live 基线 7 PASS / 0 FAIL / 0 SKIP（本轮未复跑）。
 进度与状态口径以 `docs/05-progress/2026/` 和 `docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md` 为准。

@@ -1,0 +1,111 @@
+{
+  "task": "M7/W2/T2.3",
+  "generatedAt": "2026-11-11T08:37:30.818Z",
+  "sources": {
+    "llm": {
+      "path": "D:\\tianxy\\code\\Ontos\\docs\\06-verification\\evaluation\\LLM路径评测证据-v1-partial.json",
+      "runs": 1,
+      "total": 250
+    },
+    "det": {
+      "path": "D:\\tianxy\\code\\Ontos\\docs\\06-verification\\evaluation\\降级路径评测证据-v1.json",
+      "runId": "L1794386151377",
+      "runs": 1,
+      "total": 276
+    }
+  },
+  "paired": {
+    "total": 265,
+    "bothPass": 23,
+    "llmOnly": 69,
+    "detOnly": 5,
+    "bothFail": 168,
+    "llmRate": 0.3472,
+    "detRate": 0.1057
+  },
+  "mcnemar": {
+    "chiSquare": 53.6351,
+    "pValue": 0
+  },
+  "bootstrap": {
+    "latencyDeltaMs": {
+      "mean": null,
+      "ci95": [
+        null,
+        null
+      ],
+      "samples": 10000
+    },
+    "tokenDelta": {
+      "mean": 20268.07,
+      "ci95": [
+        18749.4,
+        21842.77
+      ],
+      "samples": 10000
+    }
+  },
+  "byAnalysisMode": {
+    "FUNNEL": {
+      "total": 10,
+      "llmPassed": 0,
+      "detPassed": 0,
+      "llmRate": 0,
+      "detRate": 0
+    },
+    "QUERY": {
+      "total": 151,
+      "llmPassed": 62,
+      "detPassed": 16,
+      "llmRate": 0.4106,
+      "detRate": 0.106
+    },
+    "YOY_MOM": {
+      "total": 2,
+      "llmPassed": 0,
+      "detPassed": 0,
+      "llmRate": 0,
+      "detRate": 0
+    },
+    "LOOKUP": {
+      "total": 40,
+      "llmPassed": 0,
+      "detPassed": 3,
+      "llmRate": 0,
+      "detRate": 0.075
+    },
+    "LOOKUP_BATCH": {
+      "total": 14,
+      "llmPassed": 0,
+      "detPassed": 0,
+      "llmRate": 0,
+      "detRate": 0
+    },
+    "COMPOSITE": {
+      "total": 30,
+      "llmPassed": 19,
+      "detPassed": 0,
+      "llmRate": 0.6333,
+      "detRate": 0
+    },
+    "DISCOVERY": {
+      "total": 12,
+      "llmPassed": 11,
+      "detPassed": 9,
+      "llmRate": 0.9167,
+      "detRate": 0.75
+    },
+    "RETENTION": {
+      "total": 6,
+      "llmPassed": 0,
+      "detPassed": 0,
+      "llmRate": 0,
+      "detRate": 0
+    }
+  },
+  "notes": [
+    "降级路径不调用模型，token 差值等于 LLM 路径的单题成本",
+    "McNemar 用 df=1 卡方近似（连续性校正），p 值仅供差异方向判断，阈值不在本脚本内设定",
+    "配对 bootstrap 以「同题同轮」为单位重采样，避免把不同题目的难度差异当成路径差异"
+  ]
+}
