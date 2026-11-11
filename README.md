@@ -211,5 +211,5 @@ DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、F
 - **M8 待启动**：网关 / 部署 / 灰度回滚 / SLO / 灾备，需 M7 验收 + v1.4 §18/§19 关闭。
 
 当前生效清单 `2026.11.11-nineteenth`（8 skills + 1 vqr + 2 scenarios；9 指标，contentHash `377d4616…`；v19 = v18 + 「客户数/订单数」别名补齐）。
-实测基线（2026-11-11）：`mvn test` 658 例 / 0 失败、`pnpm check` 通过（26 单测）、`vite build` 通过、docs 治理 148 文档 / 1473 链接、并行义务 `deferred 0`、live 基线 7 PASS / 0 FAIL / 0 SKIP（本轮未复跑）。
+实测基线（2026-11-11）：`mvn test` 658 例 / 0 失败、`pnpm check` 通过（26 单测）、`vite build` 通过、docs 治理 148 文档 / 1477 链接、并行义务 `deferred 0`、live 基线 7 PASS / 0 FAIL / 0 SKIP（本轮未复跑）。
 进度与状态口径以 `docs/05-progress/2026/` 和 `docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md` 为准。
