@@ -1,0 +1,1417 @@
+{
+  "task": "M7/W2/T2.2",
+  "runId": "L1794396292165",
+  "ranAt": "2026-11-11T11:26:57.910Z",
+  "serviceBaseUrl": "http://127.0.0.1:8080",
+  "testSet": {
+    "path": "D:\\tianxy\\code\\Ontos\\target\\e7-subset.json",
+    "version": "v5-subset",
+    "total": 30,
+    "evaluated": 30
+  },
+  "runs": 1,
+  "judgement": {
+    "version": "v2（新增 filters / LOOKUP attributes·identity 判定；filter 取值词表缺失登记 R-ROOT-2，相关题在词表补齐前如实判 FAIL）",
+    "terminal": "终态与期望一致",
+    "dsl": "期望给出 mode/metricId/dimensions/timeExpressionRaw 时，比对审计留痕 DSL（不注入期望值）",
+    "llmUsage": "llm_call_trace 是否存在该 requestId 的记录（区分 LLM 路径 / 确定性降级）"
+  },
+  "summary": {
+    "total": 30,
+    "passed": 21,
+    "rate": 0.7,
+    "wilson95": [
+      0.5212,
+      0.8334
+    ],
+    "llmUsed": 30,
+    "fallbackWithoutLlm": 0,
+    "degradedFlagged": 0,
+    "errors": 1,
+    "tokensTotal": 1180962,
+    "tokensPerCaseAvg": 39365,
+    "tokensPerCaseMax": 117967,
+    "latencyP50": 7495,
+    "latencyP95": 19341
+  },
+  "layers": {
+    "analysis_mode": {
+      "QUERY": {
+        "total": 12,
+        "passed": 7,
+        "rate": 0.5833,
+        "wilson95": [
+          0.3195,
+          0.8067
+        ]
+      },
+      "YOY_MOM": {
+        "total": 11,
+        "passed": 9,
+        "rate": 0.8182,
+        "wilson95": [
+          0.523,
+          0.9486
+        ]
+      },
+      "LOOKUP": {
+        "total": 2,
+        "passed": 0,
+        "rate": 0,
+        "wilson95": [
+          0,
+          0.6576
+        ]
+      },
+      "COMPOSITE": {
+        "total": 5,
+        "passed": 5,
+        "rate": 1,
+        "wilson95": [
+          0.5655,
+          1
+        ]
+      }
+    },
+    "query_shape": {
+      "aggregate": {
+        "total": 23,
+        "passed": 16,
+        "rate": 0.6957,
+        "wilson95": [
+          0.4913,
+          0.844
+        ]
+      },
+      "lookup_boolean": {
+        "total": 1,
+        "passed": 0,
+        "rate": 0,
+        "wilson95": [
+          0,
+          0.7935
+        ]
+      },
+      "composite": {
+        "total": 5,
+        "passed": 5,
+        "rate": 1,
+        "wilson95": [
+          0.5655,
+          1
+        ]
+      },
+      "lookup_attribute": {
+        "total": 1,
+        "passed": 0,
+        "rate": 0,
+        "wilson95": [
+          0,
+          0.7935
+        ]
+      }
+    },
+    "scenario_entry_mode": {
+      "none": {
+        "total": 30,
+        "passed": 21,
+        "rate": 0.7,
+        "wilson95": [
+          0.5212,
+          0.8334
+        ]
+      }
+    },
+    "risk_type": {
+      "normal": {
+        "total": 30,
+        "passed": 21,
+        "rate": 0.7,
+        "wilson95": [
+          0.5212,
+          0.8334
+        ]
+      }
+    }
+  },
+  "failureSamples": [
+    {
+      "caseId": "t-agg-filter-04",
+      "runIndex": 1,
+      "terminal": "out_of_capability",
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠QUERY",
+        "metric:undefined≠metric.gmv",
+        "time:undefined≠上季度",
+        "filters:[]≠[{\"fieldId\":\"dim.customer_tier\",\"operator\":\"EQ\",\"values\":[\"gold\"]}]"
+      ],
+      "errorMessage": null
+    },
+    {
+      "caseId": "t-agg-filter-02",
+      "runIndex": 1,
+      "terminal": "out_of_capability",
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠QUERY",
+        "metric:undefined≠metric.order_count",
+        "time:undefined≠今年",
+        "filters:[]≠[{\"fieldId\":\"dim.customer_tier\",\"operator\":\"EQ\",\"values\":[\"gold\"]}]"
+      ],
+      "errorMessage": null
+    },
+    {
+      "caseId": "t-agg-filter-06",
+      "runIndex": 1,
+      "terminal": "out_of_capability",
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠QUERY",
+        "metric:undefined≠metric.order_count",
+        "dims:≠dim.channel",
+        "time:undefined≠今年",
+        "filters:[]≠[{\"fieldId\":\"dim.customer_tier\",\"operator\":\"EQ\",\"values\":[\"gold\"]}]"
+      ],
+      "errorMessage": null
+    },
+    {
+      "caseId": "t-agg-filter-09",
+      "runIndex": 1,
+      "terminal": "out_of_capability",
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠QUERY",
+        "metric:undefined≠metric.order_count",
+        "time:undefined≠今年",
+        "filters:[]≠[{\"fieldId\":\"dim.channel\",\"operator\":\"EQ\",\"values\":[\"线下\"]},{\"fieldId\":\"dim.customer_tier\",\"operator\":\"EQ\",\"values\":[\"gold\"]}]"
+      ],
+      "errorMessage": null
+    },
+    {
+      "caseId": "t-agg-filter-08",
+      "runIndex": 1,
+      "terminal": "out_of_capability",
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠QUERY",
+        "metric:undefined≠metric.gmv",
+        "time:undefined≠上个月",
+        "filters:[]≠[{\"fieldId\":\"dim.region\",\"operator\":\"EQ\",\"values\":[\"华东\"]},{\"fieldId\":\"dim.customer_tier\",\"operator\":\"EQ\",\"values\":[\"gold\"]}]"
+      ],
+      "errorMessage": null
+    },
+    {
+      "caseId": "t-yoy-06b",
+      "runIndex": 1,
+      "terminal": "out_of_capability",
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠YOY_MOM",
+        "metric:undefined≠metric.order_item_quantity",
+        "dims:≠dim.product_category",
+        "time:undefined≠今年"
+      ],
+      "errorMessage": null
+    },
+    {
+      "caseId": "t-yoy-07",
+      "runIndex": 1,
+      "terminal": "out_of_capability",
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠YOY_MOM",
+        "metric:undefined≠metric.gmv",
+        "dims:≠dim.region",
+        "time:undefined≠上季度"
+      ],
+      "errorMessage": null
+    },
+    {
+      "caseId": "t-lookup-bool-01",
+      "runIndex": 1,
+      "terminal": "out_of_capability",
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠LOOKUP",
+        "attributes:≠property.customer.tier",
+        "identity:undefined≠c-1001"
+      ],
+      "errorMessage": null
+    },
+    {
+      "caseId": "t-lookup-attr-11",
+      "runIndex": 1,
+      "terminal": "clarification",
+      "failReasons": [
+        "terminal:clarification≠query",
+        "mode:undefined≠LOOKUP",
+        "attributes:≠property.customer.tier",
+        "identity:undefined≠c-1002"
+      ],
+      "errorMessage": null
+    }
+  ],
+  "rows": [
+    {
+      "requestId": "llml-L1794396292165-r1-t-agg-single-04-t1",
+      "caseId": "t-agg-single-04",
+      "runIndex": 1,
+      "latencyMs": 6155,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 2,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "QUERY",
+      "metricId": "metric.distinct_customers",
+      "dimensions": [
+        "dim.region"
+      ],
+      "timeExpressionRaw": "今年",
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 3,
+      "tokens": 117967,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "QUERY",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-agg-filter-01-t1",
+      "caseId": "t-agg-filter-01",
+      "runIndex": 1,
+      "latencyMs": 8069,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 1,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "QUERY",
+      "metricId": "metric.gmv",
+      "dimensions": [],
+      "timeExpressionRaw": "上个月",
+      "filters": [
+        {
+          "fieldId": "dim.region",
+          "values": [
+            "华东"
+          ]
+        }
+      ],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 2,
+      "tokens": 64440,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "QUERY",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-agg-single-09-t1",
+      "caseId": "t-agg-single-09",
+      "runIndex": 1,
+      "latencyMs": 10963,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 2,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "QUERY",
+      "metricId": "metric.distinct_customers",
+      "dimensions": [
+        "dim.channel"
+      ],
+      "timeExpressionRaw": "上个月",
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 2,
+      "tokens": 64641,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "QUERY",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-agg-filter-03-t1",
+      "caseId": "t-agg-filter-03",
+      "runIndex": 1,
+      "latencyMs": 9663,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 1,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "QUERY",
+      "metricId": "metric.avg_order_value",
+      "dimensions": [],
+      "timeExpressionRaw": "近 30 天",
+      "filters": [
+        {
+          "fieldId": "dim.channel",
+          "values": [
+            "线上"
+          ]
+        }
+      ],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 2,
+      "tokens": 65614,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "QUERY",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-agg-filter-04-t1",
+      "caseId": "t-agg-filter-04",
+      "runIndex": 1,
+      "latencyMs": 9663,
+      "code": 0,
+      "terminal": "out_of_capability",
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "out_of_capability"
+      ],
+      "mode": null,
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 3,
+      "tokens": 80568,
+      "llmUsed": true,
+      "pass": false,
+      "rejectedByGuardrail": null,
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠QUERY",
+        "metric:undefined≠metric.gmv",
+        "time:undefined≠上季度",
+        "filters:[]≠[{\"fieldId\":\"dim.customer_tier\",\"operator\":\"EQ\",\"values\":[\"gold\"]}]"
+      ],
+      "layers": {
+        "analysis_mode": "QUERY",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-agg-filter-02-t1",
+      "caseId": "t-agg-filter-02",
+      "runIndex": 1,
+      "latencyMs": 16000,
+      "code": 0,
+      "terminal": "out_of_capability",
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "out_of_capability"
+      ],
+      "mode": null,
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 3,
+      "tokens": 80378,
+      "llmUsed": true,
+      "pass": false,
+      "rejectedByGuardrail": null,
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠QUERY",
+        "metric:undefined≠metric.order_count",
+        "time:undefined≠今年",
+        "filters:[]≠[{\"fieldId\":\"dim.customer_tier\",\"operator\":\"EQ\",\"values\":[\"gold\"]}]"
+      ],
+      "layers": {
+        "analysis_mode": "QUERY",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-agg-filter-05-t1",
+      "caseId": "t-agg-filter-05",
+      "runIndex": 1,
+      "latencyMs": 5908,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 2,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "QUERY",
+      "metricId": "metric.gmv",
+      "dimensions": [
+        "dim.channel"
+      ],
+      "timeExpressionRaw": "上个月",
+      "filters": [
+        {
+          "fieldId": "dim.region",
+          "values": [
+            "华东"
+          ]
+        }
+      ],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 2,
+      "tokens": 65733,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "QUERY",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-agg-filter-07-t1",
+      "caseId": "t-agg-filter-07",
+      "runIndex": 1,
+      "latencyMs": 5616,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 1,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "QUERY",
+      "metricId": "metric.gmv",
+      "dimensions": [
+        "dim.region"
+      ],
+      "timeExpressionRaw": "近 30 天",
+      "filters": [
+        {
+          "fieldId": "dim.channel",
+          "values": [
+            "线上"
+          ]
+        }
+      ],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 2,
+      "tokens": 66404,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "QUERY",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-agg-filter-06-t1",
+      "caseId": "t-agg-filter-06",
+      "runIndex": 1,
+      "latencyMs": 9500,
+      "code": 0,
+      "terminal": "out_of_capability",
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "out_of_capability"
+      ],
+      "mode": null,
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 3,
+      "tokens": 81376,
+      "llmUsed": true,
+      "pass": false,
+      "rejectedByGuardrail": null,
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠QUERY",
+        "metric:undefined≠metric.order_count",
+        "dims:≠dim.channel",
+        "time:undefined≠今年",
+        "filters:[]≠[{\"fieldId\":\"dim.customer_tier\",\"operator\":\"EQ\",\"values\":[\"gold\"]}]"
+      ],
+      "layers": {
+        "analysis_mode": "QUERY",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-agg-filter-10-t1",
+      "caseId": "t-agg-filter-10",
+      "runIndex": 1,
+      "latencyMs": 5234,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 1,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "QUERY",
+      "metricId": "metric.distinct_customers",
+      "dimensions": [],
+      "timeExpressionRaw": "上季度",
+      "filters": [
+        {
+          "fieldId": "dim.region",
+          "values": [
+            "华东"
+          ]
+        },
+        {
+          "fieldId": "dim.channel",
+          "values": [
+            "线下"
+          ]
+        }
+      ],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14819,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "QUERY",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-agg-filter-09-t1",
+      "caseId": "t-agg-filter-09",
+      "runIndex": 1,
+      "latencyMs": 9388,
+      "code": 0,
+      "terminal": "out_of_capability",
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "out_of_capability"
+      ],
+      "mode": null,
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 3,
+      "tokens": 82548,
+      "llmUsed": true,
+      "pass": false,
+      "rejectedByGuardrail": null,
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠QUERY",
+        "metric:undefined≠metric.order_count",
+        "time:undefined≠今年",
+        "filters:[]≠[{\"fieldId\":\"dim.channel\",\"operator\":\"EQ\",\"values\":[\"线下\"]},{\"fieldId\":\"dim.customer_tier\",\"operator\":\"EQ\",\"values\":[\"gold\"]}]"
+      ],
+      "layers": {
+        "analysis_mode": "QUERY",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-yoy-02-t1",
+      "caseId": "t-yoy-02",
+      "runIndex": 1,
+      "latencyMs": 4340,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 2,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "YOY_MOM",
+      "metricId": "metric.gmv",
+      "dimensions": [
+        "dim.region"
+      ],
+      "timeExpressionRaw": "今年",
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14684,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "YOY_MOM",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-agg-filter-08-t1",
+      "caseId": "t-agg-filter-08",
+      "runIndex": 1,
+      "latencyMs": 19341,
+      "code": 0,
+      "terminal": "out_of_capability",
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "out_of_capability"
+      ],
+      "mode": null,
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 3,
+      "tokens": 82584,
+      "llmUsed": true,
+      "pass": false,
+      "rejectedByGuardrail": null,
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠QUERY",
+        "metric:undefined≠metric.gmv",
+        "time:undefined≠上个月",
+        "filters:[]≠[{\"fieldId\":\"dim.region\",\"operator\":\"EQ\",\"values\":[\"华东\"]},{\"fieldId\":\"dim.customer_tier\",\"operator\":\"EQ\",\"values\":[\"gold\"]}]"
+      ],
+      "layers": {
+        "analysis_mode": "QUERY",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-yoy-01-t1",
+      "caseId": "t-yoy-01",
+      "runIndex": 1,
+      "latencyMs": 9170,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 1,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "YOY_MOM",
+      "metricId": "metric.gmv",
+      "dimensions": [],
+      "timeExpressionRaw": "这个月",
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14827,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "YOY_MOM",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-yoy-03-t1",
+      "caseId": "t-yoy-03",
+      "runIndex": 1,
+      "latencyMs": 5029,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 2,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "YOY_MOM",
+      "metricId": "metric.order_count",
+      "dimensions": [
+        "dim.channel"
+      ],
+      "timeExpressionRaw": "上个月",
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14820,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "YOY_MOM",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-yoy-04-t1",
+      "caseId": "t-yoy-04",
+      "runIndex": 1,
+      "latencyMs": 4323,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 3,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "YOY_MOM",
+      "metricId": "metric.gmv",
+      "dimensions": [
+        "dim.customer_tier"
+      ],
+      "timeExpressionRaw": "今年",
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14793,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "YOY_MOM",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-yoy-06-t1",
+      "caseId": "t-yoy-06",
+      "runIndex": 1,
+      "latencyMs": 3414,
+      "code": 1002000014,
+      "terminal": null,
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": "跨表路径存在粒度扩散，违反一行一事实: ontology.Order.containsItem forward 归一化基数=1:N",
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        null
+      ],
+      "mode": null,
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14748,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": 1002000014,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "YOY_MOM",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-yoy-05-t1",
+      "caseId": "t-yoy-05",
+      "runIndex": 1,
+      "latencyMs": 7830,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 1,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "YOY_MOM",
+      "metricId": "metric.avg_order_value",
+      "dimensions": [],
+      "timeExpressionRaw": "上个月",
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14821,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "YOY_MOM",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-yoy-08-t1",
+      "caseId": "t-yoy-08",
+      "runIndex": 1,
+      "latencyMs": 2614,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 2,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "YOY_MOM",
+      "metricId": "metric.avg_order_value",
+      "dimensions": [
+        "dim.channel"
+      ],
+      "timeExpressionRaw": "今年",
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14748,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "YOY_MOM",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-yoy-09-t1",
+      "caseId": "t-yoy-09",
+      "runIndex": 1,
+      "latencyMs": 7888,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 1,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "YOY_MOM",
+      "metricId": "metric.order_count",
+      "dimensions": [],
+      "timeExpressionRaw": "这个月",
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14819,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "YOY_MOM",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-yoy-06b-t1",
+      "caseId": "t-yoy-06b",
+      "runIndex": 1,
+      "latencyMs": 17589,
+      "code": 0,
+      "terminal": "out_of_capability",
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "out_of_capability"
+      ],
+      "mode": null,
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 2,
+      "tokens": 30265,
+      "llmUsed": true,
+      "pass": false,
+      "rejectedByGuardrail": null,
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠YOY_MOM",
+        "metric:undefined≠metric.order_item_quantity",
+        "dims:≠dim.product_category",
+        "time:undefined≠今年"
+      ],
+      "layers": {
+        "analysis_mode": "YOY_MOM",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-yoy-10-t1",
+      "caseId": "t-yoy-10",
+      "runIndex": 1,
+      "latencyMs": 5179,
+      "code": 0,
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 1,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "query"
+      ],
+      "mode": "YOY_MOM",
+      "metricId": "metric.gmv",
+      "dimensions": [],
+      "timeExpressionRaw": "今年",
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14719,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "YOY_MOM",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-yoy-07-t1",
+      "caseId": "t-yoy-07",
+      "runIndex": 1,
+      "latencyMs": 18347,
+      "code": 0,
+      "terminal": "out_of_capability",
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "out_of_capability"
+      ],
+      "mode": null,
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 2,
+      "tokens": 29877,
+      "llmUsed": true,
+      "pass": false,
+      "rejectedByGuardrail": null,
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠YOY_MOM",
+        "metric:undefined≠metric.gmv",
+        "dims:≠dim.region",
+        "time:undefined≠上季度"
+      ],
+      "layers": {
+        "analysis_mode": "YOY_MOM",
+        "query_shape": "aggregate",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-lookup-bool-01-t1",
+      "caseId": "t-lookup-bool-01",
+      "runIndex": 1,
+      "latencyMs": 4287,
+      "code": 0,
+      "terminal": "out_of_capability",
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "out_of_capability"
+      ],
+      "mode": null,
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14755,
+      "llmUsed": true,
+      "pass": false,
+      "rejectedByGuardrail": null,
+      "failReasons": [
+        "terminal:out_of_capability≠query",
+        "mode:undefined≠LOOKUP",
+        "attributes:≠property.customer.tier",
+        "identity:undefined≠c-1001"
+      ],
+      "layers": {
+        "analysis_mode": "LOOKUP",
+        "query_shape": "lookup_boolean",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-composite-01-t1",
+      "caseId": "t-composite-01",
+      "runIndex": 1,
+      "latencyMs": 5980,
+      "code": 0,
+      "terminal": "composite",
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "composite"
+      ],
+      "mode": "QUERY",
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14871,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "COMPOSITE",
+        "query_shape": "composite",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-composite-05-t1",
+      "caseId": "t-composite-05",
+      "runIndex": 1,
+      "latencyMs": 5151,
+      "code": 0,
+      "terminal": "composite",
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "composite"
+      ],
+      "mode": "QUERY",
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14987,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "COMPOSITE",
+        "query_shape": "composite",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-composite-03-t1",
+      "caseId": "t-composite-03",
+      "runIndex": 1,
+      "latencyMs": 9194,
+      "code": 0,
+      "terminal": "composite",
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "composite"
+      ],
+      "mode": "QUERY",
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14999,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "COMPOSITE",
+        "query_shape": "composite",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-composite-07-t1",
+      "caseId": "t-composite-07",
+      "runIndex": 1,
+      "latencyMs": 7241,
+      "code": 0,
+      "terminal": "composite",
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "composite"
+      ],
+      "mode": "QUERY",
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14897,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "COMPOSITE",
+        "query_shape": "composite",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-composite-09-t1",
+      "caseId": "t-composite-09",
+      "runIndex": 1,
+      "latencyMs": 7495,
+      "code": 0,
+      "terminal": "composite",
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "composite"
+      ],
+      "mode": "QUERY",
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 1,
+      "tokens": 14893,
+      "llmUsed": true,
+      "pass": true,
+      "rejectedByGuardrail": null,
+      "failReasons": [],
+      "layers": {
+        "analysis_mode": "COMPOSITE",
+        "query_shape": "composite",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    },
+    {
+      "requestId": "llml-L1794396292165-r1-t-lookup-attr-11-t1",
+      "caseId": "t-lookup-attr-11",
+      "runIndex": 1,
+      "latencyMs": 60120,
+      "code": 0,
+      "terminal": "clarification",
+      "degraded": false,
+      "rowCount": null,
+      "errorMessage": null,
+      "turnIndex": 1,
+      "turnCount": 1,
+      "turnTerminals": [
+        "clarification"
+      ],
+      "mode": null,
+      "metricId": null,
+      "dimensions": [],
+      "timeExpressionRaw": null,
+      "filters": [],
+      "attributes": [],
+      "identityValue": null,
+      "llmCalls": 2,
+      "tokens": 31367,
+      "llmUsed": true,
+      "pass": false,
+      "rejectedByGuardrail": null,
+      "failReasons": [
+        "terminal:clarification≠query",
+        "mode:undefined≠LOOKUP",
+        "attributes:≠property.customer.tier",
+        "identity:undefined≠c-1002"
+      ],
+      "layers": {
+        "analysis_mode": "LOOKUP",
+        "query_shape": "lookup_attribute",
+        "scenario_entry_mode": "none",
+        "risk_type": "normal"
+      }
+    }
+  ]
+}

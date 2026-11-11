@@ -436,6 +436,9 @@ public class AskOrchestrationService {
         if (agentProperties.isEnabled()) {
             OntosAgentFactory factory = agentFactoryProvider.getIfAvailable();
             if (factory != null) {
+                // E-7 词表收敛：提示词候选集 = 本轮对账口径（检索候选）；
+                // prime/clear 必须同线程成对（ask 执行线程内），线程池复用前清掉防串话
+                candidateProvider.prime(outcome);
                 try {
                     Map<String, Object> llmProposal = callModel(factory, utterance);
                     if (llmProposal != null) {
@@ -445,6 +448,8 @@ public class AskOrchestrationService {
                     log.warn("[proposeWithFallback][模型故障，降级确定性提案: {}]", ex.toString());
                     eventService.emit(runId, AskEventService.TEXT_MESSAGE,
                             Map.of("delta", "（模型暂不可用，已切换确定性检索模式）"));
+                } finally {
+                    candidateProvider.clearPrimed();
                 }
             }
         }
