@@ -208,8 +208,8 @@ DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、F
 - **M5 已通过**（2026-11-09）：[验收报告 v1](docs/06-verification/checklists/M5-验收报告-v1.md) E1–E7 满足——服务端会话状态机、检索瀑布、Intent Proposal、澄清/HITL、AG-UI 六类事件（PoC #3 20/20）。
 - **M6 已通过**（2026-11-11）：[验收报告 v2](docs/06-verification/checklists/M6-验收报告-v2.md) E1–E8 满足——8 种分析模式构造器、Scenario 五态路由与 scope 收窄、SkillRegistry 注册制与近似降级、VQR 运营闭环、复合意图结果引用与部分失败（PoC #8 30/30）；全量深度审核 22 项发现（2 项 P1）闭环，附条件项见报告 §7。
 - **M7 已通过（有条件）**（2026-11-11，[验收报告 v1](docs/06-verification/checklists/M7-验收报告-v1.md)）：E1/E2/E4（五类）/E5/E6/E7/E8 满足——E-5 订单项销量口径、E-6 auto 入口、失败看板闭环（V19 + 前端处置卡片）、V20 模型调用追踪、三档压测 P95 80ms；**E3（E-7 LLM 路径评测）按 [ADR-0019](docs/01-decisions/ADR-0019-M7有条件通过E7评测挂账.md) 挂账**——E-7 已实质推进（模型锚定 + 单轮 276 题 + 4 轮定向复测 32%→70% + T3.2 攻击面 6/6 全拒即 C-2 实质闭环），C-1 仅剩 ×3 全量重跑（口径与成本路线待 [R3 全局审核](docs/06-verification/checklists/产品整体规划-深度审核R3-v1.md) 决策批 D-A/D-B）；M8 可启动，发布/灰度门禁未开。
-- **M8 待启动（两包）**：产品前端工作包（[实施规格 v1.0](docs/03-plans/stages/M8/产品前端-实施规格-v1.0.md) 已冻结，D1–D9 待定档）+ 上线与规模化（网关 / 部署 / 灰度回滚 / SLO / 灾备，规格待立——[R3 全局审核](docs/06-verification/checklists/产品整体规划-深度审核R3-v1.md) F-7）；需 M7 验收 + v1.4 §18/§19 关闭。
+- **M8 待启动（两包）**：产品前端工作包（[实施规格 v1.1](docs/03-plans/stages/M8/产品前端-实施规格-v1.1.md) 已冻结，三轮深度审核闭环；D1–D9 + D10 待定档，W-E0 / W-B0 前置）+ 上线与规模化（网关 / 部署 / 灰度回滚 / SLO / 灾备，规格待立——[R3 全局审核](docs/06-verification/checklists/产品整体规划-深度审核R3-v1.md) F-7）；需 M7 验收 + v1.4 §18/§19 关闭。
 
 当前生效清单 `2026.11.11-nineteenth`（8 skills + 1 vqr + 2 scenarios；9 指标，contentHash `377d4616…`；v19 = v18 + 「客户数/订单数」别名补齐）。
-实测基线（2026-11-11）：`mvn test` 668 例 / 0 失败、`pnpm check` 通过（26 单测）、`vite build` 通过、docs 治理 154 文档 / 1547 链接、并行义务 `deferred 0`、live 基线 7 PASS / 0 FAIL / 0 SKIP（本轮未复跑）。
+实测基线（2026-11-11）：`mvn test` 668 例 / 0 失败、`pnpm check` 通过（26 单测）、`vite build` 通过、docs 治理 156 文档 / 1573 链接、并行义务 `deferred 0`、live 基线 7 PASS / 0 FAIL / 0 SKIP（本轮未复跑）。
 进度与状态口径以 `docs/05-progress/2026/` 和 `docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md` 为准。
