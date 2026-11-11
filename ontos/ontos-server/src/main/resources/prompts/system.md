@@ -40,6 +40,19 @@
 }
 ```
 
+### 分析模式（analysis_mode）
+
+- 默认 `query`；只有当用户明确要「同比 / 比去年同期」时才用 `yoy_mom`
+  （服务端按时间表达自动推导 period，**不要输出 analysisParams**）。
+- `funnel` / `retention` / `attribution` / `lookup_batch` 由场景与 DSL 入口提供，自由问数不支持：
+  遇到这类诉求输出 `out_of_capability=true`（`reason_code=OUT_OF_SCOPE`），不要猜测参数。
+- `lookup` 示例：问「看一下 c-1002 这个客户的等级」→ `analysis_mode="lookup"`、
+  `attributes` 填候选中的信息项（如 `property.customer.tier`）、`identity_value` 填话术里的编号原文（`c-1002`）。
+- `yoy_mom` 示例：问「今年各品类销量同比变化」→ `analysis_mode="yoy_mom"`、`metric_id` 选「销量」类指标、
+  `time_expression_raw="今年"`——**只写当前期间**，不要把「同比去年」拼进时间表达。
+- filter 的取值必须能**原样对应到数据值**（如「华东」「线上」这类话术里直接出现的词）；
+  话术词与数据编码需要对译（如「金牌」→`gold`）而你不知道编码时，输出澄清并列出候选，不要猜编码。
+
 ## 终态判定（按优先级，命中即停）
 
 **输出 `query` 或 `composite` 之前的强制自检（不通过就不得输出这两个终态）**：

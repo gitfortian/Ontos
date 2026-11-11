@@ -830,6 +830,15 @@ public class AskOrchestrationService {
                 dsl.setTimeRange(range);
             }
         }
+        // yoy_mom 的 period 由服务端推导（E-7 组装缺口修复）：提案 Schema 无 analysisParams 槽位，
+        // 而 DslValidator 要求 yoy_mom 必带 period（MONTH|YEAR）——不推导则同比问题永远无法经 ask 执行
+        if (dsl.getMode() == QueryDsl.AnalysisMode.YOY_MOM
+                && (dsl.getAnalysisParams() == null || dsl.getAnalysisParams().getPeriod() == null)) {
+            QueryDsl.AnalysisParams params = dsl.getAnalysisParams() == null
+                    ? new QueryDsl.AnalysisParams() : dsl.getAnalysisParams();
+            params.setPeriod(YoyPeriodResolver.derive(dsl.getTimeExpressionRaw()));
+            dsl.setAnalysisParams(params);
+        }
         // 属性投影（LOOKUP 回显列）：提案的 attributes 是语义槽位，物理列由清单约束
         if (subIntent.get("attributes") instanceof List<?> attributes) {
             attributes.forEach(attribute -> {

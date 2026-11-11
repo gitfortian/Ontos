@@ -148,6 +148,32 @@ async function askOnce(caseItem, runIndex) {
       });
       const payload = await response.json();
       const data = payload.data ?? {};
+      // 30s 同步等待超时返回 waiting 中间态：轮询 run 事件直到 RUN_FINISHED（与对抗探针同口径）
+      if (data.terminal === "waiting") {
+        const runId = data.runId ?? data.body?.runId ?? null;
+        if (runId) {
+          for (let attempt = 0; attempt < 30; attempt += 1) {
+            await new Promise((done) => setTimeout(done, 5000));
+            const events = await fetch(`${BASE}/api/v1/ask/run/${runId}/events?afterSeq=0`, {
+              headers: {
+                "X-Ontos-Tenant": "demo",
+                "X-Ontos-User": `llm-eval-${RUN_ID}`,
+              },
+            }).then((item) => item.json()).catch(() => null);
+            const finished = (events?.data ?? []).find((event) => event.type === "RUN_FINISHED");
+            if (finished) {
+              let finishedTerminal = null;
+              try {
+                finishedTerminal = JSON.parse(finished.payload ?? "{}").terminal ?? null;
+              } catch {
+                finishedTerminal = null;
+              }
+              data.terminal = finishedTerminal;
+              break;
+            }
+          }
+        }
+      }
       last = {
         requestId,
         caseId: caseItem.id,
@@ -193,12 +219,31 @@ function judge(caseItem, result, dsl) {
     || expected.dimensions.every((dimension) => dimensions.includes(dimension));
   const timeOk = !needsDsl || !expected.timeExpressionRaw
     || expected.timeExpressionRaw === dsl?.timeExpressionRaw;
+  // v2 判据新增：filters 与 LOOKUP 的 attributes / identity（此前漏判会让「缺过滤条件」的错答算对）
+  const dslFilters = (dsl?.filters ?? []).map((item) => ({
+    fieldId: item.fieldId ?? item.field_id,
+    values: (item.values ?? []).map(String),
+  }));
+  const filtersOk = !needsDsl || !Array.isArray(expected.filters) || expected.filters.length === 0
+    || expected.filters.every((expectedFilter) => {
+      const match = dslFilters.find((item) => item.fieldId === expectedFilter.fieldId);
+      return Boolean(match)
+        && (expectedFilter.values ?? []).every((value) => match.values.includes(String(value)));
+    });
+  const attributes = (dsl?.attributes ?? []).map(String);
+  const attributesOk = !expected.attributes || !Array.isArray(expected.attributes)
+    || expected.attributes.every((attribute) => attributes.includes(attribute));
+  const identityOk = !expected.identity
+    || String(dsl?.identity?.value ?? "") === String(expected.identity.value ?? "");
   const reasons = [];
   if (!terminalOk) reasons.push(`terminal:${result.terminal}≠${expected.terminal}`);
   if (!modeOk) reasons.push(`mode:${dsl?.mode}≠${expected.mode}`);
   if (!metricOk) reasons.push(`metric:${dsl?.metricId}≠${expected.metricId}`);
   if (!dimsOk) reasons.push(`dims:${dimensions.join(",")}≠${(expected.dimensions ?? []).join(",")}`);
   if (!timeOk) reasons.push(`time:${dsl?.timeExpressionRaw}≠${expected.timeExpressionRaw}`);
+  if (!filtersOk) reasons.push(`filters:${JSON.stringify(dslFilters)}≠${JSON.stringify(expected.filters ?? [])}`);
+  if (!attributesOk) reasons.push(`attributes:${attributes.join(",")}≠${(expected.attributes ?? []).join(",")}`);
+  if (!identityOk) reasons.push(`identity:${dsl?.identity?.value}≠${expected.identity?.value}`);
   return { pass: reasons.length === 0, reasons };
 }
 
@@ -234,6 +279,12 @@ const rows = results.map((result) => {
     metricId: dsl?.metricId ?? null,
     dimensions: dsl?.dimensions ?? [],
     timeExpressionRaw: dsl?.timeExpressionRaw ?? null,
+    filters: (dsl?.filters ?? []).map((item) => ({
+      fieldId: item.fieldId ?? item.field_id,
+      values: (item.values ?? []).map(String),
+    })),
+    attributes: (dsl?.attributes ?? []).map(String),
+    identityValue: dsl?.identity?.value ?? null,
     llmCalls: usage.calls,
     tokens: usage.tokens,
     llmUsed: usage.calls > 0,
@@ -276,6 +327,7 @@ const evidence = {
   testSet: { path: SET_PATH.replace(`${repo}/`, ""), version: SET.version, total: SET.total, evaluated: CASES.length },
   runs: RUNS,
   judgement: {
+    version: "v2（新增 filters / LOOKUP attributes·identity 判定；filter 取值词表缺失登记 R-ROOT-2，相关题在词表补齐前如实判 FAIL）",
     terminal: "终态与期望一致",
     dsl: "期望给出 mode/metricId/dimensions/timeExpressionRaw 时，比对审计留痕 DSL（不注入期望值）",
     llmUsage: "llm_call_trace 是否存在该 requestId 的记录（区分 LLM 路径 / 确定性降级）",
