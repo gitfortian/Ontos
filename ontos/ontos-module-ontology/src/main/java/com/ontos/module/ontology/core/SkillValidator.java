@@ -144,6 +144,27 @@ public class SkillValidator {
                                 + approximation));
             }
         }
+        // required_capabilities：受控能力闭词表（M7/W4/T4.4，D-22）
+        // 发布期只校验「非空 / 去重 / 词表内」；rule.evaluate 的运行时可满足性仍由
+        // ControlledCapabilities 按当前清单/部署判定（纵深防御，不在发布期伪装运行时结论）。
+        if (skill.getRequiredCapabilities() != null) {
+            Set<String> seenCapabilities = new HashSet<>();
+            for (String capability : skill.getRequiredCapabilities()) {
+                if (capability == null || capability.isBlank()) {
+                    violations.add(new ManifestStructureValidator.Violation(at,
+                            "requiredCapabilities 不能包含空值"));
+                    continue;
+                }
+                if (!seenCapabilities.add(capability)) {
+                    violations.add(new ManifestStructureValidator.Violation(at,
+                            "requiredCapabilities 重复: " + capability));
+                }
+                if (!SkillCapabilities.ALL.contains(capability)) {
+                    violations.add(new ManifestStructureValidator.Violation(at,
+                            "requiredCapabilities 未在受控词表登记: " + capability));
+                }
+            }
+        }
         // max_batch_size 下界（列约束同款语义，清单侧前置拦截）
         if (skill.getMaxBatchSize() != null
                 && (skill.getMaxBatchSize() < 1 || skill.getMaxBatchSize() > MAX_BATCH_LIMIT)) {

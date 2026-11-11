@@ -94,6 +94,38 @@ class SkillValidatorTest {
         assertTrue(violations.stream().anyMatch(v -> v.message().contains("重复")));
     }
 
+    // ---------- M7/W4/T4.4（D-22）：requiredCapabilities 发布期闭词表 ----------
+
+    @Test
+    void requiredCapabilitiesMustBeInControlledVocabulary() {
+        ManifestPayload.SkillMeta skill = skill("skill.query.basic", "QUERY",
+                "builtin.QUERY.basic@1.0.0", "published", "reviewer-a", null);
+        skill.setRequiredCapabilities(List.of("semantic.query", "sql.free"));
+        List<ManifestStructureValidator.Violation> violations = validator.validate(payload(skill));
+        assertTrue(violations.stream().anyMatch(v -> v.message().contains("未在受控词表登记")),
+                "未知能力必须在发布期拒绝: " + violations);
+    }
+
+    @Test
+    void requiredCapabilitiesRejectBlankAndDuplicate() {
+        ManifestPayload.SkillMeta skill = skill("skill.query.basic", "QUERY",
+                "builtin.QUERY.basic@1.0.0", "published", "reviewer-a", null);
+        skill.setRequiredCapabilities(List.of("rule.evaluate", "rule.evaluate", " "));
+        List<ManifestStructureValidator.Violation> violations = validator.validate(payload(skill));
+        assertTrue(violations.stream().anyMatch(v -> v.message().contains("重复")), "重复能力必须拒绝");
+        assertTrue(violations.stream().anyMatch(v -> v.message().contains("空值")), "空能力必须拒绝");
+    }
+
+    @Test
+    void knownRequiredCapabilitiesPass() {
+        ManifestPayload.SkillMeta skill = skill("skill.query.basic", "QUERY",
+                "builtin.QUERY.basic@1.0.0", "published", "reviewer-a", null);
+        skill.setRequiredCapabilities(List.of("semantic.query", "rule.evaluate"));
+        List<ManifestStructureValidator.Violation> violations = validator.validate(payload(skill));
+        assertTrue(violations.stream().noneMatch(v -> v.message().contains("requiredCapabilities")),
+                "词表内能力不应产生违规: " + violations);
+    }
+
     // ---------- fixtures ----------
 
     private static ManifestPayload.SkillMeta skill(String id, String mode, String implRef,

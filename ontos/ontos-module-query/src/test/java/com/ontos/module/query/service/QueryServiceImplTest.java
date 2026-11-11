@@ -291,6 +291,38 @@ class QueryServiceImplTest {
     }
 
     @Test
+    void shouldRejectVqrParamsOutsideSchemaBounds() {
+        // M7/W4/T4.4（D-22）：paramsSchema 的 type / minimum / maximum 在绑定期校验（不靠下游兜底）
+        PublishedManifest manifest = TestFixtures.ruleManifest();
+        com.ontos.module.ontology.core.ManifestPayload.VqrMeta vqr = TestFixtures.sampleVqrMeta();
+        java.util.Map<String, Object> daysRule = new java.util.LinkedHashMap<>();
+        daysRule.put("type", "integer");
+        daysRule.put("required", true);
+        daysRule.put("minimum", 1);
+        daysRule.put("maximum", 365);
+        vqr.setParamsSchema(java.util.Map.of("days", daysRule));
+        manifest.setVqrs(java.util.List.of(vqr));
+        when(manifestService.getActiveManifestOrNull()).thenReturn(manifest);
+
+        ServiceException tooSmall = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).executeVqr(
+                        "vqr.sales.daily_gmv_by_channel", Map.of("days", 0)));
+        assertTrue(tooSmall.getMessage().contains("小于最小值"), tooSmall.getMessage());
+
+        ServiceException tooLarge = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).executeVqr(
+                        "vqr.sales.daily_gmv_by_channel", Map.of("days", 400)));
+        assertTrue(tooLarge.getMessage().contains("大于最大值"), tooLarge.getMessage());
+
+        ServiceException badType = assertThrows(ServiceException.class,
+                () -> service(new TimeWindowResolver()).executeVqr(
+                        "vqr.sales.daily_gmv_by_channel", Map.of("days", "abc")));
+        assertTrue(badType.getMessage().contains("类型不符"), badType.getMessage());
+
+        verify(queryExecutor, never()).execute(any(), any());
+    }
+
+    @Test
     void shouldFallBackToLegacyWhenManifestLacksSkillsSection() {
         // T32-6：清单**没有** skills 段（v13 及更早存量清单）= M3 直挂兼容态——entity_lookup 仍可执行
         PublishedManifest manifest = TestFixtures.ruleManifest();
@@ -736,6 +768,29 @@ class QueryServiceImplTest {
                 .filter(dto -> "SUB_INTENT_REJECTED".equals(dto.getAction())).findFirst().orElseThrow();
         assertEquals("s1", rejected.getSubIntentId());
         assertEquals(String.valueOf(ARTIFACT_NOT_FOUND.getCode()), rejected.getReasonCode());
+    }
+
+    @Test
+    void shouldIsolateRuntimeExceptionInSubIntent() {
+        // M7/W4/T4.4（D-22）：非 ServiceException 不得整单 500——子级结构化失败（通用执行失败码），
+        // 其余子照常返回；完整堆栈只进日志，不暴露给调用方
+        when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
+        when(queryExecutor.execute(any(), any())).thenReturn(rows(1));
+        when(policyService.check(any(), any(), any()))
+                .thenThrow(new IllegalStateException("boom"))
+                .thenReturn(null);
+
+        CompositeOutcome outcome = service(new TimeWindowResolver()).executeComposite(compositeDsl(2));
+
+        assertEquals(2, outcome.results().size(), "运行时异常不得整单失败");
+        var failed = outcome.results().get(0);
+        assertEquals("s1", failed.subIntentId());
+        assertEquals(com.ontos.module.query.enums.ErrorCodeConstants.QUERY_EXECUTION_FAILED.getCode(),
+                failed.errorCode(), "子级失败用通用执行失败码");
+        assertEquals(null, failed.result(), "失败子不产出部分结果");
+        assertEquals(1, outcome.results().get(1).result().getRowCount(), "其余子照常返回");
+        verify(requestStateService).transition(any(), eq("trace-1"), eq(RequestStatus.EXECUTED), any());
     }
 
     @Test

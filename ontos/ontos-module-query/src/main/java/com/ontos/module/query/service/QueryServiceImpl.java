@@ -1,5 +1,6 @@
 package com.ontos.module.query.service;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -65,6 +66,7 @@ import static com.ontos.module.query.enums.ErrorCodeConstants.SKILL_CAPABILITY_M
 import static com.ontos.module.query.enums.ErrorCodeConstants.SKILL_SCENARIO_FORBIDDEN;
 import static com.ontos.module.query.enums.ErrorCodeConstants.LOOKUP_NOT_UNIQUE;
 import static com.ontos.module.query.enums.ErrorCodeConstants.PLAN_COST_BLOCKED;
+import static com.ontos.module.query.enums.ErrorCodeConstants.QUERY_EXECUTION_FAILED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.REQUEST_ALREADY_EXECUTED;
 import static com.ontos.module.query.enums.ErrorCodeConstants.REQUEST_TERMINAL;
 import static com.ontos.module.system.enums.ErrorCodeConstants.SENSITIVE_QUERY_SEQUENCE;
@@ -498,6 +500,9 @@ public class QueryServiceImpl implements QueryService {
                 throw exception(DSL_INVALID, "VQR 参数未在 paramsSchema 声明: " + key);
             }
         }
+        // M7/W4/T4.4（D-22）：paramsSchema 的 type / required / minimum / maximum 在绑定期校验，
+        // 不依赖下游 TimeWindowResolver 兜底；越界/类型不符 fail-closed（DSL_INVALID）。
+        validateParamSchema(meta.getParamsSchema(), input);
         QueryDsl dsl = new QueryDsl();
         dsl.setManifestId(manifestId);
         dsl.setVqrId(vqrId);
@@ -520,6 +525,74 @@ public class QueryServiceImpl implements QueryService {
             throw exception(DSL_INVALID, "VQR 模板缺少 mode: " + vqrId);
         }
         return dsl;
+    }
+
+    /**
+     * 参数 Schema 运行时校验（M7/W4/T4.4，D-22）：type / required / minimum / maximum。
+     *
+     * <p>只校验 paramsSchema 已声明的键；数值接受 Number 或可解析数字字符串（HTTP/JSON 参数常见形态），
+     * 类型不符或越界一律 fail-closed（DSL_INVALID，不新增错误码、不静默截断）。
+     */
+    private void validateParamSchema(Map<String, Object> schema, Map<String, Object> input) {
+        if (schema == null || schema.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, Object> entry : schema.entrySet()) {
+            String name = entry.getKey();
+            if (!(entry.getValue() instanceof Map<?, ?> rule)) {
+                continue;
+            }
+            Object value = input.get(name);
+            if (value == null) {
+                if (Boolean.TRUE.equals(rule.get("required"))) {
+                    throw exception(DSL_INVALID, "VQR 必填参数缺失: " + name);
+                }
+                continue;
+            }
+            Object typeValue = rule.get("type");
+            String type = typeValue == null ? null : String.valueOf(typeValue);
+            if (type != null && !matchesParamType(type, value)) {
+                throw exception(DSL_INVALID, "VQR 参数类型不符: " + name + " 期望 " + type);
+            }
+            BigDecimal numeric = numericValue(value);
+            if (numeric == null) {
+                continue;
+            }
+            Object minimum = rule.get("minimum");
+            Object maximum = rule.get("maximum");
+            if (minimum instanceof Number min
+                    && numeric.compareTo(new BigDecimal(min.toString())) < 0) {
+                throw exception(DSL_INVALID, "VQR 参数小于最小值: " + name + " minimum=" + min);
+            }
+            if (maximum instanceof Number max
+                    && numeric.compareTo(new BigDecimal(max.toString())) > 0) {
+                throw exception(DSL_INVALID, "VQR 参数大于最大值: " + name + " maximum=" + max);
+            }
+        }
+    }
+
+    private static boolean matchesParamType(String type, Object value) {
+        BigDecimal numeric = numericValue(value);
+        return switch (type) {
+            case "integer" -> numeric != null && numeric.stripTrailingZeros().scale() <= 0;
+            case "number" -> numeric != null;
+            case "string" -> value instanceof String;
+            case "boolean" -> value instanceof Boolean
+                    || (value instanceof String text
+                    && ("true".equalsIgnoreCase(text) || "false".equalsIgnoreCase(text)));
+            // 未知类型声明不在运行时猜测（发布期已由 VqrValidator 约束 schema 形态）
+            default -> true;
+        };
+    }
+
+    private static BigDecimal numericValue(Object value) {
+        if (value instanceof Number number) {
+            return new BigDecimal(number.toString());
+        }
+        if (value instanceof String text && text.matches("-?\\d+(\\.\\d+)?")) {
+            return new BigDecimal(text);
+        }
+        return null;
     }
 
     /** 单值替换：${param.x} → 参数值；required 参数缺失即拒绝（不注入空值）。 */
@@ -697,6 +770,14 @@ public class QueryServiceImpl implements QueryService {
                     // G-6 / 注入失败：该子结构化失败（带原因码的空结果），不阻断其它子
                     results.add(new CompositeOutcome.SubResult(sub.getSubIntentId(), null,
                             ex.getCode(), truncate(ex.getMessage())));
+                } catch (RuntimeException ex) {
+                    // M7/W4/T4.4（D-22）：非业务异常不得整单 500；结构化失败 + 完整堆栈进日志，
+                    // 对外只给通用执行失败码（不泄露内部细节，也不把 NPE 当业务拒绝）。
+                    log.error("[composite][sub({}) 运行时失败]", sub.getSubIntentId(), ex);
+                    auditSubIntent(context, parentRequestId, sub, child, null, null,
+                            QUERY_EXECUTION_FAILED.getCode());
+                    results.add(new CompositeOutcome.SubResult(sub.getSubIntentId(), null,
+                            QUERY_EXECUTION_FAILED.getCode(), "子查询执行失败（内部原因已记录）"));
                 }
             }
             requestStateService.transition(context, parentRequestId, RequestStatus.EXECUTED,
@@ -751,6 +832,13 @@ public class QueryServiceImpl implements QueryService {
                 auditSubIntent(context, parentRequestId, sub, child, null, null, ex.getCode());
                 results.add(new CompositeOutcome.SubResult(sub.getSubIntentId(), null,
                         ex.getCode(), truncate(ex.getMessage())));
+            } catch (RuntimeException ex) {
+                // M7/W4/T4.4（D-22）：同依赖复合分支——子级运行时失败结构化隔离，父请求不整体 500。
+                log.error("[composite][sub({}) 运行时失败]", sub.getSubIntentId(), ex);
+                auditSubIntent(context, parentRequestId, sub, child, null, null,
+                        QUERY_EXECUTION_FAILED.getCode());
+                results.add(new CompositeOutcome.SubResult(sub.getSubIntentId(), null,
+                        QUERY_EXECUTION_FAILED.getCode(), "子查询执行失败（内部原因已记录）"));
             }
         }
         requestStateService.transition(context, parentRequestId, RequestStatus.EXECUTED,

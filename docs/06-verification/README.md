@@ -43,12 +43,13 @@
 - [M4 W2 深度审核记录 v1](checklists/M4-W2-深度审核-v1.md)（已归档：T2.1–T2.3 全落地，E2E 21/21（个体探针/精确差分/窗口冻结含缓存命中路径/审批令牌单次有效）；修复差分基准漏 lookup 身份、缓存命中绕过冻结两项 P1；基线 344 例全绿）
 - [M4 W1 深度审核记录 v1](checklists/M4-W1-深度审核-v1.md)（已归档：2 项当场修复（激活异常日志 / 运行时策略版本入缓存键 cache-key-1.1）、3 项规格文字偏差登记；W1 判定通过，基线 320 例复跑全绿）
 - [M7 最小框架验收记录 v1](checklists/M7-最小框架验收记录-v1.md)（已冻结，有条件通过：三件交付物与 M4 规格 E6 三条判据全满足；本地 PG18 真实复跑 14 pass / 0 fail / 6 skip，哈希四方复算一致；触发阶段重定见 [ADR-0015](../01-decisions/ADR-0015-M7最小框架验收与触发阶段重定.md)）
-- [正式评测集 v3](evaluation/正式评测集-v6.md)（已冻结，收编 12 个子集、四集合归属与版本哈希；**test 集 241 题 / 有效分母 239，≥200 题欠账关闭**；缺口 E-1~E-5 登记）
-  - 历史版本：[v2](../99-archive/verification/正式评测集-v2.md)、[v1](../99-archive/verification/正式评测集-v1.md)（均已归档）
-- [test 集 v2](evaluation/test集-v5.md)（已冻结，241 题全部新增：20 个题族，四维分层 + `analysis_mode` 附加维度；**再次深度审核修复 7 类缺陷**，skip 2 / 有效 239；JSON sha256 `556e564c…`；主指标唯一分母）
-  - 历史版本：[v1](../99-archive/verification/test集-v1.md)（已归档；shape/mode 标注与参数不完整版）
+- [正式评测集 v6](evaluation/正式评测集-v6.md)（已冻结，收编 12 个子集、四集合归属与版本哈希；**test 集 276 题 / 有效分母 276，E-5 部分关闭、E-6 关闭**；缺口 E-3/E-4/E-7 登记）
+  - 历史版本：[v5](../99-archive/verification/正式评测集-v5.md)、[v4](../99-archive/verification/正式评测集-v4.md)、[v3](../99-archive/verification/正式评测集-v3.md)、[v2](../99-archive/verification/正式评测集-v2.md)、[v1](../99-archive/verification/正式评测集-v1.md)（均已归档）
+- [test 集 v5](evaluation/test集-v5.md)（已冻结，276 题：27 个题族，四维分层 + `analysis_mode` 附加维度；E-5 销量口径 + E-6 auto 入口；skip 0 / 有效 276；JSON sha256 `9f525c46…`；主指标唯一分母）
+  - 历史版本：[v4](../99-archive/verification/test集-v4.md)、[v3](../99-archive/verification/test集-v3.md)、[v2](../99-archive/verification/test集-v2.md)、[v1](../99-archive/verification/test集-v1.md)（均已归档）
 - [评测统计口径 v1](evaluation/评测统计口径-v1.md)（已冻结，§13.4 主指标 / 四维分层 / Wilson 95% / 哈希语义；只定义方法不定义阈值）
-- [零号冒烟评测证据 v1](evaluation/零号冒烟-评测证据-v1.json)（版本化固化，SHA-256 `850f35bf…`；`-latest` 为每次复跑覆盖的软名结果）
+- [SLO 与成本预算 v1](evaluation/SLO与成本预算-v1.md)（已冻结：延迟 P95 ≤2000ms / 错误率 0 / 超时率 0（并发 1/8/16）+ LLM 单题 token ≤8000、P95 ≤6000；金额换算待 W2 模型确定后追加）
+- [零号冒烟评测证据 v3](evaluation/零号冒烟-评测证据-v3.json)（版本化固化，SHA-256 `c6b2b87a…`；`-latest` 为每次复跑覆盖的软名结果）
 - [M3 验收报告 v1](checklists/M3-验收报告-v1.md)（已冻结，E1–E6 全部满足，M5 放行）
 - [M2 验收报告 v1](checklists/M2-验收报告-v1.md)（已冻结，E2–E8 满足、E1 按 [ADR-0013](../01-decisions/ADR-0013-Golden不可构造案例处置口径.md) 附条件关闭，M3 放行）
 - [M2 收口后深度审核 v1](checklists/M2-收口后深度审核-v1.md)（已归档：12 项发现全部修复复验，R-18 关闭；M2 判定不变）

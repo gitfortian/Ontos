@@ -19,8 +19,10 @@ import com.ontos.module.ontology.core.PublishedManifest;
  */
 public final class ControlledCapabilities {
 
-    public static final String SEMANTIC_QUERY = "semantic.query";
-    public static final String RULE_EVALUATE = "rule.evaluate";
+    // M7/W4/T4.4（D-22）：词表唯一来源下沉到 ontology（SkillCapabilities），
+    // 发布期 SkillValidator 与运行时本类共用；此处保留常量别名避免调用方改动。
+    public static final String SEMANTIC_QUERY = com.ontos.module.ontology.core.SkillCapabilities.SEMANTIC_QUERY;
+    public static final String RULE_EVALUATE = com.ontos.module.ontology.core.SkillCapabilities.RULE_EVALUATE;
 
     private static final Set<String> ALWAYS_AVAILABLE = Set.of(SEMANTIC_QUERY);
 
