@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-11T02:18:09.719Z",
-  "manifestId": "2026.11.10-sixteenth",
+  "generatedAt": "2026-11-11T07:08:40.804Z",
+  "manifestId": "2026.11.11-eighteenth",
   "devAllowAll": false,
   "total": 32,
   "failures": 0,
@@ -127,7 +127,7 @@
       "pass": true,
       "detail": {
         "code": 1003000008,
-        "approvalId": "41cf37bc-84b9-4f04-91d3-e9590fa14897"
+        "approvalId": "a3d7afdb-455c-413c-aba2-9fb4983f6669"
       }
     },
     {
@@ -225,7 +225,7 @@
       "name": "INTERRUPT 事件携带审批单 ID（可直连决策端点）",
       "pass": true,
       "detail": {
-        "sample": "event:INTERRUPT ⏎ data:{\"decideEndpoint\":\"/api/v1/approvals/43df7ec0-a1ae-4433-bd9f-99a89569cc83/decide\",\"sensitiveKey\":\"property.customer.email#pii\",\"approvalId\":\"43df7ec0-a1ae-4433-bd9f-99a89569cc83\",\"reasonCode\":\"SENS"
+        "sample": "event:INTERRUPT ⏎ data:{\"decideEndpoint\":\"/api/v1/approvals/419360d9-3e90-42ce-b14a-0e03856dfa79/decide\",\"sensitiveKey\":\"property.customer.email#pii\",\"approvalId\":\"419360d9-3e90-42ce-b14a-0e03856dfa79\",\"reasonCode\":\"SENS"
       }
     },
     {

@@ -99,6 +99,7 @@
 
 **M6/W5 收口与 M7 全量交付物收敛（2026-11-11）**
 
+- [M7 验收报告 v1](checklists/M7-验收报告-v1.md)（已冻结，**有条件通过**：E1/E2/E4（五类）/E5/E6/E7/E8 满足；E3（E-7）与 E4 的 LLM 新面按 [ADR-0019](../01-decisions/ADR-0019-M7有条件通过E7评测挂账.md) 挂账 C-1/C-2；live 基线 7/0/0）
 - [M6 验收报告 v2](checklists/M6-验收报告-v2.md)（全量深度审核勘误升版；v1 归档 [99-archive](../99-archive/verification/M6-验收报告-v1.md)）（已冻结：W1–W5 逐项核对、E1–E8 全满足、live 基线 7/0/0、OBL-M7 闭环 done；附非阻塞条件项 E-5/E-6/E-7、CopilotKit spike、R-31）
 - [M7 全量交付物收敛验收报告 v2](checklists/M7-全量交付物收敛验收报告-v2.md)（证据升版 + 纠正样本回流判据勘误；v1 归档 [99-archive](../99-archive/verification/M7-全量交付物收敛验收报告-v1.md)）（已冻结：§3.8 八项交付物 8/8、§13.5 硬门槛逐条对照、确定性降级路径口径与缺口如实声明；OBL-M7 台账 done 依据；不是 M7 阶段验收）
 - [M6 · W5/T5.1 深度审核 v1](checklists/M6-W5-T5.1-深度审核-v1.md)（评测数据面 + 失败看板；T51-1/T51-3 P1、T51-2 P2、T51-4/T51-5 P3 全部当场修复）
