@@ -1,0 +1,95 @@
+{
+  "runId": "e2e-m7w4-2026-11-11",
+  "ranAt": "2026-11-11T12:46:28+08:00",
+  "manifestId": "2026.11.11-eighteenth",
+  "scope": "M7/W4/T4.1–T4.3：失败样本登记→根因分类→分诊→修复→退回回归集（dev）；非法迁移/回流 test/跨租户负例；V17 只追加未改写",
+  "steps": [
+    {
+      "step": "register",
+      "request": "POST /api/v1/evaluation/failure-samples (setId=test-v5, runId=e2e-m7w4)",
+      "result": { "code": 0, "inserted": 1, "sampleId": 7 }
+    },
+    {
+      "step": "detail-initial",
+      "request": "GET /api/v1/evaluation/failure-samples/7",
+      "result": { "code": 0, "status": "open", "category": null }
+    },
+    {
+      "step": "classify",
+      "request": "POST /7/classify {category:SCENARIO_SCOPE}",
+      "result": { "code": 0, "status": "open", "category": "SCENARIO_SCOPE" }
+    },
+    {
+      "step": "transition-triaged",
+      "request": "POST /7/status {toStatus:triaged}",
+      "result": { "code": 0, "status": "triaged" }
+    },
+    {
+      "step": "transition-fixed",
+      "request": "POST /7/status {toStatus:fixed}",
+      "result": { "code": 0, "status": "fixed" }
+    },
+    {
+      "step": "return-to-regression",
+      "request": "POST /7/return-to-regression {targetSet:dev}",
+      "result": {
+        "code": 0,
+        "status": "regressed",
+        "category": "SCENARIO_SCOPE",
+        "regressionSampleId": "reg-7-1794372336826",
+        "targetSet": "dev"
+      }
+    },
+    {
+      "step": "detail-final",
+      "request": "GET /api/v1/evaluation/failure-samples/7",
+      "result": {
+        "code": 0,
+        "status": "regressed",
+        "category": "SCENARIO_SCOPE",
+        "statusEvents": ["fixed->regressed", "triaged->fixed", "open->triaged"],
+        "classifications": ["SCENARIO_SCOPE"]
+      }
+    }
+  ],
+  "negativeCases": [
+    {
+      "case": "open -> fixed（跳过分诊）",
+      "expectedCode": 1003000013,
+      "actualCode": 1003000013,
+      "pass": true
+    },
+    {
+      "case": "普通状态流转直接置 regressed",
+      "expectedCode": 1003000013,
+      "actualCode": 1003000013,
+      "pass": true
+    },
+    {
+      "case": "回流目标 test（test 集冻结）",
+      "expectedCode": 1003000015,
+      "actualCode": 1003000015,
+      "pass": true
+    },
+    {
+      "case": "跨租户访问样本 7（同形拒绝）",
+      "expectedCode": 1003000012,
+      "actualCode": 1003000012,
+      "pass": true
+    }
+  ],
+  "invariants": [
+    {
+      "name": "V17 样本行未被改写",
+      "check": "SELECT id, reason, error_code FROM evaluation_failure_sample WHERE id=7",
+      "result": { "id": 7, "reason": "E2E 生命周期样本", "errorCode": 1002000014 },
+      "pass": true
+    },
+    {
+      "name": "当前态由最新事件派生（无 status 列）",
+      "check": "evaluation_failure_sample_status_event 只追加；V19 未修改 V17 表",
+      "pass": true
+    }
+  ],
+  "verdict": "PASS（7 步正链 + 4 负例 + 2 不变式；无 skip）"
+}

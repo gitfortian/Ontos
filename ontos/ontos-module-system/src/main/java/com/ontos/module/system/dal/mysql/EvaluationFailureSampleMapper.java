@@ -124,6 +124,24 @@ public class EvaluationFailureSampleMapper {
         return jdbcTemplate.query(sql, params, ROW_MAPPER);
     }
 
+    /**
+     * 按 ID 取样本（M7/W4/T4.1 生命周期操作前置校验）。
+     * 租户隔离：跨租户 ID 返回 null（调用方按「不存在」同形拒绝，不泄露存在性）。
+     */
+    public EvaluationFailureSampleDO selectById(String tenantId, long id) {
+        String sql = """
+                SELECT id, tenant_id, set_id, question_id, run_id,
+                       scenario_entry_mode, query_shape, turn_type, is_composite, risk_type,
+                       expected_terminal, actual_terminal, error_code, reason,
+                       created_at::text AS created_at
+                FROM evaluation_failure_sample
+                WHERE tenant_id = :tenantId AND id = :id
+                """;
+        List<EvaluationFailureSampleDO> rows = jdbcTemplate.query(sql,
+                Map.of("tenantId", tenantId, "id", id), ROW_MAPPER);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
     /** 下钻维度白名单（§12.3 / G-5 五维）。 */
     public static final List<String> DRILL_DIMENSIONS = List.of(
             "scenario_entry_mode", "query_shape", "turn_type", "is_composite", "risk_type");

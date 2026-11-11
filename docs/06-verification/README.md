@@ -49,6 +49,7 @@
   - 历史版本：[v4](../99-archive/verification/test集-v4.md)、[v3](../99-archive/verification/test集-v3.md)、[v2](../99-archive/verification/test集-v2.md)、[v1](../99-archive/verification/test集-v1.md)（均已归档）
 - [评测统计口径 v1](evaluation/评测统计口径-v1.md)（已冻结，§13.4 主指标 / 四维分层 / Wilson 95% / 哈希语义；只定义方法不定义阈值）
 - [SLO 与成本预算 v1](evaluation/SLO与成本预算-v1.md)（已冻结：延迟 P95 ≤2000ms / 错误率 0 / 超时率 0（并发 1/8/16）+ LLM 单题 token ≤8000、P95 ≤6000；金额换算待 W2 模型确定后追加）
+- [失败看板闭环证据 v1](evaluation/失败看板闭环证据-v1.json)（M7/W4：登记→分类→分诊→修复→回流 dev 全链 + 非法迁移/回流 test/跨租户负例；V17 只追加未改写）
 - [零号冒烟评测证据 v3](evaluation/零号冒烟-评测证据-v3.json)（版本化固化，SHA-256 `c6b2b87a…`；`-latest` 为每次复跑覆盖的软名结果）
 - [M3 验收报告 v1](checklists/M3-验收报告-v1.md)（已冻结，E1–E6 全部满足，M5 放行）
 - [M2 验收报告 v1](checklists/M2-验收报告-v1.md)（已冻结，E2–E8 满足、E1 按 [ADR-0013](../01-decisions/ADR-0013-Golden不可构造案例处置口径.md) 附条件关闭，M3 放行）

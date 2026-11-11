@@ -23,5 +23,9 @@ public interface ErrorCodeConstants {
     ErrorCode APPROVAL_PAYLOAD_INVALID = new ErrorCode(1_003_000_011, "审批单 payload 缺少放行指纹所需字段");
 
     ErrorCode FAILURE_SAMPLE_INVALID = new ErrorCode(1_003_000_012, "评测失败样本登记非法: {}");
+    // M7/W4/T4.1–T4.3（D-22）：失败样本生命周期与回流（只追加事件，非法迁移 fail-closed）
+    ErrorCode FAILURE_SAMPLE_TRANSITION_INVALID = new ErrorCode(1_003_000_013, "失败样本状态流转非法: {}");
+    ErrorCode FAILURE_SAMPLE_CATEGORY_INVALID = new ErrorCode(1_003_000_014, "失败样本根因分类非法: {}");
+    ErrorCode FAILURE_SAMPLE_REGRESSION_INVALID = new ErrorCode(1_003_000_015, "失败样本回流目标非法: {}");
 
 }
