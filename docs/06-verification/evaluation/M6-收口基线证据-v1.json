@@ -2,7 +2,7 @@
   "ranAt": "2026-11-11T00:57:36.302Z",
   "command": "node scripts/verify-baseline.mjs --live http://127.0.0.1:8080",
   "serviceArgs": "--spring.profiles.active=local --server.port=8080 --ontos.agent.enabled=false --ontos.policy.dev-allow-all=false",
-  "note": "PoC #7 前置 dev-allow-all=false（强制快照判定）；T55-1 修复：敏感探针动态取 active 策略版本（V16 派生 seed-2026.11.10-v2 不再被降回旧版）",
+  "note": "PoC #7 前置 dev-allow-all=false（强制快照判定）；T55-1 修复：敏感探针动态取 active 策略版本（V16 派生 seed-2026.11.10-v2 不再被降回旧版）；【T55-3 修复】PoC#1 探针原写死覆盖 M2 冻结证据（2026-11-08），已恢复冻结文件并将本次结果另存 PoC-01-M2回归-2026-11-11.json；探针输出改为按日期 append-only。",
   "results": [
     {
       "status": "PASS",
@@ -44,5 +44,6 @@
     "pass": 7,
     "fail": 0,
     "skip": 0
-  }
+  },
+  "poc1Evidence": "docs/06-verification/poc/PoC-01-M2回归-2026-11-11.json"
 }

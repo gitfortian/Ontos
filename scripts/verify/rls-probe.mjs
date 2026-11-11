@@ -28,7 +28,11 @@ const repo = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const BASE = argOf("--base-url", "http://127.0.0.1:8080");
 let MANIFEST_ID = argOf("--manifest-id", null);
 const ROUNDS = Number(argOf("--rounds", "100"));
-const EVIDENCE = resolve(repo, "docs/06-verification/poc/PoC-01-M2回归-2026-11-08.json");
+// T55-3（P2，M6 收口提交范围审核发现）：原路径写死 2026-11-08 的 M2 冻结证据文件，
+// 每次基线复跑都会原地覆盖（清单 ID 等历史字段被改写）。改为按当天日期另存——
+// 冻结证据保持不动，新证据 append-only 落新文件。
+const TODAY = new Date().toISOString().slice(0, 10);
+const EVIDENCE = resolve(repo, `docs/06-verification/poc/PoC-01-M2回归-${TODAY}.json`);
 
 // 请求在 M1 口径下被钉在「当前生效清单」上：未显式指定时默认取 active，
 // 否则清单一升级，脚本里写死的 manifestId 会让整批请求被 1001000001 拦住。
