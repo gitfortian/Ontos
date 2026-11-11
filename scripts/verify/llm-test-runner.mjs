@@ -208,7 +208,20 @@ async function askOnce(caseItem, runIndex) {
 
 function judge(caseItem, result, dsl) {
   const expected = caseItem.expected ?? {};
-  // 「模型暂不可用，已切换确定性检索模式」这类降级通过 degraded 标记与 LLM 记录双重判定
+  // 预期拒绝（out_of_capability）在 ask 路径有两种合法形态：
+  //   a) terminal=out_of_capability（code=0）；b) 服务端护栏/校验直接拒绝（业务错误码 ≠0，如粒度扩散 1002000014）。
+  // 只认业务错误码（Ontos 码为 10 位 1_0xx_xxx_xxx）；code=null（网络/超时）与 HTTP 5xx 不算预期拒绝。
+  // 命中 b) 时跳过全部 DSL 判定（被拒绝的请求没有可对账的 DSL）。
+  const businessRejected = expected.terminal === "out_of_capability"
+    && typeof result.code === "number" && result.code >= 1_000_000_000;
+  if (businessRejected) {
+    return {
+      pass: true,
+      reasons: [],
+      rejectedByGuardrail: result.code,
+      rejectionMessage: result.errorMessage,
+    };
+  }
   const terminalOk = !expected.terminal || expected.terminal === result.terminal;
   const needsDsl = ["query", "composite"].includes(expected.terminal ?? "");
   const modeOk = !needsDsl || !expected.mode
@@ -289,6 +302,7 @@ const rows = results.map((result) => {
     tokens: usage.tokens,
     llmUsed: usage.calls > 0,
     pass: judgement.pass,
+    rejectedByGuardrail: judgement.rejectedByGuardrail ?? null,
     failReasons: judgement.reasons,
     layers: {
       analysis_mode: caseItem.analysis_mode,

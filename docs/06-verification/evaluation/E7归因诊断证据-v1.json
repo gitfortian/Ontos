@@ -28,25 +28,73 @@
   ],
   "abTest": {
     "before_v18": [
-      { "question": "今年各地区的客户数是多少", "terminal": "clarification" },
-      { "question": "上个月各渠道的客户数是多少", "terminal": "clarification" },
-      { "question": "今年各地区的成交金额，同时看各渠道的客户数", "terminal": "clarification" },
-      { "question": "今年金牌客户的订单数是多少", "terminal": "clarification" },
-      { "question": "从渠道触点到下单的转化有多少", "terminal": "out_of_capability" },
-      { "question": "今年各品类销量同比变化", "terminal": "out_of_capability" }
+      {
+        "question": "今年各地区的客户数是多少",
+        "terminal": "clarification"
+      },
+      {
+        "question": "上个月各渠道的客户数是多少",
+        "terminal": "clarification"
+      },
+      {
+        "question": "今年各地区的成交金额，同时看各渠道的客户数",
+        "terminal": "clarification"
+      },
+      {
+        "question": "今年金牌客户的订单数是多少",
+        "terminal": "clarification"
+      },
+      {
+        "question": "从渠道触点到下单的转化有多少",
+        "terminal": "out_of_capability"
+      },
+      {
+        "question": "今年各品类销量同比变化",
+        "terminal": "out_of_capability"
+      }
     ],
     "after_v19": [
-      { "question": "今年各地区的客户数是多少", "terminal": "query", "rows": 2 },
-      { "question": "上个月各渠道的客户数是多少", "terminal": "query", "rows": 2 },
-      { "question": "今年各地区的成交金额，同时看各渠道的客户数", "terminal": "composite" },
-      { "question": "今年金牌客户的订单数是多少", "terminal": "clarification", "note": "R-ROOT-2 未修" },
-      { "question": "从渠道触点到下单的转化有多少", "terminal": "out_of_capability", "note": "R-ROOT-3 未修" },
-      { "question": "今年各品类销量同比变化", "terminal": "out_of_capability", "note": "R-ROOT-3 未修" }
+      {
+        "question": "今年各地区的客户数是多少",
+        "terminal": "query",
+        "rows": 2
+      },
+      {
+        "question": "上个月各渠道的客户数是多少",
+        "terminal": "query",
+        "rows": 2
+      },
+      {
+        "question": "今年各地区的成交金额，同时看各渠道的客户数",
+        "terminal": "composite"
+      },
+      {
+        "question": "今年金牌客户的订单数是多少",
+        "terminal": "clarification",
+        "note": "R-ROOT-2 未修"
+      },
+      {
+        "question": "从渠道触点到下单的转化有多少",
+        "terminal": "out_of_capability",
+        "note": "R-ROOT-3 未修"
+      },
+      {
+        "question": "今年各品类销量同比变化",
+        "terminal": "out_of_capability",
+        "note": "R-ROOT-3 未修"
+      }
     ]
   },
   "conclusion": "首跑 32% 通过率的主因是「检索别名缺口 → 垃圾澄清」（占失败题的约 1/3 强），已修；其余归因到维度取值词表与 mode 表达缺口，均为可登记的资产/产品缺口而非评测口径问题。修复后需重跑 E-7 才能得到有效通过率；按用户止损要求，重跑时机待预算确认。",
   "notes": [
     "澄清载荷中的垃圾匹配（matchedTerm=\"数是\"→quantity）本身也是一个检索质量问题，登记为 M8 优化项（提及解析的最小词长/停用词）",
     "partial 证据（LLM路径评测证据-v1-partial.json）采集于 v18，与 v19 不可直接混合比较"
+  ],
+  "corrections": [
+    {
+      "at": "2026-11-11T17:55+08:00",
+      "finding": "R-ROOT-1 中「检索瀑布给出垃圾匹配（matchedTerm 数是→quantity）」表述有误",
+      "correction": "candidateVocabulary 注入提示词的是全量授权清单词表（不含检索候选）；澄清载荷里的 matchedTerm 是模型自行编造的装饰字段（模型找不到「客户数」指标后的最佳猜测），不是检索注入。根因结论不变（别名缺口），但「检索噪声」不存在，M8 优化项中关于提及解析停用词的一条撤销。"
+    }
   ]
 }
