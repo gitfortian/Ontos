@@ -1,24 +1,24 @@
 {
-  "runId": "t1794367316367",
-  "ranAt": "2026-11-11T03:22:00.734Z",
-  "manifestId": "2026.11.11-seventeenth",
+  "runId": "t1794368043334",
+  "ranAt": "2026-11-11T03:34:12.500Z",
+  "manifestId": "2026.11.11-eighteenth",
   "runnerVersion": "test-runner-v1",
   "agentMode": "ontos.agent.enabled=false（确定性降级路径，与 smoke-runner v2 同口径）",
-  "setFile": "D:\\tianxy\\code\\Ontos\\docs\\06-verification\\evaluation\\test集-v4.json",
+  "setFile": "D:\\tianxy\\code\\Ontos\\docs\\06-verification\\evaluation\\test集-v5.json",
   "setHashes": {
-    "D:\\tianxy\\code\\Ontos\\docs\\06-verification\\evaluation\\test集-v4.json": "sha256:8c6e8081433f1afb10a14aebaa0e53396dabc0173f7a9f72a2491402585f07d4",
-    "total": 273
+    "D:\\tianxy\\code\\Ontos\\docs\\06-verification\\evaluation\\test集-v5.json": "sha256:9f525c46d4ce6dd53282038b6cf7e91bd8cdacc5cb84afdd4031679c7911a178",
+    "total": 276
   },
   "summary": {
-    "total": 273,
-    "pass": 273,
+    "total": 276,
+    "pass": 276,
     "fail": 0,
     "skip": 0,
     "error": 0,
-    "validSamples": 273,
+    "validSamples": 276,
     "successRate": 1,
     "wilson95": [
-      0.9861,
+      0.9863,
       1
     ]
   },
@@ -61,6 +61,16 @@
         "error": 0,
         "wilson95": [
           0.5655,
+          1
+        ]
+      },
+      "auto": {
+        "n": 3,
+        "pass": 3,
+        "skip": 0,
+        "error": 0,
+        "wilson95": [
+          0.4385,
           1
         ]
       }
@@ -127,24 +137,24 @@
         ]
       },
       "scenario_mode": {
-        "n": 15,
-        "pass": 15,
+        "n": 18,
+        "pass": 18,
         "skip": 0,
         "error": 0,
         "wilson95": [
-          0.7961,
+          0.8241,
           1
         ]
       }
     },
     "turn_type": {
       "single": {
-        "n": 201,
-        "pass": 201,
+        "n": 204,
+        "pass": 204,
         "skip": 0,
         "error": 0,
         "wilson95": [
-          0.9812,
+          0.9815,
           1
         ]
       },
@@ -181,12 +191,12 @@
     },
     "risk_type": {
       "normal": {
-        "n": 237,
-        "pass": 237,
+        "n": 240,
+        "pass": 240,
         "skip": 0,
         "error": 0,
         "wilson95": [
-          0.984,
+          0.9842,
           1
         ]
       },
@@ -233,12 +243,12 @@
     },
     "analysis_mode": {
       "QUERY": {
-        "n": 137,
-        "pass": 137,
+        "n": 140,
+        "pass": 140,
         "skip": 0,
         "error": 0,
         "wilson95": [
-          0.9727,
+          0.9733,
           1
         ]
       },
@@ -3966,6 +3976,60 @@
         "clarification",
         "clarification"
       ]
+    },
+    {
+      "id": "t-auto-01",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "auto",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "query",
+      "reasonCode": null,
+      "scenarioState": {
+        "state": "in_scenario",
+        "scenarioId": "scenario.sales.auto"
+      },
+      "entryVerified": true
+    },
+    {
+      "id": "t-auto-02",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "auto",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "query",
+      "reasonCode": null,
+      "scenarioState": {
+        "state": "",
+        "scenarioId": ""
+      },
+      "entryVerified": true
+    },
+    {
+      "id": "t-auto-03",
+      "status": "pass",
+      "query_shape": "scenario_mode",
+      "analysis_mode": "QUERY",
+      "turn_type": "single",
+      "risk_type": "normal",
+      "scenario_entry_mode": "auto",
+      "is_composite": false,
+      "verdict": "ok",
+      "terminal": "query",
+      "reasonCode": null,
+      "scenarioState": {
+        "state": "",
+        "scenarioId": ""
+      },
+      "entryVerified": true
     }
   ]
 }

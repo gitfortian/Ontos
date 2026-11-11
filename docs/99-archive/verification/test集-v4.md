@@ -6,7 +6,7 @@
 > **负责人**：项目组
 > **最后更新**：2026-11-11
 > **适用范围**：正式验收主指标（任务成功率）的**唯一分母**；`test` 集合见[正式评测集 v5](正式评测集-v5.md) §2
-> **上游依据**：[完整可落地方案 v1.4 §13.2/§13.4](../../02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md)、[评测统计口径 v1](评测统计口径-v1.md)、[ADR-0005 评测门槛](../../01-decisions/ADR-0005-评测门槛与PoC执行责任.md)、[ADR-0016 品类粒度边界](../../01-decisions/ADR-0016-品类维度与订单事实指标的粒度边界.md)、[ADR-0018 E-5 订单项级指标实现口径](../../01-decisions/ADR-0018-E5订单项级指标实现口径.md)、[M7 实施规格 v1.0 §3.3](../../03-plans/stages/M7/M7-评测对抗防线与可观测-实施规格-v1.0.md)
+> **上游依据**：[完整可落地方案 v1.4 §13.2/§13.4](../../02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md)、[评测统计口径 v1](../../06-verification/evaluation/评测统计口径-v1.md)、[ADR-0005 评测门槛](../../01-decisions/ADR-0005-评测门槛与PoC执行责任.md)、[ADR-0016 品类粒度边界](../../01-decisions/ADR-0016-品类维度与订单事实指标的粒度边界.md)、[ADR-0018 E-5 订单项级指标实现口径](../../01-decisions/ADR-0018-E5订单项级指标实现口径.md)、[M7 实施规格 v1.0 §3.3](../../03-plans/stages/M7/M7-评测对抗防线与可观测-实施规格-v1.0.md)
 > **历史版本**：[v3](../../99-archive/verification/test集-v3.md)（已归档）
 > **修订记录**：2026-11-11 **v4**（M7/W1/T1.1，ADR-0018）——E-5 方案 A 落地：新增订单项销量指标 `metric.order_item_quantity` 与 2 题正例（QUERY / YOY_MOM）；原 2 题「订单数 × 品类」去掉 `skipReason`、转为**预期拒绝正例**进入分母（仍断言 `1002000014` fail-closed）；v3 其余 271 题零变化。机器可读文件 [`test集-v4.json`](test集-v4.json)（sha256 `8c6e8081433f1afb…`）
 
@@ -114,5 +114,5 @@ v2 的 20 族（见[归档 v2](../../99-archive/verification/test集-v2.md)）+ 
 | 全量真服务评测（[`test-runner.mjs`](../../../scripts/verify/test-runner.mjs)） | **273 pass / 0 fail / 0 skip / 0 error**，成功率 1.0，Wilson95 `[0.9861, 1]` |
 | 清单 | `2026.11.11-seventeenth`（contentHash `1d3ec2e247a2c912…`，9 指标） |
 | E-5 验证 | 订单项销量 × 品类 `code=0`（joins：order_item→product N:1 / orders→order_item 反向 N:1）；订单数 × 品类仍 `1002000014` |
-| 证据固化 | [`test集-M7W1-E5证据-v1.json`](test集-M7W1-E5证据-v1.json)（SHA-256 `283c198aaed7f9a5…`，273/0/0/0） |
+| 证据固化 | [`test集-M7W1-E5证据-v1.json`](../../06-verification/evaluation/test集-M7W1-E5证据-v1.json)（SHA-256 `283c198aaed7f9a5…`，273/0/0/0） |
 | 过程中修复 | runner 负例缺 `mode` 无法构造 DSL（首跑 2 error）→ 按 `period` 确定性补全，重跑 273/0/0/0 |

@@ -17,6 +17,7 @@
  * 用法：node scripts/verify/test-runner.mjs [--base-url http://127.0.0.1:8080]
  *       [--set docs/06-verification/evaluation/test集-v3.json]
  */
+import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -35,8 +36,8 @@ const sha256 = (buffer) => createHash("sha256").update(buffer).digest("hex");
 const set = JSON.parse(readFileSync(SET_PATH, "utf8"));
 // M7/W1/T1.1：test 集升 v4（E-5 方案 A，ADR-0018）——runner 接受 v3/v4；
 // 更早版本（v1/v2）判据不同，继续拒绝，避免旧题集被误跑。
-if (!["v3", "v4"].includes(set.version)) {
-  console.error(`test 集版本不受支持：${set.version}（仅 v3/v4）`);
+if (!["v3", "v4", "v5"].includes(set.version)) {
+  console.error(`test 集版本不受支持：${set.version}（仅 v3/v4/v5）`);
   process.exit(1);
 }
 
@@ -62,6 +63,20 @@ if (!MANIFEST_ID) {
 const runId = `t${Date.now()}`;
 let seq = 0;
 const nextRequestId = () => `test-${runId}-${++seq}`;
+
+// M7/W1/T1.2（E-6）：auto 入口的会话态验证（可选）。提供 ONTOS_PSQL（psql 命令前缀）时
+// 查 session_state.scenario_state 断言「是否真的进入场景」；未提供时只判 terminal，并在结果
+// 标 entryVerified=false——不伪造「已进入」结论。
+const PSQL = process.env.ONTOS_PSQL || null;
+function scenarioStateOf(sessionId) {
+  if (!PSQL) return null;
+  const statement = `select coalesce(scenario_state->>'state',''), coalesce(scenario_state->>'scenarioId','')`
+    + ` from session_state where tenant_id='demo' and session_id='${sessionId}'`;
+  const output = execSync(`${PSQL} -c "${statement.replace(/"/g, '\\"')}"`,
+    { encoding: "utf8", shell: "bash" }).trim();
+  const [state = "", scenarioId = ""] = output.split("|");
+  return { state, scenarioId };
+}
 
 // ── HTTP 通道 ────────────────────────────────────────────────────────
 async function dryRun(dsl, userSuffix) {
@@ -284,6 +299,34 @@ for (const c of set.cases) {
   // —— skip（不进分母）——
   if (c.skipReason) {
     record(c, "skip", { reason: c.skipReason });
+    continue;
+  }
+
+  // —— auto 入口题（M7/W1/T1.2，E-6）：唯一命中自动进入 / 多命中回退 / 无命中回退 ——
+  if (c.id.startsWith("t-auto-")) {
+    const user = `test-${runId}-${c.id}`;
+    const session = `sess-${c.id}`;
+    const turn = await askTurn(user, session, 1, c.question);
+    let pass = turn.verdict === "ok" && terminalAccepted(c.expected.terminal, turn.terminal);
+    const expectedEntry = c.expected.scenarioEntry;
+    const actualEntry = scenarioStateOf(session);
+    let entryVerified = false;
+    if (actualEntry) {
+      entryVerified = true;
+      if (expectedEntry && expectedEntry.state === "in_scenario") {
+        pass = pass && actualEntry.state === "in_scenario"
+          && (!expectedEntry.scenarioId || actualEntry.scenarioId === expectedEntry.scenarioId);
+      } else {
+        pass = pass && actualEntry.state !== "in_scenario";
+      }
+    }
+    record(c, pass ? "pass" : "fail", {
+      verdict: turn.verdict,
+      terminal: turn.terminal ?? null,
+      reasonCode: turn.reasonCode ?? null,
+      scenarioState: actualEntry,
+      entryVerified,
+    });
     continue;
   }
 
