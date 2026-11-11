@@ -65,4 +65,16 @@ public class AskRunEventMapper {
         return count == null ? 0 : count;
     }
 
+    /**
+     * 保留策略清理（G-5，T5.3）：删除早于 cutoff 的事件行。
+     * 默认策略（retentionDays=0）为永久保留，本方法不被调用（与 audit_log 同规）。
+     *
+     * @return 删除行数
+     */
+    public long deleteOlderThan(java.time.OffsetDateTime cutoff) {
+        return jdbcTemplate.update(
+                "DELETE FROM ask_run_event WHERE created_at < :cutoff",
+                Map.of("cutoff", cutoff));
+    }
+
 }
