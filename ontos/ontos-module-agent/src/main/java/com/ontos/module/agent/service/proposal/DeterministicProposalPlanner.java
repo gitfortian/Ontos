@@ -5,6 +5,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.ontos.module.ontology.core.PublishedManifest;
+import com.ontos.module.ontology.core.SemanticManifest;
+import com.ontos.module.ontology.service.manifest.ManifestService;
 import com.ontos.module.session.service.retrieval.RetrievalOutcome;
 import com.ontos.module.session.service.retrieval.RetrievedCandidate;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,12 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class DeterministicProposalPlanner {
+
+    private final ManifestService manifestService;
+
+    public DeterministicProposalPlanner(ManifestService manifestService) {
+        this.manifestService = manifestService;
+    }
 
     /** 从检索瀑布产出确定性提案（terminal ∈ query / clarification / discovery）。 */
     public Map<String, Object> plan(String utterance, RetrievalOutcome outcome,
@@ -67,6 +76,12 @@ public class DeterministicProposalPlanner {
                 .filter(candidate -> "metric".equals(candidate.assetType()))
                 .findFirst().orElse(null);
         if (clarificationConsumed || metric != null) {
+            // E7/bool-08 修复：ruleId 型布尔指标只允许 LOOKUP / LOOKUP_BATCH，
+            // 不得落入普通 QUERY 分支（历史缺陷会把「是不是高价值客户」查成
+            // metric.high_value_customer / QUERY，被资产模式闸门拒绝）。
+            if (metric != null && isRuleBooleanMetric(metric.assetId())) {
+                return booleanLookupProposal(utterance, metric.assetId(), outcome);
+            }
             Map<String, Object> subIntent = new LinkedHashMap<>();
             subIntent.put("metric_id", metric == null ? null : metric.assetId());
             subIntent.put("analysis_mode", "query");
@@ -134,6 +149,50 @@ public class DeterministicProposalPlanner {
         box.put("asset_id", candidate.assetId());
         box.put("asset_type", candidate.assetType());
         return box;
+    }
+
+    /** 是否为 ruleId 型布尔指标；清单缺失时按普通指标处理，不猜测。 */
+    private boolean isRuleBooleanMetric(String metricId) {
+        PublishedManifest manifest = manifestService.getActiveManifestOrNull();
+        if (manifest == null || manifest.getSemantic() == null || manifest.getSemantic().getMetrics() == null) {
+            return false;
+        }
+        return manifest.getSemantic().getMetrics().stream()
+                .filter(metric -> metric.getId().equals(metricId))
+                .findFirst()
+                .map(metric -> metric.getRuleId() != null && !metric.getRuleId().isBlank())
+                .orElse(false);
+    }
+
+    /**
+     * 布尔判定走实体直查：identity 从话术确定性提取，attributes 只取本轮 dslReady 的 property；
+     * 身份缺失转澄清，不猜 c-xxxx；属性缺失仍表达 LOOKUP，由后续校验 fail-closed。
+     */
+    private Map<String, Object> booleanLookupProposal(String utterance, String booleanMetricId,
+                                                      RetrievalOutcome outcome) {
+        java.util.regex.Matcher identityMatcher = java.util.regex.Pattern
+                .compile("[a-zA-Z]+-\\d+").matcher(utterance == null ? "" : utterance);
+        String identityValue = identityMatcher.find() ? identityMatcher.group() : null;
+        if (identityValue == null) {
+            Map<String, Object> clarification = new LinkedHashMap<>();
+            clarification.put("ambiguity", utterance);
+            clarification.put("candidates", List.of());
+            clarification.put("default_suggestion", null);
+            clarification.put("degraded_behavior", "ask_identity");
+            return proposal("clarification", null, clarification, null, outcome);
+        }
+
+        Map<String, Object> subIntent = new LinkedHashMap<>();
+        subIntent.put("metric_id", null);
+        subIntent.put("analysis_mode", "lookup");
+        subIntent.put("boolean_metric_id", booleanMetricId);
+        subIntent.put("attributes", outcome.dslReady().stream()
+                .filter(candidate -> "property".equals(candidate.assetType()))
+                .map(RetrievedCandidate::assetId)
+                .toList());
+        subIntent.put("identity_value", identityValue);
+        subIntent.put("filters", List.of());
+        return proposal("query", List.of(subIntent), null, null, outcome);
     }
 
     private Map<String, Object> proposal(String terminal, List<Map<String, Object>> subIntents,

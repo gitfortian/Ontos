@@ -194,6 +194,33 @@ class ProposalIntegrityServiceTest {
         assertEquals(ProposalIntegrityService.IntegrityAction.REJECT, result.action());
     }
 
+    @Test
+    void case7_outOfSetLookupAttributeIsRejected() {
+        // E7/lookup 补强：attributes 是候选资产 ID，伪造属性不得进入 DSL。
+        Map<String, Object> intent = queryIntent("metric.gmv");
+        intent.put("analysis_mode", "lookup");
+        intent.put("attributes", List.of("property.customer.secret"));
+        var result = service.check(proposal(intent), outcome, "看客户属性", context);
+        assertFalse(result.passed());
+        assertEquals(ProposalIntegrityService.IntegrityAction.CLARIFY, result.action());
+        assertTrue(result.reason().contains("property.customer.secret"));
+    }
+
+    @Test
+    void inSetLookupAttributePasses() {
+        // 本用例单独准备 property 候选：LOOKUP 属性必须在本轮检索集内。
+        outcome = new RetrievalOutcome(
+                List.of(new RetrievedCandidate("metric.gmv", "metric", "销售额", 2, false, 64),
+                        new RetrievedCandidate("property.customer.tier", "property", "客户等级", 2, false, 60)),
+                List.of(new RetrievedCandidate("concept.order", "entity", "订丹", 3, true, 31)),
+                List.of(), List.of(), false, "hash");
+        Map<String, Object> intent = queryIntent("metric.gmv");
+        intent.put("analysis_mode", "lookup");
+        intent.put("attributes", List.of("property.customer.tier"));
+        var result = service.check(proposal(intent), outcome, "看客户等级", context);
+        assertTrue(result.passed(), "候选内 attributes 必须通过: " + result.reason());
+    }
+
     // ---------- 正常路径 ----------
 
     @Test

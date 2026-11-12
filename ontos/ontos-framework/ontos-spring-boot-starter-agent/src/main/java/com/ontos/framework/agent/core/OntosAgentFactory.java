@@ -138,10 +138,10 @@ public class OntosAgentFactory {
     /** 候选资产词表：聚合全部 Provider，供输出契约做 ID 白名单与「点名资产」判定。 */
     private IntentProposalContract buildContract() {
         List<AgentContextProvider> providers = this.contextProviders;
-        return new IntentProposalContract(() -> {
+        return IntentProposalContract.questionAware((String userQuestion) -> {
             java.util.List<CandidateAsset> vocabulary = new java.util.ArrayList<>();
             for (AgentContextProvider provider : providers) {
-                vocabulary.addAll(provider.candidateVocabulary());
+                vocabulary.addAll(provider.candidateVocabulary(userQuestion));
             }
             return java.util.List.copyOf(vocabulary);
         });

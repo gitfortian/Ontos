@@ -33,4 +33,12 @@ public interface AgentContextProvider {
         return List.of();
     }
 
+    /**
+     * 带“当前用户问题”的候选集视图。默认退化为无问题视图；
+     * 实现方可以用它解决异步修复轮拿不到请求线程 ThreadLocal 的问题。
+     */
+    default List<CandidateAsset> candidateVocabulary(String userQuestion) {
+        return candidateVocabulary();
+    }
+
 }

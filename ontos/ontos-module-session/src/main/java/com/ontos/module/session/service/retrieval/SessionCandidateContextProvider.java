@@ -51,6 +51,16 @@ public class SessionCandidateContextProvider implements AgentContextProvider {
     /** 本轮检索结果（由 ask 编排在调用模型前 prime；AG-UI 等路径不 prime → 全量）。 */
     private final ThreadLocal<RetrievalOutcome> primedOutcome = new ThreadLocal<>();
 
+    /**
+     * 问题感知候选快照：AgentScope 修复轮运行在异步线程，拿不到请求线程 ThreadLocal。
+     * key=用户问题 hash，value=本轮检索结果 + prime 时已解析的授权键；用后即清。
+     */
+    private final java.util.concurrent.ConcurrentMap<Integer, PrimedCandidate> primedByQuestion =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    private record PrimedCandidate(RetrievalOutcome outcome, Set<String> authorizedKeys) {
+    }
+
     public SessionCandidateContextProvider(ManifestService manifestService,
                                            PolicySnapshotService policySnapshotService) {
         this.manifestService = manifestService;
@@ -62,9 +72,33 @@ public class SessionCandidateContextProvider implements AgentContextProvider {
         primedOutcome.set(outcome);
     }
 
+    /** 同时为异步修复轮建立问题感知候选快照；question 为空时只保留同线程 prime。 */
+    public void prime(RetrievalOutcome outcome, String question) {
+        prime(outcome);
+        if (question == null || question.isBlank()) {
+            return;
+        }
+        RequestContext context = RequestContextHolder.get();
+        if (context == null) {
+            return;
+        }
+        try {
+            primedByQuestion.put(question.hashCode(),
+                    new PrimedCandidate(outcome, policySnapshotService.authorizedAssetIds(context)));
+        } catch (RuntimeException ex) {
+            log.warn("[prime][异步候选授权解析失败，修复轮将回退全量: {}]", ex.toString());
+        }
+    }
+
     /** 用后即清，防止线程池复用串话。 */
     public void clearPrimed() {
         primedOutcome.remove();
+    }
+
+    public void clearPrimed(String question) {
+        if (question != null) {
+            primedByQuestion.remove(question.hashCode());
+        }
     }
 
     boolean retrievalScopeEnabled() {
@@ -74,6 +108,29 @@ public class SessionCandidateContextProvider implements AgentContextProvider {
     /** 测试与装配期显式置域（生产走配置）。 */
     void setRetrievalScope(boolean enabled) {
         candidateScope = enabled ? "retrieval" : "full";
+    }
+
+    @Override
+    public List<CandidateAsset> candidateVocabulary(String userQuestion) {
+        if (userQuestion == null || userQuestion.isBlank()) {
+            return candidateVocabulary();
+        }
+        PrimedCandidate primed = primedByQuestion.get(userQuestion.hashCode());
+        if (primed == null) {
+            return candidateVocabulary();
+        }
+        PublishedManifest manifest = manifestService.getActiveManifestOrNull();
+        if (manifest == null || manifest.getSemantic() == null) {
+            return List.of();
+        }
+        RetrievalOutcome outcome = primed.outcome();
+        if (retrievalScopeEnabled() && outcome != null && !outcome.dslReady().isEmpty()) {
+            List<CandidateAsset> scoped = vocabularyFromOutcome(manifest, outcome, primed.authorizedKeys());
+            if (!scoped.isEmpty()) {
+                return List.copyOf(scoped);
+            }
+        }
+        return fullVocabulary(manifest, primed.authorizedKeys());
     }
 
     @Override
@@ -103,6 +160,11 @@ public class SessionCandidateContextProvider implements AgentContextProvider {
             }
             // 检索候选解析失败（清单漂移等）→ 回退全量，不给模型一个空词表
         }
+        return fullVocabulary(manifest, authorizedKeys);
+    }
+
+    /** 全量授权词表：metric / dimension / entity / property / published VQR。 */
+    private List<CandidateAsset> fullVocabulary(PublishedManifest manifest, Set<String> authorizedKeys) {
         List<CandidateAsset> vocabulary = new ArrayList<>();
         SemanticManifest semantic = manifest.getSemantic();
         if (semantic.getMetrics() != null) {

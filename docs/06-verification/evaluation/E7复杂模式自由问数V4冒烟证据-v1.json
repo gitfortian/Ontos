@@ -1,0 +1,308 @@
+{
+  "task": "E7 复杂模式自由问数 v4 冒烟",
+  "purpose": "验证 ADR-0023 v1.1 + ComplexAnalysisParamsResolver + system-v4-draft 的 FUNNEL 自由问数链路；探索性证据，不解除 C-1",
+  "createdAt": "2026-11-12",
+  "model": {
+    "name": "mimo-v2.6-flash",
+    "endpoint": "https://token-plan-cn.xiaomimimo.com/v1"
+  },
+  "prompt": {
+    "file": "ontos/ontos-server/src/main/resources/prompts/system-v4-draft.md",
+    "version": "v4-draft-rev2",
+    "sha256": "42cacbe0826fa452754d4373ab8f0c9ac2888f50decbace60a4546b99469ac47",
+    "bytes": 10716
+  },
+  "manifest": {
+    "id": "2026.11.11-nineteenth",
+    "contentHash": "377d461691e57f3435be04f88682dde820d2ec45f0b4f603e67b6a4273d3682b"
+  },
+  "candidateScope": "retrieval",
+  "runnerJudgement": "v2.1（terminal + mode 双检查；A/B 复合期望支持）",
+  "safety": {
+    "concurrency": 1,
+    "minIntervalMs": 5000,
+    "circuitBreaker": true,
+    "checkpoint": true
+  },
+  "runs": [
+    {
+      "phase": "first",
+      "runId": "E7-V4-FUNNEL-SMOKE-20261112",
+      "workspace": ".workbuddy/runtime/agentscope-v4-funnel-smoke-20261112-1448",
+      "summary": {
+        "total": 4,
+        "passed": 2,
+        "rate": 0.5,
+        "wilson95": [
+          0.15,
+          0.85
+        ],
+        "llmUsed": 4,
+        "fallbackWithoutLlm": 0,
+        "degradedFlagged": 0,
+        "errors": 0,
+        "tokensTotal": 53047,
+        "tokensPerCaseAvg": 13262,
+        "tokensPerCaseMax": 13514,
+        "latencyP50": 19906,
+        "latencyP95": 35208
+      },
+      "rows": [
+        {
+          "requestId": "llml-E7-V4-FUNNEL-SMOKE-20261112-r1-t-funnel-01-t1",
+          "caseId": "t-funnel-01",
+          "runIndex": 1,
+          "latencyMs": 35208,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "query"
+          ],
+          "taskIndex": 0,
+          "mode": "FUNNEL",
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identityValue": null,
+          "llmCalls": 2,
+          "tokens": 13393,
+          "llmUsed": true,
+          "pass": true,
+          "rejectedByGuardrail": null,
+          "failReasons": [],
+          "layers": {
+            "analysis_mode": "FUNNEL",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        },
+        {
+          "requestId": "llml-E7-V4-FUNNEL-SMOKE-20261112-r1-t-funnel-05-t1",
+          "caseId": "t-funnel-05",
+          "runIndex": 1,
+          "latencyMs": 19906,
+          "code": 0,
+          "terminal": "clarification",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "clarification"
+          ],
+          "taskIndex": 1,
+          "mode": null,
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identityValue": null,
+          "llmCalls": 2,
+          "tokens": 13278,
+          "llmUsed": true,
+          "pass": false,
+          "rejectedByGuardrail": null,
+          "failReasons": [
+            "terminal:clarification≠query"
+          ],
+          "layers": {
+            "analysis_mode": "FUNNEL",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        },
+        {
+          "requestId": "llml-E7-V4-FUNNEL-SMOKE-20261112-r1-t-funnel-08-t1",
+          "caseId": "t-funnel-08",
+          "runIndex": 1,
+          "latencyMs": 9478,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": 1,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "query"
+          ],
+          "taskIndex": 2,
+          "mode": "FUNNEL",
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identityValue": null,
+          "llmCalls": 2,
+          "tokens": 13514,
+          "llmUsed": true,
+          "pass": true,
+          "rejectedByGuardrail": null,
+          "failReasons": [],
+          "layers": {
+            "analysis_mode": "FUNNEL",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        },
+        {
+          "requestId": "llml-E7-V4-FUNNEL-SMOKE-20261112-r1-t-funnel-10-t1",
+          "caseId": "t-funnel-10",
+          "runIndex": 1,
+          "latencyMs": 24332,
+          "code": 0,
+          "terminal": "clarification",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "clarification"
+          ],
+          "taskIndex": 3,
+          "mode": null,
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identityValue": null,
+          "llmCalls": 1,
+          "tokens": 12862,
+          "llmUsed": true,
+          "pass": false,
+          "rejectedByGuardrail": null,
+          "failReasons": [
+            "terminal:clarification≠query"
+          ],
+          "layers": {
+            "analysis_mode": "FUNNEL",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        }
+      ],
+      "rawSha256": "bc0193620be71b63f74ef4fce32fb02b758a6e4d7147e44a34aa8dc15888277e"
+    },
+    {
+      "phase": "retry-after-prompt-rev2",
+      "runId": "E7-V4-FUNNEL-RETRY2-20261112",
+      "workspace": ".workbuddy/runtime/agentscope-v4-funnel-retry2-20261112-1452",
+      "summary": {
+        "total": 2,
+        "passed": 2,
+        "rate": 1,
+        "wilson95": [
+          0.3424,
+          1
+        ],
+        "llmUsed": 2,
+        "fallbackWithoutLlm": 0,
+        "degradedFlagged": 0,
+        "errors": 0,
+        "tokensTotal": 65835,
+        "tokensPerCaseAvg": 32918,
+        "tokensPerCaseMax": 53418,
+        "latencyP50": 10564,
+        "latencyP95": 50225
+      },
+      "rows": [
+        {
+          "requestId": "llml-E7-V4-FUNNEL-RETRY2-20261112-r1-t-funnel-05-t1",
+          "caseId": "t-funnel-05",
+          "runIndex": 1,
+          "latencyMs": 50225,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "query"
+          ],
+          "taskIndex": 0,
+          "mode": "FUNNEL",
+          "metricId": null,
+          "dimensions": [
+            "dim.customer_tier"
+          ],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identityValue": null,
+          "llmCalls": 6,
+          "tokens": 53418,
+          "llmUsed": true,
+          "pass": true,
+          "rejectedByGuardrail": null,
+          "failReasons": [],
+          "layers": {
+            "analysis_mode": "FUNNEL",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        },
+        {
+          "requestId": "llml-E7-V4-FUNNEL-RETRY2-20261112-r1-t-funnel-10-t1",
+          "caseId": "t-funnel-10",
+          "runIndex": 1,
+          "latencyMs": 10564,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": 1,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "query"
+          ],
+          "taskIndex": 1,
+          "mode": "FUNNEL",
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identityValue": null,
+          "llmCalls": 1,
+          "tokens": 12417,
+          "llmUsed": true,
+          "pass": true,
+          "rejectedByGuardrail": null,
+          "failReasons": [],
+          "layers": {
+            "analysis_mode": "FUNNEL",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        }
+      ],
+      "rawSha256": "24dbf44249292c1dc653329dc98d4b555e3d842a86e076c0b051896784588567"
+    }
+  ],
+  "conclusion": {
+    "firstRun": "4 题 FUNNEL 中 2 题通过；2 题模型澄清，属提示词表达缺口；resolver 已正确产出 FUNNEL DSL（通过题审计含 steps/cohortWindow/subjectPropertyId）。",
+    "afterPromptRev2": "两道澄清失败题均 PASS，terminal=query、mode=FUNNEL。",
+    "next": "v4 需继续小批量覆盖 RETENTION / ATTRIBUTION / LOOKUP_BATCH / 多轮；不跑全量。"
+  }
+}

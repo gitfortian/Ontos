@@ -128,9 +128,23 @@ public class ProposalIntegrityService {
         if (metricId != null && !inScope.contains(metricId)) {
             return metricId;
         }
+        // ADR-0023 v1.1：布尔判定指标也是候选资产；不得绕过词表伪造 booleanMetricId。
+        String booleanMetricId = stringOf(subIntent.get("boolean_metric_id"));
+        if (booleanMetricId != null && !inScope.contains(booleanMetricId)) {
+            return booleanMetricId;
+        }
         if (subIntent.get("dimensions") instanceof List<?> dimensions) {
             for (Object dimension : dimensions) {
                 String id = dimension instanceof String s ? s : null;
+                if (id != null && !inScope.contains(id)) {
+                    return id;
+                }
+            }
+        }
+        // LOOKUP 属性投影也是候选资产；伪造 attributes 不得进入 DSL。
+        if (subIntent.get("attributes") instanceof List<?> attributes) {
+            for (Object attribute : attributes) {
+                String id = attribute instanceof String s ? s : null;
                 if (id != null && !inScope.contains(id)) {
                     return id;
                 }
