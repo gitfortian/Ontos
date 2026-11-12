@@ -40,6 +40,14 @@ public final class IntentProposalContract {
     public record ValidationResult(boolean valid, List<Violation> violations, Map<String, Object> parsed) {
     }
 
+    /**
+     * 模型输入里会话投影的展示前缀（由编排层拼进 user 消息）。
+     *
+     * <p>只用于让模型识别投影块，<b>不得作为校验依据</b>：用户话术里同样可能出现该字符串。
+     * 「本轮是否注入投影」走 {@link #validate(String, String, boolean)} 的显式入参。
+     */
+    public static final String SESSION_PROJECTION_MARKER = "上一轮已采纳会话投影";
+
     static final Set<String> TERMINALS =
             Set.of("query", "composite", "discovery", "clarification", "out_of_capability");
     static final Set<String> REASON_CODES = Set.of("OUT_OF_MANIFEST", "NO_RULE", "OUT_OF_SCOPE");
@@ -55,22 +63,37 @@ public final class IntentProposalContract {
 
     private final Supplier<List<CandidateAsset>> vocabularySupplier;
     private final java.util.function.Function<String, List<CandidateAsset>> questionVocabularySupplier;
+    private final java.util.function.Predicate<String> projectionInjected;
 
     public IntentProposalContract(Supplier<List<CandidateAsset>> vocabularySupplier) {
         this.vocabularySupplier = vocabularySupplier == null ? List::of : vocabularySupplier;
         this.questionVocabularySupplier = question -> this.vocabularySupplier.get();
+        this.projectionInjected = question -> false;
     }
 
     /** 问题感知词表：修复轮运行在异步线程时，实现方可用 userQuestion 定位本轮候选。 */
     public static IntentProposalContract questionAware(
             java.util.function.Function<String, List<CandidateAsset>> vocabularySupplier) {
-        return new IntentProposalContract(vocabularySupplier == null
-                ? question -> List.of() : vocabularySupplier);
+        return questionAware(vocabularySupplier, question -> false);
     }
 
-    private IntentProposalContract(java.util.function.Function<String, List<CandidateAsset>> questionSupplier) {
+    /**
+     * 问题感知词表 + 投影注入判定。
+     *
+     * <p>「本轮输入是否由服务端注入了会话投影」只能由服务端状态回答（本轮确实 prime 了上一轮
+     * 已执行 DSL 的语义槽位），不能靠提示词文本特征推断——用户话术同样可能包含标记字符串。
+     */
+    public static IntentProposalContract questionAware(
+            java.util.function.Function<String, List<CandidateAsset>> vocabularySupplier,
+            java.util.function.Predicate<String> projectionInjected) {
+        return new IntentProposalContract(vocabularySupplier, projectionInjected);
+    }
+
+    private IntentProposalContract(java.util.function.Function<String, List<CandidateAsset>> questionSupplier,
+                                   java.util.function.Predicate<String> projectionInjected) {
         this.vocabularySupplier = null;
-        this.questionVocabularySupplier = questionSupplier;
+        this.questionVocabularySupplier = questionSupplier == null ? question -> List.of() : questionSupplier;
+        this.projectionInjected = projectionInjected == null ? question -> false : projectionInjected;
     }
 
     /** 无用户问题上下文的校验（单测与兼容入口）：跳过「点名资产」判定，其余规则不变。 */
@@ -79,6 +102,17 @@ public final class IntentProposalContract {
     }
 
     public ValidationResult validate(String text, String userQuestion) {
+        return validate(text, userQuestion,
+                userQuestion != null && projectionInjected.test(userQuestion));
+    }
+
+    /**
+     * 显式声明本轮输入是否携带服务端注入的会话投影。
+     *
+     * <p>多轮增量话术（如「那上个月呢」）本身不点名任何候选资产，投影继承是服务端行为，
+     * 因此由调用方（编排层）直接传值，而不是从 userQuestion 文本里找标记——标记文本对用户可见可伪造。
+     */
+    public ValidationResult validate(String text, String userQuestion, boolean projectionInjected) {
         List<CandidateAsset> vocabulary = userQuestion == null
                 ? (vocabularySupplier == null ? List.of() : vocabularySupplier.get())
                 : questionVocabularySupplier.apply(userQuestion);
@@ -97,7 +131,7 @@ public final class IntentProposalContract {
                     "缺少 terminal 字段。必须显式输出 terminal ∈ [query, composite, discovery, clarification, out_of_capability]。"));
             return finish(violations, parsed);
         }
-        checkAssetMentioned(parsed, terminal, userQuestion, vocabulary, violations);
+        checkAssetMentioned(parsed, terminal, userQuestion, vocabulary, projectionInjected, violations);
         if (!TERMINALS.contains(terminal)) {
             violations.add(new Violation("UNKNOWN_TERMINAL",
                     "terminal 值 \"" + terminal + "\" 不在封闭枚举内。"));
@@ -259,6 +293,14 @@ public final class IntentProposalContract {
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
+    /** 暴露给编排层完整性对账：与当前 validate 使用同一份问题感知授权词表。 */
+    public Set<String> candidateAssetIds(String userQuestion) {
+        List<CandidateAsset> vocabulary = userQuestion == null
+                ? (vocabularySupplier == null ? List.of() : vocabularySupplier.get())
+                : questionVocabularySupplier.apply(userQuestion);
+        return candidateAssetIds(vocabulary);
+    }
+
     /**
      * 机械闸门（检索瀑布第一级的前置）：执行类终态（query/composite）要求用户问题
      * 点名了至少一个候选资产的名称或别名——「泛化问法必须澄清」由此从模型判断变成字符串匹配。
@@ -266,7 +308,7 @@ public final class IntentProposalContract {
      */
     private void checkAssetMentioned(Map<String, Object> parsed, String terminal,
                                      String userQuestion, List<CandidateAsset> vocabulary,
-                                     List<Violation> violations) {
+                                     boolean projectionInjected, List<Violation> violations) {
         if (userQuestion == null || userQuestion.isBlank() || vocabulary.isEmpty()) {
             return;
         }
@@ -274,6 +316,11 @@ public final class IntentProposalContract {
             return;
         }
         String normalizedQuestion = userQuestion.toLowerCase();
+        // 多轮投影由服务端注入：上一轮语义槽位已在投影里，增量话术常常不再点名资产。
+        // 是否注入只认服务端状态（primed 投影非空），不做文本匹配——标记字符串用户也能写出来。
+        if (projectionInjected) {
+            return;
+        }
         String analysisMode = firstAnalysisMode(parsed);
         // LOOKUP / LOOKUP_BATCH 由身份值驱动；用户可能只给 c-1001，不点名 metric/dimension。
         // FUNNEL / RETENTION 事件词也不是资产词。这四类不能套用聚合问法的 ASSET_NOT_MENTIONED。

@@ -64,6 +64,34 @@ public class ProposalIntegrityService {
      */
     public IntegrityResult check(Map<String, Object> proposal, RetrievalOutcome outcome,
                                  String userUtterance, RequestContext context) {
+        return check(proposal, outcome, userUtterance, context, Set.of(), Set.of());
+    }
+
+    /**
+     * 带契约候选补充集的对账。
+     *
+     * <p>LOOKUP / LOOKUP_BATCH 是身份驱动模式：短问法（如「批量查 c-1001、c-9999 的等级」）
+     * 可能不触发属性词的 L2 命中。此时 `attributes` 只要已通过输出契约授权词表，
+     * 仍可进入执行链；metric / dimension / filter 等聚合路径仍限定在检索候选内
+     * （多轮投影继承资产由 6 参重载单独并入）。
+     */
+    public IntegrityResult check(Map<String, Object> proposal, RetrievalOutcome outcome,
+                                 String userUtterance, RequestContext context,
+                                 Set<String> contractCandidateIds) {
+        return check(proposal, outcome, userUtterance, context, contractCandidateIds, Set.of());
+    }
+
+    /**
+     * 多轮继承版：{@code inheritedAssetIds} 来自服务端 {@code SessionProjection}
+     * （上一轮已通过全链闸门执行的语义资产）。增量话术（如「再加上渠道」）不会重新命中
+     * 上一轮的指标 / 维度，若对账集仍只认本轮检索候选，合并语义的提案必然被判
+     * {@code ID_NOT_IN_SET} 并转成澄清。这里只把这份结构化投影并入对账集，
+     * 不放宽到全清单；execute 全链仍做清单 / 策略 / RLS 重校验。
+     */
+    public IntegrityResult check(Map<String, Object> proposal, RetrievalOutcome outcome,
+                                 String userUtterance, RequestContext context,
+                                 Set<String> contractCandidateIds,
+                                 Set<String> inheritedAssetIds) {
         // 1. 用户话术注入启发（先于 Proposal 检查：话术污染影响整轮）
         //    T51-2（P2，smoke-runner-v2 实测发现）：审计统一走 injectionCheckpoint（M4 冻结
         //    审计路径，AuditBackedInjectionCheckpoint 构造合法 JSON）——原冗余 audit() 直写
@@ -89,8 +117,13 @@ public class ProposalIntegrityService {
             return new IntegrityResult(false, IntegrityAction.REJECT, "FORBIDDEN_FIELD");
         }
 
-        // 3. 候选集对账：sub_intents 的全部资产 ID 必须在本轮候选集（dslReady ∪ fuzzyOnly ∪ prevTurn）
+        // 3. 候选集对账：sub_intents 的全部资产 ID 必须在本轮候选集
+        //    （dslReady ∪ fuzzyOnly ∪ prevTurn ∪ prevTurn 投影已执行资产）
         Set<String> inScope = candidateIds(outcome);
+        if (inheritedAssetIds != null && !inheritedAssetIds.isEmpty()) {
+            inScope = new java.util.HashSet<>(inScope);
+            inScope.addAll(inheritedAssetIds);
+        }
         Object raw = proposal.get("sub_intents");
         if (raw instanceof List<?> subIntents) {
             for (Object item : subIntents) {
@@ -99,7 +132,8 @@ public class ProposalIntegrityService {
                 }
                 @SuppressWarnings("unchecked")
                 Map<String, Object> subIntent = (Map<String, Object>) box;
-                String violation = firstOutOfScopeId(subIntent, inScope);
+                String violation = firstOutOfScopeId(subIntent, inScope,
+                        contractCandidateIds == null ? Set.of() : contractCandidateIds);
                 if (violation != null) {
                     String detail = "out-of-set id: " + violation;
                     injectionCheckpoint.onSuspected(context,
@@ -118,7 +152,8 @@ public class ProposalIntegrityService {
                 box.containsKey(field) && !isNullField(box.get(field)));
     }
 
-    private String firstOutOfScopeId(Map<String, Object> subIntent, Set<String> inScope) {
+    private String firstOutOfScopeId(Map<String, Object> subIntent, Set<String> inScope,
+                                     Set<String> contractCandidateIds) {
         // T3.5：vqr_id 先于 metric_id——VQR 命中提案引用模板而非散装资产
         String vqrId = stringOf(subIntent.get("vqr_id"));
         if (vqrId != null && !inScope.contains(vqrId)) {
@@ -141,11 +176,11 @@ public class ProposalIntegrityService {
                 }
             }
         }
-        // LOOKUP 属性投影也是候选资产；伪造 attributes 不得进入 DSL。
+        // LOOKUP 属性投影也是候选资产；若本轮检索未命中简称，可回退到输出契约授权词表。
         if (subIntent.get("attributes") instanceof List<?> attributes) {
             for (Object attribute : attributes) {
                 String id = attribute instanceof String s ? s : null;
-                if (id != null && !inScope.contains(id)) {
+                if (id != null && !inScope.contains(id) && !contractCandidateIds.contains(id)) {
                     return id;
                 }
             }

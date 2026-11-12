@@ -313,27 +313,41 @@ public class AskOrchestrationService {
                 variantHint);
 
         // 2. Proposal：LLM（enabled 且可用）或确定性降级；近似同意轮强制 query 组装（T3.3）
-        Map<String, Object> proposal =
-                proposeWithFallback(context, runId, utterance, outcome, consumed,
-                        approxSkillId != null);
+        // 校验上下文必须与模型输入一致：多轮投影输入含服务端注入标记，不能退回原始短话术。
+        // 投影是否注入只按服务端状态传值，不做文本匹配（标记串用户也能写出来）。
+        boolean projectionInjected = projection != null && !projection.isEmpty();
+        String contractQuestion = modelUserPrompt(utterance, projection);
+        Map<String, Object> proposal;
+        ProposalIntegrityService.IntegrityResult integrity;
+        try {
+            proposal = proposeWithFallback(context, runId, utterance, outcome, projection,
+                    contractQuestion, consumed, approxSkillId != null);
 
-        // 3. 合同校验（确定性/LLM 输出同闸门）+ 来源完整性对账
-        IntentProposalContract.ValidationResult validation =
-                contract().validate(JsonUtils.toJsonString(proposal), utterance);
-        if (!validation.valid()) {
-            // 确定性输出也必须过合同；不过即编排缺陷，fail-closed 拒答
-            log.warn("[doExecute][proposal 违反输出契约: {}]", validation.violations());
-            return outOfCapability(context, "PROPOSAL_CONTRACT_INVALID");
+            // 3. 合同校验（确定性/LLM 输出同闸门）+ 来源完整性对账。
+            IntentProposalContract.ValidationResult validation =
+                    contract().validate(JsonUtils.toJsonString(proposal), contractQuestion, projectionInjected);
+            if (!validation.valid()) {
+                // 确定性输出也必须过合同；不过即编排缺陷，fail-closed 拒答
+                log.warn("[doExecute][proposal 违反输出契约: {}]", validation.violations());
+                return outOfCapability(context, "PROPOSAL_CONTRACT_INVALID");
+            }
+            integrity = integrityService.check(proposal, outcome, utterance, context,
+                    contract().candidateAssetIds(contractQuestion),
+                    projection == null ? java.util.Set.of() : projection.assetIds());
+        } finally {
+            // prime 生命周期覆盖到对账结束（O-3）：二次校验与模型修复轮同口径，
+            // 都是「本轮检索收敛 + 投影继承」词表；提前清理会让这里回退全量授权词表。
+            candidateProvider.clearPrimed(contractQuestion);
+            candidateProvider.clearPrimed();
         }
-        ProposalIntegrityService.IntegrityResult integrity =
-                integrityService.check(proposal, outcome, utterance, context);
+        boolean degraded = Boolean.TRUE.equals(proposal.get("degraded"));
         if (!integrity.passed()) {
             if (integrity.action() == ProposalIntegrityService.IntegrityAction.REJECT) {
                 return outOfCapability(context, integrity.reason());
             }
             // CLARIFY：候选集外 ID → 用瀑布澄清候选救一次
             if (!outcome.clarifications().isEmpty()) {
-                return clarificationTerminal(context, outcome);
+                return clarificationTerminal(context, outcome, degraded);
             }
             return outOfCapability(context, integrity.reason());
         }
@@ -382,7 +396,7 @@ public class AskOrchestrationService {
             case "query" -> executeQueryTerminal(context, runId, proposal, outcome, utterance,
                     outcome.scenario());
             case "composite" -> executeCompositeTerminal(context, runId, proposal);
-            case "clarification" -> clarificationTerminal(context, outcome);
+            case "clarification" -> clarificationTerminal(context, outcome, degraded);
             case "discovery" -> discoveryTerminal(context, outcome);
             default -> outOfCapability(context, "OUT_OF_SCOPE");
         };
@@ -435,17 +449,20 @@ public class AskOrchestrationService {
     /** LLM 提案（enabled 时）；模型故障降级确定性提案（对外声明 degraded）——不悬挂、不无限重试。 */
     private Map<String, Object> proposeWithFallback(RequestContext context, String runId,
                                                     String utterance, RetrievalOutcome outcome,
+                                                    SessionProjection projection, String modelPrompt,
                                                     boolean clarificationConsumed,
                                                     boolean approximationConsumed) {
         if (agentProperties.isEnabled()) {
             OntosAgentFactory factory = agentFactoryProvider.getIfAvailable();
             if (factory != null) {
                 // E-7 词表收敛：提示词候选集 = 本轮对账口径（检索候选）；
-                // prime/clear 必须同线程成对（ask 执行线程内），线程池复用前清掉防串话。
-                // utterance 同时注册异步修复轮快照：Reactor 线程拿不到请求 ThreadLocal。
-                candidateProvider.prime(outcome, utterance);
+                // prime/clear 必须同线程成对，由 doExecute 在「提案 + 二次校验 + 对账」之后统一清理
+                // （O-3：提前清理会让二次校验回退全量授权词表，与模型可见词表不同口径）。
+                // modelPrompt 同时注册异步修复轮快照：Reactor 线程拿不到请求 ThreadLocal。
+                candidateProvider.prime(outcome, modelPrompt, projection);
                 try {
-                    Map<String, Object> llmProposal = callModel(factory, utterance);
+                    Map<String, Object> llmProposal = callModel(factory, modelPrompt,
+                            projection != null && !projection.isEmpty());
                     if (llmProposal != null) {
                         return llmProposal;
                     }
@@ -453,9 +470,6 @@ public class AskOrchestrationService {
                     log.warn("[proposeWithFallback][模型故障，降级确定性提案: {}]", ex.toString());
                     eventService.emit(runId, AskEventService.TEXT_MESSAGE,
                             Map.of("delta", "（模型暂不可用，已切换确定性检索模式）"));
-                } finally {
-                    candidateProvider.clearPrimed(utterance);
-                    candidateProvider.clearPrimed();
                 }
             }
         }
@@ -463,22 +477,39 @@ public class AskOrchestrationService {
                 approximationConsumed);
     }
 
+    /**
+     * 构造模型用户输入：多轮追问只给增量话术时，模型必须能看到上一轮已采纳语义槽位。
+     * 投影只含语义 ID 与相对时间，不含物理表列；服务端仍负责最终 DSL 组装与安全闸门。
+     */
+    static String modelUserPrompt(String utterance, SessionProjection projection) {
+        if (projection == null || projection.isEmpty()) {
+            return utterance == null ? "" : utterance;
+        }
+        return IntentProposalContract.SESSION_PROJECTION_MARKER
+                + "（语义槽位，供多轮继承；只含候选 ID，不代表本轮必须全部保留）："
+                + JsonUtils.toJsonString(projection.toJson())
+                + "\n当前用户话术：" + (utterance == null ? "" : utterance)
+                + "\n请按系统提示词的多轮继承规则合并本轮完整语义槽位。";
+    }
+
     /** 调用模型产出意图提案；修复反馈逐轮注入，超限返回契约兜底拒答（fail-closed）。 */
-    private Map<String, Object> callModel(OntosAgentFactory factory, String utterance) {
+    private Map<String, Object> callModel(OntosAgentFactory factory, String modelPrompt,
+                                          boolean projectionInjected) {
         // 调用来源在请求线程解析（T5.1）：模型流可能在别的线程完成，不能依赖那里的 ThreadLocal
         var agent = factory.create(llmCallOrigin());
         List<IntentProposalContract.Violation> lastViolations = List.of();
         for (int attempt = 0; attempt <= agentProperties.getOutputMaxRepairs(); attempt++) {
             Msg prompt = lastViolations.isEmpty()
-                    ? Msg.builder().role(MsgRole.USER).textContent(utterance).build()
+                    ? Msg.builder().role(MsgRole.USER).textContent(modelPrompt).build()
                     : Msg.builder().role(MsgRole.USER)
                             .textContent(IntentProposalContract.renderRepairFeedback(lastViolations)
-                                    + "\n\n用户问题：" + utterance)
+                                    + "\n\n当前输入：" + modelPrompt)
                             .build();
             Msg reply = agent.call(prompt)
                     .block(java.time.Duration.ofMillis(MODEL_TIMEOUT_MILLIS));
             String output = textOf(reply);
-            IntentProposalContract.ValidationResult result = contract().validate(output, utterance);
+            IntentProposalContract.ValidationResult result =
+                    contract().validate(output, modelPrompt, projectionInjected);
             if (result.valid()) {
                 return result.parsed();
             }
@@ -570,7 +601,7 @@ public class AskOrchestrationService {
             log.info("[complexParams][unresolved: {}]", paramResolution.reason());
             return outcome.clarifications().isEmpty()
                     ? outOfCapability(context, paramResolution.reason())
-                    : clarificationTerminal(context, outcome);
+                    : clarificationTerminal(context, outcome, Boolean.TRUE.equals(proposal.get("degraded")));
         }
         dsl = paramResolution.dsl();
 
@@ -792,8 +823,17 @@ public class AskOrchestrationService {
 
     private Map<String, Object> clarificationTerminal(RequestContext context,
                                                       RetrievalOutcome outcome) {
+        return clarificationTerminal(context, outcome, false);
+    }
+
+    /**
+     * 澄清终态（O-2）：degraded 必须从提案透传——模型超时后确定性降级也会走到澄清，
+     * 不透传会让评测侧把降级路径当成模型主动澄清。
+     */
+    private Map<String, Object> clarificationTerminal(RequestContext context,
+                                                      RetrievalOutcome outcome, boolean degraded) {
         var payload = outcome.clarifications().isEmpty() ? null : outcome.clarifications().get(0);
-        return terminalAssembler.clarification(context, payload);
+        return terminalAssembler.clarification(context, payload, degraded);
     }
 
     private Map<String, Object> discoveryTerminal(RequestContext context,

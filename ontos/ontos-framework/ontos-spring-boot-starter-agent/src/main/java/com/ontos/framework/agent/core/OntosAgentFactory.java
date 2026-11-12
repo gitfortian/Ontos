@@ -144,7 +144,9 @@ public class OntosAgentFactory {
                 vocabulary.addAll(provider.candidateVocabulary(userQuestion));
             }
             return java.util.List.copyOf(vocabulary);
-        });
+        // 投影注入判定只认 Provider 的服务端状态：修复轮在异步线程跑，靠问题文本匹配会误判。
+        }, (String userQuestion) -> providers.stream()
+                .anyMatch(provider -> provider.projectionInjected(userQuestion)));
     }
 
     /** 系统提示词 + 候选集。候选集为空时保持提示词原样，不追加空段落。 */

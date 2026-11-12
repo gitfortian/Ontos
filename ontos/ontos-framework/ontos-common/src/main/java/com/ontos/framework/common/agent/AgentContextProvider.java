@@ -41,4 +41,15 @@ public interface AgentContextProvider {
         return candidateVocabulary();
     }
 
+    /**
+     * 该用户问题是否由服务端注入了会话投影（多轮继承）。
+     *
+     * <p>「泛化问法必须澄清」的机械判定不能靠提示词文本特征推断：投影前缀会出现在模型输入里，
+     * 但用户话术同样可能包含同名字符串。默认 {@code false}；实现方只在本轮确实 prime 了
+     * 服务端结构化投影（上一轮已执行 DSL 的语义槽位）时返回 {@code true}。
+     */
+    default boolean projectionInjected(String userQuestion) {
+        return false;
+    }
+
 }

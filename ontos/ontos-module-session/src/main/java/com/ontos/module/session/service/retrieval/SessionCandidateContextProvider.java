@@ -1,6 +1,8 @@
 package com.ontos.module.session.service.retrieval;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -12,6 +14,7 @@ import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.core.SemanticManifest;
 import com.ontos.module.ontology.service.manifest.ManifestService;
+import com.ontos.module.session.service.session.SessionProjection;
 import com.ontos.module.system.service.policy.PolicySnapshotService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
@@ -52,13 +55,20 @@ public class SessionCandidateContextProvider implements AgentContextProvider {
     private final ThreadLocal<RetrievalOutcome> primedOutcome = new ThreadLocal<>();
 
     /**
+     * E-7 多轮继承：服务端注入模型输入的会话投影资产 ID。
+     * 只来自 {@link SessionProjection}（上一轮已通过全链闸门执行的 DSL），不接受用户文本解析。
+     */
+    private final ThreadLocal<Set<String>> primedProjectionIds = new ThreadLocal<>();
+
+    /**
      * 问题感知候选快照：AgentScope 修复轮运行在异步线程，拿不到请求线程 ThreadLocal。
-     * key=用户问题 hash，value=本轮检索结果 + prime 时已解析的授权键；用后即清。
+     * key=用户问题 hash，value=本轮检索结果 + prime 时已解析的授权键 + 投影继承资产；用后即清。
      */
     private final java.util.concurrent.ConcurrentMap<Integer, PrimedCandidate> primedByQuestion =
             new java.util.concurrent.ConcurrentHashMap<>();
 
-    private record PrimedCandidate(RetrievalOutcome outcome, Set<String> authorizedKeys) {
+    private record PrimedCandidate(RetrievalOutcome outcome, Set<String> authorizedKeys,
+                                   Set<String> projectionAssetIds) {
     }
 
     public SessionCandidateContextProvider(ManifestService manifestService,
@@ -74,7 +84,21 @@ public class SessionCandidateContextProvider implements AgentContextProvider {
 
     /** 同时为异步修复轮建立问题感知候选快照；question 为空时只保留同线程 prime。 */
     public void prime(RetrievalOutcome outcome, String question) {
+        primeInternal(outcome, question, Set.of());
+    }
+
+    /**
+     * 多轮追问：把服务端注入的会话投影资产一并登记为本轮已授权继承项。
+     * 提示词要求模型「按投影合并完整语义槽位」，输出契约却只允许引用本轮检索候选；
+     * 不并入会让继承的 metric / dimension 必然触发 ID_NOT_IN_CANDIDATES。
+     */
+    public void prime(RetrievalOutcome outcome, String question, SessionProjection projection) {
+        primeInternal(outcome, question, projectionAssetIds(projection));
+    }
+
+    private void primeInternal(RetrievalOutcome outcome, String question, Set<String> projectionIds) {
         prime(outcome);
+        primedProjectionIds.set(projectionIds);
         if (question == null || question.isBlank()) {
             return;
         }
@@ -83,8 +107,8 @@ public class SessionCandidateContextProvider implements AgentContextProvider {
             return;
         }
         try {
-            primedByQuestion.put(question.hashCode(),
-                    new PrimedCandidate(outcome, policySnapshotService.authorizedAssetIds(context)));
+            primedByQuestion.put(question.hashCode(), new PrimedCandidate(outcome,
+                    policySnapshotService.authorizedAssetIds(context), projectionIds));
         } catch (RuntimeException ex) {
             log.warn("[prime][异步候选授权解析失败，修复轮将回退全量: {}]", ex.toString());
         }
@@ -93,6 +117,7 @@ public class SessionCandidateContextProvider implements AgentContextProvider {
     /** 用后即清，防止线程池复用串话。 */
     public void clearPrimed() {
         primedOutcome.remove();
+        primedProjectionIds.remove();
     }
 
     public void clearPrimed(String question) {
@@ -124,13 +149,28 @@ public class SessionCandidateContextProvider implements AgentContextProvider {
             return List.of();
         }
         RetrievalOutcome outcome = primed.outcome();
+        List<CandidateAsset> base;
         if (retrievalScopeEnabled() && outcome != null && !outcome.dslReady().isEmpty()) {
             List<CandidateAsset> scoped = vocabularyFromOutcome(manifest, outcome, primed.authorizedKeys());
-            if (!scoped.isEmpty()) {
-                return List.copyOf(scoped);
-            }
+            base = scoped.isEmpty() ? fullVocabulary(manifest, primed.authorizedKeys())
+                    : List.copyOf(scoped);
+        } else {
+            base = fullVocabulary(manifest, primed.authorizedKeys());
         }
-        return fullVocabulary(manifest, primed.authorizedKeys());
+        return withProjectionAssets(manifest, base, primed.projectionAssetIds(), primed.authorizedKeys());
+    }
+
+    @Override
+    public boolean projectionInjected(String userQuestion) {
+        if (userQuestion == null || userQuestion.isBlank()) {
+            return false;
+        }
+        PrimedCandidate primed = primedByQuestion.get(userQuestion.hashCode());
+        if (primed != null) {
+            return !primed.projectionAssetIds().isEmpty();
+        }
+        Set<String> threadBound = primedProjectionIds.get();
+        return threadBound != null && !threadBound.isEmpty();
     }
 
     @Override
@@ -153,14 +193,73 @@ public class SessionCandidateContextProvider implements AgentContextProvider {
         }
         // E-7 收敛口径：本轮检索已有可执行候选时，词表收敛到对账口径（提示词 ⊆ 对账集）
         RetrievalOutcome primed = primedOutcome.get();
+        List<CandidateAsset> base;
         if (retrievalScopeEnabled() && primed != null && !primed.dslReady().isEmpty()) {
             List<CandidateAsset> scoped = vocabularyFromOutcome(manifest, primed, authorizedKeys);
-            if (!scoped.isEmpty()) {
-                return List.copyOf(scoped);
-            }
+            base = scoped.isEmpty() ? fullVocabulary(manifest, authorizedKeys) : List.copyOf(scoped);
             // 检索候选解析失败（清单漂移等）→ 回退全量，不给模型一个空词表
+        } else {
+            base = fullVocabulary(manifest, authorizedKeys);
         }
-        return fullVocabulary(manifest, authorizedKeys);
+        Set<String> projectionIds = primedProjectionIds.get();
+        return withProjectionAssets(manifest, base,
+                projectionIds == null ? Set.of() : projectionIds, authorizedKeys);
+    }
+
+    /**
+     * 多轮继承资产并入词表：只放行服务端投影里「上一轮已执行」的 ID，且必须同时满足
+     * ① 当前生效清单能解析到该资产；② 当前策略快照仍授权该资产。
+     * 两者任一不满足即丢弃（fail-closed），不把词表放宽到全清单、不解析用户文本。
+     */
+    private List<CandidateAsset> withProjectionAssets(PublishedManifest manifest,
+                                                      List<CandidateAsset> base,
+                                                      Set<String> projectionIds,
+                                                      Set<String> authorizedKeys) {
+        if (projectionIds == null || projectionIds.isEmpty()) {
+            return base;
+        }
+        List<CandidateAsset> merged = new ArrayList<>(base);
+        Set<String> seen = new LinkedHashSet<>();
+        base.forEach(asset -> seen.add(asset.assetId()));
+        SemanticManifest semantic = manifest.getSemantic();
+        OntologySnapshot ontology = manifest.getOntology();
+        if (semantic != null && semantic.getMetrics() != null) {
+            semantic.getMetrics().forEach(metric -> addProjectionAsset(merged, seen, projectionIds,
+                    authorizedKeys, "metric", metric.getId(), metric.getName(), metric.getAliases()));
+        }
+        if (semantic != null && semantic.getDimensions() != null) {
+            semantic.getDimensions().forEach(dimension -> addProjectionAsset(merged, seen, projectionIds,
+                    authorizedKeys, "dimension", dimension.getId(), dimension.getName(),
+                    dimension.getAliases()));
+        }
+        if (ontology != null && ontology.getProperties() != null) {
+            ontology.getProperties().forEach(property -> addProjectionAsset(merged, seen, projectionIds,
+                    authorizedKeys, "property", property.getId(), property.getName(),
+                    property.getAliases()));
+        }
+        if (ontology != null && ontology.getConcepts() != null) {
+            ontology.getConcepts().forEach(concept -> addProjectionAsset(merged, seen, projectionIds,
+                    authorizedKeys, "entity", concept.getId(), concept.getName(), concept.getAliases()));
+        }
+        return List.copyOf(merged);
+    }
+
+    private void addProjectionAsset(List<CandidateAsset> merged, Set<String> seen,
+                                    Set<String> projectionIds, Set<String> authorizedKeys,
+                                    String assetKey, String assetId, String displayName,
+                                    Collection<String> aliases) {
+        if (assetId == null || !projectionIds.contains(assetId)
+                || !authorizedKeys.contains(assetKey + "|" + assetId)
+                || !seen.add(assetId)) {
+            return;
+        }
+        merged.add(new CandidateAsset(assetId, displayName,
+                aliases == null ? Set.of() : Set.copyOf(aliases)));
+    }
+
+    /** 投影语义 ID 全集统一由 {@link SessionProjection#assetIds()} 提供，避免两处口径漂移。 */
+    private static Set<String> projectionAssetIds(SessionProjection projection) {
+        return projection == null ? Set.of() : projection.assetIds();
     }
 
     /** 全量授权词表：metric / dimension / entity / property / published VQR。 */

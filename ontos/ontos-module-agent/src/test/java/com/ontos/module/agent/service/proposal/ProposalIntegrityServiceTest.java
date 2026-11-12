@@ -240,6 +240,48 @@ class ProposalIntegrityServiceTest {
         assertTrue(result.passed());
     }
 
+    // ---------- E-7 多轮投影继承对账 ----------
+
+    @Test
+    void inheritedProjectionAssetsPassIntegrity() {
+        // 本轮「再加上渠道」只命中 dim.channel；上一轮投影里的 gmv / customer_tier / order_date
+        // 由服务端结构化投影并入对账集，合并语义的 query 提案不得被判 ID_NOT_IN_SET。
+        RetrievalOutcome incrementalOutcome = new RetrievalOutcome(
+                List.of(new RetrievedCandidate("dim.channel", "dimension", "渠道", 2, false, 61)),
+                List.of(), List.of(), List.of(), false, "hash");
+        Map<String, Object> intent = queryIntent("metric.gmv");
+        intent.put("dimensions", List.of("dim.customer_tier", "dim.order_date", "dim.channel"));
+        var result = service.check(proposal(intent), incrementalOutcome, "再加上渠道", context,
+                Set.of(), Set.of("metric.gmv", "dim.customer_tier", "dim.order_date"));
+        assertTrue(result.passed(), "投影继承的指标/维度必须通过对账: " + result.reason());
+    }
+
+    @Test
+    void nonInheritedAssetStillRejectedWithProjection() {
+        // 投影集合之外的资产不得借多轮通道混入：fail-closed 不降低。
+        RetrievalOutcome incrementalOutcome = new RetrievalOutcome(
+                List.of(new RetrievedCandidate("dim.channel", "dimension", "渠道", 2, false, 61)),
+                List.of(), List.of(), List.of(), false, "hash");
+        Map<String, Object> intent = queryIntent("metric.revenue");
+        var result = service.check(proposal(intent), incrementalOutcome, "再加上渠道", context,
+                Set.of(), Set.of("metric.gmv", "dim.customer_tier"));
+        assertFalse(result.passed(), "非投影资产仍须拦截");
+        assertEquals(ProposalIntegrityService.IntegrityAction.CLARIFY, result.action());
+        assertTrue(result.reason().contains("metric.revenue"));
+    }
+
+    @Test
+    void fiveArgCheckKeepsReconciliationScopeUnchanged() {
+        // 兼容入口（无投影）行为不变：投影资产不在本轮检索候选 → 仍判越界，
+        // 且不得隐式放宽到契约授权词表。
+        RetrievalOutcome incrementalOutcome = new RetrievalOutcome(
+                List.of(new RetrievedCandidate("dim.channel", "dimension", "渠道", 2, false, 61)),
+                List.of(), List.of(), List.of(), false, "hash");
+        var result = service.check(proposal(queryIntent("metric.gmv")), incrementalOutcome,
+                "再加上渠道", context, Set.of("metric.gmv"));
+        assertFalse(result.passed(), "5 参重载不得隐式放宽到契约词表");
+    }
+
     private Map<String, Object> queryIntent(String metricId) {
         Map<String, Object> intent = new LinkedHashMap<>();
         intent.put("metric_id", metricId);

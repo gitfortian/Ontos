@@ -56,6 +56,30 @@ public record SessionProjection(
         return json;
     }
 
+    /**
+     * 投影内的语义资产 ID 全集（不含时间表达）。多轮追问时由服务端注入模型输入，
+     * 编排层据此把「上一轮已执行资产」并入本轮授权词表与完整性对账集——
+     * 只认这份结构化投影，不从用户文本解析，也不放宽到全清单。
+     */
+    public java.util.Set<String> assetIds() {
+        java.util.Set<String> ids = new java.util.LinkedHashSet<>();
+        if (metricIds != null) {
+            ids.addAll(metricIds);
+        }
+        if (dimensionIds != null) {
+            ids.addAll(dimensionIds);
+        }
+        if (propertyIds != null) {
+            ids.addAll(propertyIds);
+        }
+        if (entityId != null && !entityId.isBlank()) {
+            ids.add(entityId);
+        }
+        ids.remove(null);
+        ids.remove("");
+        return java.util.Set.copyOf(ids);
+    }
+
     /** 投影是否为空（首轮或清空后）：指代消解仅在非空投影上生效。 */
     public boolean isEmpty() {
         return metricIds.isEmpty() && dimensionIds.isEmpty() && propertyIds.isEmpty()
