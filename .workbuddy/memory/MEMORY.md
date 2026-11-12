@@ -46,10 +46,12 @@ YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路
 - 附条件（M7）：纠正样本自动回流、VQR paramsSchema 运行时约束、复合 RuntimeException 子级隔离、Skill capabilities 发布期闸门
 - 基线：mvn 631/0、live 7/0/0、docs 136/1234、OBL-M7 done（deferred 0）
 
-## B0 语义模型三层化（2026-11-12 立项评估）
-- 文档：`docs/04-specs/语义模型三层化-影响分析-v0.1.md`（草稿，待负责人定档）。结论 35 条清单：**破坏 0 / 需论证 6 / 需设计 1 / 平移 13**（只统计 §4–§5 的 20 条判定项）；按「破坏 ≤3」→ 建议并入 M8 前置、单独验收。
-- 三层 = 本体（Property 唯一持物理映射）→ 指标/维度（objectId+propertyId）→ 物理。两条工程约束：**E1 SQL 逐字等价**（Golden 三份比对）、**E2 迁移按物理列归属不按业务名**（`dim.channel` = `orders.channel` ≠ `channel.name` 陷阱）。
-- **v1.4 §5.1 实为四层**（Ontology→Mapping→**Model**→Metric/Dimension），B0 压成三层省略 Model；须在 B0 规格写为非目标，触发点=多事实表同指标或第二种方言。
+## B0 语义模型三层化（2026-11-12 **已定档**）
+- 文档：`docs/04-specs/语义模型三层化-影响分析-v0.2.md`（已定档；v0.1 归档）。35 条清单：**破坏 0 / 需论证 6 / 需设计 1 / 平移 13**（只统计 §4–§5 的 20 条判定项）。
+- **D-1 解耦**：B0 与 M8 解耦、独立排期独立验收——M8 是上线与规模化，须等产品真正化；判据推荐档「并入 M8 前置」**未被采用**（显式决策，已留痕）。排期建议 A 立即启动（C-1/C-2 暂停窗口期，评测只锚 v20 一次）。
+- **D-2 ADR-0021 不立**：与 M4 `policy_snapshot`（换角色走快照新版本、不改表结构）+ M6 catalog 资产生命周期重叠；四眼审批需求出现时再立。
+- **D-3 Model 层**：B0 非目标、**不预留空段**；`Metric{objectId,propertyId}` 与 Model 正交，未来只给 Concept 加 `primaryModelId`。
+- 三层 = 本体（Property 唯一持物理映射）→ 指标/维度（objectId+propertyId）→ 物理。约束：**E1 SQL 逐字等价**（Golden 三份比对）、**E2 迁移按物理列归属不按业务名**（`dim.channel`=`orders.channel`≠`channel.name`）。
+- v1.4 §5.1 实为四层（含 Model），B0 压成三层，故定性「回归方案定义」而非架构变更。
 - v19 需补 4 属性：`property.order.{customer_id,refund_amount,channel,region}`；前两者有同义不同体命名冲突，须入迁移验收。
 - 治理坑：新建进度快照**必须带并行义务点名节**，否则 `check-parallel-obligations.mjs` 直接 FAIL。
-- ADR-0021（平台四角色/资产审批发布）**未立档**，本分析仅文字引用。
