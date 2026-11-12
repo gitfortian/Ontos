@@ -17,6 +17,10 @@
 # AgentScope 运行时工作区
 .agentscope/workspace/
 
+# WorkBuddy 本地运行时与临时产物
+.workbuddy/runtime/
+.workbuddy/tmp/
+
 # 操作系统
 .DS_Store
 Thumbs.db
