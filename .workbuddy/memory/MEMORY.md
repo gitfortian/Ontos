@@ -59,3 +59,5 @@ YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路
 - **检索索引含 property**：`MentionIndex`（session L55–90）索引 metric/dimension/concept/**property** 四类 name+aliases → 新属性命名冲突是硬约束（`ManifestCandidateContextProvider` 只读 metric/dimension，不能代表全局）。
 - **词表判据口径**：`termIndex` 是 `Map<String,List<IndexEntry>>`，**设计上一对多**，不能要求「唯一命中」。真冲突 = 同 term 指向**不同物理列**；v19 基线 2 处（「渠道」`orders.channel` vs `channel.name`、「渠道ID」）。维度与其底层属性**同列同名是惯例**（3 组 6 term），允许。
 - cohort 路径不受三层化影响：retention FROM = `eventTable`（L434/L477）、attribution FROM = CTE（L688）；`conceptByTable` 只读 property。
+- **错误码口径**：结构校验只产 `Violation`（`PublishServiceImpl` L95 汇总抛 `PUBLISH_VALIDATION_FAILED=1_001_000_007`），**不要为 R1–R7 新增专用码**；编译侧才需专用码（query 段 `1_002_xxx`，当前最大 046，B0 拟新增 `OBJECT_TABLE_MISMATCH=1_002_000_047`）。
+- **D-3 对象级计数**：元模型 + 编译都实现（负责人已拍板），但不进迁移、无 Golden，单测断言 `COUNT(identity)` / `COUNT(DISTINCT identity)`——不接受"编译报未实现"（发布通过的资产必须可查）。
