@@ -68,4 +68,8 @@ YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路
 - **`metric.order_count` 是 `COUNT_DISTINCT`**（不是 COUNT），E1 靠列相同成立——曾误判为 COUNT 并做错订正，被 W4 测试推翻。
 - **R7 发布侧不可达**（`validateOntology` 前置覆盖），真正生效在编译侧。
 - **VQR 失效会清空 vqrs**：v20 发布必移除 `vqr.sales.daily_gmv_by_channel`，`scenario.sales.defaultVqrIds` 悬空，发布后需重建 VQR + 重锚 golden。
-- 待办：W5 确认发布（有副作用，需负责人点头）、Golden 三份实跑、回滚演练、旧形态退役登记。
+- **W5 已在隔离库 `ontos_v2` 全链验证**：Golden 三份 check 全过（27+6+10，0 失败）、回滚可用；生产库 `ontos` 未动。
+- **发布 ≠ 激活**：`POST /publish` 只落库，`POST /{id}/activate` 才切清单；VQR 失效分析读 active payload，active 空时不触发。
+- **`m3-golden.mjs`/`m6-golden.mjs` 默认 backfill**，必须显式 `--mode=check`，否则覆盖 Golden。
+- 新库初始化三件事：Flyway 自动建表、queryds 跑 `db/queryds/V1__rls_demo.sql`、**手动 `CREATE EXTENSION pgcrypto`**（否则 `digest()` 不存在）。
+- 待办：生产库发布时点（需负责人决定）、VQR 重建与 scenario 引用核对、旧形态退役登记。
