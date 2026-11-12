@@ -1,0 +1,63 @@
+{
+  "setId": "b0-vqr-chain-verify",
+  "version": "v1",
+  "generatedAt": "2026-11-12",
+  "purpose": "验证 v21 上线后 scenario.sales 的 VQR 引用链闭合且运行时可达；顺带发现审计扩展列未写入",
+  "manifestId": "2026.11.12-twenty-first-r2",
+  "staticChain": {
+    "vqrs": [
+      {
+        "vqrId": "vqr.sales.daily_gmv_by_channel",
+        "status": "published",
+        "dslTemplate": { "metric_id": "metric.gmv", "dimensions": ["dim.channel_name"], "time_dimension": "dim.order_date", "time_expression_raw": "近 ${param.days} 天" },
+        "goldenRef": "golden:m6-golden-v1#golden-gmv-by-channel"
+      }
+    ],
+    "scenarioRefs": {
+      "scenario.sales": ["vqr.sales.daily_gmv_by_channel"],
+      "scenario.sales.auto": ["vqr.sales.daily_gmv_by_channel"]
+    },
+    "conclusion": "两个场景引用的 VQR 均存在且 published，引用闭合；VQR 的 dimensions 已指向 dim.channel_name（渠道对象维度）"
+  },
+  "runtimeVerify": {
+    "endpoint": "POST http://127.0.0.1:8091/api/v1/ask/runs",
+    "utterance": "近 7 天各渠道成交金额",
+    "response": {
+      "terminal": "query",
+      "degraded": false,
+      "rowCount": 2,
+      "rows": [
+        { "value": 3499, "dim.channel_name": "线上" },
+        { "value": 129, "dim.channel_name": "线下" }
+      ]
+    },
+    "audit": {
+      "action": "VQR_HIT",
+      "recordedAt": "2026-11-12 15:24:26.896502+08",
+      "dsl": "{\"vqrId\": \"vqr.sales.daily_gmv_by_channel\", \"params\": {\"days\": \"7\"}, \"vqrVersion\": \"1.0.0\"}"
+    },
+    "conclusion": "提问直接命中 VQR 并出结果（无澄清、无降级），分组列是 dim.channel_name，即真实走了 orders JOIN channel 的双对象路径"
+  },
+  "defect": {
+    "id": "AUDIT-EXT-COLUMNS-EMPTY",
+    "severity": "P2（审计可追溯性打折，不影响查询功能）",
+    "symptom": "audit_log 表的 vqr_id / vqr_version / scenario_id / scenario_version / scenario_entry_mode / scenario_entry_source / scenario_confirm_by_user / scenario_recommendation_confidence / skill_id / skill_version / approximated_from_mode 共 11 个扩展列全为空",
+    "evidence": "select count(*) total, count(nullif(vqr_id,'')) with_vqr_id from audit_log where action='VQR_HIT' → 14 | 0",
+    "rootCause": [
+      "AuditService 的 INSERT 语句只写 22 列（request_id … sensitive_counters_delta），不含任何扩展列",
+      "AuditLogCreateReqDTO 没有 vqrId / vqrVersion / scenarioId / skillId 等字段",
+      "auditVqrHit 只把 vqrId/vqrVersion/params 塞进 dsl JSON，未设专用列"
+    ],
+    "impact": [
+      "按 vqr_id 统计命中次数、按 scenario_id 统计路由分布都要解析 dsl JSON",
+      "M6 定义的审计维度（场景入口模式/来源/用户确认/推荐置信度）在库里不可查",
+      "看板与运营报表无法按这些列过滤"
+    ],
+    "fixScope": [
+      "AuditService：INSERT 增补 11 列 + 参数绑定",
+      "AuditLogCreateReqDTO：增补对应字段",
+      "写入端补 set：QueryServiceImpl.auditVqrHit、auditSkill、场景路由审计"
+    ],
+    "status": "已登记，未修（属 M6 审计扩展范围，不在 B0 内）"
+  }
+}
