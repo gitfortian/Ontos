@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.ontos.module.ontology.core.OntologyPathPlanner;
+import com.ontos.module.ontology.core.BindingResolver;
 import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.core.SemanticManifest;
@@ -42,17 +43,20 @@ public class JoinPathResolver {
         dsl.setResolvedJoins(new ArrayList<>());
         SemanticManifest semantic = manifest.getSemantic();
         SemanticManifest.Metric metric = semantic.requireMetric(dsl.getMetricId());
-        String rootTable = metric.getTable();
+        // B0：根的取表按绑定形态解析（v19 直取 table，v20 由聚合属性推导并断言 = 对象主表）
+        BindingResolver binding = BindingResolver.of(manifest);
+        String rootTable = binding.tableOf(metric);
 
         Set<String> targetTables = new LinkedHashSet<>();
         for (String dimensionId : nullToEmpty(dsl.getDimensions())) {
-            addCrossTable(semantic.requireDimension(dimensionId).getTable(), rootTable, targetTables);
+            addCrossTable(binding.tableOf(semantic.requireDimension(dimensionId)), rootTable, targetTables);
         }
         for (QueryDsl.Filter filter : nullToEmpty(dsl.getFilters())) {
-            addCrossTable(semantic.requireDimension(filter.getFieldId()).getTable(), rootTable, targetTables);
+            addCrossTable(binding.tableOf(semantic.requireDimension(filter.getFieldId())),
+                    rootTable, targetTables);
         }
         if (dsl.getTimeRange() != null && dsl.getTimeRange().getField() != null) {
-            addCrossTable(semantic.requireDimension(dsl.getTimeRange().getField()).getTable(),
+            addCrossTable(binding.tableOf(semantic.requireDimension(dsl.getTimeRange().getField())),
                     rootTable, targetTables);
         }
         if (targetTables.isEmpty()) {

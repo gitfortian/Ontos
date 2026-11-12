@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import com.ontos.module.ontology.core.ManifestPayload;
+import com.ontos.module.ontology.core.BindingResolver;
 import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.core.SemanticManifest;
@@ -96,8 +97,10 @@ public class DslValidator {
             return;
         }
         rejectLookupOnlyFields(dsl);
+        BindingResolver binding = BindingResolver.of(manifest);
+        String metricTable = binding.tableOf(validateMode(dsl, manifest));
         SemanticManifest semantic = manifest.getSemantic();
-        SemanticManifest.Metric metric = validateMode(dsl, manifest);
+        SemanticManifest.Metric metric = semantic.requireMetric(dsl.getMetricId());
         // M6/T1.4：归因是聚合锚点（metricId 必填），但维度/时间/事件的约束与通用聚合不同
         if (mode == QueryDsl.AnalysisMode.ATTRIBUTION) {
             validateAttribution(dsl, manifest, metric);
@@ -116,7 +119,7 @@ public class DslValidator {
                 throw exception(DSL_INVALID, "yoy_mom 的分组维度不能是时间维度本身（时间口径由 period 承担）");
             }
         }
-        validateCaliberVariant(dsl, semantic, metric);
+        validateCaliberVariant(dsl, semantic, metric, binding);
 
         List<String> dimensionIds = dsl.getDimensions() == null ? List.of() : dsl.getDimensions();
         List<SemanticManifest.Dimension> resolvedDimensions = new ArrayList<>();
@@ -124,9 +127,10 @@ public class DslValidator {
             SemanticManifest.Dimension dimension = semantic.requireDimension(dimensionId);
             resolvedDimensions.add(dimension);
             requireAllowedDimension(metric, dimensionId);
-            if (!Objects.equals(dimension.getTable(), metric.getTable())
-                    && !joinCovers(dsl, dimension.getTable())) {
-                throw exception(CROSS_TABLE_UNSUPPORTED, dimensionId + " -> " + metric.getTable());
+            String dimensionTable = binding.tableOf(dimension);
+            if (!Objects.equals(dimensionTable, metricTable)
+                    && !joinCovers(dsl, dimensionTable)) {
+                throw exception(CROSS_TABLE_UNSUPPORTED, dimensionId + " -> " + metricTable);
             }
         }
 
@@ -136,14 +140,15 @@ public class DslValidator {
             // T3.1 放开跨表 Join 后，若只在分组处校验，过滤条件即可绕过指标级授权读到未授权表。
             requireAllowedDimension(metric, filter.getFieldId());
             SemanticManifest.Dimension dimension = semantic.requireDimension(filter.getFieldId());
-            if (!Objects.equals(dimension.getTable(), metric.getTable())
-                    && !joinCovers(dsl, dimension.getTable())) {
-                throw exception(CROSS_TABLE_UNSUPPORTED, filter.getFieldId() + " -> " + metric.getTable());
+            String filterTable = binding.tableOf(dimension);
+            if (!Objects.equals(filterTable, metricTable)
+                    && !joinCovers(dsl, filterTable)) {
+                throw exception(CROSS_TABLE_UNSUPPORTED, filter.getFieldId() + " -> " + metricTable);
             }
             validateFilterValues(filter);
         }
 
-        validateTimeRange(dsl, semantic, metric);
+        validateTimeRange(dsl, semantic, metric, binding);
 
         int limit = dsl.getLimit() == null ? properties.getMaxRows() : dsl.getLimit();
         if (limit < 1 || limit > properties.getMaxRows()) {
@@ -215,7 +220,8 @@ public class DslValidator {
      * EXPRESSION 必须带服务端解析版本与原始表达；EXPLICIT 必须来自 explicitRange 且值一致。
      * 客户端直接塞 from/to 而无合法来源标记 = 伪造绝对日期，一律拒绝。
      */
-    private void validateTimeRange(QueryDsl dsl, SemanticManifest semantic, SemanticManifest.Metric metric) {
+    private void validateTimeRange(QueryDsl dsl, SemanticManifest semantic, SemanticManifest.Metric metric,
+                                   BindingResolver binding) {
         QueryDsl.TimeRange range = dsl.getTimeRange();
         if (range == null) {
             return;
@@ -254,9 +260,10 @@ public class DslValidator {
         }
         requireAllowedDimension(metric, range.getField());
         SemanticManifest.Dimension dimension = semantic.requireDimension(range.getField());
-        if (!Objects.equals(dimension.getTable(), metric.getTable())
-                && !joinCovers(dsl, dimension.getTable())) {
-            throw exception(CROSS_TABLE_UNSUPPORTED, range.getField() + " -> " + metric.getTable());
+        String rangeTable = binding.tableOf(dimension);
+        if (!Objects.equals(rangeTable, binding.tableOf(metric))
+                && !joinCovers(dsl, rangeTable)) {
+            throw exception(CROSS_TABLE_UNSUPPORTED, range.getField() + " -> " + binding.tableOf(metric));
         }
     }
 
@@ -269,6 +276,7 @@ public class DslValidator {
      * （首次触点取用户属性），跨实体维度直接拒绝。
      */
     private void validateFunnel(QueryDsl dsl, PublishedManifest manifest) {
+        BindingResolver binding = BindingResolver.of(manifest);
         OntologySnapshot ontology = manifest.getOntology();
         SemanticManifest semantic = manifest.getSemantic();
         if (!isBlank(dsl.getMetricId())) {
@@ -337,7 +345,7 @@ public class DslValidator {
         boolean sensitiveDimension = false;
         for (String dimensionId : dsl.getDimensions() == null ? List.<String>of() : dsl.getDimensions()) {
             SemanticManifest.Dimension dimension = semantic.requireDimension(dimensionId);
-            if (!subjectTable.equals(dimension.getTable())) {
+            if (!subjectTable.equals(binding.tableOf(dimension))) {
                 throw exception(FUNNEL_DIMENSION_UNSUPPORTED, dimensionId + " -> " + subjectTable);
             }
             sensitiveDimension |= dimension.isSensitive();
@@ -346,7 +354,7 @@ public class DslValidator {
         // 与规格「时间维度过滤继续拒绝」一致）；值数量按算子校验，不做静默兜底。
         for (QueryDsl.Filter filter : dsl.getFilters() == null ? List.<QueryDsl.Filter>of() : dsl.getFilters()) {
             SemanticManifest.Dimension dimension = semantic.requireDimension(filter.getFieldId());
-            if (!subjectTable.equals(dimension.getTable())) {
+            if (!subjectTable.equals(binding.tableOf(dimension))) {
                 throw exception(FUNNEL_DIMENSION_UNSUPPORTED, filter.getFieldId() + " -> " + subjectTable);
             }
             validateFilterValues(filter);
@@ -378,6 +386,7 @@ public class DslValidator {
      * 绝对日期通道 explicitRange 在本层拒绝）。
      */
     private void validateRetention(QueryDsl dsl, PublishedManifest manifest) {
+        BindingResolver binding = BindingResolver.of(manifest);
         OntologySnapshot ontology = manifest.getOntology();
         SemanticManifest semantic = manifest.getSemantic();
         if (!isBlank(dsl.getMetricId())) {
@@ -450,7 +459,7 @@ public class DslValidator {
         boolean sensitiveDimension = false;
         for (String dimensionId : dsl.getDimensions() == null ? List.<String>of() : dsl.getDimensions()) {
             SemanticManifest.Dimension dimension = semantic.requireDimension(dimensionId);
-            if (!subjectTable.equals(dimension.getTable())) {
+            if (!subjectTable.equals(binding.tableOf(dimension))) {
                 throw exception(RETENTION_DIMENSION_UNSUPPORTED, dimensionId + " -> " + subjectTable);
             }
             sensitiveDimension |= dimension.isSensitive();
@@ -478,6 +487,7 @@ public class DslValidator {
      * （取值时点 = 转化时点）；时间窗只接受服务端按转化事件 timeProperty 回填的 timeRange。
      */
     private void validateAttribution(QueryDsl dsl, PublishedManifest manifest, SemanticManifest.Metric metric) {
+        BindingResolver binding = BindingResolver.of(manifest);
         OntologySnapshot ontology = manifest.getOntology();
         SemanticManifest semantic = manifest.getSemantic();
         if (dsl.getExplicitRange() != null) {
@@ -540,7 +550,7 @@ public class DslValidator {
             if (CHANNEL_DIMENSION_ID.equals(dimensionId)) {
                 continue; // 渠道维度值来自触点渠道映射（channel.name），不是订单冗余列
             }
-            if (!Objects.equals(dimension.getTable(), metric.getTable())) {
+            if (!Objects.equals(binding.tableOf(dimension), binding.tableOf(metric))) {
                 throw exception(ATTRIBUTION_DIMENSION_UNSUPPORTED,
                         dimensionId + " -> " + metric.getTable());
             }
@@ -651,7 +661,7 @@ public class DslValidator {
      * 变体必须属于该指标。禁止 LLM 在候选里二选一——歧义必须回到人。
      */
     private void validateCaliberVariant(QueryDsl dsl, SemanticManifest semantic,
-                                       SemanticManifest.Metric metric) {
+                                       SemanticManifest.Metric metric, BindingResolver binding) {
         validateCaliberVariant(dsl.getCaliberVariantId(), semantic, metric, null);
     }
 

@@ -55,7 +55,7 @@ public final class ManifestStructureValidator {
                 .filter(rule -> "published".equals(rule.getStatus()))
                 .map(ManifestPayload.Rule::getId)
                 .collect(java.util.stream.Collectors.toSet());
-        validateSemantic(payload.getSemantic(), publishedRuleIds, violations);
+        validateSemantic(payload.getSemantic(), payload.getOntology(), publishedRuleIds, violations);
         validateOntology(payload.getOntology(), violations);
         validateRules(payload, violations);
         validateScenarios(payload, violations);
@@ -66,8 +66,8 @@ public final class ManifestStructureValidator {
         return violations;
     }
 
-    private void validateSemantic(SemanticManifest semantic, Set<String> publishedRuleIds,
-                                  List<Violation> violations) {
+    private void validateSemantic(SemanticManifest semantic, OntologySnapshot ontology,
+                                  Set<String> publishedRuleIds, List<Violation> violations) {
         if (semantic == null) {
             violations.add(new Violation("semantic", "缺少 semantic 段"));
             return;
@@ -75,6 +75,10 @@ public final class ManifestStructureValidator {
         if (blank(semantic.getSemanticVersion())) {
             violations.add(new Violation("semantic", "缺少 semanticVersion"));
         }
+        Map<String, OntologySnapshot.Concept> conceptById =
+                ontology == null ? Map.of() : ontology.conceptIndex();
+        Map<String, OntologySnapshot.Property> propertyById =
+                ontology == null ? Map.of() : ontology.propertyIndex();
         Set<String> metricIds = new HashSet<>();
         Map<String, SemanticManifest.Dimension> dimensionById = new java.util.HashMap<>();
         for (SemanticManifest.Dimension dimension : orEmpty(semantic.getDimensions())) {
@@ -86,24 +90,31 @@ public final class ManifestStructureValidator {
             String at = "metric." + metric.getId();
             requireId(metric.getId(), at, violations);
             requireBusinessFields(metric.getName(), metric.getSummary(), metric.getAliases(), at, violations);
-            if (blank(metric.getRuleId())) {
-                // 常规指标：物理映射 + 聚合必填
-                requirePhysicalName(metric.getTable(), at + ".table", violations);
-                requirePhysicalName(metric.getColumn(), at + ".column", violations);
-                if (metric.getAggregation() == null) {
-                    violations.add(new Violation(at, "缺少 aggregation"));
+            switch (metric.bindingForm()) {
+                case V19_PHYSICAL -> {
+                    // v19 形态：物理映射 + 聚合必填
+                    requirePhysicalName(metric.getTable(), at + ".table", violations);
+                    requirePhysicalName(metric.getColumn(), at + ".column", violations);
+                    if (metric.getAggregation() == null) {
+                        violations.add(new Violation(at, "缺少 aggregation"));
+                    }
                 }
-            } else {
-                // 布尔判定指标：引用已发布 Rule，无物理列与聚合；允许的维度走 Rule 判定输出
-                if (!publishedRuleIds.contains(metric.getRuleId())) {
-                    violations.add(new Violation(at,
-                            "ruleId 引用不存在或未发布的判定标准: " + metric.getRuleId()));
+                case V20_SEMANTIC -> validateMetricSemantic(
+                        metric, at, conceptById, propertyById, violations);
+                case RULE_ONLY -> {
+                    // 布尔判定指标：引用已发布 Rule，无物理列与聚合；允许的维度走 Rule 判定输出
+                    if (!publishedRuleIds.contains(metric.getRuleId())) {
+                        violations.add(new Violation(at,
+                                "ruleId 引用不存在或未发布的判定标准: " + metric.getRuleId()));
+                    }
                 }
+                default -> violations.add(new Violation(at,
+                        "物理绑定形态非法：v19（table+column）与 v20（objectId+propertyId）必须二选一且不得混装"));
             }
             if (orEmpty(metric.getAllowedModes()).isEmpty()) {
                 violations.add(new Violation(at, "allowedModes 不能为空"));
             }
-            validateCaliberVariants(metric, dimensionById, violations);
+            validateCaliberVariants(metric, dimensionById, propertyById, violations);
             metricIds.add(metric.getId());
         }
         if (metricIds.isEmpty()) {
@@ -113,8 +124,97 @@ public final class ManifestStructureValidator {
             String at = "dimension." + dimension.getId();
             requireId(dimension.getId(), at, violations);
             requireBusinessFields(dimension.getName(), dimension.getSummary(), dimension.getAliases(), at, violations);
-            requirePhysicalName(dimension.getTable(), at + ".table", violations);
-            requirePhysicalName(dimension.getColumn(), at + ".column", violations);
+            switch (dimension.bindingForm()) {
+                case V19_PHYSICAL -> {
+                    requirePhysicalName(dimension.getTable(), at + ".table", violations);
+                    requirePhysicalName(dimension.getColumn(), at + ".column", violations);
+                }
+                case V20_SEMANTIC -> validateDimensionSemantic(
+                        dimension, at, conceptById, propertyById, violations);
+                default -> violations.add(new Violation(at,
+                        "物理绑定形态非法：v19（table+column）与 v20（objectId+propertyId）必须二选一且不得混装"));
+            }
+        }
+    }
+
+    /**
+     * v20 指标的语义绑定校验（B0/R1–R7）：对象存在、聚合合法、属性归属、对象级计数受控例外。
+     *
+     * <p>R1（布尔指标不得带绑定）与 R5（混装）由 {@link SemanticManifest.Metric#bindingForm()} 拒绝，
+     * 不在此重复判定。
+     */
+    private void validateMetricSemantic(SemanticManifest.Metric metric, String at,
+                                        Map<String, OntologySnapshot.Concept> conceptById,
+                                        Map<String, OntologySnapshot.Property> propertyById,
+                                        List<Violation> violations) {
+        // R2：常规指标 objectId 与 aggregation 必填
+        if (blank(metric.getObjectId())) {
+            violations.add(new Violation(at, "v20 指标缺少 objectId（常规指标必填）"));
+            return;
+        }
+        if (metric.getAggregation() == null) {
+            violations.add(new Violation(at, "缺少 aggregation"));
+        }
+        // R6：对象必须已发布
+        OntologySnapshot.Concept concept = conceptById.get(metric.getObjectId());
+        if (concept == null) {
+            violations.add(new Violation(at,
+                    "objectId 引用的业务对象不存在或未发布: " + metric.getObjectId()));
+            return;
+        }
+        if (blank(metric.getPropertyId())) {
+            // R3：对象级计数只允许计数类聚合，且对象须有标识属性
+            if (metric.getAggregation() != SemanticManifest.Aggregation.COUNT
+                    && metric.getAggregation() != SemanticManifest.Aggregation.COUNT_DISTINCT) {
+                violations.add(new Violation(at,
+                        "对象级计数（propertyId 为空）只允许 COUNT / COUNT_DISTINCT，当前: "
+                                + metric.getAggregation()));
+            }
+            // R7：无标识属性则无法确立粒度
+            if (blank(concept.getIdentityProperty())) {
+                violations.add(new Violation(at,
+                        "对象级计数要求业务对象声明 identityProperty: " + metric.getObjectId()));
+            }
+            return;
+        }
+        // R4：属性必须存在且属于该对象
+        OntologySnapshot.Property property = propertyById.get(metric.getPropertyId());
+        if (property == null) {
+            violations.add(new Violation(at,
+                    "propertyId 引用的属性不存在或未发布: " + metric.getPropertyId()));
+            return;
+        }
+        if (!metric.getObjectId().equals(property.getConceptId())) {
+            violations.add(new Violation(at,
+                    "属性不属于该业务对象: " + metric.getPropertyId()
+                            + " 属于 " + property.getConceptId()));
+        }
+    }
+
+    /** v20 维度的语义绑定校验：objectId 与 propertyId 必填、属性归属一致。 */
+    private void validateDimensionSemantic(SemanticManifest.Dimension dimension, String at,
+                                           Map<String, OntologySnapshot.Concept> conceptById,
+                                           Map<String, OntologySnapshot.Property> propertyById,
+                                           List<Violation> violations) {
+        if (blank(dimension.getObjectId()) || blank(dimension.getPropertyId())) {
+            violations.add(new Violation(at, "v20 维度必须同时给 objectId 与 propertyId"));
+            return;
+        }
+        if (!conceptById.containsKey(dimension.getObjectId())) {
+            violations.add(new Violation(at,
+                    "objectId 引用的业务对象不存在或未发布: " + dimension.getObjectId()));
+            return;
+        }
+        OntologySnapshot.Property property = propertyById.get(dimension.getPropertyId());
+        if (property == null) {
+            violations.add(new Violation(at,
+                    "propertyId 引用的属性不存在或未发布: " + dimension.getPropertyId()));
+            return;
+        }
+        if (!dimension.getObjectId().equals(property.getConceptId())) {
+            violations.add(new Violation(at,
+                    "属性不属于该业务对象: " + dimension.getPropertyId()
+                            + " 属于 " + property.getConceptId()));
         }
     }
 
@@ -126,6 +226,7 @@ public final class ManifestStructureValidator {
      */
     private void validateCaliberVariants(SemanticManifest.Metric metric,
                                          Map<String, SemanticManifest.Dimension> dimensionById,
+                                         Map<String, OntologySnapshot.Property> propertyById,
                                          List<Violation> violations) {
         List<SemanticManifest.CaliberVariant> variants = orEmpty(metric.getCaliberVariants());
         if (variants.isEmpty()) {
@@ -162,7 +263,12 @@ public final class ManifestStructureValidator {
                 violations.add(new Violation(at,
                         "condition.fieldId 不在指标允许维度内: " + condition.getFieldId()));
             }
-            if (!java.util.Objects.equals(dimension.getTable(), metric.getTable())) {
+            // 同表判定按绑定形态取表：v19 直取 table，v20 由 property.column 推导（B0/R8）。
+            // 任一取不到表（已由 R4 报错）则跳过，避免重复计违规。
+            String metricTable = tableOfBinding(metric, propertyById);
+            String dimensionTable = tableOfBinding(dimension, propertyById);
+            if (metricTable != null && dimensionTable != null
+                    && !metricTable.equals(dimensionTable)) {
                 violations.add(new Violation(at,
                         "M3 只允许与指标同表的变体条件: " + condition.getFieldId()));
             }
@@ -470,6 +576,34 @@ public final class ManifestStructureValidator {
         }
         int lastDot = column.lastIndexOf('.');
         return lastDot <= 0 ? null : column.substring(0, lastDot);
+    }
+
+    /**
+     * 指标的物理表（B0 双形态）：v19 直取 {@code table}，v20 由 {@code property.column} 推导。
+     *
+     * <p>v20 下属性缺失或列名为裸名时返回 null——调用方据此跳过依赖表的判定，不静默放行。
+     */
+    private static String tableOfBinding(SemanticManifest.Metric metric,
+                                         Map<String, OntologySnapshot.Property> propertyById) {
+        if (metric.bindingForm() != SemanticManifest.BindingForm.V20_SEMANTIC) {
+            return metric.getTable();
+        }
+        return tableOfBinding(metric.getPropertyId(), propertyById);
+    }
+
+    /** 维度的物理表（B0 双形态），口径同 {@link #tableOfBinding(SemanticManifest.Metric, Map)}。 */
+    private static String tableOfBinding(SemanticManifest.Dimension dimension,
+                                         Map<String, OntologySnapshot.Property> propertyById) {
+        if (dimension.bindingForm() != SemanticManifest.BindingForm.V20_SEMANTIC) {
+            return dimension.getTable();
+        }
+        return tableOfBinding(dimension.getPropertyId(), propertyById);
+    }
+
+    private static String tableOfBinding(String propertyId,
+                                         Map<String, OntologySnapshot.Property> propertyById) {
+        OntologySnapshot.Property property = propertyById.get(propertyId);
+        return property == null ? null : tableOf(property.getColumn());
     }
 
     private static boolean blank(String value) {

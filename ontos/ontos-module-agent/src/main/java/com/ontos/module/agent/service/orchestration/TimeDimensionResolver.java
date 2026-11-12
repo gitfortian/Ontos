@@ -1,9 +1,8 @@
 package com.ontos.module.agent.service.orchestration;
 
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
 
+import com.ontos.module.ontology.core.BindingResolver;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.core.SemanticManifest;
 
@@ -21,8 +20,6 @@ import com.ontos.module.ontology.core.SemanticManifest;
  */
 final class TimeDimensionResolver {
 
-    /** 清单中可承载时间窗的属性类型（小写比较）。 */
-    private static final Set<String> DATE_TYPES = Set.of("date", "datetime", "timestamp", "timestamptz");
 
     private TimeDimensionResolver() {
     }
@@ -39,6 +36,9 @@ final class TimeDimensionResolver {
         if (metric == null) {
             return null;
         }
+        // B0：日期判定收口在 BindingResolver——v20 直接看属性 valueType，
+        // v19 由 dimension.table+column 反查属性，口径与改造前一致。
+        BindingResolver binding = BindingResolver.of(manifest);
         for (String dimensionId : metric.getAllowedDimensions()) {
             SemanticManifest.Dimension dimension = semantic.getDimensions().stream()
                     .filter(item -> item.getId().equals(dimensionId))
@@ -47,8 +47,7 @@ final class TimeDimensionResolver {
             if (dimension == null) {
                 continue;
             }
-            String physical = dimension.getTable() + "." + dimension.getColumn();
-            if (isDateProperty(manifest, physical)) {
+            if (binding.isDateBinding(dimension)) {
                 return dimensionId;
             }
         }
@@ -75,13 +74,4 @@ final class TimeDimensionResolver {
         return null;
     }
 
-    private static boolean isDateProperty(PublishedManifest manifest, String physicalColumn) {
-        if (manifest.getOntology() == null || manifest.getOntology().getProperties() == null) {
-            return false;
-        }
-        return manifest.getOntology().getProperties().stream()
-                .anyMatch(property -> physicalColumn.equalsIgnoreCase(property.getColumn())
-                        && property.getValueType() != null
-                        && DATE_TYPES.contains(property.getValueType().toLowerCase(Locale.ROOT)));
-    }
 }

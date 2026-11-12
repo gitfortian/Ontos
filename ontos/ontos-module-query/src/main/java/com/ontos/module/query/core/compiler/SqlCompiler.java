@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import com.ontos.module.ontology.core.BindingResolver;
 import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.PublishedManifest;
@@ -81,6 +82,7 @@ public class SqlCompiler {
     }
 
     public CompiledQuery compile(QueryDsl queryDsl, PublishedManifest manifest) {
+        BindingResolver resolver = BindingResolver.of(manifest);
         QueryDsl.AnalysisMode mode = queryDsl.getMode() == null ? QueryDsl.AnalysisMode.QUERY : queryDsl.getMode();
         // W3/T3.2：lookup 系列以实体为入口，走独立投影构造器
         if (mode == QueryDsl.AnalysisMode.LOOKUP || mode == QueryDsl.AnalysisMode.LOOKUP_BATCH) {
@@ -114,33 +116,33 @@ public class SqlCompiler {
                 ? List.of() : queryDsl.getResolvedJoins();
 
         SelectQuery<Record> select = dsl.selectQuery();
-        select.addSelect(aggregate(metric).as(VALUE_ALIAS));
+        select.addSelect(aggregate(metric, resolver).as(VALUE_ALIAS));
 
         List<Field<?>> groupFields = new ArrayList<>();
         for (String dimensionId : dimensionIds) {
             SemanticManifest.Dimension dimension = semantic.requireDimension(dimensionId);
-            Field<Object> field = DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()));
+            Field<Object> field = DSL.field(columnName(resolver.qualifiedColumnOf(dimension)));
             select.addSelect(field.as(DSL.name(dimensionId)));
             groupFields.add(field);
         }
         select.addGroupBy(groupFields);
 
-        select.addFrom(DSL.table(tableName(metric.getTable())));
+        select.addFrom(DSL.table(tableName(resolver.tableOf(metric))));
 
         List<Condition> conditions = new ArrayList<>();
         addJoins(select, joins);
         if (queryDsl.getFilters() != null) {
             for (QueryDsl.Filter filter : queryDsl.getFilters()) {
                 SemanticManifest.Dimension dimension = semantic.requireDimension(filter.getFieldId());
-                conditions.add(condition(filter, dimension));
+                conditions.add(condition(filter, dimension, resolver));
             }
         }
-        Condition caliber = caliberCondition(semantic, metric, queryDsl);
+        Condition caliber = caliberCondition(semantic, metric, queryDsl, resolver);
         if (caliber != null) {
             conditions.add(caliber);
         }
         if (queryDsl.getTimeRange() != null) {
-            conditions.add(timeCondition(queryDsl.getTimeRange(), semantic));
+            conditions.add(timeCondition(queryDsl.getTimeRange(), semantic, resolver));
         }
         select.addConditions(conditions);
 
@@ -183,7 +185,7 @@ public class SqlCompiler {
      * 编译器不依赖调用顺序，清单被绕过校验装配时宁可拒绝也不产出错误 SQL。
      */
     private Condition caliberCondition(SemanticManifest semantic, SemanticManifest.Metric metric,
-                                       QueryDsl queryDsl) {
+                                       QueryDsl queryDsl, BindingResolver resolver) {
         String variantId = queryDsl.getCaliberVariantId();
         if (variantId == null || variantId.isBlank()) {
             return null;
@@ -198,7 +200,10 @@ public class SqlCompiler {
         }
         SemanticManifest.VariantCondition vc = variant.getCondition();
         SemanticManifest.Dimension dimension = semantic.requireDimension(vc.getFieldId());
-        if (!java.util.Objects.equals(dimension.getTable(), metric.getTable())) {
+        // 同表判定按绑定形态取表（B0）：v19 直取 table，v20 由属性列推导；任一为空则拒绝。
+        String metricTable = resolver.tableOf(metric);
+        String dimensionTable = resolver.tableOf(dimension);
+        if (metricTable == null || !metricTable.equals(dimensionTable)) {
             throw exception(DSL_INVALID, "口径变体条件字段与指标不同表: " + vc.getFieldId());
         }
         QueryDsl.Filter filter = new QueryDsl.Filter();
@@ -209,7 +214,7 @@ public class SqlCompiler {
             throw exception(DSL_INVALID, "口径变体算子非法: " + vc.getOperator());
         }
         filter.setValues(new ArrayList<>(vc.getValues() == null ? List.of() : vc.getValues()));
-        return condition(filter, dimension);
+        return condition(filter, dimension, resolver);
     }
 
     /**
@@ -222,6 +227,7 @@ public class SqlCompiler {
      */
     private CompiledQuery compileLookup(QueryDsl queryDsl, PublishedManifest manifest,
                                         QueryDsl.AnalysisMode mode) {
+        BindingResolver resolver = BindingResolver.of(manifest);
         OntologySnapshot ontology = manifest.getOntology();
         String entityId = queryDsl.getEntityId();
         List<String> attributeIds = queryDsl.getAttributes() == null
@@ -304,6 +310,7 @@ public class SqlCompiler {
      * 阈值走绑定值，物理名只来自已发布 Relation / Metric / Property，禁止表达式字符串。
      */
     private Field<Boolean> ruleColumn(QueryDsl queryDsl, PublishedManifest manifest) {
+        BindingResolver resolver = BindingResolver.of(manifest);
         String booleanMetricId = queryDsl.getBooleanMetricId();
         SemanticManifest.Metric booleanMetric = manifest.getSemantic().requireMetric(booleanMetricId);
         if (booleanMetric.getRuleId() == null) {
@@ -341,7 +348,7 @@ public class SqlCompiler {
         }
         String subjectColumn = subjectProperty.getColumn();
         String subjectTable = tableOf(subjectColumn);
-        String metricTable = metric.getTable();
+        String metricTable = resolver.tableOf(metric);
 
         // 连接「主体表 ↔ 规则指标表」的关系必须唯一，禁止猜测关联列
         List<OntologySnapshot.Relation> matched = new ArrayList<>();
@@ -363,7 +370,7 @@ public class SqlCompiler {
         String groupColumn = metricTable.equals(tableOf(relation.getFromColumn()))
                 ? relation.getFromColumn() : relation.getToColumn();
 
-        Field<BigDecimal> aggregated = DSL.field("{0}", BigDecimal.class, aggregate(metric));
+        Field<BigDecimal> aggregated = DSL.field("{0}", BigDecimal.class, aggregate(metric, resolver));
         Field<BigDecimal> bound = DSL.val(threshold, BigDecimal.class);
         Condition having = switch (operator) {
             case "GTE" -> aggregated.ge(bound);
@@ -394,6 +401,7 @@ public class SqlCompiler {
      * 事件类型过滤值只来自已发布 EventDef 的 `eventTypeValue`，不接受 DSL 里的物理条件。
      */
     private CompiledQuery compileFunnel(QueryDsl queryDsl, PublishedManifest manifest) {
+        BindingResolver resolver = BindingResolver.of(manifest);
         OntologySnapshot ontology = manifest.getOntology();
         SemanticManifest semantic = manifest.getSemantic();
         QueryDsl.AnalysisParams params = queryDsl.getAnalysisParams();
@@ -463,7 +471,7 @@ public class SqlCompiler {
         List<Condition> filters = new ArrayList<>();
         for (QueryDsl.Filter filter : queryDsl.getFilters() == null
                 ? List.<QueryDsl.Filter>of() : queryDsl.getFilters()) {
-            filters.add(condition(filter, semantic.requireDimension(filter.getFieldId())));
+            filters.add(condition(filter, semantic.requireDimension(filter.getFieldId()), resolver));
         }
 
         // cohort：首步事件 + 首次发生时间 + 首次触点维度值
@@ -471,7 +479,7 @@ public class SqlCompiler {
         cohort.addSelect(participant.as("subject"));
         cohort.addSelect(DSL.min(eventTime).as("first_time"));
         for (SemanticManifest.Dimension dimension : dimensions) {
-            cohort.addSelect(DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()))
+            cohort.addSelect(DSL.field(columnName(resolver.qualifiedColumnOf(dimension)))
                     .as(DSL.name(dimension.getId())));
         }
         cohort.addFrom(DSL.table(tableName(eventTable)));
@@ -487,7 +495,7 @@ public class SqlCompiler {
         List<Field<?>> cohortGroup = new ArrayList<>();
         cohortGroup.add(participant);
         for (SemanticManifest.Dimension dimension : dimensions) {
-            cohortGroup.add(DSL.field(assetColumn(dimension.getTable(), dimension.getColumn())));
+            cohortGroup.add(DSL.field(columnName(resolver.qualifiedColumnOf(dimension))));
         }
         cohort.addGroupBy(cohortGroup);
 
@@ -604,6 +612,7 @@ public class SqlCompiler {
      * 维度只取主体表，事件级维度首发不支持（校验器已拒绝，编译器按同一口径纵深防御）。
      */
     private CompiledQuery compileRetention(QueryDsl queryDsl, PublishedManifest manifest) {
+        BindingResolver resolver = BindingResolver.of(manifest);
         OntologySnapshot ontology = manifest.getOntology();
         SemanticManifest semantic = manifest.getSemantic();
         QueryDsl.AnalysisParams params = queryDsl.getAnalysisParams();
@@ -682,7 +691,7 @@ public class SqlCompiler {
         cohort.addSelect(firstSubject.as("subject"));
         cohort.addSelect(bucket.as("cohort_period"));
         for (SemanticManifest.Dimension dimension : dimensions) {
-            cohort.addSelect(DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()))
+            cohort.addSelect(DSL.field(columnName(resolver.qualifiedColumnOf(dimension)))
                     .as(DSL.name(dimension.getId())));
         }
         cohort.addFrom(DSL.table(DSL.name("cohort_first")));
@@ -694,7 +703,7 @@ public class SqlCompiler {
         cohortGroup.add(firstSubject);
         cohortGroup.add(bucket);
         for (SemanticManifest.Dimension dimension : dimensions) {
-            cohortGroup.add(DSL.field(assetColumn(dimension.getTable(), dimension.getColumn())));
+            cohortGroup.add(DSL.field(columnName(resolver.qualifiedColumnOf(dimension))));
         }
         cohort.addGroupBy(cohortGroup);
 
@@ -842,6 +851,7 @@ public class SqlCompiler {
      * 指标值经清单关系（指标表 ↔ 事件表）结构化 Join 得到，物理列全部来自已发布清单。
      */
     private CompiledQuery compileAttribution(QueryDsl queryDsl, PublishedManifest manifest) {
+        BindingResolver resolver = BindingResolver.of(manifest);
         OntologySnapshot ontology = manifest.getOntology();
         SemanticManifest semantic = manifest.getSemantic();
         QueryDsl.AnalysisParams params = queryDsl.getAnalysisParams();
@@ -889,8 +899,8 @@ public class SqlCompiler {
             throw exception(DSL_INVALID, "attribution 转化 / 触点事件映射未落在同一物理表");
         }
         OntologySnapshot.Relation relation =
-                requireMetricEventRelation(ontology, metric.getTable(), eventTable);
-        boolean metricSideIsFrom = metric.getTable().equals(tableOf(relation.getFromColumn()));
+                requireMetricEventRelation(ontology, resolver.tableOf(metric), eventTable);
+        boolean metricSideIsFrom = resolver.tableOf(metric).equals(tableOf(relation.getFromColumn()));
         String metricKeyColumn = metricSideIsFrom ? relation.getFromColumn() : relation.getToColumn();
         String eventKeyColumn = metricSideIsFrom ? relation.getToColumn() : relation.getFromColumn();
 
@@ -963,16 +973,17 @@ public class SqlCompiler {
         facts.addSelect(DSL.field(DSL.name("a", "attributed_channel_id"), String.class)
                 .as("attributed_channel_id"));
         facts.addSelect(DSL.field(DSL.name("a", "channel_name")).as("channel_name"));
-        facts.addSelect(DSL.field(DSL.name("o", lastSegment(metric.getColumn()))).as("metric_value"));
+        facts.addSelect(DSL.field(DSL.name("o", lastSegment(resolver.qualifiedColumnOf(metric))))
+                .as("metric_value"));
         for (SemanticManifest.Dimension dimension : dimensions) {
             if (CHANNEL_DIMENSION_ID.equals(dimension.getId())) {
                 continue;
             }
-            facts.addSelect(DSL.field(DSL.name("o", lastSegment(dimension.getColumn())))
+            facts.addSelect(DSL.field(DSL.name("o", lastSegment(resolver.qualifiedColumnOf(dimension))))
                     .as(DSL.name(dimension.getId())));
         }
         facts.addFrom(DSL.table(DSL.name("attributed")).as("a"));
-        facts.addJoin(DSL.table(tableName(metric.getTable())).as("o"), org.jooq.JoinType.JOIN,
+        facts.addJoin(DSL.table(tableName(resolver.tableOf(metric))).as("o"), org.jooq.JoinType.JOIN,
                 DSL.field(DSL.name("o", lastSegment(metricKeyColumn)))
                         .eq(DSL.field(DSL.name("a", "order_id"))));
 
@@ -1144,6 +1155,7 @@ public class SqlCompiler {
      * 输出起点不早于本期 timeRange.from。
      */
     private CompiledQuery compileYoyMom(QueryDsl queryDsl, PublishedManifest manifest) {
+        BindingResolver resolver = BindingResolver.of(manifest);
         SemanticManifest semantic = manifest.getSemantic();
         SemanticManifest.Metric metric = semantic.requireMetric(queryDsl.getMetricId());
         QueryDsl.AnalysisParams params = queryDsl.getAnalysisParams();
@@ -1173,15 +1185,15 @@ public class SqlCompiler {
         List<Condition> filters = new ArrayList<>();
         for (QueryDsl.Filter filter : queryDsl.getFilters() == null
                 ? List.<QueryDsl.Filter>of() : queryDsl.getFilters()) {
-            filters.add(condition(filter, semantic.requireDimension(filter.getFieldId())));
+            filters.add(condition(filter, semantic.requireDimension(filter.getFieldId()), resolver));
         }
-        Condition caliber = caliberCondition(semantic, metric, queryDsl);
+        Condition caliber = caliberCondition(semantic, metric, queryDsl, resolver);
         if (caliber != null) {
             filters.add(caliber);
         }
 
         Field<Timestamp> timeField = DSL.field(
-                assetColumn(timeDimension.getTable(), timeDimension.getColumn()), Timestamp.class);
+                columnName(resolver.qualifiedColumnOf(timeDimension)), Timestamp.class);
         // 周期边界一律按 Asia/Shanghai 的本地时间构造，不依赖 JVM 默认时区（ADR-0004 2.4）
         Timestamp from = shanghaiTimestamp(range.getFrom());
         Timestamp to = shanghaiTimestamp(range.getTo());
@@ -1194,18 +1206,18 @@ public class SqlCompiler {
                 DSL.inline(unit), timeField);
         List<Field<?>> rawDimensions = new ArrayList<>();
         for (SemanticManifest.Dimension dimension : dimensions) {
-            rawDimensions.add(DSL.field(assetColumn(dimension.getTable(), dimension.getColumn())));
+            rawDimensions.add(DSL.field(columnName(resolver.qualifiedColumnOf(dimension))));
         }
 
         // 聚合 CTE：覆盖 [对比期起点, 本期终点]
         SelectQuery<Record> agg = dsl.selectQuery();
         agg.addSelect(bucket.as("period"));
         for (SemanticManifest.Dimension dimension : dimensions) {
-            agg.addSelect(DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()))
+            agg.addSelect(DSL.field(columnName(resolver.qualifiedColumnOf(dimension)))
                     .as(DSL.name(dimension.getId())));
         }
-        agg.addSelect(aggregate(metric).as("metric_value"));
-        agg.addFrom(DSL.table(tableName(metric.getTable())));
+        agg.addSelect(aggregate(metric, resolver).as("metric_value"));
+        agg.addFrom(DSL.table(tableName(resolver.tableOf(metric))));
         addJoins(agg, joins);
         agg.addConditions(timeField.ge(DSL.val(windowFrom)), timeField.le(DSL.val(to)));
         agg.addConditions(filters);
@@ -1224,11 +1236,11 @@ public class SqlCompiler {
         // 维度枚举并集（覆盖对比期，去年才出现的维度也要占位）
         SelectQuery<Record> dims = dsl.selectQuery();
         for (SemanticManifest.Dimension dimension : dimensions) {
-            dims.addSelect(DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()))
+            dims.addSelect(DSL.field(columnName(resolver.qualifiedColumnOf(dimension)))
                     .as(DSL.name(dimension.getId())));
         }
         if (!dimensions.isEmpty()) {
-            dims.addFrom(DSL.table(tableName(metric.getTable())));
+            dims.addFrom(DSL.table(tableName(resolver.tableOf(metric))));
             addJoins(dims, joins);
             dims.addConditions(timeField.ge(DSL.val(windowFrom)), timeField.le(DSL.val(to)));
             dims.addConditions(filters);
@@ -1339,11 +1351,16 @@ public class SqlCompiler {
         return lastDot <= 0 ? null : column.substring(0, lastDot);
     }
 
-    private static Field<?> aggregate(SemanticManifest.Metric metric) {
+    private static Field<?> aggregate(SemanticManifest.Metric metric, BindingResolver resolver) {
         if (metric.getAggregation() == null) {
             throw exception(DSL_INVALID, "指标缺少 aggregation: " + metric.getId());
         }
-        Name column = assetColumn(metric.getTable(), metric.getColumn());
+        // COUNT 不消费列（jOOQ 生成 count(*)）——B0 的对象级计数因此与 v19 产物一致，
+        // 也无需解析 identity 属性；其余聚合按绑定形态取限定列。
+        if (metric.getAggregation() == SemanticManifest.Aggregation.COUNT) {
+            return DSL.count();
+        }
+        Name column = columnName(resolver.qualifiedColumnOf(metric));
         Field<BigDecimal> decimalField = DSL.field(column, BigDecimal.class);
         return switch (metric.getAggregation()) {
             case SUM -> DSL.sum(decimalField);
@@ -1355,8 +1372,9 @@ public class SqlCompiler {
         };
     }
 
-    private static Condition condition(QueryDsl.Filter filter, SemanticManifest.Dimension dimension) {
-        Field<Object> field = DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()));
+    private static Condition condition(QueryDsl.Filter filter, SemanticManifest.Dimension dimension,
+                                       BindingResolver resolver) {
+        Field<Object> field = DSL.field(columnName(resolver.qualifiedColumnOf(dimension)));
         List<Object> values = new ArrayList<>(filter.getValues());
         return switch (filter.getOperator()) {
             case EQ -> field.eq(values.get(0));
@@ -1368,10 +1386,11 @@ public class SqlCompiler {
         };
     }
 
-    private static Condition timeCondition(QueryDsl.TimeRange range, SemanticManifest semantic) {
+    private static Condition timeCondition(QueryDsl.TimeRange range, SemanticManifest semantic,
+                                           BindingResolver resolver) {
         // field 是资产 ID，与 filters 一致；物理列名只能从已发布语义清单解析，DSL 不得携带
         SemanticManifest.Dimension dimension = semantic.requireDimension(range.getField());
-        Field<Timestamp> field = DSL.field(assetColumn(dimension.getTable(), dimension.getColumn()), Timestamp.class);
+        Field<Timestamp> field = DSL.field(columnName(resolver.qualifiedColumnOf(dimension)), Timestamp.class);
         // 与 funnel / yoy_mom 统一按「上海本地墙钟」绑定：会话时区已固定 Asia/Shanghai，
         // 用 Timestamp.from（JVM 默认时区墙钟）会让同一时间窗随部署时区漂移 8 小时。
         Timestamp from = shanghaiTimestamp(range.getFrom());

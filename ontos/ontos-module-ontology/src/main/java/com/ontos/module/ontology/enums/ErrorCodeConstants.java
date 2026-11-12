@@ -17,5 +17,13 @@ public interface ErrorCodeConstants {
     ErrorCode PUBLISH_VALIDATION_FAILED = new ErrorCode(1_001_000_007, "发布预检未通过: {}");
     ErrorCode MANIFEST_ALREADY_EXISTS = new ErrorCode(1_001_000_008, "manifest_id 已存在，清单不可变: {}");
     ErrorCode PUBLISH_PAYLOAD_INVALID = new ErrorCode(1_001_000_009, "发布载荷缺失或不可解析");
+    /**
+     * B0：对象的聚合属性与主表不在同一物理表——B0 不支持跨表聚合，须引入 Model 层。
+     *
+     * <p>落在本段而非 query 段：判定发生在 {@code BindingResolver}（ontology 模块，
+     * query 与 agent 共用），错误码必须跟随所属模块。
+     */
+    ErrorCode OBJECT_TABLE_MISMATCH = new ErrorCode(1_001_000_010,
+            "对象的聚合属性与主表不在同一物理表，B0 不支持跨表聚合: {}");
 
 }
