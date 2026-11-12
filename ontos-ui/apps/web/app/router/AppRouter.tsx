@@ -4,6 +4,7 @@ import { AskPage } from "@/app/ask/page";
 import { ApprovalsPage } from "@/app/approvals/page";
 import { AuditPage } from "@/app/audit/page";
 import { AssetsPage } from "@/app/ontology/assets/page";
+import { DefinitionsPage } from "@/app/ontology/definitions/page";
 import { DiffPage } from "@/app/ontology/diff/page";
 import { ManifestsPage } from "@/app/ontology/manifests/page";
 import { RecordsPage } from "@/app/ontology/records/page";
@@ -21,6 +22,7 @@ export default function AppRouter() {
         <Route path="/ask" element={<AskPage />} />
         <Route path="/ontology/manifests" element={<ManifestsPage />} />
         <Route path="/ontology/assets" element={<AssetsPage />} />
+        <Route path="/ontology/definitions" element={<DefinitionsPage />} />
         <Route path="/ontology/diff" element={<DiffPage />} />
         <Route path="/ontology/records" element={<RecordsPage />} />
         <Route path="/approvals" element={<ApprovalsPage />} />

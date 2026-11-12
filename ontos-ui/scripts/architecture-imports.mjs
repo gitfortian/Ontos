@@ -47,6 +47,7 @@ export function checkArchitectureImports(relativePath, content, root) {
     resolve(app, "ask/page"),
     resolve(app, "ontology/manifests/page"),
     resolve(app, "ontology/assets/page"),
+    resolve(app, "ontology/definitions/page"),
     resolve(app, "ontology/diff/page"),
     resolve(app, "ontology/records/page"),
     resolve(app, "approvals/page"),

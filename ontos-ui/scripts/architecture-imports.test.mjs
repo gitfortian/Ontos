@@ -41,6 +41,10 @@ test("router imports public page entries but not private feature files", () => {
     check(router, 'import { ManifestsPage } from "@/app/ontology/manifests/page";'),
     [],
   );
+  assert.deepEqual(
+    check(router, 'import { DefinitionsPage } from "@/app/ontology/definitions/page";'),
+    [],
+  );
   assert.match(
     check(router, 'import { AguiPanel } from "@/app/ask/agui-panel";').join("\n"),
     /imports a private feature/,

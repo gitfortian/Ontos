@@ -6,6 +6,7 @@ import com.ontos.framework.common.pojo.CommonResult;
 import com.ontos.framework.common.pojo.PageResult;
 import com.ontos.framework.common.util.json.JsonUtils;
 import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetCreateReqVO;
+import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetOptionsRespVO;
 import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetRespVO;
 import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetRevisionReqVO;
 import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetSaveReqVO;
@@ -16,6 +17,7 @@ import com.ontos.module.catalog.core.SemanticAssetType;
 import com.ontos.module.catalog.service.asset.SemanticAssetView;
 import com.ontos.module.catalog.service.asset.SemanticAssetDraftValidator;
 import com.ontos.module.catalog.service.asset.SemanticAssetLifecycleService;
+import com.ontos.module.catalog.service.asset.SemanticAssetOptionsService;
 import com.ontos.module.ontology.service.publish.PublishGuard;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -50,14 +52,24 @@ public class SemanticAssetController {
 
     private final SemanticAssetLifecycleService lifecycleService;
     private final SemanticAssetDraftValidator draftValidator;
+    private final SemanticAssetOptionsService optionsService;
     private final PublishGuard publishGuard;
 
     public SemanticAssetController(SemanticAssetLifecycleService lifecycleService,
                                    SemanticAssetDraftValidator draftValidator,
+                                   SemanticAssetOptionsService optionsService,
                                    PublishGuard publishGuard) {
         this.lifecycleService = lifecycleService;
         this.draftValidator = draftValidator;
+        this.optionsService = optionsService;
         this.publishGuard = publishGuard;
+    }
+
+    @GetMapping("/options")
+    @Operation(summary = "语义资产编辑候选元数据（对象 / 属性 / 维度 / 指标 / 关系）")
+    public CommonResult<SemanticAssetOptionsRespVO> options() {
+        publishGuard.requirePublishAllowed("catalog.asset.options");
+        return success(SemanticAssetOptionsRespVO.from(optionsService.options()));
     }
 
     @PostMapping("/{assetType}/drafts")

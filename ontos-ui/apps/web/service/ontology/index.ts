@@ -1,7 +1,20 @@
 import { API_PREFIX } from "@/config/api";
 import HttpUtils from "@/service/http/HttpUtils";
 
-import type { AssetsVO, DiffVO, ImpactVO, ManifestVO, PathPlanVO, PublishRecordVO } from "./types";
+import type {
+  AssetsVO,
+  DiffVO,
+  ImpactVO,
+  ManifestVO,
+  PageResultVO,
+  PathPlanVO,
+  PublishRecordVO,
+  SemanticAssetOptionsVO,
+  SemanticAssetSummaryVO,
+  SemanticAssetType,
+  SemanticAssetVO,
+  SemanticValidationVO,
+} from "./types";
 
 const ONTOLOGY_API = `${API_PREFIX}/ontology`;
 const MANIFEST_API = `${ONTOLOGY_API}/manifests`;
@@ -68,6 +81,96 @@ export const planPath = (
     `${ONTOLOGY_API}/paths?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` +
       `&domains=${encodeURIComponent(domains)}`,
     { signal },
+  );
+
+const CATALOG_API = `${API_PREFIX}/catalog/assets`;
+
+export const semanticAssetQueryKeys = {
+  options: ["catalog", "asset", "options"] as const,
+  list: (
+    type: SemanticAssetType,
+    status: string,
+    keyword: string,
+    page: number,
+    pageSize: number,
+  ) => ["catalog", "asset", "list", type, status, keyword, page, pageSize] as const,
+  detail: (type: SemanticAssetType, id: string) =>
+    ["catalog", "asset", "detail", type, id] as const,
+};
+
+export const getSemanticAssetOptions = (signal?: AbortSignal): Promise<SemanticAssetOptionsVO> =>
+  HttpUtils.getData<SemanticAssetOptionsVO>(`${CATALOG_API}/options`, { signal });
+
+export const listSemanticAssets = (
+  type: SemanticAssetType,
+  params: { status?: string; keyword?: string; page?: number; pageSize?: number },
+  signal?: AbortSignal,
+): Promise<PageResultVO<SemanticAssetSummaryVO>> => {
+  const query = new URLSearchParams();
+  if (params.status) query.set("status", params.status);
+  if (params.keyword) query.set("keyword", params.keyword);
+  query.set("page", String(params.page ?? 1));
+  query.set("pageSize", String(params.pageSize ?? 20));
+  return HttpUtils.getData<PageResultVO<SemanticAssetSummaryVO>>(
+    `${CATALOG_API}/${type}?${query.toString()}`,
+    { signal },
+  );
+};
+
+export const getSemanticAsset = (
+  type: SemanticAssetType,
+  id: string,
+  signal?: AbortSignal,
+): Promise<SemanticAssetVO> =>
+  HttpUtils.getData<SemanticAssetVO>(`${CATALOG_API}/${type}/${encodeURIComponent(id)}`, {
+    signal,
+  });
+
+export const createSemanticAssetDraft = (
+  type: SemanticAssetType,
+  definition: Record<string, unknown>,
+): Promise<SemanticAssetVO> =>
+  HttpUtils.postData<SemanticAssetVO>(`${CATALOG_API}/${type}/drafts`, { definition });
+
+export const saveSemanticAssetDraft = (
+  type: SemanticAssetType,
+  id: string,
+  definition: Record<string, unknown>,
+  expectedRevision: number,
+): Promise<SemanticAssetVO> =>
+  HttpUtils.putData<SemanticAssetVO>(`${CATALOG_API}/${type}/${encodeURIComponent(id)}/draft`, {
+    definition,
+    expectedRevision,
+  });
+
+export const validateSemanticAsset = (
+  type: SemanticAssetType,
+  id: string,
+  definition?: Record<string, unknown>,
+): Promise<SemanticValidationVO> =>
+  HttpUtils.postData<SemanticValidationVO>(
+    `${CATALOG_API}/${type}/${encodeURIComponent(id)}/validate`,
+    definition ? { definition } : {},
+  );
+
+export const submitSemanticAssetReview = (
+  type: SemanticAssetType,
+  id: string,
+  expectedRevision: number,
+): Promise<SemanticAssetVO> =>
+  HttpUtils.postData<SemanticAssetVO>(
+    `${CATALOG_API}/${type}/${encodeURIComponent(id)}/submit-review`,
+    { expectedRevision },
+  );
+
+export const withdrawSemanticAssetReview = (
+  type: SemanticAssetType,
+  id: string,
+  expectedRevision: number,
+): Promise<SemanticAssetVO> =>
+  HttpUtils.postData<SemanticAssetVO>(
+    `${CATALOG_API}/${type}/${encodeURIComponent(id)}/withdraw-review`,
+    { expectedRevision },
   );
 
 export type { ManifestVO } from "./types";

@@ -4,12 +4,14 @@ import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.framework.common.exception.enums.GlobalErrorCodeConstants;
 import com.ontos.framework.common.util.json.JsonUtils;
 import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetCreateReqVO;
+import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetOptionsRespVO;
 import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetRespVO;
 import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetRevisionReqVO;
 import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetSaveReqVO;
 import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetValidateReqVO;
 import com.ontos.module.catalog.service.asset.SemanticAssetDraftValidator;
 import com.ontos.module.catalog.service.asset.SemanticAssetLifecycleService;
+import com.ontos.module.catalog.service.asset.SemanticAssetOptionsService;
 import com.ontos.module.catalog.support.InMemorySemanticAssetRepository;
 import com.ontos.module.catalog.support.TestManifests;
 import com.ontos.module.ontology.service.publish.PublishGuard;
@@ -34,7 +36,7 @@ class SemanticAssetControllerTest {
         validator = new SemanticAssetDraftValidator(
                 TestManifests.manifestService(TestManifests.activeV22()));
         controller = new SemanticAssetController(
-                new SemanticAssetLifecycleService(repository, validator), validator, allowGuard());
+                new SemanticAssetLifecycleService(repository, validator), validator, optionsService(), allowGuard());
     }
 
     @Test
@@ -61,6 +63,18 @@ class SemanticAssetControllerTest {
     }
 
     @Test
+    void shouldExposeOptionsFromActiveManifest() {
+        SemanticAssetOptionsRespVO options = controller.options().getData();
+
+        assertEquals(6, options.getConcepts().size());
+        assertEquals(23, options.getProperties().size());
+        assertEquals(6, options.getDimensions().size());
+        assertEquals(9, options.getMetrics().size());
+        assertTrue(options.getProperties().stream()
+                .anyMatch(property -> "concept.order".equals(property.getConceptId())));
+    }
+
+    @Test
     void shouldRejectWhenManagementGateDenied() {
         PublishGuard denied = new PublishGuard() {
             @Override
@@ -74,7 +88,7 @@ class SemanticAssetControllerTest {
             }
         };
         SemanticAssetController guarded = new SemanticAssetController(
-                new SemanticAssetLifecycleService(repository, validator), validator, denied);
+                new SemanticAssetLifecycleService(repository, validator), validator, optionsService(), denied);
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> guarded.create("metric", createReq(metricDraft("GMV"))));
@@ -110,6 +124,11 @@ class SemanticAssetControllerTest {
 
         assertEquals("attacker", request.getUnknownFields().get("owner"));
         assertEquals("published", request.getUnknownFields().get("status"));
+    }
+
+    private static SemanticAssetOptionsService optionsService() {
+        return new SemanticAssetOptionsService(
+                TestManifests.manifestService(TestManifests.activeV22()));
     }
 
     private static PublishGuard allowGuard() {

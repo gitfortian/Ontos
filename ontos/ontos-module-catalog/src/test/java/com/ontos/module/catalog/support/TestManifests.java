@@ -6,6 +6,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
+import com.ontos.framework.common.util.json.JsonUtils;
+import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.service.manifest.ManifestService;
 
@@ -24,10 +26,17 @@ public final class TestManifests {
     }
 
     public static PublishedManifest activeV22() {
+        String payloadJson = v22PayloadJson();
+        // 与 ManifestServiceImpl 装配一致：payloadJson 之外还要有解析后的 semantic / ontology，
+        // 否则只读 payloadJson 的校验能过、读结构化字段的 options 会得到空列表。
+        ManifestPayload payload = JsonUtils.parseObject(payloadJson, ManifestPayload.class);
         PublishedManifest manifest = new PublishedManifest();
         manifest.setManifestId("2026.11.12-twenty-second");
         manifest.setContentHash("test-content-hash");
-        manifest.setPayloadJson(v22PayloadJson());
+        manifest.setPayloadJson(payloadJson);
+        manifest.setSemantic(payload.getSemantic());
+        manifest.setOntology(payload.getOntology());
+        manifest.setRules(payload.getRules());
         return manifest;
     }
 

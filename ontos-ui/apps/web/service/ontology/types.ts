@@ -86,3 +86,61 @@ export interface AssetChipVO {
   id: string;
   name: string;
 }
+
+/** 语义资产草稿（B1）：五类资产的编辑与生命周期。 */
+export type SemanticAssetType = "concept" | "property" | "relation" | "metric" | "dimension";
+
+export type SemanticAssetStatus = "draft" | "reviewing" | "published" | "retired";
+
+export interface SemanticAssetOptionVO {
+  id: string;
+  name: string;
+}
+
+/** 属性选项带 conceptId：前端据此过滤「所选业务对象下的属性」。 */
+export interface SemanticPropertyOptionVO extends SemanticAssetOptionVO {
+  conceptId: string;
+  valueType: string;
+}
+
+/** GET /catalog/assets/options：编辑候选元数据（不返回物理列）。 */
+export interface SemanticAssetOptionsVO {
+  concepts: SemanticAssetOptionVO[];
+  properties: SemanticPropertyOptionVO[];
+  dimensions: SemanticAssetOptionVO[];
+  metrics: SemanticAssetOptionVO[];
+  relations: SemanticAssetOptionVO[];
+}
+
+export interface SemanticAssetSummaryVO {
+  assetType: SemanticAssetType;
+  id: string;
+  name: string;
+  summary: string;
+  status: SemanticAssetStatus;
+  owner: string;
+  version: string;
+  revision: number;
+  updatedAt?: string;
+}
+
+export interface SemanticAssetVO extends SemanticAssetSummaryVO {
+  reviewer?: string | null;
+  definition: Record<string, unknown>;
+  publishedAt?: string | null;
+}
+
+export interface SemanticViolationVO {
+  location: string;
+  message: string;
+}
+
+export interface SemanticValidationVO {
+  valid: boolean;
+  violations: SemanticViolationVO[];
+}
+
+export interface PageResultVO<T> {
+  list: T[];
+  total: number;
+}
