@@ -61,3 +61,11 @@ YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路
 - cohort 路径不受三层化影响：retention FROM = `eventTable`（L434/L477）、attribution FROM = CTE（L688）；`conceptByTable` 只读 property。
 - **错误码口径**：结构校验只产 `Violation`（`PublishServiceImpl` L95 汇总抛 `PUBLISH_VALIDATION_FAILED=1_001_000_007`），**不要为 R1–R7 新增专用码**；编译侧才需专用码（query 段 `1_002_xxx`，当前最大 046，B0 拟新增 `OBJECT_TABLE_MISMATCH=1_002_000_047`）。
 - **D-3 对象级计数**：元模型 + 编译都实现（负责人已拍板），但不进迁移、无 Golden，单测断言 `COUNT(identity)` / `COUNT(DISTINCT identity)`——不接受"编译报未实现"（发布通过的资产必须可查）。
+
+## B0 实施完成度（2026-11-12）
+- **W1–W4 完成 + W5 dry-run 通过（未激活）**：mvn test **701/0**（基线 658）；E1 在 6 条路径上 SQL 逐字相等。
+- 关键类：`SemanticManifest.BindingForm`（四态，含 `RULE_ONLY`）+ `BindingResolver`（形态分流唯一收口；**仅指标做 FROM 断言，维度不做**）。
+- **`metric.order_count` 是 `COUNT_DISTINCT`**（不是 COUNT），E1 靠列相同成立——曾误判为 COUNT 并做错订正，被 W4 测试推翻。
+- **R7 发布侧不可达**（`validateOntology` 前置覆盖），真正生效在编译侧。
+- **VQR 失效会清空 vqrs**：v20 发布必移除 `vqr.sales.daily_gmv_by_channel`，`scenario.sales.defaultVqrIds` 悬空，发布后需重建 VQR + 重锚 golden。
+- 待办：W5 确认发布（有副作用，需负责人点头）、Golden 三份实跑、回滚演练、旧形态退役登记。
