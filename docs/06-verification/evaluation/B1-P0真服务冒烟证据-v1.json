@@ -1,0 +1,49 @@
+{
+  "setId": "b1-p0-smoke",
+  "version": "v1",
+  "generatedAt": "2026-11-12",
+  "purpose": "B1 P0 真服务闭环：Flyway V21 实际执行 + 7 个管理端点 HTTP 冒烟 + 管理面闸门拒绝",
+  "environment": {
+    "profile": "local",
+    "port": 8080,
+    "systemDb": "ontos",
+    "activeManifestBefore": "2026.11.12-twenty-second",
+    "activeManifestAfter": "2026.11.12-twenty-second",
+    "note": "local profile 的 application-local.yml 为 dev-allow-all=true；闸门验证时用命令行覆盖为 false"
+  },
+  "migration": {
+    "version": "21",
+    "description": "semantic asset definition",
+    "success": true,
+    "columns": 13,
+    "log": "Successfully applied 1 migration to schema \"public\", now at version v21",
+    "restart": "第二次启动 Schema \"public\" is up to date. No migration necessary."
+  },
+  "endpoints": [
+    { "step": "create", "http": 200, "code": 0, "status": "draft", "revision": 0, "updatedAtFilled": true },
+    { "step": "save", "http": 200, "code": 0, "revision": 1 },
+    { "step": "get", "http": 200, "code": 0, "revision": 1 },
+    { "step": "list", "http": 200, "code": 0, "total": 1 },
+    { "step": "validate", "http": 200, "code": 0, "valid": true, "violations": 0 },
+    { "step": "submit-review", "http": 200, "code": 0, "status": "reviewing", "revision": 2 },
+    { "step": "withdraw-review", "http": 200, "code": 0, "status": "draft", "revision": 3 },
+    { "step": "stale-revision", "http": 200, "code": 1005000104, "message": "语义资产版本冲突（期望 0，当前 3）" }
+  ],
+  "managementGate": {
+    "devAllowAll": false,
+    "catalogEndpoint": { "http": 200, "code": 403, "message": "没有该操作权限" },
+    "controlEndpoint": { "endpoint": "/api/v1/ontology/manifests/current", "code": 0 },
+    "conclusion": "关闭 dev 放行后只有管理面被拒，运行时清单读取正常"
+  },
+  "cleanup": {
+    "testRowsDeleted": 1,
+    "remainingRows": 0,
+    "publishedSnapshotUnchanged": true
+  },
+  "limits": [
+    "单次冒烟，未做并发与压测",
+    "local profile + demo 租户，非 prod 环境",
+    "仅验证 metric 一类资产；concept/property/relation/dimension 由单测覆盖",
+    "测试草稿已删除，表中无残留数据"
+  ]
+}

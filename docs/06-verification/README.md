@@ -142,3 +142,7 @@
 - [消融对照-M6证据 v2](evaluation/消融对照-M6证据-v2.json)（6/6 动态断言通过；A5 如实 4/4 + 历史 1/10）
 - [压测-M6证据 v2](evaluation/压测-M6证据-v2.json)（并发 16 P95=145ms / 242rps；跨相位全量 P95 字段在位）
 - [场景状态fail-closed证据 v1](evaluation/场景状态fail-closed证据-v1.json)（D-1 真服务 5/5：拒绝零状态污染 + 正向提交生效）
+
+**B1 语义定义工作台（2026-11-12）**
+
+- [B1 P0 真服务冒烟证据 v1](evaluation/B1-P0真服务冒烟证据-v1.json)（Flyway V21 实际执行 success；7 端点 HTTP 200 + revision 0→3 递增；旧 revision 返回 `1005000104`；`dev-allow-all=false` 下管理端点 `403`、对照端点正常；active 未变、测试草稿已删）
