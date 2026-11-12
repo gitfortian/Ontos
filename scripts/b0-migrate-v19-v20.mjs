@@ -23,6 +23,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const V19 = join(ROOT, "ontos-assets/first-release-v19.json");
 const V20 = join(ROOT, "ontos-assets/first-release-v20.json");
 const V21 = join(ROOT, "ontos-assets/first-release-v21.json");
+const V22 = join(ROOT, "ontos-assets/first-release-v22.json");
 const CHECK_ONLY = process.argv.includes("--check");
 
 /** 常规指标 → { objectId, propertyId }（ruleId 型不在表内） */
@@ -295,23 +296,62 @@ if (v21Errors.length > 0) {
   process.exit(1);
 }
 
+// ---------- 8. v22：场景 scope 补齐渠道对象维度 ----------
+/**
+ * v21 只加了维度与指标授权，场景的 semanticScope 没同步——场景内引用 dim.channel_name
+ * 会被「引用资产超出场景范围」拒绝（实测 1004000007）。v22 补两个场景的 dimensions。
+ *
+ * 关系白名单无需改：两场景的 allowedRelations 已含 ontology.Order.attributedToChannel。
+ */
+const v22 = structuredClone(v21);
+for (const scenario of v22.scenarios ?? []) {
+  const dimensions = scenario.semanticScope?.dimensions;
+  if (!Array.isArray(dimensions)) {
+    continue;
+  }
+  if (dimensions.includes("dim.channel") && !dimensions.includes("dim.channel_name")) {
+    dimensions.splice(dimensions.indexOf("dim.channel") + 1, 0, "dim.channel_name");
+  }
+}
+v22.semantic.semanticVersion = "2026.11.12.3";
+
+const v22Errors = [];
+for (const scenario of v22.scenarios ?? []) {
+  const dimensions = scenario.semanticScope?.dimensions ?? [];
+  if (!dimensions.includes("dim.channel_name")) {
+    v22Errors.push(`场景未授权 dim.channel_name: ${scenario.id}`);
+  }
+}
+if (v22Errors.length > 0) {
+  console.error("[b0-migrate] v22 校验失败：");
+  for (const error of v22Errors) console.error(`  - ${error}`);
+  process.exit(1);
+}
+
+const outputV22 = `${JSON.stringify(v22, null, 2)}\n`;
+
 const outputV21 = `${JSON.stringify(v21, null, 2)}\n`;
 
 const output = `${JSON.stringify(v20, null, 2)}\n`;
 
 if (CHECK_ONLY) {
-  if (!existsSync(V20) || !existsSync(V21)) fail("v20/v21 资产不存在，先运行不带 --check 的迁移");
+  if (!existsSync(V20) || !existsSync(V21) || !existsSync(V22)) {
+    fail("v20/v21/v22 资产不存在，先运行不带 --check 的迁移");
+  }
   if (readFileSync(V20, "utf8") !== output) fail("v20 资产与迁移结果不一致（需重新生成）");
   if (readFileSync(V21, "utf8") !== outputV21) fail("v21 资产与迁移结果不一致（需重新生成）");
-  console.log("[b0-migrate] OK（--check：v20/v21 均与迁移结果一致）");
+  if (readFileSync(V22, "utf8") !== outputV22) fail("v22 资产与迁移结果不一致（需重新生成）");
+  console.log("[b0-migrate] OK（--check：v20/v21/v22 均与迁移结果一致）");
 } else {
   writeFileSync(V20, output, "utf8");
   writeFileSync(V21, outputV21, "utf8");
-  console.log(`[b0-migrate] OK：生成 ${V20} 与 ${V21}`);
+  writeFileSync(V22, outputV22, "utf8");
+  console.log(`[b0-migrate] OK：生成 v20 / v21 / v22`);
   console.log(
     `[b0-migrate] v20：指标 ${v20.semantic.metrics.length} / 维度 ${v20.semantic.dimensions.length} / 属性 ${v20.ontology.properties.length}`,
   );
   console.log(
     `[b0-migrate] v21：维度 ${v21.semantic.dimensions.length}（新增 dim.channel_name）/ VQR ${(v21.vqrs ?? []).length}`,
   );
+  console.log(`[b0-migrate] v22：场景 scope 已补 dim.channel_name（${(v22.scenarios ?? []).length} 个场景）`);
 }

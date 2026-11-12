@@ -1,0 +1,64 @@
+{
+  "setId": "b0-audit-ext-fix",
+  "version": "v1",
+  "generatedAt": "2026-11-12",
+  "purpose": "修复缺陷 AUDIT-EXT-COLUMNS-EMPTY：audit_log 的 11 个扩展列从未被写入；顺带修 v21 场景 scope 漏授权 dim.channel_name",
+  "defect": {
+    "id": "AUDIT-EXT-COLUMNS-EMPTY",
+    "severity": "P2",
+    "symptom": "vqr_id / vqr_version / scenario_id / scenario_version / scenario_entry_mode / scenario_entry_source / scenario_confirm_by_user / scenario_recommendation_confidence / skill_id / skill_version / approximated_from_mode 全为空",
+    "evidenceBefore": "action='VQR_HIT' 共 14 条，vqr_id 非空 0 条"
+  },
+  "fix": [
+    {
+      "file": "ontos-module-system/.../audit/AuditLogCreateReqDTO.java",
+      "change": "补 11 个扩展字段（scenarioRecommendationConfidence 用 BigDecimal 对应 NUMERIC(5,4)）"
+    },
+    {
+      "file": "ontos-module-system/.../audit/AuditService.java",
+      "change": "INSERT 从 22 列扩到 33 列 + 11 个参数绑定"
+    },
+    {
+      "file": "ontos-module-query/.../QueryServiceImpl.java",
+      "change": "4 处写入端补 set：auditVqrHit → vqrId/vqrVersion；auditSkill → skillId/skillVersion（查清单，查不到留空）；executeSkillApproximation → skillId/skillVersion/approximatedFromMode；buildCacheHitAudit → attachScenarioAudit"
+    },
+    {
+      "file": "ontos-module-query/.../QueryServiceImpl.java",
+      "change": "新增 attachScenarioAudit：优先取 queryDsl.scenarioId（本次请求声明），回退 currentScenarioId（会话态）；版本与入口模式取自已发布清单的场景定义"
+    }
+  ],
+  "verify": {
+    "vqrHit": {
+      "requestId": "10c46515-9d12-48c8-bb1b-4b2880181dc7",
+      "utterance": "近 7 天各渠道成交金额",
+      "auditRow": "VQR_HIT | vqr.sales.daily_gmv_by_channel | 1.0.0",
+      "conclusion": "vqr_id 与 vqr_version 已落专用列"
+    },
+    "scenario": {
+      "request": "POST /api/v1/query/execute，带 scenarioId=scenario.sales 与 dim.channel_name",
+      "response": "code 0，rows 线上 13797 / 线下 7207，columns [value, dim.channel_name]",
+      "auditRow": "EXECUTE | scenario.sales | 1.0.0 | recommend_or_confirm",
+      "conclusion": "scenario_id / version / entry_mode 三列已落"
+    },
+    "notYetFilled": [
+      "scenario_entry_source / scenario_confirm_by_user / scenario_recommendation_confidence：属决策期信息，ScenarioRouteGuard 端口未暴露（当前只有 currentScenarioId），需扩展会话状态，本次未改"
+    ]
+  },
+  "sideFix": {
+    "issue": "v21 只给指标加了 dim.channel_name 授权，场景 semanticScope 没同步，场景内引用被拒（实测 1004000007「引用资产超出场景范围」）",
+    "asset": "ontos-assets/first-release-v22.json（semanticVersion 2026.11.12.3）",
+    "change": "scenario.sales 与 scenario.sales.auto 的 semanticScope.dimensions 在 dim.channel 后插入 dim.channel_name",
+    "notNeeded": "allowedRelations 原本已含 ontology.Order.attributedToChannel，无需改",
+    "publish": {
+      "manifestId": "2026.11.12-twenty-second",
+      "contentHash": "feda6dd1f63abdb010d68f0079f3321ff4edf5d9e4e6a4cd5dc1074c26dea027",
+      "vqrs": 1,
+      "invalidatedVqrs": [],
+      "note": "对比 twenty-first-r2 只改场景 scope，VQR 依赖的资产定义未变，故 VQR 未被移除"
+    }
+  },
+  "regression": {
+    "mvnTest": "706 / 0 失败 / 0 错误",
+    "golden": "本轮未重跑（改动不涉及 SQL 生成）；上一轮 v21-r3 上三份全过"
+  }
+}

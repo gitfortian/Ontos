@@ -20,12 +20,18 @@ public class AuditService {
                 request_id, parent_request_id, sub_intent_id, tenant_id, user_id, session_id,
                 turn_index, manifest_id, action, metric_id, dsl, sql_text, row_count, reason_code, trace_id,
                 dev_mode, from_state, to_state, state_reason, policy_version,
-                approval_id, sensitive_counters_delta
+                approval_id, sensitive_counters_delta,
+                scenario_id, scenario_version, scenario_entry_mode, scenario_entry_source,
+                scenario_confirm_by_user, scenario_recommendation_confidence,
+                skill_id, skill_version, vqr_id, vqr_version, approximated_from_mode
             ) VALUES (
                 :requestId, :parentRequestId, :subIntentId, :tenantId, :userId, :sessionId,
                 :turnIndex, :manifestId, :action, :metricId, cast(:dsl as jsonb), :sqlText,
                 :rowCount, :reasonCode, :traceId, :devMode, :fromState, :toState, :stateReason, :policyVersion,
-                :approvalId, :sensitiveCountersDelta
+                :approvalId, :sensitiveCountersDelta,
+                :scenarioId, :scenarioVersion, :scenarioEntryMode, :scenarioEntrySource,
+                :scenarioConfirmByUser, :scenarioRecommendationConfidence,
+                :skillId, :skillVersion, :vqrId, :vqrVersion, :approximatedFromMode
             )
             """;
 
@@ -64,6 +70,18 @@ public class AuditService {
         params.put("policyVersion", policyService.auditVersion(createReqDTO.getTenantId()));
         params.put("approvalId", createReqDTO.getApprovalId());
         params.put("sensitiveCountersDelta", createReqDTO.getSensitiveCountersDelta());
+        // 扩展列（V15）：全部可空，未命中资产的行保持 NULL
+        params.put("scenarioId", createReqDTO.getScenarioId());
+        params.put("scenarioVersion", createReqDTO.getScenarioVersion());
+        params.put("scenarioEntryMode", createReqDTO.getScenarioEntryMode());
+        params.put("scenarioEntrySource", createReqDTO.getScenarioEntrySource());
+        params.put("scenarioConfirmByUser", createReqDTO.getScenarioConfirmByUser());
+        params.put("scenarioRecommendationConfidence", createReqDTO.getScenarioRecommendationConfidence());
+        params.put("skillId", createReqDTO.getSkillId());
+        params.put("skillVersion", createReqDTO.getSkillVersion());
+        params.put("vqrId", createReqDTO.getVqrId());
+        params.put("vqrVersion", createReqDTO.getVqrVersion());
+        params.put("approximatedFromMode", createReqDTO.getApproximatedFromMode());
         jdbcTemplate.update(INSERT_SQL, params);
     }
 

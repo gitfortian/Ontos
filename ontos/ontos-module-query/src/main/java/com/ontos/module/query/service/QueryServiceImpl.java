@@ -442,6 +442,9 @@ public class QueryServiceImpl implements QueryService {
         audit.setSessionId(context.sessionId());
         audit.setTurnIndex(context.turnIndex());
         audit.setAction("MODE_APPROXIMATED");
+        audit.setSkillId(skillId);
+        audit.setSkillVersion(meta.getVersion());
+        audit.setApproximatedFromMode(String.valueOf(originalMode));
         Map<String, Object> auditBody = new java.util.LinkedHashMap<>();
         auditBody.put("skillId", skillId);
         auditBody.put("originalMode", String.valueOf(originalMode));
@@ -675,6 +678,9 @@ public class QueryServiceImpl implements QueryService {
         audit.setSessionId(context.sessionId());
         audit.setTurnIndex(context.turnIndex());
         audit.setAction("VQR_HIT");
+        // 专用列（V15）：运营可直接按 vqr_id 统计命中，无需解析 dsl JSON
+        audit.setVqrId(vqrId);
+        audit.setVqrVersion(version);
         Map<String, Object> auditBody = new java.util.LinkedHashMap<>();
         auditBody.put("vqrId", vqrId);
         auditBody.put("vqrVersion", version);
@@ -694,6 +700,9 @@ public class QueryServiceImpl implements QueryService {
         audit.setSessionId(context.sessionId());
         audit.setTurnIndex(context.turnIndex());
         audit.setAction("SKILL_EXECUTE");
+        audit.setSkillId(skillId);
+        // 版本取自已发布清单的 skills 段；查不到留空（不猜版本）
+        skillRegistry.manifestSkill(skillId).ifPresent(meta -> audit.setSkillVersion(meta.getVersion()));
         audit.setDslJson(JsonUtils.toJsonString(Map.of("skillId", skillId, "slots",
                 slots == null ? Map.of() : slots)));
         audit.setTraceId(context.traceId());
@@ -1192,7 +1201,38 @@ public class QueryServiceImpl implements QueryService {
         audit.setSensitiveCountersDelta(countersDelta);
         audit.setTraceId(context.traceId());
         audit.setDevMode(context.devMode());
+        attachScenarioAudit(audit, context, manifest, queryDsl);
         return audit;
+    }
+
+    /**
+     * 场景审计字段（V15 / §12.1）：会话处于场景内时补 {@code scenario_id / version / entry_mode}。
+     *
+     * <p>版本与入口模式取自**已发布清单**的场景定义（静态属性），不是会话态；
+     * {@code entry_source / confirm_by_user / recommendation_confidence} 属决策期信息，
+     * 当前端口未暴露，留空待会话状态扩展（见 docs/05-progress 缺陷登记）。
+     */
+    private void attachScenarioAudit(AuditLogCreateReqDTO audit, RequestContext context,
+                                     PublishedManifest manifest, QueryDsl queryDsl) {
+        // 优先记**本次请求声明的场景**（直连 execute 不走会话状态提交，currentScenarioId 为 null）；
+        // 未显式声明时回退到会话当前场景（ask 编排路径）。
+        String declared = queryDsl == null ? null : queryDsl.getScenarioId();
+        String scenarioId = declared == null || declared.isBlank()
+                ? scenarioRouteGuard.currentScenarioId(context) : declared;
+        if (scenarioId == null || scenarioId.isBlank()) {
+            return;
+        }
+        audit.setScenarioId(scenarioId);
+        if (manifest == null || manifest.getScenarios() == null) {
+            return;
+        }
+        manifest.getScenarios().stream()
+                .filter(scenario -> scenarioId.equals(scenario.getId()))
+                .findFirst()
+                .ifPresent(scenario -> {
+                    audit.setScenarioVersion(scenario.getVersion());
+                    audit.setScenarioEntryMode(scenario.getEntryMode());
+                });
     }
 
     private static String truncate(String text) {
