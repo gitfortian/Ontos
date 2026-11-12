@@ -552,7 +552,7 @@ public class DslValidator {
             }
             if (!Objects.equals(binding.tableOf(dimension), binding.tableOf(metric))) {
                 throw exception(ATTRIBUTION_DIMENSION_UNSUPPORTED,
-                        dimensionId + " -> " + metric.getTable());
+                        dimensionId + " -> " + binding.tableOf(metric));
             }
         }
         int limit = dsl.getLimit() == null ? properties.getMaxRows() : dsl.getLimit();
