@@ -78,4 +78,6 @@ YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路
 - **生产库已上线（2026-11-12）**：`ontos` 库 active = `2026.11.12-twenty-first-r2`（6 维度 / 23 属性 / 1 VQR，contentHash `cec57068…`）。四步发布：`twenty-first`(vqrs:0) → 激活 → `-r2`(vqrs:1) → 激活。Golden 三份 27+6+10 全过；重启加载 `selectLatest()` = r2。
 - 遗留：两张快照并存（`twenty-first` 无 VQR / `r2` 有 VQR）；旧形态退役登记未做。
 - **VQR 链已验证**：`scenario.sales` → `vqr.sales.daily_gmv_by_channel`（dimensions=`dim.channel_name`）闭合；运行时「近 7 天各渠道成交金额」返回线上 3499 / 线下 129，`VQR_HIT` 审计在。
-- **缺陷 AUDIT-EXT-COLUMNS-EMPTY（P2，未修）**：`audit_log` 11 个扩展列全空（vqr_id/scenario_id/skill_id 等）。根因：`AuditService` INSERT 只写 22 列 + DTO 无字段 + 写入端只塞 dsl JSON。
+- **审计扩展列已修复（2026-11-12）**：DTO 补 11 字段、INSERT 22→33 列、四处写入端补 set。实测 `VQR_HIT | vqr_id | 1.0.0`、`EXECUTE | scenario.sales | 1.0.0 | recommend_or_confirm`。**审计字段要记"本次请求声明"，不是会话当前态**——直连 execute 不改会话状态，`currentScenarioId` 恒 null。
+- 未填 3 个（entry_source/confirm_by_user/confidence）需扩展 `ScenarioRouteGuard` 端口。
+- **v22 已上线**（`2026.11.12-twenty-second`，contentHash `feda6dd1…`）：补场景 `semanticScope.dimensions` 的 `dim.channel_name`——v21 漏了，场景内引用报 `1004000007`。**加维度要同步三处：指标 allowedDimensions、场景 semanticScope、VQR dslTemplate**。
