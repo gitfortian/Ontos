@@ -1,0 +1,52 @@
+{
+  "setId": "b0-w5-dryrun",
+  "version": "v1",
+  "generatedAt": "2026-11-12",
+  "purpose": "B0/W5 发布预检：验证 first-release-v20.json 能通过全部发布校验（不落库、不激活）",
+  "manifestId": "2026.11.12-twentieth",
+  "payloadFile": "ontos-assets/first-release-v20.json",
+  "endpoint": "POST http://127.0.0.1:8081/api/v1/ontology/publish",
+  "identity": {
+    "tenant": "demo",
+    "user": "b0-runner",
+    "roles": "asset-admin"
+  },
+  "request": {
+    "dryRun": true,
+    "sourceRef": "b0-w5-dryrun"
+  },
+  "response": {
+    "httpStatus": 200,
+    "code": 0,
+    "valid": true,
+    "violations": [],
+    "alreadyExists": false,
+    "contentHash": null,
+    "assetCounts": {
+      "metrics": 9,
+      "dimensions": 5,
+      "concepts": 6,
+      "properties": 23,
+      "relations": 7,
+      "events": 3,
+      "rules": 1,
+      "skills": 8,
+      "vqrs": 0,
+      "scenarios": 2
+    },
+    "invalidatedVqrs": [
+      "vqr.sales.daily_gmv_by_channel: 依赖资产定义发生不兼容变更: dim.order_date; 依赖资产定义发生不兼容变更: dim.channel; 依赖资产定义发生不兼容变更: metric.gmv; 声明失效条件命中（incompatible_change）: metric.gmv"
+    ]
+  },
+  "findings": [
+    "v20 结构通过全部发布校验：violations 为空，属性数 23 = v19 的 19 + 新建 4。",
+    "VQR 失效分析按预期命中 incompatible_change——这正是规格 #6b 预测的行为，不是缺陷。",
+    "vqrs 计数为 0 而非 1：发布流水线在结构校验前移除失效 VQR（PublishServiceImpl 的「VQR 失效级联清理」），故 dry-run 报告的是清理后的计数。实际发布同样会移除 vqr.sales.daily_gmv_by_channel，需在 W5 后重新建 VQR 并重锚 golden。",
+    "未执行确认发布（dryRun=false）：激活会改变本地环境生效清单并移除 VQR，属有副作用的操作，留待负责人确认。"
+  ],
+  "environment": {
+    "database": "postgres/ontos（PG 18，本地）",
+    "port": 8081,
+    "note": "8080 已被既有服务占用（旧版本，不含 B0 改动），故新版本另起 8081 做预检；预检结束后已停止该进程。"
+  }
+}
