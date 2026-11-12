@@ -20,6 +20,7 @@ export {
   type FieldLabelProps,
   type FieldProps,
 } from "./field/Field";
+export { fieldProps, firstError, type FieldLike } from "./form/FormBinding";
 export { Input, inputVariants, type InputProps } from "./input/Input";
 export { PageHeader, type PageHeaderProps } from "./page-header/PageHeader";
 export {
