@@ -221,6 +221,41 @@ class ScenarioSessionServiceTest {
         return row;
     }
 
+    // ---------- B0：V15 决策期审计字段随状态同事务持久化 ----------
+
+    @Test
+    void shouldPersistDecisionFieldsWithStateAndExposeThem() {
+        when(sessionStateService.read(any(), any(), any())).thenReturn(emptyState());
+        org.mockito.ArgumentCaptor<String> jsonCaptor =
+                org.mockito.ArgumentCaptor.forClass(String.class);
+
+        service.apply(context, new ScenarioRouter.RouteInput(
+                ScenarioRouteState.FREE, null, SALES, ScenarioEntrySource.EXPLICIT,
+                false, false, List.of(), scenariosMeta(), Set.of(SALES), List.of()));
+
+        verify(mapper).updateScenarioState(eq("demo"), eq("alice"), eq("s-1"), jsonCaptor.capture());
+        String json = jsonCaptor.getValue();
+        assertTrue(json.contains("\"entrySource\":\"explicit\""), json);
+        assertTrue(json.contains("\"confirmByUser\":false"), json);
+
+        SessionStateDO persisted = new SessionStateDO();
+        persisted.setScenarioState(json);
+        when(sessionStateService.read(any(), any(), any())).thenReturn(persisted);
+        ScenarioSessionService.ScenarioDecisionView view = service.readDecision(context);
+        assertEquals("explicit", view.entrySource());
+        assertEquals(Boolean.FALSE, view.confirmByUser());
+    }
+
+    @Test
+    void shouldTreatLegacyTwoFieldStateAsNoDecisionInfo() {
+        when(sessionStateService.read(any(), any(), any())).thenReturn(inScenarioState());
+
+        ScenarioSessionService.ScenarioDecisionView view = service.readDecision(context);
+
+        assertEquals(null, view.entrySource(), "旧格式状态不得猜决策来源");
+        assertEquals(null, view.confirmByUser());
+    }
+
     private Map<String, ManifestPayload.ScenarioMeta> scenariosMeta() {
         Map<String, ManifestPayload.ScenarioMeta> map = new java.util.LinkedHashMap<>();
         map.put(SALES, meta(SALES, "published", "auto_if_confident"));

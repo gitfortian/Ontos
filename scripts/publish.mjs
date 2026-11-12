@@ -10,7 +10,11 @@
  * 用法：
  *   node scripts/publish.mjs --manifest-id 2026.11.08-first \
  *        [--source-ref main@abc123] [--base-url http://127.0.0.1:8080] \
- *        [--assets ontos-assets/first-release.json] [--skip-activate]
+ *        [--assets ontos-assets/first-release-v22.json] [--skip-activate]
+ *
+ * B0 §3.3.3：发布端只收 v20 语义绑定形态（objectId + propertyId），默认资产指向三层化
+ * v22 清单。显式 --assets 指向 v1–v19 历史资产会被预检的形态闸门拒绝；回滚请走
+ * /manifests/{id}/activate 激活已有快照，不要重新发布旧形态。
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -26,7 +30,7 @@ const repo = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const BASE = argOf("--base-url", "http://127.0.0.1:8080");
 const MANIFEST_ID = argOf("--manifest-id");
 const SOURCE_REF = argOf("--source-ref", "manual");
-const ASSETS = resolve(repo, argOf("--assets", "ontos-assets/first-release.json"));
+const ASSETS = resolve(repo, argOf("--assets", "ontos-assets/first-release-v22.json"));
 const SKIP_ACTIVATE = flag("--skip-activate");
 const HEADERS = {
   "Content-Type": "application/json",

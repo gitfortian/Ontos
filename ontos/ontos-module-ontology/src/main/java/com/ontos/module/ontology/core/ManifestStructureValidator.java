@@ -66,6 +66,38 @@ public final class ManifestStructureValidator {
         return violations;
     }
 
+    /**
+     * B0 §3.3.3 发布端形态闸门：新发布只接受 v20 语义绑定（布尔判定指标为 RULE_ONLY）。
+     *
+     * <p><b>调用面刻意收窄</b>：只由 {@code PublishServiceImpl} 调用。通用
+     * {@link #validate(ManifestPayload)} 同时被 {@code ManifestServiceImpl.assemble}（激活/回滚）
+     * 使用，而双形态兼容窗口明确要求 v19 历史快照「接受激活、接受编译」。把闸门塞进通用校验
+     * 会把回滚链路一并拒掉，因此这里单列一个发布侧入口。
+     *
+     * <p>REJECT（混装/缺绑定）等形态问题由通用校验负责，本方法只拦 V19_PHYSICAL，避免重复报错。
+     */
+    public List<Violation> validatePublishBindingForm(ManifestPayload payload) {
+        List<Violation> violations = new ArrayList<>();
+        if (payload == null || payload.getSemantic() == null) {
+            return violations;
+        }
+        for (SemanticManifest.Metric metric : orEmpty(payload.getSemantic().getMetrics())) {
+            if (metric.bindingForm() == SemanticManifest.BindingForm.V19_PHYSICAL) {
+                violations.add(new Violation("metric." + metric.getId(),
+                        "发布端拒绝 v19 物理绑定形态（table+column）：B0 §3.3.3 起新清单必须用 "
+                                + "objectId+propertyId 语义绑定；v19 历史快照仍可激活/回滚"));
+            }
+        }
+        for (SemanticManifest.Dimension dimension : orEmpty(payload.getSemantic().getDimensions())) {
+            if (dimension.bindingForm() == SemanticManifest.BindingForm.V19_PHYSICAL) {
+                violations.add(new Violation("dimension." + dimension.getId(),
+                        "发布端拒绝 v19 物理绑定形态（table+column）：B0 §3.3.3 起新清单必须用 "
+                                + "objectId+propertyId 语义绑定；v19 历史快照仍可激活/回滚"));
+            }
+        }
+        return violations;
+    }
+
     private void validateSemantic(SemanticManifest semantic, OntologySnapshot ontology,
                                   Set<String> publishedRuleIds, List<Violation> violations) {
         if (semantic == null) {

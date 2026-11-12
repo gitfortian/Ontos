@@ -140,7 +140,7 @@ public class QueryServiceImpl implements QueryService {
             // T4.5：编译产物先落库再推进状态，保证回放端点能取到「最近一次」产物
             persistArtifact(context, context.traceId(), compiled, null);
             requestStateService.transition(context, requestId, RequestStatus.PROPOSED, "编译完成（dry-plan）");
-            auditService.record(buildAudit(context, "COMPILE", queryDsl, compiled, null));
+            auditService.record(buildAudit(context, "COMPILE", queryDsl, compiled, null, manifest));
             return compiled;
         } catch (ServiceException ex) {
             // 与 execute 对齐：fail-closed 拒绝也是合法终态，不能让 compile 分支停在初始态
@@ -211,7 +211,7 @@ public class QueryServiceImpl implements QueryService {
                 // 触发请求全量审计（细分分支码只在审计，对外统一 SENSITIVE_QUERY_SEQUENCE）；
                 // 状态 REJECTED 交由下方 catch 统一转移，避免重复迁移
                 AuditLogCreateReqDTO triggerAudit = buildAudit(context, "EXECUTE", queryDsl,
-                        compiled, result.getRowCount());
+                        compiled, result.getRowCount(), manifest);
                 triggerAudit.setReasonCode(decision.auditReasonCode());
                 triggerAudit.setApprovalId(decision.approvalId());
                 triggerAudit.setSensitiveCountersDelta(decision.countersDelta());
@@ -224,7 +224,7 @@ public class QueryServiceImpl implements QueryService {
             if (decision.triggered()) {
                 // 令牌放行（T2.3）：审计行关联审批单，回放时可追到放行依据（W3/T3.2）
                 AuditLogCreateReqDTO grantAudit = buildAudit(context, "EXECUTE", queryDsl,
-                        compiled, result.getRowCount());
+                        compiled, result.getRowCount(), manifest);
                 grantAudit.setReasonCode("SENSITIVE_APPROVED_GRANT");
                 grantAudit.setApprovalId(decision.approvalId());
                 grantAudit.setSensitiveCountersDelta(decision.countersDelta());
@@ -239,7 +239,7 @@ public class QueryServiceImpl implements QueryService {
                 sensitiveAudit = decision;
             }
             AuditLogCreateReqDTO audit = buildAudit(context, "EXECUTE", queryDsl, compiled,
-                    result.getRowCount());
+                    result.getRowCount(), manifest);
             if (cacheKey != null) {
                 audit.setReasonCode("CACHE_MISS");
             }
@@ -998,7 +998,7 @@ public class QueryServiceImpl implements QueryService {
         QueryPlan plan = queryExecutor.explain(compiled, context);
         plan.setCompiled(compiled);
         persistArtifact(context, context.traceId(), compiled, plan);
-        recordPlanAudit(context, "DRY_PLAN", queryDsl, compiled, plan, null);
+        recordPlanAudit(context, "DRY_PLAN", queryDsl, compiled, plan, null, manifest);
         return plan;
     }
 
@@ -1019,7 +1019,7 @@ public class QueryServiceImpl implements QueryService {
         if (QueryPlan.BLOCKED.equals(plan.getStatus())) {
             // 被拦的计划同样要能回放「当时为什么被拦」，所以先落库再拒绝
             persistArtifact(context, context.traceId(), compiled, plan);
-            recordPlanAudit(context, "DRY_RUN", queryDsl, compiled, plan, null);
+            recordPlanAudit(context, "DRY_RUN", queryDsl, compiled, plan, null, manifest);
             throw exception(PLAN_COST_BLOCKED, plan.getBlockReason());
         }
         QueryResult result = queryExecutor.executeDryRun(compiled, context);
@@ -1032,17 +1032,18 @@ public class QueryServiceImpl implements QueryService {
         persistArtifact(context, context.traceId(), compiled, plan);
         if (decision.triggered()) {
             recordPlanAudit(context, "DRY_RUN", queryDsl, compiled, plan,
-                    result.getRowCount(), decision.auditReasonCode());
+                    result.getRowCount(), decision.auditReasonCode(), manifest);
             throw exception(SENSITIVE_QUERY_SEQUENCE, decision.approvalId());
         }
-        recordPlanAudit(context, "DRY_RUN", queryDsl, compiled, plan, result.getRowCount());
+        recordPlanAudit(context, "DRY_RUN", queryDsl, compiled, plan, result.getRowCount(), manifest);
         return new DryRunOutcome(plan, result);
     }
 
     /** dry-plan / dry-run 结果进审计：action 区分动作，reasonCode 记录 OK / BLOCKED 判定。 */
     private void recordPlanAudit(RequestContext context, String action, QueryDsl queryDsl,
-                                 CompiledQuery compiled, QueryPlan plan, Integer rowCount) {
-        AuditLogCreateReqDTO audit = buildAudit(context, action, queryDsl, compiled, rowCount);
+                                 CompiledQuery compiled, QueryPlan plan, Integer rowCount,
+                                 PublishedManifest manifest) {
+        AuditLogCreateReqDTO audit = buildAudit(context, action, queryDsl, compiled, rowCount, manifest);
         audit.setReasonCode(plan.getStatus());
         auditService.record(audit);
     }
@@ -1050,8 +1051,8 @@ public class QueryServiceImpl implements QueryService {
     /** 触发敏感判定时的 dry-run 审计：reasonCode 记细分触发分支（覆盖 plan 状态码）。 */
     private void recordPlanAudit(RequestContext context, String action, QueryDsl queryDsl,
                                  CompiledQuery compiled, QueryPlan plan, Integer rowCount,
-                                 String reasonCodeOverride) {
-        AuditLogCreateReqDTO audit = buildAudit(context, action, queryDsl, compiled, rowCount);
+                                 String reasonCodeOverride, PublishedManifest manifest) {
+        AuditLogCreateReqDTO audit = buildAudit(context, action, queryDsl, compiled, rowCount, manifest);
         audit.setReasonCode(reasonCodeOverride);
         auditService.record(audit);
     }
@@ -1206,23 +1207,36 @@ public class QueryServiceImpl implements QueryService {
     }
 
     /**
-     * 场景审计字段（V15 / §12.1）：会话处于场景内时补 {@code scenario_id / version / entry_mode}。
+     * 场景审计字段（V15 / §12.1）：会话处于场景内时补 {@code scenario_id / version / entry_mode}
+     * 及三列决策期信息。
      *
      * <p>版本与入口模式取自**已发布清单**的场景定义（静态属性），不是会话态；
-     * {@code entry_source / confirm_by_user / recommendation_confidence} 属决策期信息，
-     * 当前端口未暴露，留空待会话状态扩展（见 docs/05-progress 缺陷登记）。
+     * {@code entry_source / confirm_by_user} 由 {@link ScenarioRouteGuard#lastDecision} 从
+     * 「最近一次路由决策」投影（随会话状态同事务持久化）。
+     * {@code recommendation_confidence} 按 M6 规格决策 4「不引入 LLM 置信度数值」恒为 null，
+     * 不是缺失项。
      */
     private void attachScenarioAudit(AuditLogCreateReqDTO audit, RequestContext context,
                                      PublishedManifest manifest, QueryDsl queryDsl) {
         // 优先记**本次请求声明的场景**（直连 execute 不走会话状态提交，currentScenarioId 为 null）；
         // 未显式声明时回退到会话当前场景（ask 编排路径）。
         String declared = queryDsl == null ? null : queryDsl.getScenarioId();
-        String scenarioId = declared == null || declared.isBlank()
-                ? scenarioRouteGuard.currentScenarioId(context) : declared;
+        boolean explicit = declared != null && !declared.isBlank();
+        String scenarioId = explicit ? declared : scenarioRouteGuard.currentScenarioId(context);
         if (scenarioId == null || scenarioId.isBlank()) {
             return;
         }
         audit.setScenarioId(scenarioId);
+        // 显式直连：决策信息由本次请求推导（用户显式选择、非 pending_confirm 确认），
+        // 不读会话历史，保证「审计记本次请求声明」而非会话当前态。
+        ScenarioRouteGuard.DecisionAudit decision = explicit
+                ? new ScenarioRouteGuard.DecisionAudit("explicit", Boolean.FALSE, null)
+                : scenarioRouteGuard.lastDecision(context);
+        if (decision != null) {
+            audit.setScenarioEntrySource(decision.entrySource());
+            audit.setScenarioConfirmByUser(decision.confirmByUser());
+            audit.setScenarioRecommendationConfidence(decision.recommendationConfidence());
+        }
         if (manifest == null || manifest.getScenarios() == null) {
             return;
         }
@@ -1270,8 +1284,16 @@ public class QueryServiceImpl implements QueryService {
         requestStateService.transition(context, requestId, target, reason);
     }
 
-    private static AuditLogCreateReqDTO buildAudit(RequestContext context, String action, QueryDsl queryDsl,
-                                                   CompiledQuery compiled, Integer rowCount) {
+    /**
+     * 通用审计构造（COMPILE / EXECUTE / DRY_PLAN / DRY_RUN）。
+     *
+     * <p>B0 修复：主执行路径此前只挂了场景字段到缓存命中分支，导致 EXECUTE / DRY_* 审计行
+     * 的 6 个场景扩展列全空。此处统一显式挂 {@link #attachScenarioAudit}；manifest 由调用方
+     * 传入（与 compiled 同源），不做隐式 active 查询，避免快照切换时取错场景版本。
+     */
+    private AuditLogCreateReqDTO buildAudit(RequestContext context, String action, QueryDsl queryDsl,
+                                            CompiledQuery compiled, Integer rowCount,
+                                            PublishedManifest manifest) {
         AuditLogCreateReqDTO audit = new AuditLogCreateReqDTO();
         audit.setRequestId(context.traceId());
         audit.setTenantId(context.tenantId());
@@ -1286,6 +1308,7 @@ public class QueryServiceImpl implements QueryService {
         audit.setRowCount(rowCount);
         audit.setTraceId(context.traceId());
         audit.setDevMode(context.devMode());
+        attachScenarioAudit(audit, context, manifest, queryDsl);
         return audit;
     }
 

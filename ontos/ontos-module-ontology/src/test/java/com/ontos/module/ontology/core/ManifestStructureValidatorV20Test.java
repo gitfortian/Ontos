@@ -282,4 +282,37 @@ class ManifestStructureValidatorV20Test {
         payload.getSemantic().getDimensions().getFirst().setPropertyId(null);
         assertViolationContains(payload, "必须同时给 objectId 与 propertyId");
     }
+
+    // ---------- B0 §3.3.3 发布端形态闸门（只作用于发布侧） ----------
+
+    @Test
+    void shouldGateOnlyPublishSideAndKeepActivationOpenForV19() {
+        ManifestPayload v19 = v19Payload();
+
+        // 通用校验同时被 ManifestServiceImpl.assemble（激活/回滚）使用，绝不能拦 v19
+        assertFalse(validator.validate(v19).stream()
+                        .anyMatch(v -> v.toString().contains("发布端拒绝 v19")),
+                "闸门泄漏到通用校验会破坏 v19 历史快照的激活/回滚链路");
+
+        // 发布侧专用入口必须拦住，且不放过 v20 主形态
+        assertTrue(validator.validatePublishBindingForm(v19).stream()
+                .anyMatch(v -> v.toString().contains("发布端拒绝 v19")));
+        assertTrue(validator.validatePublishBindingForm(v20Payload()).isEmpty());
+    }
+
+    /** 把 v20 夹具退回 v19 物理绑定（保留 ontology，只改资产绑定形态）。 */
+    private ManifestPayload v19Payload() {
+        ManifestPayload payload = v20Payload();
+        SemanticManifest.Metric metric = payload.getSemantic().getMetrics().getFirst();
+        metric.setObjectId(null);
+        metric.setPropertyId(null);
+        metric.setTable("orders");
+        metric.setColumn("amount");
+        SemanticManifest.Dimension dimension = payload.getSemantic().getDimensions().getFirst();
+        dimension.setObjectId(null);
+        dimension.setPropertyId(null);
+        dimension.setTable("orders");
+        dimension.setColumn("region");
+        return payload;
+    }
 }

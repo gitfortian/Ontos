@@ -61,6 +61,13 @@ public class ScenarioRouteGuardImpl implements ScenarioRouteGuard {
     }
 
     @Override
+    public DecisionAudit lastDecision(RequestContext context) {
+        ScenarioSessionService.ScenarioDecisionView view = scenarioSessionService.readDecision(context);
+        // 第三列恒 null：M6 规格决策 4 用确定性命中口径，明确不引入 LLM 置信度数值。
+        return new DecisionAudit(view.entrySource(), view.confirmByUser(), null);
+    }
+
+    @Override
     public void adjudicate(RequestContext context, String scenarioId, String mode,
                            String timeRangeField, java.util.Collection<String> referencedAssetIds) {
         if (scenarioId == null || scenarioId.isBlank()) {

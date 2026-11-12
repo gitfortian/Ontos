@@ -230,4 +230,19 @@ class ScenarioRouteGuardImplTest {
         manifest.setOntology(ontology);
         return manifest;
     }
+
+    // ---------- B0：V15 决策期审计字段投影 ----------
+
+    @Test
+    void shouldProjectLastDecisionIntoAuditAndKeepConfidenceNull() {
+        when(scenarioSessionService.readDecision(any())).thenReturn(
+                new ScenarioSessionService.ScenarioDecisionView("confirmed_recommendation", Boolean.TRUE));
+
+        ScenarioRouteGuard.DecisionAudit audit = guard.lastDecision(context);
+
+        assertEquals("confirmed_recommendation", audit.entrySource());
+        assertEquals(Boolean.TRUE, audit.confirmByUser());
+        assertEquals(null, audit.recommendationConfidence(),
+                "M6 规格决策 4 为确定性口径、不引入 LLM 置信度数值，恒 null 不是缺陷");
+    }
 }

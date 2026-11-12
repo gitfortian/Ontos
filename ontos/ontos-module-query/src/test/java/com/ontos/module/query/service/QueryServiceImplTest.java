@@ -28,6 +28,7 @@ import com.ontos.module.query.core.executor.DryRunOutcome;
 import com.ontos.module.query.core.executor.QueryExecutor;
 import com.ontos.module.query.core.executor.QueryPlan;
 import com.ontos.module.query.core.executor.QueryResult;
+import com.ontos.module.query.core.scenario.ScenarioRouteGuard;
 import com.ontos.module.query.core.skill.EntityLookupSkill;
 import com.ontos.module.query.core.skill.SkillRegistry;
 import com.ontos.module.query.core.time.TimeWindowResolver;
@@ -105,8 +106,13 @@ class QueryServiceImplTest {
     }
 
     private QueryServiceImpl service(TimeWindowResolver resolver) {
+        return service(resolver,
+                (context, scenarioId, mode, timeRangeField, referencedAssetIds) -> { });
+    }
+
+    private QueryServiceImpl service(TimeWindowResolver resolver, ScenarioRouteGuard guard) {
         return new QueryServiceImpl(manifestService, new DslValidator(TestFixtures.queryProperties()),
-                (context, scenarioId, mode, timeRangeField, referencedAssetIds) -> { },
+                guard,
                 new com.ontos.module.query.core.dependency.CompositeDependencyPlanner(),
                 policyService, sqlCompiler, queryExecutor, auditService, requestStateService, resolver,
                 new JoinPathResolver(() -> Set.of()), queryArtifactRepository, queryCacheService,
@@ -515,6 +521,56 @@ class QueryServiceImplTest {
         // 调试通道不推进业务状态机：重放已终态的 request_id 不应触发非法迁移
         verify(requestStateService, never()).transition(any(), any(), any(), any());
         verify(requestStateService, never()).initialize(any(), any());
+    }
+
+    // ---------- B0：V15 决策期审计字段（本次请求声明 / 会话继承两条路径） ----------
+
+    @Test
+    void shouldRecordExplicitScenarioDecisionAuditFields() {
+        stubPlan(okPlan());
+        QueryDsl dsl = TestFixtures.query();
+        dsl.setScenarioId("scenario.sales");
+
+        service(new TimeWindowResolver()).dryPlan(dsl);
+
+        ArgumentCaptor<AuditLogCreateReqDTO> captor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);
+        verify(auditService).record(captor.capture());
+        assertEquals("scenario.sales", captor.getValue().getScenarioId());
+        assertEquals("explicit", captor.getValue().getScenarioEntrySource(),
+                "显式声明场景时按本次请求推导，不读会话历史");
+        assertEquals(Boolean.FALSE, captor.getValue().getScenarioConfirmByUser());
+        assertEquals(null, captor.getValue().getScenarioRecommendationConfidence());
+    }
+
+    @Test
+    void shouldRecordInheritedScenarioDecisionAuditFields() {
+        stubPlan(okPlan());
+        ScenarioRouteGuard guard = new ScenarioRouteGuard() {
+            @Override
+            public void adjudicate(RequestContext context, String scenarioId, String mode,
+                                   String timeRangeField, java.util.Collection<String> referencedAssetIds) {
+                // no-op：本例只验审计投影
+            }
+
+            @Override
+            public String currentScenarioId(RequestContext context) {
+                return "scenario.sales";
+            }
+
+            @Override
+            public DecisionAudit lastDecision(RequestContext context) {
+                return new DecisionAudit("confirmed_recommendation", Boolean.TRUE, null);
+            }
+        };
+
+        service(new TimeWindowResolver(), guard).dryPlan(TestFixtures.query());
+
+        ArgumentCaptor<AuditLogCreateReqDTO> captor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);
+        verify(auditService).record(captor.capture());
+        assertEquals("scenario.sales", captor.getValue().getScenarioId());
+        assertEquals("confirmed_recommendation", captor.getValue().getScenarioEntrySource());
+        assertEquals(Boolean.TRUE, captor.getValue().getScenarioConfirmByUser());
+        assertEquals(null, captor.getValue().getScenarioRecommendationConfidence());
     }
 
     @Test

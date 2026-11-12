@@ -93,6 +93,9 @@ public class PublishServiceImpl implements PublishService {
         }
 
         structureValidator.validate(payload).forEach(v -> violations.add(v.toString()));
+        // B0 §3.3.3 发布端形态闸门：新发布只收 v20 语义形态。刻意不放进通用 validate()——
+        // 激活/回滚走 ManifestServiceImpl.assemble，必须继续接受 v19 历史快照。
+        structureValidator.validatePublishBindingForm(payload).forEach(v -> violations.add(v.toString()));
         publishValidator.validate(payload.getOntology()).forEach(v -> violations.add(v.toString()));
         boolean alreadyExists = repository.selectByManifestId(request.manifestId()).isPresent();
 

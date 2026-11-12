@@ -51,4 +51,23 @@ public interface ScenarioRouteGuard {
     default String currentScenarioId(RequestContext context) {
         return null;
     }
+
+    /**
+     * 最近一次场景路由决策的审计快照（V15 三列）。query 模块自有类型——session 侧实现把
+     * 会话状态投影到这里，避免 query 反向依赖 session（ArchUnit 边界）。
+     *
+     * <p>{@code recommendationConfidence} 按 M6 规格决策 4「确定性口径、不引入 LLM 置信度
+     * 数值」恒为 null；保留字段是为了让审计写入端与 DTO/表结构同形，不得填造数值。
+     */
+    record DecisionAudit(String entrySource, Boolean confirmByUser,
+                         java.math.BigDecimal recommendationConfidence) {
+    }
+
+    /**
+     * 读会话中最近一次路由决策（决策期信息）。default null 兜底：无场景实现的装配按
+     * 「无决策信息」处理，审计列留空而不猜。
+     */
+    default DecisionAudit lastDecision(RequestContext context) {
+        return null;
+    }
 }
