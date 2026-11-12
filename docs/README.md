@@ -282,7 +282,7 @@ node docs/00-governance/check-docs.mjs
 | E-7 归因诊断 | 验证 | 已冻结 | v1 | [`06-verification/evaluation/E7归因诊断证据-v1.json`](06-verification/evaluation/E7归因诊断证据-v1.json) |
 | LLM 攻击面探针（T3.2） | 验证 | 已冻结 | v2（v1 两项 FAIL 为探针缺陷，已修正） | [`06-verification/evaluation/LLM对抗探针证据-v2.json`](06-verification/evaluation/LLM对抗探针证据-v2.json) |
 | 产品前端实施规格（M8 工作包） | 计划 | **已冻结（编码放行待 D1–D8 + D10 定档、W-E0 / W-B0 前置与 W0 spike）** | v1.1 | [`03-plans/stages/M8/产品前端-实施规格-v1.1.md`](03-plans/stages/M8/产品前端-实施规格-v1.1.md)（[v0.1](99-archive/plans/产品前端-实施规格-v0.1.md)、[v0.2](99-archive/plans/产品前端-实施规格-v0.2.md)、[v1.0](99-archive/plans/产品前端-实施规格-v1.0.md) 已归档） |
-| B0 语义模型三层化 实施规格（独立工作包） | 计划 | 草稿（待定档；§8 四项设计决策待确认） | v0.1 | [`03-plans/stages/B0/B0-语义模型三层化-实施规格-v0.1.md`](03-plans/stages/B0/B0-语义模型三层化-实施规格-v0.1.md) |
+| B0 语义模型三层化 实施规格（独立工作包） | 计划 | **实施中**（W1/W2 完成，`mvn test` 691/0） | v1.1 | [`03-plans/stages/B0/B0-语义模型三层化-实施规格-v1.1.md`](03-plans/stages/B0/B0-语义模型三层化-实施规格-v1.1.md)（[v0.1](99-archive/plans/B0-语义模型三层化-实施规格-v0.1.md)、[v1.0](99-archive/plans/B0-语义模型三层化-实施规格-v1.0.md) 已归档） |
 | E-7 定向复测证据（30 题子集，第 2 轮） | 验证 | 已冻结 | v1 | [`06-verification/evaluation/E7定向复测证据-v1.json`](06-verification/evaluation/E7定向复测证据-v1.json) |
 | E-7 定向复测证据（30 题子集，第 3 轮，判据 v2） | 验证 | 已冻结 | v2 | [`06-verification/evaluation/E7定向复测证据-v2.json`](06-verification/evaluation/E7定向复测证据-v2.json) |
 | 压测证据（M7/W5） | 验证 | 已冻结 | v1 | [`06-verification/evaluation/压测-M7证据-v1.json`](06-verification/evaluation/压测-M7证据-v1.json) |
