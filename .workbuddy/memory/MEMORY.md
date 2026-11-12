@@ -75,4 +75,5 @@ YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路
 - **v21 渠道维度升级（2026-11-12）**：`dim.channel` 是订单冗余列（`orders.channel`），只碰订单一个对象；新增 `dim.channel_name`（`concept.channel` + `property.channel.name`）走 `Order.attributedToChannel` JOIN，两维度并存。订单项指标未加（两跳）。
 - **发布 VQR 四步**：加维度授权会改 metric 定义 → VQR 失效。必须「发布→激活→再发→激活」，跳过激活直接再发无效。同一资产两次发布 contentHash 不同（VQR 清理改 payload）。
 - 基线：mvn **706/0**；Golden 三份 27+6+10 全过（v21-r3）。
-- 待办：生产库发布时点（需负责人决定）、旧形态退役登记。
+- **生产库已上线（2026-11-12）**：`ontos` 库 active = `2026.11.12-twenty-first-r2`（6 维度 / 23 属性 / 1 VQR，contentHash `cec57068…`）。四步发布：`twenty-first`(vqrs:0) → 激活 → `-r2`(vqrs:1) → 激活。Golden 三份 27+6+10 全过；重启加载 `selectLatest()` = r2。
+- 遗留：两张快照并存（`twenty-first` 无 VQR / `r2` 有 VQR）；旧形态退役登记未做。
