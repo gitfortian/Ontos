@@ -48,7 +48,7 @@ YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路
 
 ## B0 语义模型三层化（2026-11-12 **已定档**）
 - 文档：`docs/04-specs/语义模型三层化-影响分析-v0.2.md`（已定档；v0.1 归档）。35 条清单：**破坏 0 / 需论证 6 / 需设计 1 / 平移 13**（只统计 §4–§5 的 20 条判定项）。
-- **D-1 解耦**：B0 与 M8 解耦、独立排期独立验收——M8 是上线与规模化，须等产品真正化；判据推荐档「并入 M8 前置」**未被采用**（显式决策，已留痕）。排期建议 A 立即启动（C-1/C-2 暂停窗口期，评测只锚 v20 一次）。
+- **D-1 解耦**：B0 与 M8 解耦、**按独立工作包**（不占 M 编号、不参与主关键路径、不设阶段依赖；roadmap §2 末有 B0 节，刻意不进阶段总览表以免被 `check-parallel-obligations.mjs` 当 M 阶段解析）。排期建议 A 立即启动（C-1/C-2 暂停窗口期，评测只锚 v20 一次）。
 - **D-2 ADR-0021 不立**：与 M4 `policy_snapshot`（换角色走快照新版本、不改表结构）+ M6 catalog 资产生命周期重叠；四眼审批需求出现时再立。
 - **D-3 Model 层**：B0 非目标、**不预留空段**；`Metric{objectId,propertyId}` 与 Model 正交，未来只给 Concept 加 `primaryModelId`。
 - 三层 = 本体（Property 唯一持物理映射）→ 指标/维度（objectId+propertyId）→ 物理。约束：**E1 SQL 逐字等价**（Golden 三份比对）、**E2 迁移按物理列归属不按业务名**（`dim.channel`=`orders.channel`≠`channel.name`）。
