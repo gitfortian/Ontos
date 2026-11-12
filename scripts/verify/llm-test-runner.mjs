@@ -36,6 +36,46 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
+/**
+ * 读取仓库根 `.env.local`：只用于证据元数据（模型名 / 端点），不参与调用。
+ * O-1（收口）：此前 runner 进程不加载该文件，证据里恒为 `model=null`，模型名只能靠服务端配置反推。
+ * 进程环境优先（--env 或 shell 导出），其次 `.env.local`，两者都没有才记 null 并告警。
+ */
+function readDotenv(path) {
+  const vars = {};
+  if (!existsSync(path)) {
+    return vars;
+  }
+  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+    const at = trimmed.indexOf("=");
+    if (at <= 0) {
+      continue;
+    }
+    const key = trimmed.slice(0, at).trim();
+    let value = trimmed.slice(at + 1).trim();
+    if ((value.startsWith("\"") && value.endsWith("\""))
+      || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    vars[key] = value;
+  }
+  return vars;
+}
+
+const ENV_FILE_VARS = readDotenv(`${repo}/.env.local`);
+const RESOLVED_MODEL = process.env.ONTOS_AGENT_MODEL ?? ENV_FILE_VARS.ONTOS_AGENT_MODEL ?? null;
+const RESOLVED_MODEL_ENDPOINT = process.env.ONTOS_AGENT_BASE_URL ?? ENV_FILE_VARS.ONTOS_AGENT_BASE_URL ?? null;
+const MODEL_SOURCE = process.env.ONTOS_AGENT_MODEL
+  ? "process-env"
+  : (ENV_FILE_VARS.ONTOS_AGENT_MODEL ? ".env.local" : "unknown");
+if (!RESOLVED_MODEL) {
+  console.warn("  [warn] 未解析到模型名（进程环境与 .env.local 均无 ONTOS_AGENT_MODEL），证据 model 将为 null");
+}
 const argOf = (name, fallback) => {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : fallback;
@@ -79,6 +119,9 @@ if (!Number.isFinite(MIN_INTERVAL_MS) || MIN_INTERVAL_MS < 0) {
 }
 if (CONCURRENCY > 1 && !ALLOW_UNSAFE_CONCURRENCY) {
   throw new Error("外部模型路径默认禁止并发 > 1；如确要并发，请显式加 --allow-unsafe-concurrency（仅限本地协议桩）");
+}
+if (hasFlag("--self-test")) {
+  selfTest();
 }
 if (!CONFIRM) {
   const plannedCases = CASES.length;
@@ -390,6 +433,17 @@ async function askOnce(caseItem, runIndex) {
 
 function judge(caseItem, result, dsl) {
   const expected = caseItem.expected ?? {};
+  // v2.3：确定性降级路径不在 LLM 判据覆盖范围——当轮没走到模型，期望终态（如 query）
+  // 与降级路径的实际终态（如澄清）本来就不同口径。整题记 skipped（不计入分母），
+  // 不用错误判据判负，也不假装通过。降级是否发生由服务端响应 degraded 决定（O-2：澄清终态也要透传）。
+  if (result.degraded === true) {
+    return {
+      pass: false,
+      skipped: true,
+      reasons: ["degraded:确定性降级路径，LLM 判据不适用"
+        + (caseItem.degradedPathNote ? "（题集已声明降级路径判据）" : "")],
+    };
+  }
   // 题集 v5 允许复合期望（例如「query 或 clarification」「out_of_capability 或 clarification」）。
   // runner 判据 v2.1：按「或」拆开；服务端护栏业务拒绝在期望包含 out_of_capability 时计入合法拒绝。
   const expectedTerminals = String(expected.terminal ?? "")
@@ -435,8 +489,12 @@ function judge(caseItem, result, dsl) {
   const attributes = (dsl?.attributes ?? []).map(String);
   const attributesOk = !expected.attributes || !Array.isArray(expected.attributes)
     || expected.attributes.every((attribute) => attributes.includes(attribute));
+  // v2.2：LOOKUP_BATCH 的身份在 dsl.identities 中按请求顺序对齐；
+  // expected.identity.value 只要求出现在批量列表中（存在性保护由执行器逐行 available=false 承担）。
+  const identities = (dsl?.identities ?? []).map(String);
   const identityOk = !expected.identity
-    || String(dsl?.identity?.value ?? "") === String(expected.identity.value ?? "");
+    || String(dsl?.identity?.value ?? "") === String(expected.identity.value ?? "")
+    || identities.includes(String(expected.identity.value ?? ""));
   const reasons = [];
   if (!terminalOk) reasons.push(`terminal:${result.terminal}≠${expected.terminal}`);
   if (!modeOk) reasons.push(`mode:${dsl?.mode}≠${expected.mode}`);
@@ -445,8 +503,49 @@ function judge(caseItem, result, dsl) {
   if (!timeOk) reasons.push(`time:${dsl?.timeExpressionRaw}≠${expected.timeExpressionRaw}`);
   if (!filtersOk) reasons.push(`filters:${JSON.stringify(dslFilters)}≠${JSON.stringify(expected.filters ?? [])}`);
   if (!attributesOk) reasons.push(`attributes:${attributes.join(",")}≠${(expected.attributes ?? []).join(",")}`);
-  if (!identityOk) reasons.push(`identity:${dsl?.identity?.value}≠${expected.identity?.value}`);
+  if (!identityOk) reasons.push(`identity:${dsl?.identity?.value ?? identities.join(",")}≠${expected.identity?.value}`);
   return { pass: reasons.length === 0, reasons };
+}
+
+/**
+ * 判据自检（--self-test）：不发任何请求，只验证判据与元数据解析。
+ * 覆盖 O-1（模型名从 .env.local 解析）与 O-2（确定性降级路径整题 skipped）。
+ */
+function selfTest() {
+  const checks = [];
+  const assert = (name, ok, detail = "") => checks.push({ name, ok, detail });
+
+  assert("O-1 模型名已解析", Boolean(RESOLVED_MODEL),
+    `model=${RESOLVED_MODEL ?? "null"} source=${MODEL_SOURCE}`);
+
+  const degradedCase = {
+    expected: { terminal: "query" },
+    degradedPathNote: "确定性降级路径判据：T1 query + T2 澄清",
+  };
+  const degraded = judge(degradedCase,
+    { degraded: true, terminal: "clarification", code: 0 }, null);
+  assert("O-2 降级题记 skipped", degraded.skipped === true, JSON.stringify(degraded));
+  assert("O-2 降级题不计通过", degraded.pass === false, JSON.stringify(degraded));
+
+  const degradedNoNote = judge({ expected: { terminal: "query" } },
+    { degraded: true, terminal: "clarification", code: 0 }, null);
+  assert("O-2 无 degradedPathNote 的降级题同样 skipped",
+    degradedNoNote.skipped === true, JSON.stringify(degradedNoNote));
+
+  const okCase = judge({ expected: { terminal: "query", mode: "QUERY" } },
+    { degraded: false, terminal: "query", code: 0 }, { mode: "QUERY" });
+  assert("判据正向用例", okCase.pass === true && !okCase.skipped, JSON.stringify(okCase));
+
+  for (const check of checks) {
+    console.log(`  [${check.ok ? "PASS" : "FAIL"}] ${check.name}${check.detail ? ` — ${check.detail}` : ""}`);
+  }
+  const failed = checks.filter((check) => !check.ok).length;
+  console.log(`判据自检：${checks.length - failed}/${checks.length} PASS`);
+  process.exit(failed === 0 ? 0 : 1);
+}
+
+if (hasFlag("--self-test")) {
+  selfTest();
 }
 
 const results = [];
@@ -499,11 +598,13 @@ const rows = results.map((result) => {
       values: (item.values ?? []).map(String),
     })),
     attributes: (dsl?.attributes ?? []).map(String),
+    identities: (dsl?.identities ?? []).map(String),
     identityValue: dsl?.identity?.value ?? null,
     llmCalls: usage.calls,
     tokens: usage.tokens,
     llmUsed: usage.calls > 0,
     pass: judgement.pass,
+    skipped: judgement.skipped === true,
     rejectedByGuardrail: judgement.rejectedByGuardrail ?? null,
     failReasons: judgement.reasons,
     layers: {
@@ -516,9 +617,17 @@ const rows = results.map((result) => {
 });
 
 const summarize = (items) => {
-  const total = items.length;
-  const passed = items.filter((item) => item.pass).length;
-  return { total, passed, rate: total ? Number((passed / total).toFixed(4)) : null, wilson95: wilson(passed, total) };
+  // skipped（如确定性降级路径）不计入分母：判据不适用时既不算通过也不算失败。
+  const scored = items.filter((item) => !item.skipped);
+  const total = scored.length;
+  const passed = scored.filter((item) => item.pass).length;
+  return {
+    total,
+    passed,
+    rate: total ? Number((passed / total).toFixed(4)) : null,
+    wilson95: wilson(passed, total),
+    skipped: items.length - total,
+  };
 };
 
 const byLayer = (key) => {
@@ -534,14 +643,15 @@ const byLayer = (key) => {
 };
 
 const latencies = rows.map((item) => item.latencyMs).sort((left, right) => left - right);
-const failures = rows.filter((item) => !item.pass);
+const failures = rows.filter((item) => !item.pass && !item.skipped);
 const evidence = {
   task: "M7/W2/T2.2",
   runId: RUN_ID,
   ranAt: new Date().toISOString(),
   serviceBaseUrl: BASE,
-  model: process.env.ONTOS_AGENT_MODEL ?? null,
-  modelEndpoint: process.env.ONTOS_AGENT_BASE_URL ?? null,
+  model: RESOLVED_MODEL,
+  modelSource: MODEL_SOURCE,
+  modelEndpoint: RESOLVED_MODEL_ENDPOINT,
   testSet: { path: SET_PATH.replace(`${repo}/`, ""), version: SET.version, total: SET.total, evaluated: CASES.length },
   runs: RUNS,
   execution: {
@@ -556,7 +666,7 @@ const evidence = {
     resumed: RESUME,
   },
   judgement: {
-    version: "v2.1（v2 基础上支持「A 或 B」复合期望终态；服务端护栏拒绝在期望包含 out_of_capability 时计入合法拒绝；filter 取值词表缺失仍登记 R-ROOT-2）",
+    version: "v2.3（v2.2 基础上：确定性降级路径 + 题集带 degradedPathNote → 整题 skipped，不计入分母；LOOKUP_BATCH dsl.identities 按请求顺序对齐；服务端护栏拒绝在期望包含 out_of_capability 时计入合法拒绝；filter 取值词表缺失仍登记 R-ROOT-2）",
     terminal: "终态与期望一致",
     dsl: "期望给出 mode/metricId/dimensions/timeExpressionRaw 时，比对审计留痕 DSL（不注入期望值）",
     llmUsage: "llm_call_trace 是否存在该 requestId 的记录（区分 LLM 路径 / 确定性降级）",
@@ -595,7 +705,8 @@ if (completedResults.size === TASKS.length) {
 }
 
 console.log(`\nLLM 路径评测：${evidence.summary.passed}/${evidence.summary.total} pass`
-  + `（rate=${evidence.summary.rate}，Wilson95=${JSON.stringify(evidence.summary.wilson95)}）`);
+  + `（rate=${evidence.summary.rate}，Wilson95=${JSON.stringify(evidence.summary.wilson95)}`
+  + `，skip=${evidence.summary.skipped}）`);
 console.log(`LLM 记录 ${evidence.summary.llmUsed} 题 / 降级 ${evidence.summary.fallbackWithoutLlm} 题`
   + ` / 错误 ${evidence.summary.errors}`);
 console.log(`token 合计 ${evidence.summary.tokensTotal}，均值 ${evidence.summary.tokensPerCaseAvg}`
