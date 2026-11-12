@@ -72,4 +72,7 @@ YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路
 - **发布 ≠ 激活**：`POST /publish` 只落库，`POST /{id}/activate` 才切清单；VQR 失效分析读 active payload，active 空时不触发。
 - **`m3-golden.mjs`/`m6-golden.mjs` 默认 backfill**，必须显式 `--mode=check`，否则覆盖 Golden。
 - 新库初始化三件事：Flyway 自动建表、queryds 跑 `db/queryds/V1__rls_demo.sql`、**手动 `CREATE EXTENSION pgcrypto`**（否则 `digest()` 不存在）。
-- 待办：生产库发布时点（需负责人决定）、VQR 重建与 scenario 引用核对、旧形态退役登记。
+- **v21 渠道维度升级（2026-11-12）**：`dim.channel` 是订单冗余列（`orders.channel`），只碰订单一个对象；新增 `dim.channel_name`（`concept.channel` + `property.channel.name`）走 `Order.attributedToChannel` JOIN，两维度并存。订单项指标未加（两跳）。
+- **发布 VQR 四步**：加维度授权会改 metric 定义 → VQR 失效。必须「发布→激活→再发→激活」，跳过激活直接再发无效。同一资产两次发布 contentHash 不同（VQR 清理改 payload）。
+- 基线：mvn **706/0**；Golden 三份 27+6+10 全过（v21-r3）。
+- 待办：生产库发布时点（需负责人决定）、旧形态退役登记。
