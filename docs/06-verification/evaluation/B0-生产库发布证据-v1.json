@@ -1,0 +1,76 @@
+{
+  "setId": "b0-prod-publish",
+  "version": "v1",
+  "generatedAt": "2026-11-12",
+  "purpose": "B0 生产库（ontos）发布 v21：四步保住 VQR，Golden 三份逐字通过，渠道双对象生效",
+  "environment": {
+    "systemDb": "ontos（生产库）",
+    "queryDb": "ontos_queryds",
+    "port": 8091,
+    "profile": "local",
+    "preState": "active = 2026.11.11-nineteenth（v19，contentHash 377d4616…）",
+    "note": "发布前确认 8080 无服务、占用 8082 的是另一项目 yak-ops，Ontos 无旧进程在跑"
+  },
+  "steps": [
+    {
+      "step": "1. 发布 v21",
+      "manifestId": "2026.11.12-twenty-first",
+      "httpStatus": 200,
+      "contentHash": "b5e869fb7bd0d9e5ad7bf87f22bc986cab9e14ee28550c3d9d453eb212181204",
+      "assetCounts": { "metrics": 9, "dimensions": 6, "properties": 23, "relations": 7, "vqrs": 0, "scenarios": 2 },
+      "invalidatedVqrs": [
+        "vqr.sales.daily_gmv_by_channel: 依赖资产定义发生不兼容变更: metric.gmv; 依赖资产定义发生不兼容变更: dim.order_date; 声明失效条件命中（incompatible_change）: metric.gmv"
+      ],
+      "note": "对比生产 v19，metric.gmv 与 dim.order_date 的定义都变成 v20 形态，故 VQR 被判失效并移除"
+    },
+    { "step": "2. 激活 twenty-first", "httpStatus": 200 },
+    {
+      "step": "3. 再发同内容",
+      "manifestId": "2026.11.12-twenty-first-r2",
+      "httpStatus": 200,
+      "contentHash": "cec570684a3fc421490328da884bd6e2ad6d9468d42a13a2e6663e953a843678",
+      "assetCounts": { "metrics": 9, "dimensions": 6, "properties": 23, "vqrs": 1, "scenarios": 2 },
+      "invalidatedVqrs": [],
+      "note": "此时 oldPayload 是 twenty-first，指标定义一致，VQR 保留；contentHash 与上一步不同，因为 payload 未被 VQR 清理"
+    },
+    { "step": "4. 激活 twenty-first-r2", "httpStatus": 200, "observedActive": "2026.11.12-twenty-first-r2" }
+  ],
+  "golden": [
+    { "set": "Golden集-v2-gold-v1.json", "mode": "check", "total": 30, "pass": 27, "skip": 3, "fail": 0 },
+    { "set": "M3-Golden-v1.json", "mode": "check", "pass": 6, "fail": 0 },
+    { "set": "M6-Golden-v1.json", "mode": "check", "pass": 10, "fail": 0 }
+  ],
+  "channelDimension": {
+    "note": "生产库真服务 POST /api/v1/query/compile，同一指标 metric.gmv 仅维度不同",
+    "dim_channel": {
+      "sql": "select sum(\"orders\".\"amount\") as \"value\", \"orders\".\"channel\" as \"dim.channel\" from \"orders\" group by \"orders\".\"channel\" fetch next ? rows only",
+      "joins": [],
+      "objects": ["concept.order"]
+    },
+    "dim_channel_name": {
+      "sql": "select sum(\"orders\".\"amount\") as \"value\", \"channel\".\"name\" as \"dim.channel_name\" from \"orders\" join \"channel\" on \"orders\".\"channel_id\" = \"channel\".\"id\" group by \"channel\".\"name\" fetch next ? rows only",
+      "joins": [
+        {
+          "relationId": "ontology.Order.attributedToChannel",
+          "direction": "forward",
+          "table": "channel",
+          "leftColumn": "orders.channel_id",
+          "rightColumn": "channel.id",
+          "cardinality": "N:1"
+        }
+      ],
+      "objects": ["concept.order", "concept.channel"]
+    }
+  },
+  "restartSafety": {
+    "mechanism": "ManifestServiceImpl.loadActiveManifest → snapshotRepository.selectLatest()（ORDER BY created_at DESC LIMIT 1）",
+    "latestSnapshot": "2026.11.12-twenty-first-r2",
+    "conclusion": "重启会加载 twenty-first-r2（6 维度 + VQR 1 条），与激活态一致"
+  },
+  "findings": [
+    "生产库从 v19 直接跳到 v21 是可行的：四步发布后 active 与 VQR 都到位。",
+    "第一次发布时失效原因比隔离库多一条 dim.order_date——因为生产 active 是真正的 v19（table/column 形态），对比面更完整。",
+    "两张快照都不可变保留（twenty-first 无 VQR、twenty-first-r2 有 VQR），回滚时两者都可用，但语义不同，退役时需在清单索引里注明。",
+    "同一份资产文件两次发布 contentHash 不同（b5e869fb vs cec57068），根因是 VQR 清理改变了 payload——排查清单一致性问题时要注意这个陷阱。"
+  ]
+}
