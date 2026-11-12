@@ -1,0 +1,74 @@
+{
+  "setId": "b0-w5-isolated-db",
+  "version": "v1",
+  "generatedAt": "2026-11-12",
+  "purpose": "B0/W5：在隔离库完整演练 v19→v20 迁移、Golden 逐字比对与回滚，不动生产库 ontos",
+  "environment": {
+    "systemDb": "ontos_v2（Flyway 19 个 migration 自动建表）",
+    "queryDb": "ontos_v2_queryds（deploy/postgres/init/02-queryds.sql 建表 + RLS + 种子）",
+    "port": 8090,
+    "profile": "local",
+    "note": "生产库 ontos 与 8080 旧服务全程未触碰；隔离库 active 停在 2026.11.12-twentieth-r2"
+  },
+  "steps": [
+    {
+      "step": "发布 v19",
+      "manifestId": "2026.11.11-nineteenth",
+      "payload": "ontos-assets/first-release-v19.json",
+      "httpStatus": 200,
+      "code": 0,
+      "valid": true,
+      "violations": [],
+      "contentHash": "7154e1d3b3f684a337499242a52a56b57be10ba5c075247e05ef696fa83713e4",
+      "assetCounts": { "metrics": 9, "dimensions": 5, "properties": 19, "vqrs": 1, "scenarios": 2 },
+      "invalidatedVqrs": []
+    },
+    {
+      "step": "激活 v19",
+      "httpStatus": 200,
+      "observedActive": "2026.11.11-nineteenth"
+    },
+    {
+      "step": "发布 v20（首次，active 为空）",
+      "manifestId": "2026.11.12-twentieth",
+      "httpStatus": 200,
+      "assetCounts": { "properties": 23, "vqrs": 1 },
+      "invalidatedVqrs": [],
+      "note": "此时 v19 尚未激活，oldPayload 为 null，VQR 失效分析按设计跳过——**发布不等于激活**"
+    },
+    {
+      "step": "发布 v20（active=v19 后，真实迁移路径）",
+      "manifestId": "2026.11.12-twentieth-r2",
+      "httpStatus": 200,
+      "assetCounts": { "properties": 23, "vqrs": 0 },
+      "invalidatedVqrs": [
+        "vqr.sales.daily_gmv_by_channel: 依赖资产定义发生不兼容变更: dim.channel; 依赖资产定义发生不兼容变更: metric.gmv; 依赖资产定义发生不兼容变更: dim.order_date; 声明失效条件命中（incompatible_change）: metric.gmv"
+      ],
+      "note": "确认规格 #6b 的预测成立；vqrs 由 1 变 0，VQR 被发布流水线移除"
+    },
+    {
+      "step": "激活 v20-r2",
+      "httpStatus": 200,
+      "observedActive": "2026.11.12-twentieth-r2"
+    }
+  ],
+  "golden": [
+    { "set": "Golden集-v2-gold-v1.json", "mode": "check", "total": 30, "pass": 27, "skip": 3, "fail": 0, "note": "3 条 unsupported 按设计跳过" },
+    { "set": "M3-Golden-v1.json", "mode": "check", "pass": 6, "fail": 0, "manifest": "2026.11.12-twentieth-r2" },
+    { "set": "M6-Golden-v1.json", "mode": "check", "pass": 10, "fail": 0, "manifest": "2026.11.12-twentieth-r2", "note": "retention 段" }
+  ],
+  "rollback": {
+    "step": "回滚演练：激活 v19",
+    "httpStatus": 200,
+    "observedActive": "2026.11.11-nineteenth",
+    "verify": "回滚后 M3 Golden check 6 通过 / 0 失败——旧形态仍可编译，双形态窗口有效",
+    "restored": "演练后切回 2026.11.12-twentieth-r2"
+  },
+  "findings": [
+    "E1 在真服务上成立：三份 Golden（27+6+10）全部 check 通过，0 失败，未做任何重固化。",
+    "**发布与激活是两个动作**（POST /publish 与 POST /{id}/activate）。首次发 v20 时 active 为空，VQR 失效分析按设计跳过；激活 v19 后再发布同内容清单才触发失效。此前 8081 的 dry-run 之所以报失效，是因为它连的是生产库（active=生产 v19）。",
+    "VQR 失效后果确认：v20 内容清单发布后 vqrs 由 1 降为 0，vqr.sales.daily_gmv_by_channel 被移除。生产发布同样会发生，需重建 VQR 并核对 scenario.sales 的 defaultVqrIds。",
+    "回滚可用：activate v19 后旧形态清单仍能编译，符合双形态窗口设计。",
+    "操作失误与纠正：首次跑 m3-golden.mjs / m6-golden.mjs 时未加 --mode=check，脚本默认 backfill 覆盖了两份 Golden 文件；已 git checkout 恢复，并用 --mode=check 重跑取得上述结果。**不得用重固化掩盖差异**。"
+  ]
+}
