@@ -188,7 +188,7 @@ node docs/00-governance/check-docs.mjs
 
 | 文档 | 类型 | 状态 | 版本 | 路径 |
 |---|---|---|---|---|
-| 文档规范与总索引 | 规范 | 已冻结 | v2.49 | [`README.md`](README.md) |
+| 文档规范与总索引 | 规范 | 已冻结 | v2.54 | [`README.md`](README.md) |
 | 智能问数系统技术选型方案 | 方案 | 已冻结 | v1.1 | [`02-solutions/architecture/智能问数系统技术选型方案-v1.1.md`](02-solutions/architecture/智能问数系统技术选型方案-v1.1.md) |
 | 智能问数系统完整可落地方案 | 方案 | 已冻结 | v1.4 | [`02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md`](02-solutions/architecture/智能问数系统-完整可落地方案-v1.4.md) |
 | Ontos 开发计划 · 阶段性功能拆解 | 计划 | 评审中 | v1 | [`03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md`](03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md) |
