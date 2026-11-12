@@ -1,0 +1,159 @@
+{
+  "evidence": "E7 多轮投影收口复核 v1",
+  "ranAt": "2026-11-12T10:08:08.364Z",
+  "model": "mimo-v2.6-flash",
+  "modelSource": ".env.local",
+  "modelEndpoint": "https://token-plan-cn.xiaomimimo.com/v1",
+  "judgement": {
+    "version": "v2.3（v2.2 基础上：确定性降级路径 + 题集带 degradedPathNote → 整题 skipped，不计入分母；LOOKUP_BATCH dsl.identities 按请求顺序对齐；服务端护栏拒绝在期望包含 out_of_capability 时计入合法拒绝；filter 取值词表缺失仍登记 R-ROOT-2）",
+    "terminal": "终态与期望一致",
+    "dsl": "期望给出 mode/metricId/dimensions/timeExpressionRaw 时，比对审计留痕 DSL（不注入期望值）",
+    "llmUsage": "llm_call_trace 是否存在该 requestId 的记录（区分 LLM 路径 / 确定性降级）"
+  },
+  "serviceBaseUrl": "http://127.0.0.1:8080",
+  "startup": {
+    "config": "默认 application.yml（ontos.manifest.startup-load=true，无命令行绕过）",
+    "manifestId": "2026.11.12-twenty-second",
+    "health": "UP",
+    "script": "scripts/run-local-backend.sh 8080"
+  },
+  "selfTest": {
+    "command": "node scripts/verify/llm-test-runner.mjs --self-test",
+    "result": "5/5 PASS",
+    "checks": [
+      "O-1 模型名已解析 model=mimo-v2.6-flash source=.env.local",
+      "O-2 降级题记 skipped",
+      "O-2 降级题不计通过",
+      "O-2 无 degradedPathNote 的降级题同样 skipped",
+      "判据正向用例"
+    ]
+  },
+  "multiturn": {
+    "set": "target/e7-v4-multiturn-retest3-set.json",
+    "runs": 1,
+    "summary": {
+      "total": 3,
+      "passed": 3,
+      "rate": 1,
+      "wilson95": [
+        0.4385,
+        1
+      ],
+      "skipped": 0,
+      "llmUsed": 3,
+      "fallbackWithoutLlm": 0,
+      "degradedFlagged": 0,
+      "errors": 0,
+      "tokensTotal": 58511,
+      "tokensPerCaseAvg": 19504,
+      "tokensPerCaseMax": 21683,
+      "latencyP50": 7458,
+      "latencyP95": 28909
+    },
+    "rows": [
+      {
+        "caseId": "t-turn-followup-01",
+        "pass": true,
+        "skipped": false,
+        "terminal": "query",
+        "mode": "QUERY",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.order_date"
+        ],
+        "identities": [],
+        "attributes": [],
+        "failReasons": [],
+        "llmCalls": 2,
+        "tokens": 21683
+      },
+      {
+        "caseId": "t-turn-correction-02",
+        "pass": true,
+        "skipped": false,
+        "terminal": "query",
+        "mode": "QUERY",
+        "metricId": "metric.order_count",
+        "dimensions": [
+          "dim.channel",
+          "dim.order_date"
+        ],
+        "identities": [],
+        "attributes": [],
+        "failReasons": [],
+        "llmCalls": 2,
+        "tokens": 20942
+      },
+      {
+        "caseId": "t-turn-incremental-18",
+        "pass": true,
+        "skipped": false,
+        "terminal": "query",
+        "mode": "QUERY",
+        "metricId": "metric.gmv",
+        "dimensions": [
+          "dim.customer_tier",
+          "dim.order_date",
+          "dim.channel"
+        ],
+        "identities": [],
+        "attributes": [],
+        "failReasons": [],
+        "llmCalls": 1,
+        "tokens": 15886
+      }
+    ],
+    "raw": "target/e7-v4-multiturn-retest8.json",
+    "rawSha256": "dd63bd7e4eb61ef9627d2baefa92b1f5b73a8aacbed9f0228cd014d5b9c57914"
+  },
+  "lookupRegressionCheck": {
+    "case": "t-existence-06",
+    "runs": 1,
+    "summary": {
+      "total": 1,
+      "passed": 0,
+      "rate": 0,
+      "wilson95": [
+        0,
+        0.7935
+      ],
+      "skipped": 0,
+      "llmUsed": 1,
+      "fallbackWithoutLlm": 0,
+      "degradedFlagged": 0,
+      "errors": 0,
+      "tokensTotal": 15982,
+      "tokensPerCaseAvg": 15982,
+      "tokensPerCaseMax": 15982,
+      "latencyP50": 12168,
+      "latencyP95": 12168
+    },
+    "rows": [
+      {
+        "caseId": "t-existence-06",
+        "pass": false,
+        "skipped": false,
+        "terminal": "out_of_capability",
+        "mode": null,
+        "metricId": null,
+        "dimensions": [],
+        "identities": [],
+        "attributes": [],
+        "failReasons": [
+          "terminal:out_of_capability≠query",
+          "identity:≠c-9999"
+        ],
+        "llmCalls": 1,
+        "tokens": 15982
+      }
+    ],
+    "attribution": "模型自选 out_of_capability；服务端 0 次契约修复轮（grep verdict=0），非 O-3 词表收紧导致的门禁拒绝",
+    "raw": "target/e7-v4-existence-retest4.json",
+    "rawSha256": "be84d5d6ace4970224108369a7706c63504dbb48e0f8e629a7f0c19d7347dbf5"
+  },
+  "regression": {
+    "mvnCleanTest": "743/0（81 份 surefire 报告）",
+    "pnpmCheck": "33 例 PASS",
+    "docs": "181 份文档 / 1829 条链接 PASS"
+  }
+}

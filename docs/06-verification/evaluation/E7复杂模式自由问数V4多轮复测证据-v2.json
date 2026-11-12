@@ -1,0 +1,183 @@
+{
+  "task": "E7 复杂模式自由问数 v4 多轮继承复测",
+  "purpose": "验证会话投影继承在「输出契约授权词表」与「来源完整性对账」两层的授权口径修复；探索性证据，不解除 C-1",
+  "status": "已固化（探索性证据；3 道多轮题 3/3，但不解除 C-1）",
+  "createdAt": "2026-11-12",
+  "model": {
+    "name": "mimo-v2.6-flash",
+    "endpoint": "https://token-plan-cn.xiaomimimo.com/v1",
+    "configuredBy": "服务端启动加载 .env.local；runner 进程未加载，故原始 runner 输出 model=null（见 observations O-1）"
+  },
+  "prompt": {
+    "file": "ontos/ontos-server/src/main/resources/prompts/system-v4-draft.md",
+    "version": "v4-draft-rev2",
+    "sha256": "42cacbe0826fa452754d4373ab8f0c9ac2888f50decbace60a4546b99469ac47",
+    "bytes": 10716,
+    "runtimeSwitched": false
+  },
+  "manifest": {
+    "id": "2026.11.11-nineteenth",
+    "contentHash": "377d461691e57f3435be04f88682dde820d2ec45f0b4f603e67b6a4273d3682b"
+  },
+  "candidateScope": "retrieval",
+  "safety": {
+    "concurrency": 1,
+    "minIntervalMs": 5000,
+    "circuitBreaker": true,
+    "checkpoint": true,
+    "confirmRequired": true
+  },
+  "runnerJudge": "v2.2",
+  "testSet": {
+    "path": "target/e7-v4-multiturn-retest3-set.json",
+    "version": "v1-multiturn-retest3",
+    "total": 3,
+    "note": "从 test 集 v5 分层抽取的 3 道 QUERY 多轮题；不替代 test 集 v5 全量 ×3"
+  },
+  "upstream": [
+    "E7复杂模式自由问数V4多轮复测证据-v1.md",
+    "ADR-0022 外部模型评测改为复杂度优先与API安全模式",
+    "ADR-0023 自由问数复杂分析模式入口口径",
+    "ask-复杂模式自由问数表达与参数补全-规格-v0.1.md"
+  ],
+  "runs": [
+    {
+      "phase": "上下文对齐后复测（修复前）",
+      "runId": "E7-V4-MULTITURN-RETEST4-20261112",
+      "file": "target/e7-v4-multiturn-retest4.json",
+      "sha256": "2d017e0bc26e89f82d3ec400b6f1e87cd0fbb3be30afdec6408fcbd93a7abc29",
+      "summary": {
+        "total": 3,
+        "passed": 2,
+        "rate": 0.6667,
+        "llmUsed": 3,
+        "degradedFlagged": 0,
+        "errors": 0,
+        "tokensTotal": 51850,
+        "latencyP50": 8375,
+        "latencyP95": 24668
+      },
+      "incremental18": {
+        "turnTerminals": ["query", "out_of_capability"],
+        "pass": false,
+        "rootCause": "模型首轮输出 query 并合并投影语义，但输出契约词表只含本轮检索候选；metric.gmv / dim.customer_tier / dim.order_date 触发 ID_NOT_IN_CANDIDATES，修复反馈把模型劝退为 out_of_capability（AgentScope Memory Flush 留痕）"
+      }
+    },
+    {
+      "phase": "修复 1：投影并入契约授权词表",
+      "runId": "E7-V4-MULTITURN-RETEST5-20261112",
+      "file": "target/e7-v4-multiturn-retest5.json",
+      "sha256": "687d95a0fcb745aea11d9a42ff2cbe67924e7c2b20ef4eb3684817d3ce9d19d1",
+      "summary": {
+        "total": 3,
+        "passed": 2,
+        "rate": 0.6667,
+        "llmUsed": 3,
+        "degradedFlagged": 0,
+        "errors": 0,
+        "tokensTotal": 41322,
+        "latencyP50": 8590,
+        "latencyP95": 50154
+      },
+      "incremental18": {
+        "turnTerminals": ["query", "clarification"],
+        "pass": false,
+        "rootCause": "模型已正确合并完整语义并输出 query（AgentScope Memory Flush 与 POST_REASONING 日志可证），但 ProposalIntegrityService 对聚合路径只认本轮检索候选；audit_log id=25786 记录 out-of-set id: metric.gmv → CANDIDATE_OUT_OF_SET → CLARIFY"
+      }
+    },
+    {
+      "phase": "修复 2：投影并入完整性对账集",
+      "runId": "E7-V4-MULTITURN-RETEST6-20261112",
+      "file": "target/e7-v4-multiturn-retest6.json",
+      "sha256": "654d4ae40479718db9e4c748a3d403b195efd9338411bcb5daaf17fe19cbb21f",
+      "summary": {
+        "total": 3,
+        "passed": 3,
+        "rate": 1,
+        "wilson95": [0.4385, 1],
+        "llmUsed": 3,
+        "fallbackWithoutLlm": 0,
+        "degradedFlagged": 0,
+        "errors": 0,
+        "tokensTotal": 40053,
+        "tokensPerCaseAvg": 13351,
+        "tokensPerCaseMax": 13993,
+        "latencyP50": 10955,
+        "latencyP95": 12909
+      },
+      "rows": [
+        {
+          "caseId": "t-turn-followup-01",
+          "pass": true,
+          "terminal": "query",
+          "turnTerminals": ["query", "query"],
+          "mode": "QUERY",
+          "metricId": "metric.gmv",
+          "dimensions": ["dim.region", "dim.order_date"],
+          "timeExpressionRaw": "上个月",
+          "filters": [{ "fieldId": "dim.region", "values": ["华南"] }],
+          "rowCount": 0
+        },
+        {
+          "caseId": "t-turn-correction-02",
+          "pass": true,
+          "terminal": "query",
+          "turnTerminals": ["query", "query"],
+          "mode": "QUERY",
+          "metricId": "metric.order_count",
+          "dimensions": ["dim.channel", "dim.order_date"],
+          "timeExpressionRaw": "这个月",
+          "filters": [],
+          "rowCount": 4
+        },
+        {
+          "caseId": "t-turn-incremental-18",
+          "pass": true,
+          "terminal": "query",
+          "turnTerminals": ["query", "query"],
+          "mode": "QUERY",
+          "metricId": "metric.gmv",
+          "dimensions": ["dim.customer_tier", "dim.order_date", "dim.channel"],
+          "timeExpressionRaw": "上个月",
+          "filters": [],
+          "rowCount": 4
+        }
+      ]
+    }
+  ],
+  "fixes": [
+    {
+      "id": "F-1",
+      "layer": "输出契约授权词表",
+      "change": "SessionCandidateContextProvider 新增 prime(outcome, question, SessionProjection) 登记投影资产 ID；candidateVocabulary() 与 candidateVocabulary(question) 把投影 ID 经「当前清单可解析 + 当前策略快照授权」双重过滤后并入词表，OntosAgentFactory 的 questionAware 契约与提示词候选集同步生效",
+      "failClosed": "只认服务端结构化 SessionProjection，不解析用户文本、不放宽到全清单；清单解析不到或策略未授权即丢弃"
+    },
+    {
+      "id": "F-2",
+      "layer": "来源完整性对账",
+      "change": "SessionProjection.assetIds() 提供语义 ID 全集；ProposalIntegrityService 新增 6 参 check 把投影 ID 并入本轮对账集；AskOrchestrationService 传入 projection.assetIds()",
+      "failClosed": "5 参 / 4 参兼容入口行为不变，非投影资产仍判 ID_NOT_IN_SET；execute 全链仍做清单 / 策略 / RLS 重校验"
+    }
+  ],
+  "regression": {
+    "mvnCleanTest": "690/0（75 份 surefire 报告；新增 SessionCandidateContextProviderTest 4 例、ProposalIntegrityServiceTest 3 例）",
+    "newTests": {
+      "SessionCandidateContextProviderTest": 9,
+      "ProposalIntegrityServiceTest": 17
+    },
+    "parallelObligations": "OBL-M4 / OBL-M7 done，deferred 0"
+  },
+  "conclusion": {
+    "multiTurnProbe": "3/3：followup 取值替换、correction 时间覆盖、incremental 维度累加全部正确，T2 DSL 无维度丢失",
+    "scope": "仅 3 道探索性多轮题、单轮次、单次运行；不是一次连续全量回归",
+    "c1": "不解除 ADR-0019 的 C-1，不替代 test 集 v5 全量 ×3",
+    "promptV4": "system-v4-draft.md 仍是草案，未切换默认运行时；是否升正式 v4 待负责人终审"
+  },
+  "observations": [
+    "O-1 runner 原始输出 model=null：runner 进程未加载 .env.local，模型名仅由服务端配置；本证据以服务端配置 + llm_call_trace 记录为准，待 runner 补环境变量透传（非阻塞）",
+    "O-2 题集 t-turn-incremental-18 的 expected.terminal=query 与 degradedPathNote（确定性降级路径 T2 允许澄清）口径不一致：本轮 LLM 路径输出 query 故 PASS；若走降级路径 runner v2.2 会误判。登记为题集判据待澄清项，未擅自改判据",
+    "O-3 编排层二次契约校验在 prime 清理后走无参词表并回退全量授权词表，而模型修复轮在 prime 期间用「收敛 + 投影」词表；两者口径不同（二次校验更宽松），属既有行为，登记为待统一项，本次未扩大改动",
+    "O-4 进度快照此前记录 mvn clean test 710/0，本轮 surefire XML 实测 690/0；口径差异可能为并行会话或统计范围不同，未在本次回改历史行，按 append-only 登记",
+    "O-5 每轮复测后均停止 8080 服务；复测期间另一流程发布的不合法清单 2026.11.12-twenty-first-r2 仍以 --ontos.manifest.startup-load=false 绕过并运行时显式激活 v19，未改数据库"
+  ]
+}

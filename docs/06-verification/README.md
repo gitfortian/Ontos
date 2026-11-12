@@ -67,6 +67,10 @@
 - [E7 · lookup-bool-08 排查 v1](checklists/E7-lookup-bool-08排查-v1.md)（已固化：服务端状态机无 bug；runner 断点复用 request_id 已修；确定性 planner 将 ruleId 型布尔指标误用 QUERY 待修）
 - [E7 失败三档归因 v1](checklists/E7失败三档归因-v1.md)（已固化：29 个失败拆为资产/planner、能力边界/提示词、模型表达与工具链；P0 修 planner，P1 提示词 v4，P2 资产词表，P3 小批量复测）
 - [E7 复杂模式自由问数 v4 冒烟 v1](evaluation/E7复杂模式自由问数V4冒烟证据-v1.md)（探索性证据：FUNNEL 首轮 2/4，rev2 后补测 2/2；resolver 链路可用；**不解除 C-1**）
+- [E7 复杂模式自由问数 v4 复测 v1](evaluation/E7复杂模式自由问数V4复测证据-v1.md)（探索性证据：RETENTION 3/3、ATTRIBUTION 4/4、LOOKUP_BATCH 2/2；异步候选与批量 identities 修复；**不解除 C-1**）
+- [E7 复杂模式自由问数 v4 多轮复测 v1](evaluation/E7复杂模式自由问数V4多轮复测证据-v1.md)（历史阶段证据：多轮仍 0/3 未闭环；已注入 SessionProjection 并对齐契约上下文；**不解除 C-1**）
+- [E7 复杂模式自由问数 v4 多轮复测 v2](evaluation/E7复杂模式自由问数V4多轮复测证据-v2.md)（探索性证据：**两层授权口径修复后 3/3**——投影资产并入输出契约词表与来源完整性对账集；仅 3 道多轮题、单次运行，**不解除 C-1**）
+- [E7 多轮投影收口复核 v1](evaluation/E7多轮投影收口复核证据-v1.md)（收口复核：O-1 模型名入证据、O-2 降级题 skipped + 澄清终态透传 degraded、O-3 二次校验词表同口径、O-4 基线口径固定 743/0、O-5 默认启动加载 v22；多轮 3/3；**不解除 C-1**）
 - [LLM 调用追踪证据 v1](evaluation/LLM调用追踪证据-v1.json)（M7/W5/T5.1：同一次 ask 的 traceId 串起 3 条模型调用记录（提案 1 + MemoryConsolidator 2）、token/耗时/终态齐全、桩侧计数与落库条数一致 8/8；模型侧为本地 OpenAI 协议桩，只证追踪链路，不代表模型效果）
 - [压测证据 v1](evaluation/压测-M7证据-v1.json)（M7/W5/T5.2：确定性三档 × 3 轮取中位数——并发 1/8/16 P95=19/49/80ms、错误 0、超时 0，M6 基线 145ms → 0.552×；LLM 抽样 12 trace 全部有记录、单 trace ≤3 次调用 ≤432 token；模型侧为本地协议桩，只测编排与追踪开销）
 - [零号冒烟评测证据 v3](evaluation/零号冒烟-评测证据-v3.json)（版本化固化，SHA-256 `c6b2b87a…`；`-latest` 为每次复跑覆盖的软名结果）

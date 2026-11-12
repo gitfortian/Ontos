@@ -1,0 +1,570 @@
+{
+  "task": "E7 复杂模式自由问数 v4 多轮复测",
+  "purpose": "验证提示词 v4 + 会话投影注入 + 契约口径一致后的多轮继承；探索性证据，不解除 C-1",
+  "createdAt": "2026-11-12",
+  "model": {
+    "name": "mimo-v2.6-flash",
+    "endpoint": "https://token-plan-cn.xiaomimimo.com/v1"
+  },
+  "prompt": {
+    "file": "ontos/ontos-server/src/main/resources/prompts/system-v4-draft.md",
+    "version": "v4-draft-rev2",
+    "sha256": "42cacbe0826fa452754d4373ab8f0c9ac2888f50decbace60a4546b99469ac47",
+    "bytes": 10716
+  },
+  "manifest": {
+    "id": "2026.11.11-nineteenth",
+    "contentHash": "377d461691e57f3435be04f88682dde820d2ec45f0b4f603e67b6a4273d3682b"
+  },
+  "candidateScope": "retrieval",
+  "safety": {
+    "concurrency": 1,
+    "minIntervalMs": 5000,
+    "circuitBreaker": true,
+    "checkpoint": true
+  },
+  "runs": [
+    {
+      "phase": "initial",
+      "file": "target/e7-v4-multiturn-retest.json",
+      "runId": "E7-V4-MULTITURN-RETEST-20261112",
+      "summary": {
+        "total": 4,
+        "passed": 1,
+        "rate": 0.25,
+        "wilson95": [
+          0.0456,
+          0.6994
+        ],
+        "llmUsed": 4,
+        "fallbackWithoutLlm": 0,
+        "degradedFlagged": 0,
+        "errors": 0,
+        "tokensTotal": 83210,
+        "tokensPerCaseAvg": 20803,
+        "tokensPerCaseMax": 41493,
+        "latencyP50": 24237,
+        "latencyP95": 65181
+      },
+      "rows": [
+        {
+          "requestId": "llml-E7-V4-MULTITURN-RETEST-20261112-r1-t-turn-followup-01-t2",
+          "caseId": "t-turn-followup-01",
+          "runIndex": 1,
+          "latencyMs": 24237,
+          "code": 0,
+          "terminal": "clarification",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 2,
+          "turnCount": 2,
+          "turnTerminals": [
+            "query",
+            "clarification"
+          ],
+          "taskIndex": 0,
+          "mode": null,
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identities": [],
+          "identityValue": null,
+          "llmCalls": 3,
+          "tokens": 27120,
+          "llmUsed": true,
+          "pass": false,
+          "rejectedByGuardrail": null,
+          "failReasons": [
+            "terminal:clarification≠query"
+          ],
+          "layers": {
+            "analysis_mode": "QUERY",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        },
+        {
+          "requestId": "llml-E7-V4-MULTITURN-RETEST-20261112-r1-t-turn-correction-02-t2",
+          "caseId": "t-turn-correction-02",
+          "runIndex": 1,
+          "latencyMs": 35127,
+          "code": 0,
+          "terminal": "clarification",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 2,
+          "turnCount": 2,
+          "turnTerminals": [
+            "query",
+            "clarification"
+          ],
+          "taskIndex": 1,
+          "mode": null,
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identities": [],
+          "identityValue": null,
+          "llmCalls": 4,
+          "tokens": 41493,
+          "llmUsed": true,
+          "pass": false,
+          "rejectedByGuardrail": null,
+          "failReasons": [
+            "terminal:clarification≠query"
+          ],
+          "layers": {
+            "analysis_mode": "QUERY",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        },
+        {
+          "requestId": "llml-E7-V4-MULTITURN-RETEST-20261112-r1-t-diff-02-t3",
+          "caseId": "t-diff-02",
+          "runIndex": 1,
+          "latencyMs": 4554,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": 1,
+          "errorMessage": null,
+          "turnIndex": 3,
+          "turnCount": 3,
+          "turnTerminals": [
+            "query",
+            "query",
+            "query"
+          ],
+          "taskIndex": 2,
+          "mode": "LOOKUP",
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [
+            "property.customer.tier"
+          ],
+          "identities": [],
+          "identityValue": "c-1003",
+          "llmCalls": 2,
+          "tokens": 14597,
+          "llmUsed": true,
+          "pass": true,
+          "rejectedByGuardrail": null,
+          "failReasons": [],
+          "layers": {
+            "analysis_mode": "LOOKUP",
+            "query_shape": "lookup_attribute",
+            "scenario_entry_mode": "none",
+            "risk_type": "differential"
+          }
+        },
+        {
+          "requestId": "llml-E7-V4-MULTITURN-RETEST-20261112-r1-t-turn-incremental-18-t2",
+          "caseId": "t-turn-incremental-18",
+          "runIndex": 1,
+          "latencyMs": 65181,
+          "code": 0,
+          "terminal": "clarification",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 2,
+          "turnCount": 2,
+          "turnTerminals": [
+            "query",
+            "clarification"
+          ],
+          "taskIndex": 3,
+          "mode": null,
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identities": [],
+          "identityValue": null,
+          "llmCalls": 1,
+          "tokens": 0,
+          "llmUsed": true,
+          "pass": false,
+          "rejectedByGuardrail": null,
+          "failReasons": [
+            "terminal:clarification≠query"
+          ],
+          "layers": {
+            "analysis_mode": "QUERY",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        }
+      ]
+    },
+    {
+      "phase": "projection",
+      "file": "target/e7-v4-multiturn-retest2.json",
+      "runId": "E7-V4-MULTITURN-RETEST2-20261112",
+      "summary": {
+        "total": 4,
+        "passed": 1,
+        "rate": 0.25,
+        "wilson95": [
+          0.0456,
+          0.6994
+        ],
+        "llmUsed": 4,
+        "fallbackWithoutLlm": 0,
+        "degradedFlagged": 0,
+        "errors": 0,
+        "tokensTotal": 82829,
+        "tokensPerCaseAvg": 20707,
+        "tokensPerCaseMax": 27636,
+        "latencyP50": 13923,
+        "latencyP95": 35082
+      },
+      "rows": [
+        {
+          "requestId": "llml-E7-V4-MULTITURN-RETEST2-20261112-r1-t-turn-followup-01-t2",
+          "caseId": "t-turn-followup-01",
+          "runIndex": 1,
+          "latencyMs": 13923,
+          "code": 0,
+          "terminal": "out_of_capability",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 2,
+          "turnCount": 2,
+          "turnTerminals": [
+            "query",
+            "out_of_capability"
+          ],
+          "taskIndex": 0,
+          "mode": null,
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identities": [],
+          "identityValue": null,
+          "llmCalls": 2,
+          "tokens": 13925,
+          "llmUsed": true,
+          "pass": false,
+          "rejectedByGuardrail": null,
+          "failReasons": [
+            "terminal:out_of_capability≠query"
+          ],
+          "layers": {
+            "analysis_mode": "QUERY",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        },
+        {
+          "requestId": "llml-E7-V4-MULTITURN-RETEST2-20261112-r1-t-turn-correction-02-t2",
+          "caseId": "t-turn-correction-02",
+          "runIndex": 1,
+          "latencyMs": 35082,
+          "code": 0,
+          "terminal": "clarification",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 2,
+          "turnCount": 2,
+          "turnTerminals": [
+            "query",
+            "clarification"
+          ],
+          "taskIndex": 1,
+          "mode": null,
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identities": [],
+          "identityValue": null,
+          "llmCalls": 3,
+          "tokens": 27636,
+          "llmUsed": true,
+          "pass": false,
+          "rejectedByGuardrail": null,
+          "failReasons": [
+            "terminal:clarification≠query"
+          ],
+          "layers": {
+            "analysis_mode": "QUERY",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        },
+        {
+          "requestId": "llml-E7-V4-MULTITURN-RETEST2-20261112-r1-t-diff-02-t3",
+          "caseId": "t-diff-02",
+          "runIndex": 1,
+          "latencyMs": 6158,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": 1,
+          "errorMessage": null,
+          "turnIndex": 3,
+          "turnCount": 3,
+          "turnTerminals": [
+            "query",
+            "query",
+            "query"
+          ],
+          "taskIndex": 2,
+          "mode": "LOOKUP",
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [
+            "property.customer.tier"
+          ],
+          "identities": [],
+          "identityValue": "c-1003",
+          "llmCalls": 2,
+          "tokens": 14364,
+          "llmUsed": true,
+          "pass": true,
+          "rejectedByGuardrail": null,
+          "failReasons": [],
+          "layers": {
+            "analysis_mode": "LOOKUP",
+            "query_shape": "lookup_attribute",
+            "scenario_entry_mode": "none",
+            "risk_type": "differential"
+          }
+        },
+        {
+          "requestId": "llml-E7-V4-MULTITURN-RETEST2-20261112-r1-t-turn-incremental-18-t2",
+          "caseId": "t-turn-incremental-18",
+          "runIndex": 1,
+          "latencyMs": 35030,
+          "code": 0,
+          "terminal": "out_of_capability",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 2,
+          "turnCount": 2,
+          "turnTerminals": [
+            "query",
+            "out_of_capability"
+          ],
+          "taskIndex": 3,
+          "mode": null,
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identities": [],
+          "identityValue": null,
+          "llmCalls": 3,
+          "tokens": 26904,
+          "llmUsed": true,
+          "pass": false,
+          "rejectedByGuardrail": null,
+          "failReasons": [
+            "terminal:out_of_capability≠query"
+          ],
+          "layers": {
+            "analysis_mode": "QUERY",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        }
+      ]
+    },
+    {
+      "phase": "contractAligned",
+      "file": "target/e7-v4-multiturn-retest3.json",
+      "runId": "E7-V4-MULTITURN-RETEST3-20261112",
+      "summary": {
+        "total": 3,
+        "passed": 0,
+        "rate": 0,
+        "wilson95": [
+          0,
+          0.5615
+        ],
+        "llmUsed": 3,
+        "fallbackWithoutLlm": 0,
+        "degradedFlagged": 0,
+        "errors": 0,
+        "tokensTotal": 54756,
+        "tokensPerCaseAvg": 18252,
+        "tokensPerCaseMax": 26558,
+        "latencyP50": 35034,
+        "latencyP95": 50106
+      },
+      "rows": [
+        {
+          "requestId": "llml-E7-V4-MULTITURN-RETEST3-20261112-r1-t-turn-followup-01-t2",
+          "caseId": "t-turn-followup-01",
+          "runIndex": 1,
+          "latencyMs": 50106,
+          "code": 0,
+          "terminal": "out_of_capability",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 2,
+          "turnCount": 2,
+          "turnTerminals": [
+            "query",
+            "out_of_capability"
+          ],
+          "taskIndex": 0,
+          "mode": null,
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identities": [],
+          "identityValue": null,
+          "llmCalls": 2,
+          "tokens": 14286,
+          "llmUsed": true,
+          "pass": false,
+          "rejectedByGuardrail": null,
+          "failReasons": [
+            "terminal:out_of_capability≠query"
+          ],
+          "layers": {
+            "analysis_mode": "QUERY",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        },
+        {
+          "requestId": "llml-E7-V4-MULTITURN-RETEST3-20261112-r1-t-turn-correction-02-t2",
+          "caseId": "t-turn-correction-02",
+          "runIndex": 1,
+          "latencyMs": 28413,
+          "code": 0,
+          "terminal": "out_of_capability",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 2,
+          "turnCount": 2,
+          "turnTerminals": [
+            "query",
+            "out_of_capability"
+          ],
+          "taskIndex": 1,
+          "mode": null,
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identities": [],
+          "identityValue": null,
+          "llmCalls": 2,
+          "tokens": 13912,
+          "llmUsed": true,
+          "pass": false,
+          "rejectedByGuardrail": null,
+          "failReasons": [
+            "terminal:out_of_capability≠query"
+          ],
+          "layers": {
+            "analysis_mode": "QUERY",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        },
+        {
+          "requestId": "llml-E7-V4-MULTITURN-RETEST3-20261112-r1-t-turn-incremental-18-t2",
+          "caseId": "t-turn-incremental-18",
+          "runIndex": 1,
+          "latencyMs": 35034,
+          "code": 0,
+          "terminal": "out_of_capability",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 2,
+          "turnCount": 2,
+          "turnTerminals": [
+            "query",
+            "out_of_capability"
+          ],
+          "taskIndex": 2,
+          "mode": null,
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identities": [],
+          "identityValue": null,
+          "llmCalls": 3,
+          "tokens": 26558,
+          "llmUsed": true,
+          "pass": false,
+          "rejectedByGuardrail": null,
+          "failReasons": [
+            "terminal:out_of_capability≠query"
+          ],
+          "layers": {
+            "analysis_mode": "QUERY",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          }
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "phase": "initial",
+      "result": "1/4；t-diff-02 通过，3 个 QUERY 多轮题澄清。"
+    },
+    {
+      "phase": "projection-injection",
+      "result": "仍 1/4；模型能看到上一轮语义槽位，但带投影的输入被 ASSET_NOT_MENTIONED 拦截或继续输出 out_of_capability。"
+    },
+    {
+      "phase": "contract-aligned",
+      "result": "0/3；模型第一轮提案多为 query，但编排层二次校验仍用原始短话术，被 ASSET_NOT_MENTIONED 拒绝。最终修复 contractQuestion=modelUserPrompt(utterance, projection)，该项尚未再次调用 API。"
+    }
+  ],
+  "conclusion": {
+    "implemented": [
+      "SessionProjection 语义槽位注入模型输入",
+      "异步修复轮问题感知候选快照",
+      "LOOKUP 属性完整性回退到契约授权词表",
+      "LOOKUP_BATCH identities 判据 v2.2",
+      "编排层契约校验上下文与模型输入一致"
+    ],
+    "open": "多轮继承仍未通过；最后一条修复尚未消耗 API 复测。",
+    "next": "仅复测 3 道 QUERY 多轮题；若模型仍 out_of_capability，按提示词示例/投影表达继续归因，不跑全量。"
+  }
+}

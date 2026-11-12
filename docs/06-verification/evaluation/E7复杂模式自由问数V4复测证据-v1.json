@@ -1,0 +1,476 @@
+{
+  "task": "E7 复杂模式自由问数 v4 复测",
+  "purpose": "验证 ADR-0023 v1.1 + ComplexAnalysisParamsResolver + system-v4-draft rev2 下 RETENTION / ATTRIBUTION / LOOKUP_BATCH 自由问数链路；探索性证据，不解除 C-1",
+  "createdAt": "2026-11-12",
+  "model": {
+    "name": "mimo-v2.6-flash",
+    "endpoint": "https://token-plan-cn.xiaomimimo.com/v1"
+  },
+  "prompt": {
+    "file": "ontos/ontos-server/src/main/resources/prompts/system-v4-draft.md",
+    "version": "v4-draft-rev2",
+    "sha256": "42cacbe0826fa452754d4373ab8f0c9ac2888f50decbace60a4546b99469ac47",
+    "bytes": 10716
+  },
+  "manifest": {
+    "id": "2026.11.11-nineteenth",
+    "contentHash": "377d461691e57f3435be04f88682dde820d2ec45f0b4f603e67b6a4273d3682b"
+  },
+  "candidateScope": "retrieval",
+  "runnerJudgement": "v2.1 执行；v2.2 后存在性探针零 token 重判为 PASS",
+  "safety": {
+    "concurrency": 1,
+    "minIntervalMs": 5000,
+    "circuitBreaker": true,
+    "checkpoint": true
+  },
+  "runs": [
+    {
+      "phase": "initial-9",
+      "runId": "E7-V4-COMPLEX-RETEST-20261112",
+      "workspace": ".workbuddy/runtime/agentscope-v4-complex-retest-20261112-1509",
+      "summary": {
+        "total": 9,
+        "passed": 8,
+        "rate": 0.8889,
+        "wilson95": [
+          0.565,
+          0.9801
+        ],
+        "llmUsed": 9,
+        "fallbackWithoutLlm": 0,
+        "degradedFlagged": 0,
+        "errors": 0,
+        "tokensTotal": 157551,
+        "tokensPerCaseAvg": 17506,
+        "tokensPerCaseMax": 39362,
+        "latencyP50": 10618,
+        "latencyP95": 65166
+      },
+      "rows": [
+        {
+          "requestId": "llml-E7-V4-COMPLEX-RETEST-20261112-r1-t-retention-02-t1",
+          "caseId": "t-retention-02",
+          "runIndex": 1,
+          "latencyMs": 11823,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": 1,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "query"
+          ],
+          "taskIndex": 0,
+          "mode": "RETENTION",
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": "近 180 天",
+          "filters": [],
+          "attributes": [],
+          "identityValue": null,
+          "llmCalls": 3,
+          "tokens": 25135,
+          "llmUsed": true,
+          "pass": true,
+          "rejectedByGuardrail": null,
+          "failReasons": [],
+          "layers": {
+            "analysis_mode": "RETENTION",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          },
+          "phase": "initial-9"
+        },
+        {
+          "requestId": "llml-E7-V4-COMPLEX-RETEST-20261112-r1-t-retention-04-t1",
+          "caseId": "t-retention-04",
+          "runIndex": 1,
+          "latencyMs": 5055,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": 10,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "query"
+          ],
+          "taskIndex": 1,
+          "mode": "RETENTION",
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": "近 60 天",
+          "filters": [],
+          "attributes": [],
+          "identityValue": null,
+          "llmCalls": 2,
+          "tokens": 13594,
+          "llmUsed": true,
+          "pass": true,
+          "rejectedByGuardrail": null,
+          "failReasons": [],
+          "layers": {
+            "analysis_mode": "RETENTION",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          },
+          "phase": "initial-9"
+        },
+        {
+          "requestId": "llml-E7-V4-COMPLEX-RETEST-20261112-r1-t-retention-06-t1",
+          "caseId": "t-retention-06",
+          "runIndex": 1,
+          "latencyMs": 6107,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": 2,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "query"
+          ],
+          "taskIndex": 2,
+          "mode": "RETENTION",
+          "metricId": null,
+          "dimensions": [
+            "dim.customer_tier"
+          ],
+          "timeExpressionRaw": "近 90 天",
+          "filters": [],
+          "attributes": [],
+          "identityValue": null,
+          "llmCalls": 2,
+          "tokens": 13166,
+          "llmUsed": true,
+          "pass": true,
+          "rejectedByGuardrail": null,
+          "failReasons": [],
+          "layers": {
+            "analysis_mode": "RETENTION",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          },
+          "phase": "initial-9"
+        },
+        {
+          "requestId": "llml-E7-V4-COMPLEX-RETEST-20261112-r1-t-attribution-01-t1",
+          "caseId": "t-attribution-01",
+          "runIndex": 1,
+          "latencyMs": 10618,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": 2,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "query"
+          ],
+          "taskIndex": 3,
+          "mode": "ATTRIBUTION",
+          "metricId": "metric.gmv",
+          "dimensions": [
+            "dim.channel"
+          ],
+          "timeExpressionRaw": "近 30 天",
+          "filters": [],
+          "attributes": [],
+          "identityValue": null,
+          "llmCalls": 2,
+          "tokens": 13299,
+          "llmUsed": true,
+          "pass": true,
+          "rejectedByGuardrail": null,
+          "failReasons": [],
+          "layers": {
+            "analysis_mode": "ATTRIBUTION",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          },
+          "phase": "initial-9"
+        },
+        {
+          "requestId": "llml-E7-V4-COMPLEX-RETEST-20261112-r1-t-attribution-03-t1",
+          "caseId": "t-attribution-03",
+          "runIndex": 1,
+          "latencyMs": 45130,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "query"
+          ],
+          "taskIndex": 4,
+          "mode": "ATTRIBUTION",
+          "metricId": "metric.gmv",
+          "dimensions": [
+            "dim.channel"
+          ],
+          "timeExpressionRaw": "近 14 天",
+          "filters": [],
+          "attributes": [],
+          "identityValue": null,
+          "llmCalls": 2,
+          "tokens": 13281,
+          "llmUsed": true,
+          "pass": true,
+          "rejectedByGuardrail": null,
+          "failReasons": [],
+          "layers": {
+            "analysis_mode": "ATTRIBUTION",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          },
+          "phase": "initial-9"
+        },
+        {
+          "requestId": "llml-E7-V4-COMPLEX-RETEST-20261112-r1-t-attribution-04-t1",
+          "caseId": "t-attribution-04",
+          "runIndex": 1,
+          "latencyMs": 8003,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": 1,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "query"
+          ],
+          "taskIndex": 5,
+          "mode": "ATTRIBUTION",
+          "metricId": "metric.gmv",
+          "dimensions": [],
+          "timeExpressionRaw": "近 7 天",
+          "filters": [],
+          "attributes": [],
+          "identityValue": null,
+          "llmCalls": 2,
+          "tokens": 13421,
+          "llmUsed": true,
+          "pass": true,
+          "rejectedByGuardrail": null,
+          "failReasons": [],
+          "layers": {
+            "analysis_mode": "ATTRIBUTION",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          },
+          "phase": "initial-9"
+        },
+        {
+          "requestId": "llml-E7-V4-COMPLEX-RETEST-20261112-r1-t-attribution-06-t1",
+          "caseId": "t-attribution-06",
+          "runIndex": 1,
+          "latencyMs": 9844,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": 0,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "query"
+          ],
+          "taskIndex": 6,
+          "mode": "ATTRIBUTION",
+          "metricId": "metric.order_count",
+          "dimensions": [
+            "dim.channel"
+          ],
+          "timeExpressionRaw": "上季度",
+          "filters": [],
+          "attributes": [],
+          "identityValue": null,
+          "llmCalls": 2,
+          "tokens": 13429,
+          "llmUsed": true,
+          "pass": true,
+          "rejectedByGuardrail": null,
+          "failReasons": [],
+          "layers": {
+            "analysis_mode": "ATTRIBUTION",
+            "query_shape": "aggregate",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          },
+          "phase": "initial-9"
+        },
+        {
+          "requestId": "llml-E7-V4-COMPLEX-RETEST-20261112-r1-t-lookup-batch-01-t1",
+          "caseId": "t-lookup-batch-01",
+          "runIndex": 1,
+          "latencyMs": 35038,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "query"
+          ],
+          "taskIndex": 7,
+          "mode": "LOOKUP_BATCH",
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [
+            "property.customer.tier"
+          ],
+          "identityValue": null,
+          "llmCalls": 4,
+          "tokens": 39362,
+          "llmUsed": true,
+          "pass": true,
+          "rejectedByGuardrail": null,
+          "failReasons": [],
+          "layers": {
+            "analysis_mode": "LOOKUP_BATCH",
+            "query_shape": "lookup_batch",
+            "scenario_entry_mode": "none",
+            "risk_type": "normal"
+          },
+          "phase": "initial-9"
+        },
+        {
+          "requestId": "llml-E7-V4-COMPLEX-RETEST-20261112-r1-t-existence-06-t1",
+          "caseId": "t-existence-06",
+          "runIndex": 1,
+          "latencyMs": 65166,
+          "code": 0,
+          "terminal": "clarification",
+          "degraded": false,
+          "rowCount": null,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "clarification"
+          ],
+          "taskIndex": 8,
+          "mode": null,
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [],
+          "identityValue": null,
+          "llmCalls": 2,
+          "tokens": 12864,
+          "llmUsed": true,
+          "pass": false,
+          "rejectedByGuardrail": null,
+          "failReasons": [
+            "terminal:clarification≠query",
+            "identity:undefined≠c-9999"
+          ],
+          "layers": {
+            "analysis_mode": "LOOKUP_BATCH",
+            "query_shape": "lookup_batch",
+            "scenario_entry_mode": "none",
+            "risk_type": "existence_probe"
+          },
+          "phase": "initial-9"
+        }
+      ],
+      "rawSha256": "d5cf4856bb7a52037fca3cf5f28e0a43aceafad04065a2781bb42021b2f68404"
+    },
+    {
+      "phase": "after-candidate-context-fix",
+      "runId": "E7-V4-EXISTENCE-RETEST3-20261112",
+      "workspace": ".workbuddy/runtime/agentscope-v4-existence-retest3-20261112-1547",
+      "summary": {
+        "total": 1,
+        "passed": 1,
+        "rate": 1,
+        "wilson95": [
+          0.2065,
+          1
+        ],
+        "llmUsed": 1,
+        "fallbackWithoutLlm": 0,
+        "degradedFlagged": 0,
+        "errors": 0,
+        "tokensTotal": 12897,
+        "tokensPerCaseAvg": 12897,
+        "tokensPerCaseMax": 12897,
+        "latencyP50": 10786,
+        "latencyP95": 10786
+      },
+      "rows": [
+        {
+          "requestId": "llml-E7-V4-EXISTENCE-RETEST3-20261112-r1-t-existence-06-t1",
+          "caseId": "t-existence-06",
+          "runIndex": 1,
+          "latencyMs": 10786,
+          "code": 0,
+          "terminal": "query",
+          "degraded": false,
+          "rowCount": 1,
+          "errorMessage": null,
+          "turnIndex": 1,
+          "turnCount": 1,
+          "turnTerminals": [
+            "query"
+          ],
+          "taskIndex": 0,
+          "mode": "LOOKUP_BATCH",
+          "metricId": null,
+          "dimensions": [],
+          "timeExpressionRaw": null,
+          "filters": [],
+          "attributes": [
+            "property.customer.tier"
+          ],
+          "identityValue": null,
+          "llmCalls": 1,
+          "tokens": 12897,
+          "llmUsed": true,
+          "pass": false,
+          "rejectedByGuardrail": null,
+          "failReasons": [
+            "identity:undefined≠c-9999"
+          ],
+          "layers": {
+            "analysis_mode": "LOOKUP_BATCH",
+            "query_shape": "lookup_batch",
+            "scenario_entry_mode": "none",
+            "risk_type": "existence_probe"
+          },
+          "phase": "after-candidate-context-fix",
+          "runnerV22EffectivePass": true,
+          "runnerV22Note": "v2.1 误用单实体 identity 对账；v2.2 读取 LOOKUP_BATCH dsl.identities，c-9999 存在于 [\"c-1001\",\"c-9999\"]，判定 PASS"
+        }
+      ],
+      "rawSha256": "ac43212fd7c6b6ca4f33cea02ddaa413bce2559317b02a14c585353f8577d6ff"
+    }
+  ],
+  "conclusion": {
+    "initial": "9 题中 8 题通过；RETENTION 3/3、ATTRIBUTION 4/4、LOOKUP_BATCH 1/2。",
+    "rootCauseAndFix": "t-existence-06 失败不是执行器失败：异步契约修复轮拿不到请求线程候选，另 LOOKUP_BATCH 的 dsl.identities 未纳入 runner 判据。已修复问题感知候选快照、LOOKUP 属性完整性回退与 runner v2.2。",
+    "afterFix": "t-existence-06 复测 terminal=query、mode=LOOKUP_BATCH、identities=[\"c-1001\",\"c-9999\"]；v2.2 判据下 PASS。",
+    "coverage": "按阶段合并有效覆盖 9/9；不等于一次连续 9/9，也不解除 C-1。"
+  }
+}
