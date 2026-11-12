@@ -57,3 +57,5 @@ YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路
 - 治理坑：新建进度快照**必须带并行义务点名节**，否则 `check-parallel-obligations.mjs` 直接 FAIL。
 - 实施规格：`docs/03-plans/stages/B0/B0-语义模型三层化-实施规格-v0.1.md`。**E1 可构造性证明**：`property.column` 是限定名、`metric.column` 是裸名 → 两路径同走 `columnName("<t>.<c>")`，SQL 逐字等价可推。`SqlCompiler` 实测 **13 处** `assetColumn`（L260 lookup 不动，12 处改）。FROM = `tableOf(property.column)` 断言 = `tableOf(identityProperty.column)`，v19 六 concept 全有 identityProperty（零新字段）。`metric.order_count` 必须继续挂 `property.order.order_no`，否则 COUNT(orders.id) 变、破坏 E1。
 - **检索索引含 property**：`MentionIndex`（session L55–90）索引 metric/dimension/concept/**property** 四类 name+aliases → 新属性命名冲突是硬约束（`ManifestCandidateContextProvider` 只读 metric/dimension，不能代表全局）。
+- **词表判据口径**：`termIndex` 是 `Map<String,List<IndexEntry>>`，**设计上一对多**，不能要求「唯一命中」。真冲突 = 同 term 指向**不同物理列**；v19 基线 2 处（「渠道」`orders.channel` vs `channel.name`、「渠道ID」）。维度与其底层属性**同列同名是惯例**（3 组 6 term），允许。
+- cohort 路径不受三层化影响：retention FROM = `eventTable`（L434/L477）、attribution FROM = CTE（L688）；`conceptByTable` 只读 property。
