@@ -1,6 +1,6 @@
 # AGENTS.md — Ontos 工程约定
 
-本文件是代码仓库内的开发约定，任何改动都必须遵守。技术选型以 `docs/02-solutions/architecture/智能问数系统技术选型方案-v1.1.md` 为准。
+本文件是代码仓库内的开发约定，任何改动都必须遵守。技术选型以 `docs/02-solutions/architecture/智能问数系统技术选型方案-v1.1.md` 为准；其中**前端表单/状态行以 [ADR-0024](docs/01-decisions/ADR-0024-前端表单库选型修订TanStackForm生效解释.md) 的生效解释为准**（TanStack Form + Zod），技术选型正文不动。
 
 ## 1. 工程形态
 
@@ -68,7 +68,7 @@ Spring Boot 4 默认 JSON 栈是 **Jackson 3（`tools.jackson.*`）**，但注�
 | | 权威来源 | 约束内容 |
 |---|---|---|
 | **工程规范（参考 yak-ops）** | `ontos-ui/FRONTEND_RULES.md`（迁移自 `yak-ops-ui/FRONTEND_RULES.md`） | 目录分层、`service/http` 三层、状态与请求原则、命名、Lint / 格式化、架构边界、测试方式 |
-| **框架与组件（用我们的选型）** | `docs/02-solutions/architecture/智能问数系统技术选型方案-v1.1.md` **附录 A** | shadcn/ui + Tailwind v4 + Radix、CopilotKit Headless（AG-UI 协议）、TanStack Table / ECharts / Monaco、React Hook Form + Zod、TanStack Query、Zustand、Vite + TypeScript + pnpm；纯静态产物由 Spring Boot 单体托管，**不引入独立前端服务** |
+| **框架与组件（用我们的选型）** | `docs/02-solutions/architecture/智能问数系统技术选型方案-v1.1.md` **附录 A**（表单行以 [ADR-0024](docs/01-decisions/ADR-0024-前端表单库选型修订TanStackForm生效解释.md) 为生效解释） | shadcn/ui + Tailwind v4 + Radix、CopilotKit Headless（AG-UI 协议）、TanStack Table / ECharts / Monaco、**TanStack Form + Zod（Standard Schema 直连，不引入 resolver）**、TanStack Query、Zustand、Vite + TypeScript + pnpm；纯静态产物由 Spring Boot 单体托管，**不引入独立前端服务** |
 
 **任何前端改动前必须先读**：`ontos-ui/FRONTEND_RULES.md`、`ontos-ui/docs/tooling.md`、本节、技术选型附录 A。
 规范只约束「怎么写」，不决定「用什么组件」；**组件实现不得照搬来源项目的 `@base-ui/react` 组件库**。

@@ -94,6 +94,7 @@ public class AskOrchestrationService {
     private final com.ontos.module.session.service.scenario.ScenarioSessionService scenarioSessionService;
     private final com.ontos.module.system.service.policy.PolicySnapshotService policySnapshotService;
     private final com.ontos.module.query.core.skill.SkillRegistry skillRegistry;
+    private final ComplexAnalysisParamsResolver complexAnalysisParamsResolver;
     /** run 执行线程池（F-8）：HITL 轮询在执行线程内进行，不占 REST 线程。 */
     private final ExecutorService runExecutor;
 
@@ -115,7 +116,8 @@ public class AskOrchestrationService {
                                    AskProperties askProperties,
                                    com.ontos.module.session.service.scenario.ScenarioSessionService scenarioSessionService,
                                    com.ontos.module.system.service.policy.PolicySnapshotService policySnapshotService,
-                                   com.ontos.module.query.core.skill.SkillRegistry skillRegistry) {
+                                   com.ontos.module.query.core.skill.SkillRegistry skillRegistry,
+                                   ComplexAnalysisParamsResolver complexAnalysisParamsResolver) {
         this.runStateService = runStateService;
         this.sessionStateService = sessionStateService;
         this.retrievalService = retrievalService;
@@ -134,6 +136,7 @@ public class AskOrchestrationService {
         this.scenarioSessionService = scenarioSessionService;
         this.policySnapshotService = policySnapshotService;
         this.skillRegistry = skillRegistry;
+        this.complexAnalysisParamsResolver = complexAnalysisParamsResolver;
         this.runExecutor = Executors.newFixedThreadPool(
                 Math.max(askProperties.getRunExecutorPool(), 1), runnable -> {
                     Thread thread = new Thread(runnable, "ask-run-executor");
@@ -376,7 +379,8 @@ public class AskOrchestrationService {
         // 4. 终态分派
         String terminal = String.valueOf(proposal.get("terminal"));
         return switch (terminal) {
-            case "query" -> executeQueryTerminal(context, runId, proposal, outcome.scenario());
+            case "query" -> executeQueryTerminal(context, runId, proposal, outcome, utterance,
+                    outcome.scenario());
             case "composite" -> executeCompositeTerminal(context, runId, proposal);
             case "clarification" -> clarificationTerminal(context, outcome);
             case "discovery" -> discoveryTerminal(context, outcome);
@@ -437,8 +441,9 @@ public class AskOrchestrationService {
             OntosAgentFactory factory = agentFactoryProvider.getIfAvailable();
             if (factory != null) {
                 // E-7 词表收敛：提示词候选集 = 本轮对账口径（检索候选）；
-                // prime/clear 必须同线程成对（ask 执行线程内），线程池复用前清掉防串话
-                candidateProvider.prime(outcome);
+                // prime/clear 必须同线程成对（ask 执行线程内），线程池复用前清掉防串话。
+                // utterance 同时注册异步修复轮快照：Reactor 线程拿不到请求 ThreadLocal。
+                candidateProvider.prime(outcome, utterance);
                 try {
                     Map<String, Object> llmProposal = callModel(factory, utterance);
                     if (llmProposal != null) {
@@ -449,6 +454,7 @@ public class AskOrchestrationService {
                     eventService.emit(runId, AskEventService.TEXT_MESSAGE,
                             Map.of("delta", "（模型暂不可用，已切换确定性检索模式）"));
                 } finally {
+                    candidateProvider.clearPrimed(utterance);
                     candidateProvider.clearPrimed();
                 }
             }
@@ -541,6 +547,8 @@ public class AskOrchestrationService {
     @SuppressWarnings("unchecked")
     private Map<String, Object> executeQueryTerminal(RequestContext context, String runId,
                                                      Map<String, Object> proposal,
+                                                     RetrievalOutcome outcome,
+                                                     String utterance,
                                                      RetrievalOutcome.ScenarioContext scenario) {
         Object raw = proposal.get("sub_intents");
         if (!(raw instanceof List<?> subIntents) || subIntents.isEmpty()
@@ -553,6 +561,18 @@ public class AskOrchestrationService {
             return executeVqrTerminal(context, runId, (Map<String, Object>) box);
         }
         QueryDsl dsl = assembleDsl(context, (Map<String, Object>) box);
+
+        // ADR-0023 v1.1：FUNNEL / RETENTION / ATTRIBUTION / LOOKUP_BATCH 的复杂参数由服务端补齐。
+        // 模型缺事件、缺身份或指标不支持时，不猜参数：优先用检索澄清，否则结构化拒答。
+        var manifest = manifestService.getActiveManifestOrNull();
+        var paramResolution = complexAnalysisParamsResolver.resolve(dsl, utterance, manifest);
+        if (!paramResolution.resolved()) {
+            log.info("[complexParams][unresolved: {}]", paramResolution.reason());
+            return outcome.clarifications().isEmpty()
+                    ? outOfCapability(context, paramResolution.reason())
+                    : clarificationTerminal(context, outcome);
+        }
+        dsl = paramResolution.dsl();
 
         // M6/W2/T2.4（§3.2）：场景内模式候选 ∩ allowed_analysis_modes（确定性过滤，
         // 越界模式 fail-closed 拒答，不静默改写）；DSL scenarioId 由服务端路由结果盖章，
@@ -851,6 +871,11 @@ public class AskOrchestrationService {
                     dsl.getAttributes().add(s);
                 }
             });
+        }
+        // E7/bool-08 修复：ruleId 型布尔指标通过专用槽位进入 LOOKUP，不伪装成普通 metric_id。
+        String booleanMetricId = stringOf(subIntent.get("boolean_metric_id"));
+        if (booleanMetricId != null) {
+            dsl.setBooleanMetricId(booleanMetricId);
         }
         if (dsl.getMode() == QueryDsl.AnalysisMode.LOOKUP) {
             fillLookupIdentity(context, dsl, stringOf(subIntent.get("identity_value")));

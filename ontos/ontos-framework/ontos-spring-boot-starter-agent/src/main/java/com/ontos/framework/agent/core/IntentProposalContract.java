@@ -54,9 +54,23 @@ public final class IntentProposalContract {
                     + "|\\bdelete\\s+from\\b|\\bupdate\\s+\\w+\\s+set\\b|\\bdrop\\s+table\\b)");
 
     private final Supplier<List<CandidateAsset>> vocabularySupplier;
+    private final java.util.function.Function<String, List<CandidateAsset>> questionVocabularySupplier;
 
     public IntentProposalContract(Supplier<List<CandidateAsset>> vocabularySupplier) {
         this.vocabularySupplier = vocabularySupplier == null ? List::of : vocabularySupplier;
+        this.questionVocabularySupplier = question -> this.vocabularySupplier.get();
+    }
+
+    /** 问题感知词表：修复轮运行在异步线程时，实现方可用 userQuestion 定位本轮候选。 */
+    public static IntentProposalContract questionAware(
+            java.util.function.Function<String, List<CandidateAsset>> vocabularySupplier) {
+        return new IntentProposalContract(vocabularySupplier == null
+                ? question -> List.of() : vocabularySupplier);
+    }
+
+    private IntentProposalContract(java.util.function.Function<String, List<CandidateAsset>> questionSupplier) {
+        this.vocabularySupplier = null;
+        this.questionVocabularySupplier = questionSupplier;
     }
 
     /** 无用户问题上下文的校验（单测与兼容入口）：跳过「点名资产」判定，其余规则不变。 */
@@ -65,7 +79,9 @@ public final class IntentProposalContract {
     }
 
     public ValidationResult validate(String text, String userQuestion) {
-        List<CandidateAsset> vocabulary = vocabularySupplier.get();
+        List<CandidateAsset> vocabulary = userQuestion == null
+                ? (vocabularySupplier == null ? List.of() : vocabularySupplier.get())
+                : questionVocabularySupplier.apply(userQuestion);
         List<Violation> violations = new ArrayList<>();
         Map<String, Object> parsed = parseObject(text, violations);
         if (parsed == null) {
@@ -91,7 +107,7 @@ public final class IntentProposalContract {
         checkTerminalConsistency(parsed, terminal, violations);
         checkSubIntents(parsed, terminal, violations);
         checkReasonCode(parsed, terminal, violations);
-        checkCandidateIds(parsed, terminal, violations);
+        checkCandidateIds(parsed, terminal, vocabulary, violations);
         return finish(violations, parsed);
     }
 
@@ -221,8 +237,9 @@ public final class IntentProposalContract {
         }
     }
 
-    private void checkCandidateIds(Map<String, Object> parsed, String terminal, List<Violation> violations) {
-        Set<String> allowed = candidateAssetIds();
+    private void checkCandidateIds(Map<String, Object> parsed, String terminal,
+                                   List<CandidateAsset> vocabulary, List<Violation> violations) {
+        Set<String> allowed = candidateAssetIds(vocabulary);
         if (allowed.isEmpty()) {
             return;
         }
@@ -235,9 +252,9 @@ public final class IntentProposalContract {
         }
     }
 
-    /** 候选资产 ID 全集（硬性边界 2 的白名单），由词表派生。 */
-    private Set<String> candidateAssetIds() {
-        return vocabularySupplier.get().stream()
+    /** 候选资产 ID 全集（硬性边界 2 的白名单），由当轮词表派生。 */
+    private Set<String> candidateAssetIds(List<CandidateAsset> vocabulary) {
+        return (vocabulary == null ? List.<CandidateAsset>of() : vocabulary).stream()
                 .map(CandidateAsset::assetId)
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
@@ -257,6 +274,13 @@ public final class IntentProposalContract {
             return;
         }
         String normalizedQuestion = userQuestion.toLowerCase();
+        String analysisMode = firstAnalysisMode(parsed);
+        // LOOKUP / LOOKUP_BATCH 由身份值驱动；用户可能只给 c-1001，不点名 metric/dimension。
+        // FUNNEL / RETENTION 事件词也不是资产词。这四类不能套用聚合问法的 ASSET_NOT_MENTIONED。
+        if (analysisMode != null
+                && Set.of("lookup", "lookup_batch", "funnel", "retention").contains(analysisMode)) {
+            return;
+        }
         boolean mentioned = vocabulary.stream()
                 .anyMatch(asset -> asset.terms().stream()
                         .anyMatch(term -> normalizedQuestion.contains(term.toLowerCase())));
@@ -265,6 +289,15 @@ public final class IntentProposalContract {
                     "用户问题没有提及任何候选指标或维度（如「最近业绩怎么样」「看看销售情况」）。"
                             + "必须输出 terminal=clarification，在候选中列出可用指标让用户选择，禁止自行猜测指标执行。"));
         }
+    }
+
+    /** 读取首个子意图的分析模式；无子意图 / 非法形态时返回 null。 */
+    private static String firstAnalysisMode(Map<String, Object> parsed) {
+        if (!(parsed.get("sub_intents") instanceof List<?> subIntents) || subIntents.isEmpty()
+                || !(subIntents.get(0) instanceof Map<?, ?> box)) {
+            return null;
+        }
+        return stringField((Map<String, Object>) box, "analysis_mode");
     }
 
     @SuppressWarnings("unchecked")
@@ -279,7 +312,12 @@ public final class IntentProposalContract {
             }
             Map<String, Object> box = (Map<String, Object>) subIntent;
             checkWhitelistedId(stringField(box, "metric_id"), "metric_id", allowed, violations);
+            // ADR-0023 v1.1：布尔判定指标也是候选资产，防止伪造 booleanMetricId 绕过词表。
+            checkWhitelistedId(stringField(box, "boolean_metric_id"), "boolean_metric_id",
+                    allowed, violations);
             checkWhitelistedIds(box.get("dimensions"), null, allowed, violations);
+            // LOOKUP 属性投影同样是候选资产；防止伪造 attributes 绕过授权词表。
+            checkWhitelistedIds(box.get("attributes"), null, allowed, violations);
             // 硬性边界 2：filters 的字段同样是候选集维度，不得引用白名单之外的 ID
             if (box.get("filters") instanceof List<?> filters) {
                 for (Object filter : filters) {

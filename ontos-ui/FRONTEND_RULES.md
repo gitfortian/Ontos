@@ -4,9 +4,11 @@ Scope: `ontos-ui/apps/**`, `ontos-ui/packages/**`, and `ontos-ui/scripts/**`.
 
 > 本文件迁移自 `yak-ops-ui/FRONTEND_RULES.md`，**只作为前端工程规范**：目录分层、
 > `service/http` 三层、状态与请求原则、命名、Lint / 格式化、架构边界与测试方式。
-> **UI 组件框架与依赖选型一律以 `docs/02-solutions/architecture/智能问数系统技术选型方案-v1.1.md` 附录 A 为准**：
+> **UI 组件框架与依赖选型一律以 `docs/02-solutions/architecture/智能问数系统技术选型方案-v1.1.md` 附录 A 为准**
+> （附录 A 的「表单 / 状态」行以 `docs/01-decisions/ADR-0024-前端表单库选型修订TanStackForm生效解释.md` 为生效解释）：
 > shadcn/ui + Tailwind v4 + Radix、CopilotKit Headless（AG-UI 协议）、TanStack Table / ECharts / Monaco、
-> React Hook Form + Zod、TanStack Query、Zustand、Vite + TypeScript + pnpm，纯静态产物由 Spring Boot 单体托管。
+> **TanStack Form + Zod（Standard Schema 直连）**、TanStack Query、Zustand、Vite + TypeScript + pnpm，
+> 纯静态产物由 Spring Boot 单体托管。
 > **不得把来源项目的组件库（基于 `@base-ui/react`）或其包名当作本项目的组件选型。**
 > 以下条款中的「shared UI package」指按附录 A 实现的共享组件层；Workspace 身份映射为 Ontos 租户身份
 > （`X-Ontos-Tenant-Id`）；语义 token 由选定设计系统定义，禁止硬编码颜色。

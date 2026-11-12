@@ -44,6 +44,7 @@ class SessionCandidateContextProviderTest {
 
     @AfterEach
     void tearDown() {
+        provider.clearPrimed("批量查 c-1001、c-9999 的等级");
         provider.clearPrimed();
         RequestContextHolder.clear();
     }
@@ -130,5 +131,20 @@ class SessionCandidateContextProviderTest {
 
         assertEquals(4, provider.candidateVocabulary().size(),
                 "full 域不收敛：向后兼容");
+    }
+
+    @Test
+    void questionScopedPrimedCandidateSurvivesAsyncRepairThread() {
+        provider.setRetrievalScope(true);
+        String question = "批量查 c-1001、c-9999 的等级";
+        provider.prime(new RetrievalOutcome(
+                        List.of(candidate("property", "property.customer.tier")),
+                        List.of(), List.of(), List.of(), false, "hash"),
+                question);
+
+        List<CandidateAsset> vocabulary = provider.candidateVocabulary(question);
+        assertEquals(1, vocabulary.size(),
+                "问题感知视图必须能在无 ThreadLocal 的修复线程还原本轮候选");
+        assertEquals("property.customer.tier", vocabulary.get(0).assetId());
     }
 }

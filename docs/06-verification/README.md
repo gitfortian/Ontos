@@ -51,14 +51,22 @@
 - [SLO 与成本预算 v1](evaluation/SLO与成本预算-v1.md)（已冻结：延迟 P95 ≤2000ms / 错误率 0 / 超时率 0（并发 1/8/16）+ LLM 单题 token ≤8000、P95 ≤6000；金额换算待 W2 模型确定后追加）
 - [失败看板闭环证据 v1](evaluation/失败看板闭环证据-v1.json)（M7/W4：登记→分类→分诊→修复→回流 dev 全链 + 非法迁移/回流 test/跨租户负例；V17 只追加未改写）
 - [失败看板联动证据 v1](evaluation/失败看板T4.3联动证据-v1.json)（M7/W4/T4.3：单维联动过滤 8/8 探针——分布仍基于全集、非白名单维度/空值/非布尔值一律 `1003000012`、`GET /categories` 30 类闭词表；前端 `pnpm check` 26 例 + `vite build` 通过）
-- [模型服务锚定 v1](evaluation/模型服务锚定-v1.md)（T2.1：`mimo-v2.6-flash` @ OpenAI 兼容端点；温度不可控声明；token usage 完整；首跑两项事实——P1 时间维度缺陷已修、单题 token 突破冻结预算）
+- [模型服务锚定 v3](evaluation/模型服务锚定-v3.md)（当前锚点：`mimo-v2.6-flash`；正式 C-1 未启动/未闭环；外部 API 安全模式——并发 1、间隔、熔断、checkpoint、显式 confirm；GLM / mimo 全量任务停止，仅探索性证据）
+  - 历史版本：[v2](../99-archive/evaluation/模型服务锚定-v2.md)（GLM 探索性锚点，已归档）、[v1](../99-archive/evaluation/模型服务锚定-v1.md)（mimo 首锚点，已归档）
 - [LLM 路径评测证据 v1-partial](evaluation/LLM路径评测证据-v1-partial.json)（**部分运行**：单轮 250/276，严格通过率 32%，含意图一致率代理表与 token 成本；×3 轮待预算确认）
 - [降级路径评测证据 v1](evaluation/降级路径评测证据-v1.json)（同题集确定性路径 276 题：10.1%——ask 降级路径从未按此标准验收过，本身即 E-7 发现）
 - [LLM 对比降级路径证据 v1](evaluation/LLM对比降级路径证据-v1.json)（265 配对：34.7% vs 10.6%，McNemar χ²=53.6 p<0.001；token 均值差 20.3k）
 - [E-7 归因诊断证据 v1](evaluation/E7归因诊断证据-v1.json)（32% 通过率根因：检索别名缺口已修 v19 / 维度取值词表缺失 / FUNNEL·YOY 提案表达缺口，A/B 复测）
-- [LLM 攻击面探针证据 v2](evaluation/LLM对抗探针证据-v2.json)（T3.2：6/6 全拒——SQL 注入诱导/结构套取/工具越权/输出解析攻击/能力边界/多轮污染；v1 的两项 FAIL 为探针自身缺陷已修正）
+- [LLM 攻击面探针证据 v2](evaluation/LLM对抗探针证据-v2.json)（T3.2 mimo 锚点：6/6 全拒——SQL 注入诱导/结构套取/工具越权/输出解析攻击/能力边界/多轮污染；v1 的两项 FAIL 为探针自身缺陷已修正）
+- [LLM 攻击面探针证据 GLM-v1](evaluation/LLM对抗探针证据-GLM-v1.json)（T3.2 GLM 探索性锚点：6/6 全拒，无物理名泄漏、无写副作用、无契约绕过）
 - [E-7 定向复测证据 v1](evaluation/E7定向复测证据-v1.json)（30 题子集第 2 轮：17/30——v19 别名 + 时间维度/period 修复 + 判据 v2 后）
 - [E-7 定向复测证据 v2](evaluation/E7定向复测证据-v2.json)（30 题子集第 3 轮：**20/30（判据修正后 70%）**——提示词 v3 后 composite 5/5、agg 2/2、yoy 8/11；剩余失败=取值翻译（R-ROOT-2）与 lookup 模型遵循两登记项）
+- [E-7 定向复测证据 GLM-v1](evaluation/E7定向复测证据-GLM-v1.json)（GLM 探索性锚点 30 题预演：20/30、Wilson95 `[0.4878,0.8077]`、均值 11,974 token、P95 90,213ms；超 8k token 预算如实登记）
+- [E7 复杂度子集 v1](evaluation/E7复杂度子集-v1.md)（50 题 / 57 HTTP 轮次，分层自 test 集 v5；仅用于外部模型复杂度诊断，**不替代原 C-1 全量 ×3**；配套 API 安全 runner）
+- [E7 复杂度子集诊断 MIMO v1](evaluation/E7复杂度子集诊断-MIMO-v1.md)（探索性证据：mimo 50/50 完成，零 token 重判后 21/50；复杂模式 / LOOKUP / 多轮为主要失败族；**不解除 C-1**）
+- [E7 · lookup-bool-08 排查 v1](checklists/E7-lookup-bool-08排查-v1.md)（已固化：服务端状态机无 bug；runner 断点复用 request_id 已修；确定性 planner 将 ruleId 型布尔指标误用 QUERY 待修）
+- [E7 失败三档归因 v1](checklists/E7失败三档归因-v1.md)（已固化：29 个失败拆为资产/planner、能力边界/提示词、模型表达与工具链；P0 修 planner，P1 提示词 v4，P2 资产词表，P3 小批量复测）
+- [E7 复杂模式自由问数 v4 冒烟 v1](evaluation/E7复杂模式自由问数V4冒烟证据-v1.md)（探索性证据：FUNNEL 首轮 2/4，rev2 后补测 2/2；resolver 链路可用；**不解除 C-1**）
 - [LLM 调用追踪证据 v1](evaluation/LLM调用追踪证据-v1.json)（M7/W5/T5.1：同一次 ask 的 traceId 串起 3 条模型调用记录（提案 1 + MemoryConsolidator 2）、token/耗时/终态齐全、桩侧计数与落库条数一致 8/8；模型侧为本地 OpenAI 协议桩，只证追踪链路，不代表模型效果）
 - [压测证据 v1](evaluation/压测-M7证据-v1.json)（M7/W5/T5.2：确定性三档 × 3 轮取中位数——并发 1/8/16 P95=19/49/80ms、错误 0、超时 0，M6 基线 145ms → 0.552×；LLM 抽样 12 trace 全部有记录、单 trace ≤3 次调用 ≤432 token；模型侧为本地协议桩，只测编排与追踪开销）
 - [零号冒烟评测证据 v3](evaluation/零号冒烟-评测证据-v3.json)（版本化固化，SHA-256 `c6b2b87a…`；`-latest` 为每次复跑覆盖的软名结果）

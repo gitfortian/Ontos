@@ -6,7 +6,9 @@ Scope: `ontos-ui` 的工具、构建与验证。迁移自 `yak-ops-ui/docs/tooli
 
 > **边界**：本文件与 `FRONTEND_RULES.md` 只约束工程规范。**框架与组件选型以
 > `docs/02-solutions/architecture/智能问数系统技术选型方案-v1.1.md` 附录 A 为准**（shadcn/ui + Radix、CopilotKit Headless、
-> TanStack Table / ECharts、React Hook Form + Zod、Zustand、Vite + TypeScript + pnpm）。
+> TanStack Table / ECharts、Zustand、Vite + TypeScript + pnpm）；表单行按
+> `docs/01-decisions/ADR-0024-前端表单库选型修订TanStackForm生效解释.md` 的生效解释，
+> 采用 **TanStack Form + Zod（Standard Schema 直连）**。
 > 组件栈归位已完成：pnpm workspaces + shadcn/ui + Radix（见 `docs/01-decisions/ADR-0001-前端组件栈归位范围.md`）；
 > CopilotKit Headless 待 PoC #10 验收后接入。
 
