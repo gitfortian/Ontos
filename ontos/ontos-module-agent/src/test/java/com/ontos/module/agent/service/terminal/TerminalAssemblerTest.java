@@ -34,7 +34,7 @@ class TerminalAssemblerTest {
 
     @Test
     void clarificationDefaultsToNotDegraded() {
-        Map<String, Object> terminal = assembler.clarification(context(), null);
+        Map<String, Object> terminal = assembler.clarification(context(), null, false);
         assertEquals("clarification", terminal.get("terminal"));
         assertEquals(Boolean.FALSE, terminal.get("degraded"));
     }

@@ -632,7 +632,8 @@ public class AskOrchestrationService {
                                         "approximation", "拒绝近似", 0, false, 0));
                 return terminalAssembler.clarification(context, new ClarificationPayload(
                         "「" + rejectedMode + "」在当前场景不可用，是否用近似能力回答？",
-                        approxCandidates, candidateId, true));
+                        approxCandidates, candidateId, true),
+                        Boolean.TRUE.equals(proposal.get("degraded")));
             }
             dsl.setScenarioId(scenario.scenarioId());
         }
@@ -819,11 +820,6 @@ public class AskOrchestrationService {
                 Boolean.TRUE.equals(proposal.get("degraded")));
         terminalAssembler.emitTerminal(eventService, runId, terminal);
         return terminal;
-    }
-
-    private Map<String, Object> clarificationTerminal(RequestContext context,
-                                                      RetrievalOutcome outcome) {
-        return clarificationTerminal(context, outcome, false);
     }
 
     /**

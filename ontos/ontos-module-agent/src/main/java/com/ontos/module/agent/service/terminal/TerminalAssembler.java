@@ -62,15 +62,11 @@ public class TerminalAssembler {
         return terminal;
     }
 
-    /** 澄清终态：四要素 + 候选持久化（R5 校验的数据基础）。 */
-    public Map<String, Object> clarification(RequestContext context, ClarificationPayload payload) {
-        return clarification(context, payload, false);
-    }
-
     /**
-     * 澄清终态（O-2）：确定性降级也可能落到澄清（如模型调用超时），
-     * 必须把 degraded 透出去——否则与「模型主动澄清」在对外响应里无法区分，
-     * 评测侧会把降级路径误判成模型行为。
+     * 澄清终态：四要素 + 候选持久化（R5 校验的数据基础）。
+     *
+     * <p>O-2：确定性降级也可能落到澄清（如模型调用超时），必须把 {@code degraded} 透出去——
+     * 否则与「模型主动澄清」在对外响应里无法区分，评测侧会把降级路径误判成模型行为。
      */
     public Map<String, Object> clarification(RequestContext context, ClarificationPayload payload,
                                              boolean degraded) {
