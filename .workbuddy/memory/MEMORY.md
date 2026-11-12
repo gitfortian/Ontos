@@ -77,3 +77,5 @@ YOY_MOM Join+filters 双 CTE；时间窗按上海墙钟；validateMode 先于路
 - 基线：mvn **706/0**；Golden 三份 27+6+10 全过（v21-r3）。
 - **生产库已上线（2026-11-12）**：`ontos` 库 active = `2026.11.12-twenty-first-r2`（6 维度 / 23 属性 / 1 VQR，contentHash `cec57068…`）。四步发布：`twenty-first`(vqrs:0) → 激活 → `-r2`(vqrs:1) → 激活。Golden 三份 27+6+10 全过；重启加载 `selectLatest()` = r2。
 - 遗留：两张快照并存（`twenty-first` 无 VQR / `r2` 有 VQR）；旧形态退役登记未做。
+- **VQR 链已验证**：`scenario.sales` → `vqr.sales.daily_gmv_by_channel`（dimensions=`dim.channel_name`）闭合；运行时「近 7 天各渠道成交金额」返回线上 3499 / 线下 129，`VQR_HIT` 审计在。
+- **缺陷 AUDIT-EXT-COLUMNS-EMPTY（P2，未修）**：`audit_log` 11 个扩展列全空（vqr_id/scenario_id/skill_id 等）。根因：`AuditService` INSERT 只写 22 列 + DTO 无字段 + 写入端只塞 dsl JSON。
