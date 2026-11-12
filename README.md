@@ -159,7 +159,7 @@ pnpm dev             # http://localhost:5173，/api 与 /agent 自动代理到 8
 **4) 验证**
 
 ```bash
-cd ontos && mvn test             # 680 例（含 9 条 ArchUnit 架构规则）
+cd ontos && mvn test             # 743 例（含 9 条 ArchUnit 架构规则）
 cd ontos-ui && pnpm check        # Oxfmt / Oxlint / TS / 架构边界 / 静态契约 / 单测
 cd ontos-ui && pnpm build        # Vite 生产构建
 node docs/00-governance/check-docs.mjs                   # docs 治理：分层 / 命名 / 链接
@@ -211,5 +211,5 @@ DSL 校验 + 参数化 SQL 编译 + 只读执行 + RLS、审批/审计接口、F
 - **M8 待启动（两包）**：产品前端工作包（[实施规格 v1.1](docs/03-plans/stages/M8/产品前端-实施规格-v1.1.md) 已冻结，三轮深度审核闭环；D1–D9 + D10 待定档，W-E0 / W-B0 前置）+ 上线与规模化（网关 / 部署 / 灰度回滚 / SLO / 灾备，规格待立——[R3 全局审核](docs/06-verification/checklists/产品整体规划-深度审核R3-v1.md) F-7）；需 M7 验收 + v1.4 §18/§19 关闭。
 
 当前生产库生效清单 `2026.11.12-twenty-second`（B0 语义模型三层化 v22：6 维度 / 23 属性 / 1 VQR，contentHash `feda6dd1…`，由 `ontos-assets/first-release-v22.json` 发布并激活；详见 `docs/03-plans/stages/B0/B0-语义模型三层化-实施规格-v1.1.md` §10.9）；v19 `2026.11.11-nineteenth`（contentHash `377d4616…`，8 skills + 1 vqr + 2 scenarios、9 指标）保留为 E-7 评测与资产迁移的历史基线。
-实测基线（2026-11-12 B0 治理收口后全量复验）：`mvn clean test` 731 例 / 0 失败、`pnpm check` 通过（33 单测）、`pnpm build` 通过（上一轮合并后复验）、docs 治理 177 文档 / 1776 链接、并行义务 `deferred 0`；live 基线 7 PASS / 0 FAIL / 0 SKIP 沿用 2026-11-11 记录（本轮未复跑）。
+实测基线（2026-11-12 多轮投影修复与合并 origin/main 后全量复验）：`mvn clean test` **743 例 / 0 失败**（81 份 surefire 报告）、`pnpm check` 通过（33 单测）、`pnpm build` 通过、docs 治理 **181 文档 / 1823 链接**、并行义务 `deferred 0`；live 基线 7 PASS / 0 FAIL / 0 SKIP 沿用 2026-11-11 记录（本轮未复跑）。
 进度与状态口径以 `docs/05-progress/2026/` 和 `docs/03-plans/roadmap/Ontos开发计划-阶段性功能拆解-v1.md` 为准。

@@ -154,6 +154,6 @@
   "regression": {
     "mvnCleanTest": "743/0（81 份 surefire 报告）",
     "pnpmCheck": "33 例 PASS",
-    "docs": "181 份文档 / 1829 条链接 PASS"
+    "docs": "181 份文档 / 1823 条链接 PASS"
   }
 }
