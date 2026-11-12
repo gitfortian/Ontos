@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const V19 = join(ROOT, "ontos-assets/first-release-v19.json");
 const V20 = join(ROOT, "ontos-assets/first-release-v20.json");
+const V21 = join(ROOT, "ontos-assets/first-release-v21.json");
 const CHECK_ONLY = process.argv.includes("--check");
 
 /** 常规指标 → { objectId, propertyId }（ruleId 型不在表内） */
@@ -216,17 +217,101 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
+// ---------- 7. v21：渠道维度语义升级 ----------
+/**
+ * 新增渠道对象维度。v19/v20 的 dim.channel 是订单表冗余列（orders.channel），
+ * 只碰订单一个对象；本维度经 ontology.Order.attributedToChannel
+ * （orders.channel_id -> channel.id）JOIN 到渠道对象，取 channel.name。
+ *
+ * 只加给订单级指标——订单项指标（metric.order_item_quantity）走 order_item -> order
+ * -> channel 两跳，粒度边界需单独评审（ADR-0016/0018），本批不动。
+ */
+const CHANNEL_OBJECT_DIMENSION = {
+  id: "dim.channel_name",
+  name: "渠道名称",
+  aliases: ["渠道明细", "渠道维表"],
+  summary: "订单所属渠道的名称，关联渠道业务对象后跨表取值",
+  sensitive: false,
+  objectId: "concept.channel",
+  propertyId: "property.channel.name",
+};
+
+const v21 = structuredClone(v20);
+v21.semantic.dimensions.push(CHANNEL_OBJECT_DIMENSION);
+
+for (const metric of v21.semantic.metrics) {
+  const dimensions = metric.allowedDimensions;
+  if (!dimensions || !dimensions.includes("dim.channel")) {
+    continue;
+  }
+  const index = dimensions.indexOf("dim.channel");
+  dimensions.splice(index + 1, 0, "dim.channel_name");
+}
+
+// VQR 改引用渠道对象维度，使模板真正跨「订单 × 渠道」两个对象
+for (const vqr of v21.vqrs ?? []) {
+  if (Array.isArray(vqr.dslTemplate?.dimensions)) {
+    vqr.dslTemplate.dimensions = vqr.dslTemplate.dimensions.map((id) =>
+      id === "dim.channel" ? "dim.channel_name" : id);
+  }
+  for (const condition of vqr.invalidationConditions ?? []) {
+    if (condition.assetId === "dim.channel") {
+      condition.assetId = "dim.channel_name";
+    }
+  }
+}
+
+// 两个渠道维度并存，描述必须能区分：dim.channel 是快照列，dim.channel_name 走对象
+const legacyChannel = v21.semantic.dimensions.find((item) => item.id === "dim.channel");
+if (legacyChannel) {
+  legacyChannel.summary = "订单表记录的渠道名称快照，单表取值，不关联渠道业务对象";
+}
+
+v21.semantic.semanticVersion = "2026.11.12.2";
+
+// v21 断言
+const v21Errors = [];
+const allowedByMetric = new Map(
+  v21.semantic.metrics.map((metric) => [metric.id, metric.allowedDimensions ?? []]),
+);
+for (const metric of v21.semantic.metrics) {
+  if (metric.allowedDimensions?.includes("dim.channel")
+      && !metric.allowedDimensions.includes("dim.channel_name")) {
+    v21Errors.push(`指标有 dim.channel 但未授权 dim.channel_name: ${metric.id}`);
+  }
+}
+for (const vqr of v21.vqrs ?? []) {
+  for (const dimensionId of vqr.dslTemplate?.dimensions ?? []) {
+    const metricId = vqr.dslTemplate?.metric_id;
+    const allowed = allowedByMetric.get(metricId);
+    if (allowed && !allowed.includes(dimensionId)) {
+      v21Errors.push(`VQR ${vqr.vqrId} 引用了未被 ${metricId} 授权的维度: ${dimensionId}`);
+    }
+  }
+}
+if (v21Errors.length > 0) {
+  console.error("[b0-migrate] v21 校验失败：");
+  for (const error of v21Errors) console.error(`  - ${error}`);
+  process.exit(1);
+}
+
+const outputV21 = `${JSON.stringify(v21, null, 2)}\n`;
+
 const output = `${JSON.stringify(v20, null, 2)}\n`;
 
 if (CHECK_ONLY) {
-  if (!existsSync(V20)) fail("v20 资产不存在，先运行不带 --check 的迁移");
-  const actual = readFileSync(V20, "utf8");
-  if (actual !== output) fail("v20 资产与迁移结果不一致（需重新生成）");
-  console.log("[b0-migrate] OK（--check：v20 与迁移结果一致）");
+  if (!existsSync(V20) || !existsSync(V21)) fail("v20/v21 资产不存在，先运行不带 --check 的迁移");
+  if (readFileSync(V20, "utf8") !== output) fail("v20 资产与迁移结果不一致（需重新生成）");
+  if (readFileSync(V21, "utf8") !== outputV21) fail("v21 资产与迁移结果不一致（需重新生成）");
+  console.log("[b0-migrate] OK（--check：v20/v21 均与迁移结果一致）");
 } else {
   writeFileSync(V20, output, "utf8");
-  console.log(`[b0-migrate] OK：生成 ${V20}`);
+  writeFileSync(V21, outputV21, "utf8");
+  console.log(`[b0-migrate] OK：生成 ${V20} 与 ${V21}`);
   console.log(
-    `[b0-migrate] 指标 ${v20.semantic.metrics.length} 条 / 维度 ${v20.semantic.dimensions.length} 条 / 属性 ${v20.ontology.properties.length} 条`,
+    `[b0-migrate] v20：指标 ${v20.semantic.metrics.length} / 维度 ${v20.semantic.dimensions.length} / 属性 ${v20.ontology.properties.length}`,
+  );
+  console.log(
+    `[b0-migrate] v21：维度 ${v21.semantic.dimensions.length}（新增 dim.channel_name）/ VQR ${(v21.vqrs ?? []).length}`,
   );
 }

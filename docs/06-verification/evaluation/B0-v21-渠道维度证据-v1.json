@@ -1,0 +1,73 @@
+{
+  "setId": "b0-v21-channel-dimension",
+  "version": "v1",
+  "generatedAt": "2026-11-12",
+  "purpose": "B0/v21：新增 dim.channel_name 走渠道业务对象，使「按渠道看 GMV」真正跨订单与渠道两个对象；dim.channel（订单冗余列）保留兼容",
+  "asset": {
+    "file": "ontos-assets/first-release-v21.json",
+    "semanticVersion": "2026.11.12.2",
+    "metrics": 9,
+    "dimensions": 6,
+    "properties": 23,
+    "newDimension": {
+      "id": "dim.channel_name",
+      "name": "渠道名称",
+      "aliases": ["渠道明细", "渠道维表"],
+      "objectId": "concept.channel",
+      "propertyId": "property.channel.name"
+    },
+    "legacyDimensionSummaryUpdated": "dim.channel.summary 改为「订单表记录的渠道名称快照，单表取值，不关联渠道业务对象」，与对象维度区分"
+  },
+  "sqlComparison": {
+    "note": "同一指标 metric.gmv，仅维度不同；取自真服务 POST /api/v1/query/compile（清单 2026.11.12-twenty-first-r3）",
+    "dim_channel": {
+      "sql": "select sum(\"orders\".\"amount\") as \"value\", \"orders\".\"channel\" as \"dim.channel\" from \"orders\" group by \"orders\".\"channel\" fetch next ? rows only",
+      "joins": [],
+      "objectsInvolved": ["concept.order"]
+    },
+    "dim_channel_name": {
+      "sql": "select sum(\"orders\".\"amount\") as \"value\", \"channel\".\"name\" as \"dim.channel_name\" from \"orders\" join \"channel\" on \"orders\".\"channel_id\" = \"channel\".\"id\" group by \"channel\".\"name\" fetch next ? rows only",
+      "joins": [
+        {
+          "relationId": "ontology.Order.attributedToChannel",
+          "direction": "forward",
+          "table": "channel",
+          "leftColumn": "orders.channel_id",
+          "rightColumn": "channel.id",
+          "cardinality": "N:1"
+        }
+      ],
+      "objectsInvolved": ["concept.order", "concept.channel"]
+    }
+  },
+  "publishPath": {
+    "note": "加维度授权会改 metric.gmv 的定义（allowedDimensions），VQR 失效分析按保守判定会移除依赖它的 VQR；需二次发布才能保留",
+    "steps": [
+      { "manifestId": "2026.11.12-twenty-first", "vqrs": 0, "invalidatedVqrs": ["vqr.sales.daily_gmv_by_channel: 依赖资产定义发生不兼容变更: metric.gmv; 声明失效条件命中（incompatible_change）: metric.gmv"] },
+      { "action": "activate 2026.11.12-twenty-first", "httpStatus": 200 },
+      { "manifestId": "2026.11.12-twenty-first-r2", "vqrs": 0, "note": "未激活上一步就发，oldPayload 仍是 v20-r2，故仍判失效——再次印证「发布≠激活」" },
+      { "manifestId": "2026.11.12-twenty-first-r3", "vqrs": 1, "invalidatedVqrs": [], "note": "激活 v21 后再发同内容清单，metric.gmv 定义一致，VQR 保留" }
+    ]
+  },
+  "golden": [
+    { "set": "Golden集-v2-gold-v1.json", "mode": "check", "total": 30, "pass": 27, "skip": 3, "fail": 0, "manifest": "2026.11.12-twenty-first-r3" },
+    { "set": "M3-Golden-v1.json", "mode": "check", "pass": 6, "fail": 0 },
+    { "set": "M6-Golden-v1.json", "mode": "check", "pass": 10, "fail": 0 }
+  ],
+  "unitTests": {
+    "class": "B0ChannelDimensionTest",
+    "cases": 5,
+    "covers": [
+      "v21 结构校验通过、semanticVersion 正确",
+      "dim.channel_name 绑定 concept.channel + property.channel.name；dim.channel 仍挂 concept.order",
+      "dim.channel 编译不产生 JOIN（单表）",
+      "dim.channel_name 产生 1 条 JOIN 到 channel",
+      "两个维度 SQL 必须不同（相同即说明新维度没真正走对象）"
+    ]
+  },
+  "findings": [
+    "「涉及两个业务对象」已可验证：新维度的 SQL 含 join channel，joins 元数据完整（关系 ID/方向/基数），审计可追溯。",
+    "加维度授权会改指标定义，进而触发 VQR 失效——这是失效分析的保守判定，不是缺陷，但发布必须走「发布→激活→再发布→激活」四步才能保住 VQR。",
+    "订单项指标（metric.order_item_quantity）未加渠道维度：order_item→order→channel 是两跳，粒度边界需单独评审（ADR-0016/0018）。"
+  ]
+}
