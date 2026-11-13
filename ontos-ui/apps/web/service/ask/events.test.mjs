@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { parseRunEvent, reduceStep, stepOf, terminalOf, toolOf, toolStep } from "./events.ts";
+import {
+  parseRunEvent,
+  reduceStep,
+  resolveTurnForEvent,
+  stepOf,
+  terminalOf,
+  toolOf,
+  toolStep,
+} from "./events.ts";
 
 const stepEvent = (seq, stepKey, status, extra = {}) => ({
   seq,
@@ -178,4 +186,18 @@ test("tool summaries survive via CUSTOM ontos.tool (AG-UI enforce stripped TOOL_
   assert.equal(entries.length, 1);
   assert.equal(entries[0].status, "done");
   assert.equal(entries[0].elapsedMs, 42);
+});
+
+test("resolveTurnForEvent routes by runId and drops stopped-turn leftovers", () => {
+  const runs = [
+    { id: "t1", runId: "run-1", running: false },
+    { id: "t2", runId: "run-2", running: true },
+  ];
+  assert.equal(resolveTurnForEvent(runs, "run-2").id, "t2");
+  // run-1 已停止：迟到事件不得串到 t2
+  assert.equal(resolveTurnForEvent(runs, "run-1"), null);
+  // 无 runId 的事件（CUSTOM 被剥离）→ 最新运行中轮
+  assert.equal(resolveTurnForEvent(runs, null).id, "t2");
+  assert.equal(resolveTurnForEvent(runs, "run-unknown"), null);
+  assert.equal(resolveTurnForEvent([], "run-2"), null);
 });

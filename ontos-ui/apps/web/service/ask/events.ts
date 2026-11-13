@@ -89,6 +89,27 @@ export const terminalOf = (event: AskRunStreamEvent): AskTerminalVO | null => {
   return typeof record.terminal === "string" ? (value as AskTerminalVO) : null;
 };
 
+/**
+ * 事件归属轮次（停止语义的防串轮闸）：
+ * - 事件带 runId（RUN_STARTED/FINISHED/ERROR，enforce 不剥离）→ 只归属 runId 匹配的
+ *   运行中轮次；该轮已停止/不存在则丢弃——被停止轮次的迟到事件绝不串到新问题；
+ * - 事件不带 runId（CUSTOM/TOOL_CALL_*，enforce 剥离扩展字段）→ 归属最新运行中轮次
+ *   （runs 串行：busy 闸保证同一时刻至多一个运行中轮）。
+ */
+export const resolveTurnForEvent = (
+  runs: ReadonlyArray<{ id: string; runId?: string; running: boolean }>,
+  eventRunId: unknown,
+): { id: string } | null => {
+  const running = runs.filter((turn) => turn.running);
+  if (running.length === 0) {
+    return null;
+  }
+  if (typeof eventRunId === "string" && eventRunId !== "") {
+    return running.find((turn) => turn.runId === eventRunId) ?? null;
+  }
+  return running[running.length - 1];
+};
+
 /** 工具调用事件（TOOL_CALL_START / TOOL_CALL_END）。 */
 export const toolOf = (
   event: AskRunStreamEvent,

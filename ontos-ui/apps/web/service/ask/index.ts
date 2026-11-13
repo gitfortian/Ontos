@@ -23,6 +23,7 @@ export type {
 
 export {
   customEventName,
+  resolveTurnForEvent,
   fromAguiEvent,
   parsePayload,
   reduceStep,

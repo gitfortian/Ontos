@@ -6,6 +6,7 @@ import {
   type AskTerminalVO,
   parsePayload,
   reduceStep,
+  resolveTurnForEvent,
   stepOf,
   terminalOf,
   toolOf,
@@ -15,12 +16,16 @@ import {
 export interface AskRunTurn {
   id: string;
   sessionId: string;
+  /** 本轮 AG-UI runId（RUN_* 事件按它归属；停止后的迟到事件被丢弃，防串轮）。 */
+  runId?: string;
   utterance: string;
   steps: AskStepEntry[];
   notes: string[];
   terminal?: AskTerminalVO;
   errorText?: string;
   running: boolean;
+  /** 用户已停止展示（后端继续执行至终态并落审计；结果可在历史会话查看）。 */
+  stopped?: boolean;
   /** 澄清回传后仍然是同一处歧义：页面要给明确出口（不掩盖后端语义缺陷）。 */
   stuckClarification?: boolean;
 }
@@ -48,8 +53,12 @@ interface AskWorkbenchState {
 
   /** 接入层入口：标准 AG-UI 扁平事件（CopilotKit useAgent 订阅转发）。 */
   ingestAgui: (flat: Record<string, unknown>) => void;
-  /** 创建一轮对话（返回 turnId/sessionId；agent.runAgent 由组件触发）。 */
+  /** 创建一轮对话（返回 turnId/sessionId；agent.runAgent 由组件触发）。runId 由组件生成后绑定。 */
   startTurn: (utterance: string, displayText?: string) => { turnId: string; sessionId: string };
+  /** 绑定 runId（chat-panel 生成，RUN_* 事件按它归属）。 */
+  bindRun: (turnId: string, runId: string) => void;
+  /** 停止展示（detach 流；后端继续执行至终态并落审计——停止≠取消执行）。 */
+  stopTurn: (turnId: string) => void;
   finishTurn: (turnId: string, errorText?: string) => void;
 }
 
@@ -95,7 +104,7 @@ export const useAskWorkbenchStore = create<AskWorkbenchState>((set, get) => ({
         runs: state.runs.map((turn) => (turn.id === turnId ? updater(turn) : turn)),
       }));
     set((state) => {
-      const target = [...state.runs].reverse().find((turn) => turn.running);
+      const target = resolveTurnForEvent(state.runs, flat.runId);
       if (!target) {
         return {};
       }
@@ -164,8 +173,23 @@ export const useAskWorkbenchStore = create<AskWorkbenchState>((set, get) => ({
     set((state) => ({
       runs: state.runs.map((turn) =>
         turn.id === turnId
-          ? { ...turn, running: false, errorText: errorText ?? turn.errorText }
+          ? turn.stopped
+            ? // 已停止轮次：runAgent 收尾（resolve/reject）不得覆盖停止态
+              { ...turn, running: false }
+            : { ...turn, running: false, errorText: errorText ?? turn.errorText }
           : turn,
+      ),
+    })),
+
+  bindRun: (turnId, runId) =>
+    set((state) => ({
+      runs: state.runs.map((turn) => (turn.id === turnId ? { ...turn, runId } : turn)),
+    })),
+
+  stopTurn: (turnId) =>
+    set((state) => ({
+      runs: state.runs.map((turn) =>
+        turn.id === turnId && turn.running ? { ...turn, running: false, stopped: true } : turn,
       ),
     })),
 }));
