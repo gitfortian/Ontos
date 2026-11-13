@@ -1,13 +1,16 @@
 package com.ontos.module.agent.service.proposal;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.core.SemanticManifest;
 import com.ontos.module.ontology.service.manifest.ManifestService;
+import com.ontos.module.query.core.time.TimeExpressionParser;
 import com.ontos.module.session.service.retrieval.RetrievalOutcome;
 import com.ontos.module.session.service.retrieval.RetrievedCandidate;
 import org.springframework.stereotype.Service;
@@ -95,7 +98,10 @@ public class DeterministicProposalPlanner {
                     .filter(candidate -> "dimension".equals(candidate.assetType()))
                     .map(RetrievedCandidate::assetId).toList());
             subIntent.put("filters", List.of());
-            subIntent.put("time_expression_raw", null);
+            // M5 缺陷修复：降级路径此前硬编码 null——相对时间窗被静默丢弃
+            // （SQL 无时间 WHERE，「近 30 天」查成全量）。提取 + 清单模式预校验，
+            // 解析命中才下发；未命中维持 null（无窗），不让整单失败。
+            subIntent.put("time_expression_raw", extractTimeExpression(utterance));
             return proposal("query", List.of(subIntent), null, null, outcome);
         }
         // clarificationConsumed 且无指标命中：继续向下走 2.5 / 3 / 4 段（引导或发现），
@@ -157,6 +163,47 @@ public class DeterministicProposalPlanner {
         box.put("asset_id", candidate.assetId());
         box.put("asset_type", candidate.assetType());
         return box;
+    }
+
+    /**
+     * 话术内时间跨度候选（宽收集，最终裁决在清单模式预校验——未命中即丢弃）。
+     * 覆盖常见中文相对时间词；解析失败的表达绝不进 DSL（否则整单 TIME_PARSE_FAILED）。
+     */
+    private static final java.util.regex.Pattern TIME_SPAN_CANDIDATE = java.util.regex.Pattern.compile(
+            "近半年|近[0-9]+个?月|近[0-9]+天|上季度|上个月|这个月|本月|今年|去年|上周|本周|今天|昨天");
+
+    /**
+     * 时间表达提取（M5 缺陷修复）：降级路径此前丢弃相对时间窗——「近 30 天」等
+     * 表达没有进入 {@code time_expression_raw}，QUERY 分支不建 timeRange，编译 SQL
+     * 无时间 WHERE（查成全量）。与 LLM 路径共用同一下游链路
+     * （assembleDsl → timeRange 壳 → query 模块 TimeWindowResolver）。
+     *
+     * <p>与「禁止猜测」口径一致：候选先经清单时间模式预校验（whole-string 匹配），
+     * **解析命中才下发**；全不命中维持 null（无窗），绝不产出解析不了的表达。
+     */
+    private String extractTimeExpression(String utterance) {
+        if (utterance == null || utterance.isBlank()) {
+            return null;
+        }
+        PublishedManifest manifest = manifestService.getActiveManifestOrNull();
+        if (manifest == null) {
+            return null;
+        }
+        TimeExpressionParser parser = new TimeExpressionParser(manifest);
+        String text = utterance.replaceAll("\\s+", "");
+        Matcher matcher = TIME_SPAN_CANDIDATE.matcher(text);
+        while (matcher.find()) {
+            String span = matcher.group();
+            // 清单模板字面在数字两侧带空格（「近 N 天」）：给数字两侧补空格后再试
+            String spaced = span.replaceAll("([0-9]+)", " $1 ").replaceAll("\s+", " ").trim();
+            for (String candidate : spaced.equals(span)
+                    ? new String[] {span} : new String[] {span, spaced}) {
+                if (parser.parse(candidate, LocalDate.now()).resolved() != null) {
+                    return candidate;
+                }
+            }
+        }
+        return null;
     }
 
     /** 是否为 ruleId 型布尔指标；清单缺失时按普通指标处理，不猜测。 */

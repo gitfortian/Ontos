@@ -3,6 +3,7 @@ package com.ontos.module.agent.service.proposal;
 import java.util.List;
 import java.util.Map;
 
+import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.core.PublishedManifest;
 import com.ontos.module.ontology.core.SemanticManifest;
 import com.ontos.module.ontology.service.manifest.ManifestService;
@@ -42,6 +43,14 @@ class DeterministicProposalPlannerTest {
         orderCount.setAllowedModes(List.of("QUERY"));
         semantic.setMetrics(List.of(highValue, orderCount));
         manifest.setSemantic(semantic);
+        // 时间模式集（M5 时间窗修复的预校验依据）：与 demo 清单一致的「近 N 天」
+        ManifestPayload.TimeExpressionPattern nearDays = new ManifestPayload.TimeExpressionPattern();
+        nearDays.setPatternId("tep.last_n_days");
+        nearDays.setPattern("近 N 天");
+        nearDays.setGranularity("DAY");
+        nearDays.setOffsetUnit("DAY");
+        nearDays.setOffsetAmount(1);
+        manifest.setTimeExpressionPatterns(List.of(nearDays));
         when(manifestService.getActiveManifestOrNull()).thenReturn(manifest);
     }
 
@@ -138,6 +147,43 @@ class DeterministicProposalPlannerTest {
                         "渠道", List.of(), null, true);
         return new RetrievalOutcome(List.of(candidates), List.of(), List.of(),
                 List.of(payload), false, "hash");
+    }
+
+    @Test
+    void queryProposalCarriesPreValidatedTimeExpression() {
+        // M5 时间窗修复：降级路径不再丢弃相对时间窗——「近30天」经清单模式预校验后下发
+        RetrievalOutcome outcome = outcome(candidate("metric", "metric.order_count"));
+
+        Map<String, Object> proposal = planner.plan("近30天各大区订单数", outcome, false);
+
+        assertEquals("query", proposal.get("terminal"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> subIntents = (List<Map<String, Object>>) proposal.get("sub_intents");
+        assertEquals("近 30 天", subIntents.get(0).get("time_expression_raw"),
+                "清单模板字面带空格：归一化后必须整串命中");
+    }
+
+    @Test
+    void queryProposalDropsTimeSpanWhenPatternMissing() {
+        // 「近3周」不在清单模式集：预校验未命中 → 维持 null（宁可无窗，不让整单 TIME_PARSE_FAILED）
+        RetrievalOutcome outcome = outcome(candidate("metric", "metric.order_count"));
+
+        Map<String, Object> proposal = planner.plan("近3周订单数", outcome, false);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> subIntents = (List<Map<String, Object>>) proposal.get("sub_intents");
+        assertNull(subIntents.get(0).get("time_expression_raw"));
+    }
+
+    @Test
+    void queryProposalKeepsNullTimeWhenUtteranceHasNoTimeWord() {
+        RetrievalOutcome outcome = outcome(candidate("metric", "metric.order_count"));
+
+        Map<String, Object> proposal = planner.plan("各大区订单数", outcome, false);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> subIntents = (List<Map<String, Object>>) proposal.get("sub_intents");
+        assertNull(subIntents.get(0).get("time_expression_raw"));
     }
 
     private static RetrievalOutcome outcome(RetrievedCandidate... candidates) {
