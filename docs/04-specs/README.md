@@ -9,6 +9,7 @@
 **当前文档**
 
 - [ontology · 业务化命名 规格 v1](ontology-业务化命名-规格-v1.md)（已冻结，双层命名原则与资产业务字段契约）
+- [ontology · 图谱探索页 规格 v0.1](ontology-图谱探索页-规格-v0.1.md)（**草稿**：只读业务探索页信息架构与寻路三态、`/ontology/graph*` 字段白名单与 fail-closed、前端工程落点；D1–D5 待负责人定档）
 - [analysis-mode · funnel 与 yoy_mom 规格 v1](analysis-mode-funnel-yoy-mom-规格-v1.md)（已冻结，M2/T3.0：两种模式的 `analysis_params` Schema 与 v1.4 §9.3/§9.4 语义契约逐条定档）
 - [analysis-mode · retention 与 attribution 规格 v1.1](analysis-mode-retention-attribution-规格-v1.1.md)（已冻结，M6/T1.1：留存/归因锚点与 §9.5/§9.6 契约；v1.1 对齐已发布时间模式与主体表维度）
 - [analysis-mode · discovery 边界声明 v1](analysis-mode-discovery-边界声明-v1.md)（已冻结，M6/T1.6：DISCOVERY 不进 DSL，由 M5 discovery 终态承载；拒绝路径、载荷契约与验证口径）
