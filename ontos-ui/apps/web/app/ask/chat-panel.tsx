@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { Button } from "@ontos/ui";
+import { HttpAgent } from "@ag-ui/client";
+import { Button, TooltipProvider } from "@ontos/ui";
+import { CopilotKitProvider, useAgent } from "@copilotkit/react-core/v2";
 
 import { useAskWorkbenchStore } from "@/app/ask/stores/ask-workbench-store";
 
@@ -54,17 +56,35 @@ function TerminalView({
   }
 }
 
-/** ask 对话主干：状态归 Zustand（流式运行态），渲染只读 store。 */
-export function ChatPanel() {
+/**
+ * 问数工作台中栏：事件接入走 CopilotKit Headless（selfManagedAgents → /agent/ui/ontos，
+ * ADR-0027）；状态归 Zustand（useAgent 订阅事件 → store.ingestAgui 归并）。
+ */
+function CopilotKitWorkspace() {
   const navigate = useNavigate();
-  const runs = useAskWorkbenchStore((state) => state.runs);
-  const submit = useAskWorkbenchStore((state) => state.submit);
-  const stop = useAskWorkbenchStore((state) => state.stop);
-  const openTrace = useAskWorkbenchStore((state) => state.openTrace);
+  const ingestAgui = useAskWorkbenchStore((state) => state.ingestAgui);
+  const { agent, isReady } = useAgent({ agentId: "ontos" });
   const [draft, setDraft] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const runs = useAskWorkbenchStore((state) => state.runs);
+  const startTurn = useAskWorkbenchStore((state) => state.startTurn);
+  const finishTurn = useAskWorkbenchStore((state) => state.finishTurn);
+  const openTrace = useAskWorkbenchStore((state) => state.openTrace);
 
-  const busy = useMemo(() => runs.some((turn) => turn.running), [runs]);
+  useEffect(() => {
+    if (!isReady || !agent) {
+      return undefined;
+    }
+    const subscription = agent.subscribe({
+      onEvent: (event) => {
+        ingestAgui(event as unknown as Record<string, unknown>);
+      },
+    });
+    return () => subscription.unsubscribe();
+  }, [agent, isReady, ingestAgui]);
+
+  const busy = useMemo(() => runs.some((turn) => turn.running) || submitting, [runs, submitting]);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -72,6 +92,31 @@ export function ChatPanel() {
       node.scrollTop = node.scrollHeight;
     }
   }, [runs]);
+
+  const submit = async (utterance: string, clarificationChoice?: string, displayText?: string) => {
+    if (!agent || busy) {
+      return;
+    }
+    const { turnId, sessionId } = startTurn(utterance, displayText);
+    setSubmitting(true);
+    try {
+      // AG-UI RunAgentParameters：threadId/messages 走实例字段，runId/forwardedProps 走参数
+      agent.threadId = sessionId;
+      agent.messages = [
+        ...agent.messages,
+        { id: crypto.randomUUID(), role: "user", content: utterance },
+      ];
+      await agent.runAgent({
+        runId: crypto.randomUUID(),
+        forwardedProps: { clarificationChoice: clarificationChoice ?? null },
+      });
+      finishTurn(turnId);
+    } catch (error) {
+      finishTurn(turnId, error instanceof Error ? error.message : String(error));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-3">
@@ -110,10 +155,7 @@ export function ChatPanel() {
                       terminal={turn.terminal}
                       stuckClarification={turn.stuckClarification}
                       onChoose={(candidateId, matchedTerm) =>
-                        void submit(turn.utterance, {
-                          clarificationChoice: candidateId,
-                          displayText: `已选择：${matchedTerm}`,
-                        })
+                        void submit(turn.utterance, candidateId, `已选择：${matchedTerm}`)
                       }
                       disabled={busy}
                       onOpenApprovals={() => navigate("/approvals")}
@@ -128,19 +170,10 @@ export function ChatPanel() {
                   ) : null}
 
                   {turn.running ? (
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <span className="size-1.5 animate-pulse rounded-full bg-primary" />
-                        执行中
-                      </span>
-                      <button
-                        type="button"
-                        className="text-[11px] text-primary hover:underline"
-                        onClick={() => stop(turn.id)}
-                      >
-                        停止展示
-                      </button>
-                    </div>
+                    <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span className="size-1.5 animate-pulse rounded-full bg-primary" />
+                      执行中
+                    </span>
                   ) : null}
                 </div>
               </div>
@@ -178,5 +211,23 @@ export function ChatPanel() {
         </Button>
       </form>
     </section>
+  );
+}
+
+export function ChatPanel() {
+  return (
+    <CopilotKitProvider
+      agentId="ontos"
+      selfManagedAgents={{
+        ontos: new HttpAgent({
+          url: "/agent/ui/ontos",
+          threadId: crypto.randomUUID(),
+        }),
+      }}
+    >
+      <TooltipProvider delayDuration={200}>
+        <CopilotKitWorkspace />
+      </TooltipProvider>
+    </CopilotKitProvider>
   );
 }

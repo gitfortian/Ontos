@@ -24,6 +24,25 @@ export const parseRunEvent = (raw: unknown): AskRunStreamEvent | null => {
   return { seq, type, payload };
 };
 
+/**
+ * 标准 AG-UI 扁平事件 → store 归并输入（W2/CopilotKit 接入层）。
+ * 扁平事件的扩展字段（argsSummary / resultSummary / elapsedMs / label 等）
+ * 由网关原样透传，这里只做形状包装，不改语义。
+ */
+export const fromAguiEvent = (flat: Record<string, unknown>): AskRunStreamEvent | null => {
+  const type = typeof flat.type === "string" ? flat.type : "";
+  if (!type) return null;
+  const rest: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(flat)) {
+    if (key !== "type" && key !== "seq") {
+      rest[key] = value;
+    }
+  }
+  const seq = typeof flat.seq === "number" ? flat.seq : 0;
+  return { seq, type, payload: JSON.stringify(rest) };
+};
+
+/** 解析内嵌 payload 文本为对象（容错：坏 JSON 退回 null）。 */
 export const parsePayload = <T>(event: AskRunStreamEvent): T | null => {
   try {
     return JSON.parse(event.payload) as T;
@@ -71,7 +90,31 @@ export const terminalOf = (event: AskRunStreamEvent): AskTerminalVO | null => {
 };
 
 /** 工具调用事件（TOOL_CALL_START / TOOL_CALL_END）。 */
-export const toolOf = (event: AskRunStreamEvent): AskToolPayload | null => {
+export const toolOf = (
+  event: AskRunStreamEvent,
+): (AskToolPayload & { phase: "start" | "end" }) | null => {
+  // AG-UI enforce 会剥离 TOOL_CALL_* 上的扩展字段——业务摘要走 CUSTOM ontos.tool；
+  // 兼容同步端点的旧 TOOL_CALL_START/END 形态。
+  if (event.type === "CUSTOM") {
+    const parsed = parsePayload<{ name?: unknown; value?: unknown }>(event);
+    if (parsed?.name !== "ontos.tool") return null;
+    const value = parsed.value;
+    if (value === null || typeof value !== "object") return null;
+    const box = value as Record<string, unknown>;
+    if (typeof box.toolName !== "string") return null;
+    const list = (raw: unknown): string[] | undefined =>
+      Array.isArray(raw)
+        ? raw.filter((item): item is string => typeof item === "string")
+        : undefined;
+    return {
+      toolName: box.toolName,
+      argsSummary: list(box.argsSummary),
+      resultSummary: list(box.resultSummary),
+      status: typeof box.status === "string" ? box.status : undefined,
+      elapsedMs: typeof box.elapsedMs === "number" ? box.elapsedMs : undefined,
+      phase: box.phase === "start" ? "start" : "end",
+    };
+  }
   if (event.type !== "TOOL_CALL_START" && event.type !== "TOOL_CALL_END") return null;
   const record = parsePayload<Record<string, unknown>>(event);
   if (!record || typeof record.toolName !== "string") return null;
@@ -86,6 +129,7 @@ export const toolOf = (event: AskRunStreamEvent): AskToolPayload | null => {
     resultSummary: list(record.resultSummary),
     status: typeof record.status === "string" ? record.status : undefined,
     elapsedMs: typeof record.elapsedMs === "number" ? record.elapsedMs : undefined,
+    phase: event.type === "TOOL_CALL_START" ? "start" : "end",
   };
 };
 

@@ -1,13 +1,12 @@
 import { create } from "zustand";
 
 import {
-  type AskRunStreamEvent,
+  fromAguiEvent,
   type AskStepEntry,
   type AskTerminalVO,
   parsePayload,
   reduceStep,
   stepOf,
-  streamAskRun,
   terminalOf,
   toolOf,
   toolStep,
@@ -38,18 +37,18 @@ interface AskWorkbenchState {
   activeSessionId: string | null;
   chips: AskContextChip[];
   runs: AskRunTurn[];
-  aborters: Map<string, AbortController>;
 
   setDrawerOpen: (open: boolean) => void;
   openTrace: (requestId: string | null) => void;
   setActiveSession: (sessionId: string | null) => void;
   removeChip: (chip: AskContextChip) => void;
   clearRuns: () => void;
-  stop: (turnId: string) => void;
-  submit: (
-    utterance: string,
-    options?: { clarificationChoice?: string; displayText?: string },
-  ) => Promise<void>;
+
+  /** 接入层入口：标准 AG-UI 扁平事件（CopilotKit useAgent 订阅转发）。 */
+  ingestAgui: (flat: Record<string, unknown>) => void;
+  /** 创建一轮对话（返回 turnId/sessionId；agent.runAgent 由组件触发）。 */
+  startTurn: (utterance: string, displayText?: string) => { turnId: string; sessionId: string };
+  finishTurn: (turnId: string, errorText?: string) => void;
 }
 
 const chipsFromTerminal = (terminal: AskTerminalVO): AskContextChip[] => {
@@ -66,84 +65,12 @@ const chipsFromTerminal = (terminal: AskTerminalVO): AskContextChip[] => {
   return chips;
 };
 
-const handleEventFor = (
-  turnId: string,
-  event: AskRunStreamEvent,
-  set: (
-    partial:
-      | Partial<AskWorkbenchState>
-      | ((state: AskWorkbenchState) => Partial<AskWorkbenchState>),
-  ) => void,
-) => {
-  const patchTurn = (updater: (turn: AskRunTurn) => AskRunTurn) => {
-    set((state) => ({
-      runs: state.runs.map((turn) => (turn.id === turnId ? updater(turn) : turn)),
-    }));
-  };
-
-  const step = stepOf(event);
-  if (step) {
-    patchTurn((turn) => ({ ...turn, steps: reduceStep(turn.steps, event.seq, step) }));
-    return;
-  }
-
-  const tool = toolOf(event);
-  if (tool) {
-    const phase = event.type === "TOOL_CALL_START" ? "start" : "end";
-    patchTurn((turn) => ({
-      ...turn,
-      steps: reduceStep(turn.steps, event.seq, toolStep(tool, phase)),
-    }));
-    return;
-  }
-
-  const terminal = terminalOf(event);
-  if (terminal) {
-    patchTurn((turn) => {
-      const next = { ...turn, terminal };
-      if (terminal.terminal === "query") {
-        // chips 是「最近一轮生效口径」：终态更新即覆盖（服务端业务名，不本地推导）
-        set({ chips: chipsFromTerminal(terminal) });
-      }
-      return {
-        ...next,
-        stuckClarification:
-          terminal.terminal === "clarification" && turn.utterance.startsWith("已选择："),
-      };
-    });
-    return;
-  }
-
-  if (event.type === "RUN_ERROR") {
-    const payload = parsePayload<{ message?: string }>(event);
-    patchTurn((turn) => ({
-      ...turn,
-      errorText: payload?.message ?? "执行失败",
-      running: false,
-    }));
-    return;
-  }
-
-  if (event.type === "TEXT_MESSAGE_CONTENT") {
-    const payload = parsePayload<{ delta?: string }>(event);
-    const delta = payload?.delta;
-    if (delta) patchTurn((turn) => ({ ...turn, notes: [...turn.notes, delta] }));
-  }
-};
-
-/**
- * 问数工作台全局状态：
- * - 流式 run 运行态（高频事件更新）——按批复归 Zustand，不进 TanStack Query；
- * - 溯源抽屉开合 / 当前会话 / 上下文锚点——全局 UI 态。
- * 会话列表等 REST 数据仍归 TanStack Query（见 app/ask/hooks/use-sessions.ts）。
- */
 export const useAskWorkbenchStore = create<AskWorkbenchState>((set, get) => ({
   drawerOpen: false,
   traceRequestId: null,
   activeSessionId: null,
   chips: [],
   runs: [],
-  aborters: new Map<string, AbortController>(),
 
   setDrawerOpen: (drawerOpen) => set({ drawerOpen }),
   openTrace: (traceRequestId) => set({ traceRequestId, drawerOpen: true }),
@@ -152,60 +79,89 @@ export const useAskWorkbenchStore = create<AskWorkbenchState>((set, get) => ({
     set((state) => ({
       chips: state.chips.filter((item) => item.kind !== chip.kind || item.label !== chip.label),
     })),
-  clearRuns: () => {
-    for (const aborter of get().aborters.values()) aborter.abort();
-    set({ runs: [], chips: [] });
-  },
-  stop: (turnId) => {
-    get().aborters.get(turnId)?.abort();
+  clearRuns: () => set({ runs: [], chips: [] }),
+
+  ingestAgui: (wrapper) => {
+    // CopilotKit 的 subscriber 回调是 {event, agent, input, ...} 包装——事件本体在 event 字段
+    const flat = (wrapper?.event ?? wrapper) as Record<string, unknown>;
+    const event = fromAguiEvent(flat);
+    if (!event) return;
+    const apply = (turnId: string, updater: (turn: AskRunTurn) => AskRunTurn) =>
+      set((state) => ({
+        runs: state.runs.map((turn) => (turn.id === turnId ? updater(turn) : turn)),
+      }));
+    set((state) => {
+      const target = [...state.runs].reverse().find((turn) => turn.running);
+      if (!target) {
+        return {};
+      }
+      const step = stepOf(event);
+      if (step) {
+        apply(target.id, (turn) => ({ ...turn, steps: reduceStep(turn.steps, event.seq, step) }));
+        return {};
+      }
+      const tool = toolOf(event);
+      if (tool) {
+        apply(target.id, (turn) => ({
+          ...turn,
+          steps: reduceStep(turn.steps, event.seq, toolStep(tool, tool.phase)),
+        }));
+        return {};
+      }
+      const terminal = terminalOf(event);
+      if (terminal) {
+        apply(target.id, (turn) => ({
+          ...turn,
+          terminal,
+          stuckClarification:
+            terminal.terminal === "clarification" && turn.utterance.startsWith("已选择："),
+        }));
+        if (terminal.terminal === "query") {
+          return { chips: chipsFromTerminal(terminal) };
+        }
+        return {};
+      }
+      if (event.type === "RUN_ERROR") {
+        const payload = parsePayload<{ message?: string }>(event);
+        apply(target.id, (turn) => ({
+          ...turn,
+          errorText: payload?.message ?? "执行失败",
+          running: false,
+        }));
+        return {};
+      }
+      if (event.type === "TEXT_MESSAGE_CONTENT") {
+        const payload = parsePayload<{ delta?: string }>(event);
+        const delta = payload?.delta;
+        if (delta) apply(target.id, (turn) => ({ ...turn, notes: [...turn.notes, delta] }));
+      }
+      return {};
+    });
   },
 
-  submit: async (utterance, options) => {
+  startTurn: (utterance, displayText) => {
     const sessionId = get().activeSessionId ?? crypto.randomUUID();
-    if (!get().activeSessionId) {
-      set({ activeSessionId: sessionId });
-    }
     const turn: AskRunTurn = {
       id: `turn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       sessionId,
-      utterance: options?.displayText ?? utterance,
+      utterance: displayText ?? utterance,
       steps: [],
       notes: [],
       running: true,
     };
-    set((state) => ({ runs: [...state.runs, turn] }));
-
-    const aborter = new AbortController();
-    get().aborters.set(turn.id, aborter);
-
-    const onEvent = (event: AskRunStreamEvent) => handleEventFor(turn.id, event, set);
-    try {
-      await streamAskRun(
-        { utterance, clarificationChoice: options?.clarificationChoice },
-        onEvent,
-        aborter.signal,
-      );
-    } catch (error) {
-      const aborted = error instanceof DOMException && error.name === "AbortError";
-      set((state) => ({
-        runs: state.runs.map((item) =>
-          item.id === turn.id
-            ? {
-                ...item,
-                errorText: aborted
-                  ? "已停止展示。服务端仍会执行到结束并记录审计，结果可在审计页查看。"
-                  : error instanceof Error
-                    ? error.message
-                    : String(error),
-              }
-            : item,
-        ),
-      }));
-    } finally {
-      get().aborters.delete(turn.id);
-      set((state) => ({
-        runs: state.runs.map((item) => (item.id === turn.id ? { ...item, running: false } : item)),
-      }));
-    }
+    set((previous) => ({
+      runs: [...previous.runs, turn],
+      activeSessionId: sessionId,
+    }));
+    return { turnId: turn.id, sessionId };
   },
+
+  finishTurn: (turnId, errorText) =>
+    set((state) => ({
+      runs: state.runs.map((turn) =>
+        turn.id === turnId
+          ? { ...turn, running: false, errorText: errorText ?? turn.errorText }
+          : turn,
+      ),
+    })),
 }));

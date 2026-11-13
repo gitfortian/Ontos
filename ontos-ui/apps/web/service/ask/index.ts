@@ -23,6 +23,7 @@ export type {
 
 export {
   customEventName,
+  fromAguiEvent,
   parsePayload,
   reduceStep,
   STEP_EVENT_NAME,
