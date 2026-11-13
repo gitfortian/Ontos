@@ -34,6 +34,8 @@ interface ChatTurn {
   terminal?: AskTerminalVO;
   errorText?: string;
   running: boolean;
+  /** 澄清回传后仍然是同一处歧义：说明这次选择没缩小范围，页面要给明确出口。 */
+  stuckClarification?: boolean;
 }
 
 const newTurn = (utterance: string): ChatTurn => ({
@@ -47,11 +49,13 @@ const newTurn = (utterance: string): ChatTurn => ({
 /** 终态渲染：一个终态只对应一张卡片，不做多卡片拼接。 */
 function TerminalView({
   terminal,
+  stuckClarification,
   onChoose,
   disabled,
   onOpenApprovals,
 }: {
   terminal: AskTerminalVO;
+  stuckClarification?: boolean;
   onChoose: (candidateId: string, matchedTerm: string) => void;
   disabled: boolean;
   onOpenApprovals: () => void;
@@ -62,7 +66,14 @@ function TerminalView({
     case "composite":
       return <CompositeCard terminal={terminal} />;
     case "clarification":
-      return <ClarificationCard terminal={terminal} onChoose={onChoose} disabled={disabled} />;
+      return (
+        <ClarificationCard
+          terminal={terminal}
+          onChoose={onChoose}
+          disabled={disabled}
+          stuck={stuckClarification}
+        />
+      );
     case "discovery":
       return <DiscoveryCard terminal={terminal} />;
     case "waiting":
@@ -109,7 +120,12 @@ export function ChatPanel() {
 
       const terminal = terminalOf(event);
       if (terminal) {
-        updateTurn(turnId, (turn) => ({ ...turn, terminal }));
+        updateTurn(turnId, (turn) => ({
+          ...turn,
+          terminal,
+          stuckClarification:
+            terminal.terminal === "clarification" && turn.utterance.startsWith("已选择："),
+        }));
         return;
       }
 
@@ -171,8 +187,10 @@ export function ChatPanel() {
   }, []);
 
   const onChoose = useCallback(
-    (candidateId: string, matchedTerm: string) => {
-      void submit("", candidateId, `已选择：${matchedTerm}`);
+    (utterance: string, candidateId: string, matchedTerm: string) => {
+      // 回传候选时带上原话术：澄清只裁决歧义点，指标/维度仍来自原问题；
+      // 只传 candidateId 会让下一轮丢失指标（实测产出「指标 未指定」的空 DSL）。
+      void submit(utterance, candidateId, `已选择：${matchedTerm}`);
     },
     [submit],
   );
@@ -237,7 +255,10 @@ export function ChatPanel() {
                   {turn.terminal ? (
                     <TerminalView
                       terminal={turn.terminal}
-                      onChoose={onChoose}
+                      stuckClarification={turn.stuckClarification}
+                      onChoose={(candidateId, matchedTerm) =>
+                        onChoose(turn.utterance, candidateId, matchedTerm)
+                      }
                       disabled={busy}
                       onOpenApprovals={() => navigate("/approvals")}
                     />

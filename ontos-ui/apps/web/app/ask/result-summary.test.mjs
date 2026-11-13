@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { buildBars, formatCellValue, orderColumnsForDisplay, summarizeResult } from "./result-summary.ts";
+import {
+  buildBars,
+  formatCellValue,
+  orderColumnsForDisplay,
+  summarizeResult,
+} from "./result-summary.ts";
 
 const columns = [
   { key: "dim.region", label: "大区", role: "dimension", numeric: false },

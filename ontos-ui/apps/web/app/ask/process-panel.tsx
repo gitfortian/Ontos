@@ -16,8 +16,11 @@ const STATUS_META: Record<AskStepStatus, { icon: string; dot: string; text: stri
   failed: { icon: "✕", dot: "bg-destructive text-white", text: "未通过" },
 };
 
-const formatElapsed = (elapsedMs?: number) =>
-  typeof elapsedMs === "number" ? `${elapsedMs.toLocaleString("zh-CN")} ms` : null;
+const formatElapsed = (elapsedMs?: number) => {
+  if (typeof elapsedMs !== "number") return null;
+  // 0 ms 是真实测量值（步骤极快），显示为「<1 ms」而不是假装有耗时
+  return elapsedMs === 0 ? "<1 ms" : `${elapsedMs.toLocaleString("zh-CN")} ms`;
+};
 
 function StatusDot({ status }: { status: AskStepStatus }) {
   const meta = STATUS_META[status];

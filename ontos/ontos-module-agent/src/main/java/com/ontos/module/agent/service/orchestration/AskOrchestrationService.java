@@ -288,6 +288,14 @@ public class AskOrchestrationService {
             Map<String, Object> terminal = doExecute(context, runId, utterance, clarificationChoice,
                     variantHint);
 
+            // 终态事件：query / composite 在各自分支已下发；澄清、发现、拒答三类此前只在
+            // 同步 HTTP 响应体里返回，流式客户端会只收到 RUN_FINISHED 而拿不到候选与文案。
+            // 这里补发（且只补这三类，避免重复事件）。
+            String terminalType = String.valueOf(terminal.get("terminal"));
+            if (!"query".equals(terminalType) && !"composite".equals(terminalType)) {
+                terminalAssembler.emitTerminal(eventService, runId, terminal);
+            }
+
             // 终态装配步骤：收口位置统一（各终态分支不各自埋点，避免重复与遗漏）
             eventService.emitStep(runId, AskStep.ASSEMBLE, AskStep.Status.DONE,
                     terminalDetail(terminal), null);

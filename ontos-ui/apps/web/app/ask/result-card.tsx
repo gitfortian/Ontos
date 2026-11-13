@@ -1,6 +1,11 @@
 import type { AskColumnMeta, AskTerminalVO } from "@/service/ask";
 
-import { buildBars, formatCellValue, orderColumnsForDisplay, summarizeResult } from "./result-summary";
+import {
+  buildBars,
+  formatCellValue,
+  orderColumnsForDisplay,
+  summarizeResult,
+} from "./result-summary";
 
 /**
  * 结果卡片：表头、图表、数值全部来自服务端下发的列元数据（business label + role），

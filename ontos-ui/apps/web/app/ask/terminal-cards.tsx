@@ -63,12 +63,16 @@ function CandidateList({
             {candidate.assetType === "metric"
               ? "指标"
               : candidate.assetType === "dimension"
-                ? "维度"
-                : candidate.assetType === "scenario"
-                  ? "业务场景"
-                  : candidate.assetType === "approximation"
-                    ? "近似能力"
-                    : "资产"}
+                ? "分析维度"
+                : candidate.assetType === "entity" || candidate.assetType === "concept"
+                  ? "业务对象"
+                  : candidate.assetType === "property"
+                    ? "信息项"
+                    : candidate.assetType === "scenario"
+                      ? "业务场景"
+                      : candidate.assetType === "approximation"
+                        ? "近似能力"
+                        : "资产"}
           </span>
         </button>
       ))}
@@ -80,10 +84,12 @@ export function ClarificationCard({
   terminal,
   onChoose,
   disabled,
+  stuck,
 }: {
   terminal: AskTerminalVO;
   onChoose: (candidateId: string, matchedTerm: string) => void;
   disabled: boolean;
+  stuck?: boolean;
 }) {
   const body = terminal.body ?? {};
   const candidates = body.candidates ?? [];
@@ -92,6 +98,11 @@ export function ClarificationCard({
       <p className="text-[13px] leading-relaxed">
         {body.ambiguity ?? "这句话对应多种口径，选一个继续："}
       </p>
+      {stuck ? (
+        <p className="mt-2 rounded-md border border-warning/40 bg-warning/5 px-2 py-1.5 text-[11px] leading-relaxed">
+          刚才的选择没能缩小歧义范围。可以直接说明指标再问，例如「按渠道看成交金额」。
+        </p>
+      ) : null}
       {candidates.length > 0 ? (
         <CandidateList candidates={candidates} onChoose={onChoose} disabled={disabled} />
       ) : (
