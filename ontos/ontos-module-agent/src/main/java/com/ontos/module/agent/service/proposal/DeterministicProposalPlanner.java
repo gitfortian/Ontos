@@ -58,8 +58,11 @@ public class DeterministicProposalPlanner {
         }
 
         // 2. 瀑布已给出澄清（同词多资产歧义 / 模糊候选）→ 原样透传四要素；
-        //    近似同意轮跳过（用户已决策，本轮歧义不问）
-        if (!outcome.clarifications().isEmpty() && !approximationConsumed) {
+        //    近似同意轮与澄清裁决轮都跳过（用户已决策，本轮歧义不再问）——
+        //    clarificationConsumed 与 approximationConsumed 同型：缺后者是历史缺陷
+        //    （裁决过的歧义下一轮原样复现，用户点候选等于死循环）。
+        if (!outcome.clarifications().isEmpty() && !approximationConsumed
+                && !clarificationConsumed) {
             com.ontos.module.session.service.retrieval.ClarificationPayload payload =
                     outcome.clarifications().get(0);
             Map<String, Object> clarification = new LinkedHashMap<>();
@@ -71,19 +74,22 @@ public class DeterministicProposalPlanner {
             return proposal("clarification", null, clarification, null, outcome);
         }
 
-        // 2. 消费过澄清选择或本轮精确命中指标 → query
+        // 2. 本轮精确命中指标 → query；澄清已裁决但无指标命中 → 落到下方自然分支
+        //    （引导「要哪个指标」/ 能力发现）。历史缺陷：clarificationConsumed 无指标时
+        //    强制产出 metric_id=null 的 query，被 DSL 校验以 500 拒绝——裁决后无指标
+        //    应该是引导而非异常，且引导候选是指标列表，与上一轮歧义不同，不会死循环。
         RetrievedCandidate metric = outcome.dslReady().stream()
                 .filter(candidate -> "metric".equals(candidate.assetType()))
                 .findFirst().orElse(null);
-        if (clarificationConsumed || metric != null) {
+        if (metric != null) {
             // E7/bool-08 修复：ruleId 型布尔指标只允许 LOOKUP / LOOKUP_BATCH，
             // 不得落入普通 QUERY 分支（历史缺陷会把「是不是高价值客户」查成
             // metric.high_value_customer / QUERY，被资产模式闸门拒绝）。
-            if (metric != null && isRuleBooleanMetric(metric.assetId())) {
+            if (isRuleBooleanMetric(metric.assetId())) {
                 return booleanLookupProposal(utterance, metric.assetId(), outcome);
             }
             Map<String, Object> subIntent = new LinkedHashMap<>();
-            subIntent.put("metric_id", metric == null ? null : metric.assetId());
+            subIntent.put("metric_id", metric.assetId());
             subIntent.put("analysis_mode", "query");
             subIntent.put("dimensions", outcome.dslReady().stream()
                     .filter(candidate -> "dimension".equals(candidate.assetType()))
@@ -92,6 +98,8 @@ public class DeterministicProposalPlanner {
             subIntent.put("time_expression_raw", null);
             return proposal("query", List.of(subIntent), null, null, outcome);
         }
+        // clarificationConsumed 且无指标命中：继续向下走 2.5 / 3 / 4 段（引导或发现），
+        // 不再回到同一处歧义澄清，也不产出空 DSL——「已裁决」只豁免歧义澄清这一件事。
 
         // 2.5 命中信息项（property）而无指标 → LOOKUP 模式（M3 语义：身份投影 + 属性回显）；
         // entity 按命名约定反查（property.<concept>.<name> → concept.<concept>）

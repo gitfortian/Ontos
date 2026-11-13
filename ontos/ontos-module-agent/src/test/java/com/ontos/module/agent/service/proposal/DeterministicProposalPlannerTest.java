@@ -96,6 +96,50 @@ class DeterministicProposalPlannerTest {
         assertEquals("ask_identity", clarification.get("degraded_behavior"));
     }
 
+    /**
+     * 澄清裁决轮（T32-8 语义对称性）：用户已裁决口径，本轮同一处歧义不再复现——
+     * 指标命中即强制 query 组装（与近似同意轮同型）。
+     */
+    @Test
+    void consumedClarificationProceedsToQueryWhenMetricHit() {
+        RetrievalOutcome outcome = outcomeWithClarification(
+                candidate("metric", "metric.order_count"),
+                candidate("dimension", "dim.channel"));
+
+        Map<String, Object> proposal = planner.plan("各渠道的销售额是多少", outcome, true);
+
+        assertEquals("query", proposal.get("terminal"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> intent = (Map<String, Object>) ((List<?>) proposal.get("sub_intents")).get(0);
+        assertEquals("metric.order_count", intent.get("metric_id"));
+        assertEquals(List.of("dim.channel"), intent.get("dimensions"));
+    }
+
+    /**
+     * 澄清已裁决但本轮无指标命中：落到引导（候选=可用指标）而非产出 metric_id=null 的
+     * 空 DSL（历史缺陷会以 500 拒绝）；引导与上一轮歧义不同源，不构成死循环。
+     */
+    @Test
+    void consumedClarificationWithoutMetricFallsToGuidance() {
+        RetrievalOutcome outcome = outcomeWithClarification(
+                candidate("dimension", "dim.channel"));
+
+        Map<String, Object> proposal = planner.plan("各渠道的销售额是多少", outcome, true);
+
+        assertEquals("clarification", proposal.get("terminal"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> clarification = (Map<String, Object>) proposal.get("clarification");
+        assertEquals("list_metrics", clarification.get("degraded_behavior"));
+    }
+
+    private static RetrievalOutcome outcomeWithClarification(RetrievedCandidate... candidates) {
+        com.ontos.module.session.service.retrieval.ClarificationPayload payload =
+                new com.ontos.module.session.service.retrieval.ClarificationPayload(
+                        "渠道", List.of(), null, true);
+        return new RetrievalOutcome(List.of(candidates), List.of(), List.of(),
+                List.of(payload), false, "hash");
+    }
+
     private static RetrievalOutcome outcome(RetrievedCandidate... candidates) {
         return new RetrievalOutcome(List.of(candidates), List.of(), List.of(), List.of(),
                 false, "hash");
