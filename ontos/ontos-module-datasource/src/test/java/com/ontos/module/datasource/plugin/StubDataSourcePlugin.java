@@ -25,6 +25,12 @@ public final class StubDataSourcePlugin implements DataSourcePlugin {
     final List<com.ontos.spi.datasource.TableMeta> tables;
     final List<com.ontos.spi.datasource.ColumnMeta> columns;
 
+    /** 测试注入：动态调整目录列（漂移场景）。 */
+    public void setColumns(List<com.ontos.spi.datasource.ColumnMeta> columns) {
+        this.columns.clear();
+        this.columns.addAll(columns);
+    }
+
     /** 测试注入：非空时 catalog 抛出该异常，用于验证错误码映射。 */
     private DataSourcePluginException catalogFailure;
 
@@ -70,7 +76,7 @@ public final class StubDataSourcePlugin implements DataSourcePlugin {
         this.capabilities = capabilities;
         this.schemas = schemas;
         this.tables = tables;
-        this.columns = columns;
+        this.columns = new java.util.ArrayList<>(columns);
         this.configFields = configFields;
     }
 

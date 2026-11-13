@@ -68,3 +68,46 @@ export interface DataSourceConfigSaveVO {
   config: Record<string, string>;
   secrets?: Record<string, string>;
 }
+
+/** 数据视图列快照项（B3）。 */
+export interface DataViewColumnVO {
+  name: string;
+  type: string;
+  nullable: boolean;
+}
+
+/** 数据视图资产（扫描固化；建模经 viewId 引用）。 */
+export interface DataViewVO {
+  id: string;
+  name: string;
+  sourceConfigId?: string | null;
+  sourceSchema: string;
+  sourceTable: string;
+  columns: DataViewColumnVO[];
+  contentHash: string;
+  status: "active" | "retired";
+  createdBy?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface DataViewDiffVO {
+  addedColumns: string[];
+  removedColumns: string[];
+  typeChangedColumns: string[];
+  contentChanged: boolean;
+}
+
+/** 扫描/重扫描结果：视图 + 漂移 diff + 被生效清单引用的消失列（管理面告警依据）。 */
+export interface DataViewScanVO {
+  view: DataViewVO;
+  diff: DataViewDiffVO;
+  referencedRemoved: string[];
+}
+
+export interface DataViewScanReqVO {
+  configId?: string | null;
+  schema: string;
+  table: string;
+  name?: string;
+}

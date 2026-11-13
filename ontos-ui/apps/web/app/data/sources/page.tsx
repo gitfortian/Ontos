@@ -5,6 +5,7 @@ import {
   Alert,
   Badge,
   Button,
+  Input,
   PageHeader,
   SectionCard,
   Select,
@@ -24,10 +25,16 @@ import {
   getDataSourceCatalog,
   getDataSourceColumnsByTarget,
   listDataSourceConfigs,
+  listDataViews,
+  rescanDataView,
+  retireDataView,
+  activateDataView,
+  scanDataView,
   testDataSourceConfig,
   testDataSourceConnection,
   updateDataSourceConfig,
 } from "@/service/catalog";
+import type { DataViewScanVO } from "@/service/catalog/types";
 import type { DataSourceConfigVO } from "@/service/catalog/types";
 import { failureMessage } from "@/utils/error-message";
 
@@ -61,6 +68,15 @@ export function DataSourcesPage() {
     queryFn: ({ signal }) => listDataSourceConfigs(signal),
   });
   const configs = configsQuery.data ?? [];
+  const viewsQuery = useQuery({
+    queryKey: [...dataSourceQueryKeys.configs, "views"],
+    queryFn: ({ signal }) => listDataViews(signal),
+  });
+  const views = viewsQuery.data ?? [];
+  const [viewAlert, setViewAlert] = useState<DataViewScanVO | null>(null);
+  const [scanForm, setScanForm] = useState<{ schema: string; table: string; name: string } | null>(
+    null,
+  );
 
   const browseQuery = useQuery({
     queryKey: dataSourceQueryKeys.browse(target, schema),
@@ -124,6 +140,49 @@ export function DataSourcesPage() {
   const testConfigMutation = useMutation({
     mutationFn: testDataSourceConfig,
     onSuccess: () => toast.success("连通性测试通过"),
+    onError: (error) => toast.error(failureMessage(error)),
+  });
+
+  const invalidateViews = async () => {
+    await queryClient.invalidateQueries({ queryKey: [...dataSourceQueryKeys.configs, "views"] });
+  };
+
+  const scanMutation = useMutation({
+    mutationFn: scanDataView,
+    onSuccess: async (result) => {
+      setViewAlert(result);
+      setScanForm(null);
+      await invalidateViews();
+      toast.success(`已固化：${result.view.id}（${result.diff.addedColumns.length} 列）`);
+    },
+    onError: (error) => toast.error(failureMessage(error)),
+  });
+
+  const rescanMutation = useMutation({
+    mutationFn: rescanDataView,
+    onSuccess: async (result) => {
+      setViewAlert(result);
+      await invalidateViews();
+      toast.success(`已重扫描：${result.view.id}`);
+    },
+    onError: (error) => toast.error(failureMessage(error)),
+  });
+
+  const retireMutation = useMutation({
+    mutationFn: retireDataView,
+    onSuccess: async () => {
+      await invalidateViews();
+      toast.success("已退役");
+    },
+    onError: (error) => toast.error(failureMessage(error)),
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: activateDataView,
+    onSuccess: async () => {
+      await invalidateViews();
+      toast.success("已重新激活");
+    },
     onError: (error) => toast.error(failureMessage(error)),
   });
 
@@ -314,6 +373,175 @@ export function DataSourcesPage() {
             <p className="mt-2 text-xs text-[var(--muted-foreground)]">
               凭据按插件声明加密落库（AES-256-GCM，master key 环境注入）；编辑时凭据留空 =
               保留原值；注册/编辑服务端强制测试通过。
+            </p>
+          </SectionCard>
+
+          <SectionCard
+            title={`数据视图（${views.filter((view) => view.status === "active").length} active / ${views.length} 总）`}
+            extra={
+              <Button
+                size="small"
+                variant="primary"
+                onClick={() =>
+                  setScanForm({ schema: browse?.schema ?? "public", table: "", name: "" })
+                }
+              >
+                扫描固化视图
+              </Button>
+            }
+          >
+            {viewAlert && (
+              <Alert className="mb-3">
+                <div>
+                  {viewAlert.view.id}：
+                  {viewAlert.diff.addedColumns.length > 0 &&
+                    `新增列 ${viewAlert.diff.addedColumns.join("、")}；`}
+                  {viewAlert.diff.removedColumns.length > 0 &&
+                    `删除列 ${viewAlert.diff.removedColumns.join("、")}；`}
+                  {viewAlert.diff.typeChangedColumns.length > 0 &&
+                    `类型变更 ${viewAlert.diff.typeChangedColumns.join("、")}；`}
+                  {!viewAlert.diff.contentChanged && "内容无变化。"}
+                </div>
+                {viewAlert.referencedRemoved.length > 0 && (
+                  <div className="mt-1 text-[var(--destructive)]">
+                    ⚠ {viewAlert.referencedRemoved.length} 个生效属性引用了消失/变更的列：
+                    {viewAlert.referencedRemoved.join("、")}——请修订语义资产或恢复物理列。
+                  </div>
+                )}
+              </Alert>
+            )}
+            {scanForm && (
+              <div className="mb-3 rounded-[var(--radius)] border border-[var(--border)] p-3">
+                <div className="mb-2 text-sm font-medium">
+                  扫描固化（来源：{targetLabel(target)}；视图 ID 按物理名规范化生成，可后续手改）
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <Input
+                    size="small"
+                    variant="outlined"
+                    placeholder="schema"
+                    value={scanForm.schema}
+                    onChange={(event) => setScanForm({ ...scanForm, schema: event.target.value })}
+                  />
+                  <Input
+                    size="small"
+                    variant="outlined"
+                    placeholder="物理表名"
+                    value={scanForm.table}
+                    onChange={(event) => setScanForm({ ...scanForm, table: event.target.value })}
+                  />
+                  <Input
+                    size="small"
+                    variant="outlined"
+                    placeholder="业务名（可选）"
+                    value={scanForm.name}
+                    onChange={(event) => setScanForm({ ...scanForm, name: event.target.value })}
+                  />
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    size="small"
+                    variant="primary"
+                    loading={scanMutation.isPending}
+                    disabled={!scanForm.table.trim() || !scanForm.schema.trim()}
+                    onClick={() =>
+                      scanMutation.mutate({
+                        configId: target === CURRENT_TARGET ? null : target,
+                        schema: scanForm.schema.trim(),
+                        table: scanForm.table.trim(),
+                        name: scanForm.name.trim() || undefined,
+                      })
+                    }
+                  >
+                    扫描固化
+                  </Button>
+                  <Button size="small" variant="secondary" onClick={() => setScanForm(null)}>
+                    取消
+                  </Button>
+                </div>
+              </div>
+            )}
+            {viewsQuery.isPending && <Spinner className="my-2" />}
+            {views.length === 0 && !scanForm && !viewsQuery.isPending && (
+              <p className="text-sm text-[var(--muted-foreground)]">
+                还没有数据视图。把扫描出的表固化为视图资产后，建模与绑定校验将引用视图（OpenBKN
+                双网络拆分的第一步）。
+              </p>
+            )}
+            {views.length > 0 && (
+              <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)]">
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs text-[var(--muted-foreground)]">
+                    <tr className="border-b border-[var(--border)]">
+                      <th className="px-3 py-2 font-medium">视图</th>
+                      <th className="px-3 py-2 font-medium">来源表</th>
+                      <th className="px-3 py-2 font-medium">列数</th>
+                      <th className="px-3 py-2 font-medium">快照 hash</th>
+                      <th className="px-3 py-2 font-medium">状态</th>
+                      <th className="px-3 py-2 font-medium">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {views.map((view) => (
+                      <tr key={view.id} className="border-b border-[var(--border)] last:border-0">
+                        <td className="px-3 py-2">
+                          <div className="font-medium">{view.name}</div>
+                          <div className="font-mono text-xs text-[var(--muted-foreground)]">
+                            {view.id}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 font-mono text-xs">
+                          {view.sourceSchema}.{view.sourceTable}
+                        </td>
+                        <td className="px-3 py-2">{view.columns.length}</td>
+                        <td className="px-3 py-2 font-mono text-xs text-[var(--muted-foreground)]">
+                          {view.contentHash.slice(0, 8)}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Badge>{view.status === "active" ? "active" : "retired"}</Badge>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap gap-1.5">
+                            {view.status === "active" && (
+                              <Button
+                                size="small"
+                                loading={rescanMutation.isPending}
+                                onClick={() => rescanMutation.mutate(view.id)}
+                              >
+                                重扫描
+                              </Button>
+                            )}
+                            {view.status === "active" ? (
+                              <Button
+                                size="small"
+                                variant="secondary"
+                                loading={retireMutation.isPending}
+                                onClick={() => retireMutation.mutate(view.id)}
+                              >
+                                退役
+                              </Button>
+                            ) : (
+                              <Button
+                                size="small"
+                                variant="secondary"
+                                loading={activateMutation.isPending}
+                                onClick={() => activateMutation.mutate(view.id)}
+                              >
+                                激活
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+              重扫描会输出列漂移
+              diff；被生效清单引用的列被删除时页面亮红告警（运行时仍锚定已发布快照，不受影响）。
+              建模与绑定校验引用视图资产——物理表名只在资源侧可见（B3/OpenBKN 双网络拆分）。
             </p>
           </SectionCard>
 

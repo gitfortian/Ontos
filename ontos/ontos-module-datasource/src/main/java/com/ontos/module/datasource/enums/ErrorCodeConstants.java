@@ -28,4 +28,12 @@ public interface ErrorCodeConstants {
     ErrorCode DATASOURCE_MASTER_KEY_MISSING =
             new ErrorCode(1_006_000_109, "数据源凭据主密钥未配置（ontos.datasource.master-key）");
     ErrorCode DATASOURCE_SECRET_CIPHER_FAILED = new ErrorCode(1_006_000_110, "数据源凭据加解密失败: {}");
+
+    // —— 数据视图资产（B3）——
+    ErrorCode DATASOURCE_VIEW_NOT_FOUND = new ErrorCode(1_006_000_111, "数据视图不存在: {}");
+    ErrorCode DATASOURCE_VIEW_REFERENCED =
+            new ErrorCode(1_006_000_112, "数据视图仍被生效清单引用，无法退役: {}");
+    ErrorCode DATASOURCE_VIEW_ID_DUPLICATE = new ErrorCode(1_006_000_113, "数据视图 ID 已存在: {}");
+    ErrorCode DATASOURCE_VIEW_REACTIVATE_CONFLICT =
+            new ErrorCode(1_006_000_114, "同源同表已存在 active 数据视图: {}");
 }

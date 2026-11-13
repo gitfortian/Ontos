@@ -2,6 +2,7 @@ import { API_PREFIX } from "@/config/api";
 import HttpUtils from "@/service/http/HttpUtils";
 
 import type {
+  DataViewScanReqVO,
   DataSourceCatalogBrowseVO,
   DataSourceCatalogVO,
   DataSourceColumnVO,
@@ -109,7 +110,33 @@ export const deleteDataSourceConfig = (id: string): Promise<boolean> =>
 export const testDataSourceConfig = (id: string): Promise<boolean> =>
   HttpUtils.postData<boolean>(`${CATALOG_API}/configs/${encodeURIComponent(id)}/test`, {});
 
+const VIEWS_API = `${CATALOG_API}/data-views`;
+
+export const scanDataView = (
+  payload: DataViewScanReqVO,
+): Promise<import("./types").DataViewScanVO> =>
+  HttpUtils.postData<import("./types").DataViewScanVO>(`${VIEWS_API}/scan`, payload);
+
+export const listDataViews = (signal?: AbortSignal): Promise<import("./types").DataViewVO[]> =>
+  HttpUtils.getData<import("./types").DataViewVO[]>(VIEWS_API, { signal });
+
+export const rescanDataView = (id: string): Promise<import("./types").DataViewScanVO> =>
+  HttpUtils.postData<import("./types").DataViewScanVO>(
+    `${VIEWS_API}/${encodeURIComponent(id)}/rescan`,
+    {},
+  );
+
+export const retireDataView = (id: string): Promise<boolean> =>
+  HttpUtils.postData<boolean>(`${VIEWS_API}/${encodeURIComponent(id)}/retire`, {});
+
+export const activateDataView = (id: string): Promise<boolean> =>
+  HttpUtils.postData<boolean>(`${VIEWS_API}/${encodeURIComponent(id)}/activate`, {});
+
 export type {
+  DataViewDiffVO,
+  DataViewScanReqVO,
+  DataViewScanVO,
+  DataViewVO,
   DataSourceCatalogBrowseVO,
   DataSourceCatalogVO,
   DataSourceColumnVO,
