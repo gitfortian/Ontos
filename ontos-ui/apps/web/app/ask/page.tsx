@@ -1,24 +1,16 @@
 import { PageHeader } from "@ontos/ui";
 
-import { AguiPanel } from "./agui-panel";
 import { ChatPanel } from "./chat-panel";
-import { DslPanel } from "./dsl-panel";
-import { SkillPanel } from "./skill-panel";
 
 export function AskPage() {
   return (
     <div className="px-6 py-5 max-md:px-4">
       <PageHeader
         title="智能问数"
-        description="自然语言经编排链路返回结构化终态；确定性链路只接受类型化 DSL"
+        description="用自然语言问业务数据；系统按已发布的语义资产编译 DSL，并把口径、路径与执行结果一并返回"
       />
-      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
-        <div className="space-y-4">
-          <ChatPanel />
-          <AguiPanel />
-          <SkillPanel />
-        </div>
-        <DslPanel />
+      <div className="mt-4 max-w-4xl">
+        <ChatPanel />
       </div>
     </div>
   );

@@ -1,202 +1,278 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { Button } from "@ontos/ui";
 
 import {
-  createAskRun,
-  replayAskEvents,
-  type AskCandidate,
+  type AskRunStreamEvent,
+  type AskStepEntry,
   type AskTerminalVO,
+  parsePayload,
+  reduceStep,
+  stepOf,
+  streamAskRun,
+  terminalOf,
+  toolOf,
+  toolStep,
 } from "@/service/ask";
 
-/** 单轮对话记录：用户输入 + 终态载荷（或错误）。 */
+import { ProcessPanel } from "./process-panel";
+import { ResultCard } from "./result-card";
+import {
+  ClarificationCard,
+  CompositeCard,
+  DiscoveryCard,
+  OutOfCapabilityCard,
+  WaitingCard,
+} from "./terminal-cards";
+
 interface ChatTurn {
   id: string;
   utterance: string;
+  steps: AskStepEntry[];
+  notes: string[];
   terminal?: AskTerminalVO;
   errorText?: string;
+  running: boolean;
 }
 
-/** 终态卡片（T5.3）：query 结果 / 澄清四要素 / discovery / 拒答文案 / 审批等待。 */
-function TerminalCard({
-  turn,
-  onClarify,
+const newTurn = (utterance: string): ChatTurn => ({
+  id: `turn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  utterance,
+  steps: [],
+  notes: [],
+  running: true,
+});
+
+/** 终态渲染：一个终态只对应一张卡片，不做多卡片拼接。 */
+function TerminalView({
+  terminal,
+  onChoose,
+  disabled,
+  onOpenApprovals,
 }: {
-  turn: ChatTurn;
-  onClarify: (candidateId: string) => void;
+  terminal: AskTerminalVO;
+  onChoose: (candidateId: string, matchedTerm: string) => void;
+  disabled: boolean;
+  onOpenApprovals: () => void;
 }) {
-  const terminal = turn.terminal;
-  if (!terminal) {
-    return <p className="text-sm text-red-600">{turn.errorText}</p>;
-  }
-  const body = terminal.body ?? {};
   switch (terminal.terminal) {
     case "query":
-      return (
-        <div className="space-y-1">
-          <p className="text-sm">
-            查询完成，共 <span className="font-medium">{body.rowCount ?? 0}</span> 行
-            {terminal.degraded ? "（确定性检索模式）" : ""}
-          </p>
-          {terminal.planRef ? (
-            <a
-              className="text-xs text-blue-600 underline"
-              href={terminal.planRef}
-              target="_blank"
-              rel="noreferrer"
-            >
-              查看执行计划回放
-            </a>
-          ) : null}
-        </div>
-      );
+      return <ResultCard terminal={terminal} />;
     case "composite":
-      return (
-        <p className="text-sm">
-          复合查询完成，{body.subResults?.length ?? 0} 个子结果（透传复合通道）
-        </p>
-      );
+      return <CompositeCard terminal={terminal} />;
     case "clarification":
-      return (
-        <div className="space-y-2">
-          <p className="text-sm">{body.ambiguity ?? "需要澄清"}</p>
-          {(body.candidates ?? []).length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {((body.candidates ?? []) as AskCandidate[]).map((candidate) => (
-                <button
-                  key={candidate.assetId}
-                  type="button"
-                  onClick={() => onClarify(candidate.assetId)}
-                  className="rounded border px-2 py-1 text-xs hover:bg-accent"
-                >
-                  {candidate.matchedTerm}（{candidate.assetId}）
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              请换一个更具体的说法，例如点名某个指标。
-            </p>
-          )}
-        </div>
-      );
+      return <ClarificationCard terminal={terminal} onChoose={onChoose} disabled={disabled} />;
     case "discovery":
-      return (
-        <div className="space-y-1 text-sm">
-          <p>当前可查的能力：</p>
-          <ul className="list-disc pl-5 text-xs text-muted-foreground">
-            {((body.metrics ?? []) as AskCandidate[]).map((metric) => (
-              <li key={metric.assetId}>
-                {metric.matchedTerm}（{metric.assetId}）
-              </li>
-            ))}
-            {((body.dimensions ?? []) as AskCandidate[]).map((dimension) => (
-              <li key={dimension.assetId}>
-                {dimension.matchedTerm}（{dimension.assetId}）
-              </li>
-            ))}
-            {(body.metrics?.length ?? 0) + (body.dimensions?.length ?? 0) === 0 ? (
-              <li>暂无命中的资产，请换个说法。</li>
-            ) : null}
-          </ul>
-        </div>
-      );
-    case "out_of_capability":
-      return (
-        <div className="space-y-1">
-          <p className="text-sm">{terminal.copy?.text ?? "该问题超出可回答范围。"}</p>
-          {terminal.reasonCode ? (
-            <p className="text-xs text-muted-foreground">原因码：{terminal.reasonCode}</p>
-          ) : null}
-        </div>
-      );
+      return <DiscoveryCard terminal={terminal} />;
     case "waiting":
-      return (
-        <div className="space-y-1">
-          <p className="text-sm">审批等待中，决策完成后结果将出现在审批列表。</p>
-          {body.approvalId ? (
-            <p className="text-xs text-muted-foreground">审批单：{body.approvalId}</p>
-          ) : null}
-        </div>
-      );
+      return <WaitingCard terminal={terminal} onOpenApprovals={onOpenApprovals} />;
     default:
-      return <p className="text-sm">{JSON.stringify(terminal)}</p>;
+      return <OutOfCapabilityCard terminal={terminal} />;
   }
 }
 
-/** ask 对话主干（T5.3）：轮次列表 + 终态渲染 + 澄清回传。审批决策经 M4 审批页完成。 */
+/** ask 对话主干：流式事件驱动（过程面板 + 终态卡片），不再是一句「共 N 行」。 */
 export function ChatPanel() {
+  const navigate = useNavigate();
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [draft, setDraft] = useState("");
-  const [busy, setBusy] = useState(false);
+  const aborters = useRef(new Map<string, AbortController>());
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const submit = useCallback(async (utterance: string, clarificationChoice?: string) => {
-    const id = `turn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    setTurns((previous) => [
-      ...previous,
-      { id, utterance: clarificationChoice ? `（已选择：${clarificationChoice}）` : utterance },
-    ]);
-    setBusy(true);
-    try {
-      const terminal = await createAskRun({ utterance, clarificationChoice });
-      setTurns((previous) =>
-        previous.map((turn) => (turn.id === id ? { ...turn, terminal } : turn)),
-      );
-    } catch (error) {
-      setTurns((previous) =>
-        previous.map((turn) =>
-          turn.id === id
-            ? { ...turn, errorText: error instanceof Error ? error.message : String(error) }
-            : turn,
-        ),
-      );
-    } finally {
-      setBusy(false);
-    }
+  const busy = useMemo(() => turns.some((turn) => turn.running), [turns]);
+
+  const updateTurn = useCallback((turnId: string, updater: (turn: ChatTurn) => ChatTurn) => {
+    setTurns((previous) => previous.map((turn) => (turn.id === turnId ? updater(turn) : turn)));
   }, []);
 
-  // 等待中间态的 run：提供「查看事件」入口（afterSeq 重放只读，不触发执行）。
-  const latestWaitingRunId = useMemo(() => {
-    const waiting = [...turns].reverse().find((turn) => turn.terminal?.terminal === "waiting");
-    return waiting?.terminal?.body?.approvalId ?? null;
-  }, [turns]);
+  const handleEvent = useCallback(
+    (turnId: string, event: AskRunStreamEvent) => {
+      const step = stepOf(event);
+      if (step) {
+        updateTurn(turnId, (turn) => ({
+          ...turn,
+          steps: reduceStep(turn.steps, event.seq, step),
+        }));
+        return;
+      }
 
-  const onClarify = useCallback(
-    (candidateId: string) => {
-      void submit("", candidateId);
+      const tool = toolOf(event);
+      if (tool) {
+        const phase = event.type === "TOOL_CALL_START" ? "start" : "end";
+        updateTurn(turnId, (turn) => ({
+          ...turn,
+          steps: reduceStep(turn.steps, event.seq, toolStep(tool, phase)),
+        }));
+        return;
+      }
+
+      const terminal = terminalOf(event);
+      if (terminal) {
+        updateTurn(turnId, (turn) => ({ ...turn, terminal }));
+        return;
+      }
+
+      if (event.type === "RUN_ERROR") {
+        const payload = parsePayload<{ message?: string }>(event);
+        updateTurn(turnId, (turn) => ({
+          ...turn,
+          errorText: payload?.message ?? "执行失败",
+          running: false,
+        }));
+        return;
+      }
+
+      if (event.type === "TEXT_MESSAGE_CONTENT") {
+        const payload = parsePayload<{ delta?: string }>(event);
+        const delta = payload?.delta;
+        if (delta) {
+          updateTurn(turnId, (turn) => ({ ...turn, notes: [...turn.notes, delta] }));
+        }
+      }
+    },
+    [updateTurn],
+  );
+
+  const submit = useCallback(
+    async (utterance: string, clarificationChoice?: string, displayText?: string) => {
+      const turn = newTurn(displayText ?? utterance);
+      setTurns((previous) => [...previous, turn]);
+
+      const aborter = new AbortController();
+      aborters.current.set(turn.id, aborter);
+
+      try {
+        await streamAskRun(
+          { utterance, clarificationChoice },
+          (event) => handleEvent(turn.id, event),
+          aborter.signal,
+        );
+      } catch (error) {
+        const aborted = error instanceof DOMException && error.name === "AbortError";
+        updateTurn(turn.id, (previous) => ({
+          ...previous,
+          errorText: aborted
+            ? "已停止展示。服务端仍会执行到结束并记录审计，结果可在审计页查看。"
+            : error instanceof Error
+              ? error.message
+              : String(error),
+        }));
+      } finally {
+        aborters.current.delete(turn.id);
+        updateTurn(turn.id, (previous) => ({ ...previous, running: false }));
+      }
+    },
+    [handleEvent, updateTurn],
+  );
+
+  const stop = useCallback((turnId: string) => {
+    aborters.current.get(turnId)?.abort();
+  }, []);
+
+  const onChoose = useCallback(
+    (candidateId: string, matchedTerm: string) => {
+      void submit("", candidateId, `已选择：${matchedTerm}`);
     },
     [submit],
   );
 
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (node) {
+      node.scrollTop = node.scrollHeight;
+    }
+  }, [turns]);
+
   return (
-    <section className="space-y-3 rounded-lg border p-4">
-      <header className="space-y-1">
-        <h2 className="text-base font-medium">对话</h2>
-        <p className="text-xs text-muted-foreground">
-          自然语言经编排链路返回结构化终态；审批触发时可在「审批」页决策。
-        </p>
-      </header>
-      <div className="max-h-96 space-y-3 overflow-y-auto">
-        {turns.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            输入问题开始对话，例如「帮我查一下销售额」。
+    <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+      <header className="flex items-start gap-2">
+        <div>
+          <h2 className="text-[13px] font-medium">对话</h2>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            每一步都来自服务端事件：理解、检索、编译、执行、审计都可展开查看。
           </p>
+        </div>
+        {turns.length > 0 ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="small"
+            className="ml-auto"
+            onClick={() => setTurns([])}
+            disabled={busy}
+          >
+            清空
+          </Button>
+        ) : null}
+      </header>
+
+      <div ref={scrollRef} className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+        {turns.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center">
+            <p className="text-xs text-muted-foreground">
+              输入问题开始，例如「近 30 天各大区成交金额是多少」
+            </p>
+          </div>
         ) : (
           turns.map((turn) => (
-            <article key={turn.id} className="space-y-2 rounded border p-3">
-              <p className="text-sm font-medium">{turn.utterance}</p>
-              <TerminalCard turn={turn} onClarify={onClarify} />
+            <article key={turn.id} className="space-y-2.5">
+              <div className="flex justify-end">
+                <div className="max-w-[85%] rounded-xl rounded-br-sm bg-primary-subtle px-3 py-1.5">
+                  <p className="text-xs leading-relaxed">{turn.utterance}</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary text-[10px] text-primary-foreground">
+                  AI
+                </span>
+                <div className="min-w-0 flex-1 space-y-2">
+                  {turn.notes.length > 0 ? (
+                    <p className="text-[11px] text-muted-foreground">{turn.notes.join(" ")}</p>
+                  ) : null}
+
+                  <ProcessPanel entries={turn.steps} running={turn.running} />
+
+                  {turn.terminal ? (
+                    <TerminalView
+                      terminal={turn.terminal}
+                      onChoose={onChoose}
+                      disabled={busy}
+                      onOpenApprovals={() => navigate("/approvals")}
+                    />
+                  ) : null}
+
+                  {turn.errorText ? (
+                    <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-[11px] text-destructive">
+                      {turn.errorText}
+                    </p>
+                  ) : null}
+
+                  {turn.running ? (
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <span className="size-1.5 animate-pulse rounded-full bg-primary" />
+                        执行中
+                      </span>
+                      <button
+                        type="button"
+                        className="text-[11px] text-primary hover:underline"
+                        onClick={() => stop(turn.id)}
+                      >
+                        停止展示
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             </article>
           ))
         )}
       </div>
-      {latestWaitingRunId ? (
-        <p className="text-xs text-muted-foreground">
-          有审批等待中（{latestWaitingRunId}），可在「审批」页决策后重试。
-        </p>
-      ) : null}
+
       <form
-        className="flex gap-2"
+        className="flex items-center gap-2 rounded-xl border border-border px-2.5 py-2"
         onSubmit={(event) => {
           event.preventDefault();
           const utterance = draft.trim();
@@ -208,21 +284,21 @@ export function ChatPanel() {
         }}
       >
         <input
-          className="flex-1 rounded border px-3 py-2 text-sm"
+          className="flex-1 bg-transparent px-1 text-xs outline-none placeholder:text-muted-foreground"
           value={draft}
-          placeholder="例如：帮我查一下销售额"
+          placeholder="例如：近 30 天各大区成交金额是多少"
           disabled={busy}
           onChange={(event) => setDraft(event.target.value)}
         />
-        <Button type="submit" disabled={busy || draft.trim().length === 0}>
-          {busy ? "执行中…" : "发送"}
+        <Button
+          type="submit"
+          variant="primary"
+          size="small"
+          disabled={busy || draft.trim().length === 0}
+        >
+          {busy ? "执行中" : "发送"}
         </Button>
       </form>
     </section>
   );
-}
-
-/** 事件重放查看（调试辅助）：按 runId 拉取只读事件序列。 */
-export async function loadRunEvents(runId: string) {
-  return replayAskEvents(runId);
 }

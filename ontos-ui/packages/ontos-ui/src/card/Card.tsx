@@ -54,14 +54,17 @@ export interface SectionCardProps {
   title: ReactNode;
   children: ReactNode;
   className?: string;
+  /** 标题行右侧操作区（按钮 / 状态），与 CardHeader 的 extra 同义。 */
+  extra?: ReactNode;
 }
 
-export function SectionCard({ title, children, className }: SectionCardProps) {
+export function SectionCard({ title, children, className, extra }: SectionCardProps) {
   return (
     <Card className={cn("p-4", className)}>
       <div className="mb-4 flex items-center gap-2">
         <span aria-hidden="true" className="h-4 w-[3px] shrink-0 bg-[var(--primary)]" />
         <div className="text-sm font-medium text-[var(--foreground)]">{title}</div>
+        {extra ? <div className="ml-auto flex shrink-0 items-center gap-2">{extra}</div> : null}
       </div>
       {children}
     </Card>

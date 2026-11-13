@@ -15,6 +15,7 @@ import com.ontos.framework.common.util.json.JsonUtils;
 import com.ontos.framework.web.core.context.RequestContext;
 import com.ontos.module.agent.dal.dataobject.AskRunDO;
 import com.ontos.module.agent.service.event.AskEventService;
+import com.ontos.module.agent.service.event.AskStep;
 import com.ontos.module.agent.service.proposal.DeterministicProposalPlanner;
 import com.ontos.module.agent.service.proposal.ProposalIntegrityService;
 import com.ontos.module.agent.service.run.AskRunStateService;
@@ -23,6 +24,7 @@ import com.ontos.module.system.dal.dataobject.ApprovalRequestDO;
 import com.ontos.module.system.dal.mysql.ApprovalRequestMapper;
 import com.ontos.module.system.service.approval.HitlNotifier;
 import com.ontos.module.ontology.core.ManifestPayload;
+import com.ontos.module.ontology.core.SemanticManifest;
 import com.ontos.module.ontology.service.manifest.ManifestService;
 import com.ontos.module.query.core.dsl.QueryDsl;
 import com.ontos.module.query.service.QueryService;
@@ -193,10 +195,37 @@ public class AskOrchestrationService {
         }
     }
 
+    /**
+     * 流式一轮对话：编排仍在 run 执行线程内，事件经 {@code live} 同步推送；
+     * 终态 / 异常通过回调交回调用方（SSE 端点负责收尾连接）。
+     *
+     * <p>与同步 {@link #executeTurn} 是**同一条链路**：不复制编排、不改判定顺序，
+     * 区别只是事件多了一条实时出口（持久化、审计、fail-closed 行为完全一致）。
+     *
+     * <p>客户端断开只影响展示：编排继续执行到终态并落库（审计不可丢），
+     * 断开方可用 {@code GET /ask/run/{runId}/events?afterSeq=} 补齐。
+     */
+    public void executeTurnStreaming(RequestContext context, String utterance,
+                                     String clarificationChoice, String variantHint,
+                                     java.util.function.Consumer<Map<String, Object>> live,
+                                     java.util.function.Consumer<Map<String, Object>> onTerminal,
+                                     java.util.function.Consumer<RuntimeException> onError) {
+        runExecutor.submit(() -> {
+            eventService.bindLiveChannel(live);
+            try {
+                onTerminal.accept(executeTurnInThread(context, utterance, clarificationChoice,
+                        variantHint));
+            } catch (RuntimeException ex) {
+                onError.accept(ex);
+            } finally {
+                eventService.clearLiveChannel();
+            }
+        });
+    }
+
     private String latestRunIdOf(RequestContext context) {
         return runStateService.latestRunId(context.tenantId(), context.userId(),
-                context.sessionId());
-    }
+                context.sessionId());    }
 
     /** 审批 ID 从 run 的 INTERRUPT 事件提取（无则 null）。 */
     private String approvalIdOfRun(String runId) {
@@ -259,6 +288,9 @@ public class AskOrchestrationService {
             Map<String, Object> terminal = doExecute(context, runId, utterance, clarificationChoice,
                     variantHint);
 
+            // 终态装配步骤：收口位置统一（各终态分支不各自埋点，避免重复与遗漏）
+            eventService.emitStep(runId, AskStep.ASSEMBLE, AskStep.Status.DONE,
+                    terminalDetail(terminal), null);
             runStateService.transition(runId, AskRunDO.RUNNING, AskRunDO.FINISHED);
             eventService.emit(runId, AskEventService.RUN_FINISHED,
                     Map.of("terminal", String.valueOf(terminal.get("terminal"))));
@@ -309,8 +341,10 @@ public class AskOrchestrationService {
                 consumed = true;
             }
         }
+        long retrieveStartedAt = stepStarted(runId, AskStep.RETRIEVE);
         RetrievalOutcome outcome = retrievalService.resolve(utterance, context, projection,
                 variantHint);
+        stepDone(runId, AskStep.RETRIEVE, retrievalDetail(outcome), retrieveStartedAt);
 
         // 2. Proposal：LLM（enabled 且可用）或确定性降级；近似同意轮强制 query 组装（T3.3）
         // 校验上下文必须与模型输入一致：多轮投影输入含服务端注入标记，不能退回原始短话术。
@@ -319,21 +353,29 @@ public class AskOrchestrationService {
         String contractQuestion = modelUserPrompt(utterance, projection);
         Map<String, Object> proposal;
         ProposalIntegrityService.IntegrityResult integrity;
+        long understandStartedAt = stepStarted(runId, AskStep.UNDERSTAND);
         try {
             proposal = proposeWithFallback(context, runId, utterance, outcome, projection,
                     contractQuestion, consumed, approxSkillId != null);
+            stepDone(runId, AskStep.UNDERSTAND, proposalDetail(proposal), understandStartedAt);
 
             // 3. 合同校验（确定性/LLM 输出同闸门）+ 来源完整性对账。
+            long validateStartedAt = stepStarted(runId, AskStep.VALIDATE);
             IntentProposalContract.ValidationResult validation =
                     contract().validate(JsonUtils.toJsonString(proposal), contractQuestion, projectionInjected);
             if (!validation.valid()) {
                 // 确定性输出也必须过合同；不过即编排缺陷，fail-closed 拒答
                 log.warn("[doExecute][proposal 违反输出契约: {}]", validation.violations());
+                stepFailed(runId, AskStep.VALIDATE, "输出契约未通过（" + validation.violations().size()
+                        + " 项）", validateStartedAt);
                 return outOfCapability(context, "PROPOSAL_CONTRACT_INVALID");
             }
             integrity = integrityService.check(proposal, outcome, utterance, context,
                     contract().candidateAssetIds(contractQuestion),
                     projection == null ? java.util.Set.of() : projection.assetIds());
+            stepDone(runId, AskStep.VALIDATE, integrity.passed()
+                    ? "合规校验与来源对账通过"
+                    : "校验未通过，按原因码处置", validateStartedAt);
         } finally {
             // prime 生命周期覆盖到对账结束（O-3）：二次校验与模型修复轮同口径，
             // 都是「本轮检索收敛 + 投影继承」词表；提前清理会让这里回退全量授权词表。
@@ -382,8 +424,11 @@ public class AskOrchestrationService {
                                 }}),
                         "query", context.traceId());
                 Map<String, Object> terminal = terminalAssembler.query(context.traceId(),
-                        result.getRowCount(),
-                        result.getRows() == null ? List.of() : result.getRows(), false);
+                        new TerminalAssembler.QueryStats(result.getRowCount(),
+                                result.isTruncated(), result.getElapsedMs()),
+                        result.getRows() == null ? List.of() : result.getRows(),
+                        columnsOf(result.getColumns(), stringOf(((Map<String, Object>) box).get("metric_id"))),
+                        false);
                 terminalAssembler.emitTerminal(eventService, runId, terminal);
                 return terminal;
             }
@@ -564,8 +609,10 @@ public class AskOrchestrationService {
             eventService.emit(runId, AskEventService.TEXT_MESSAGE,
                     Map.of("delta", "已按已审核的查询模板回答（" + vqrId + "）"));
             Map<String, Object> terminal = terminalAssembler.query(context.traceId(),
-                    result.getRowCount(),
-                    result.getRows() == null ? List.of() : result.getRows(), false);
+                    new TerminalAssembler.QueryStats(result.getRowCount(),
+                            result.isTruncated(), result.getElapsedMs()),
+                    result.getRows() == null ? List.of() : result.getRows(),
+                    columnsOf(result.getColumns(), null), false);
             terminalAssembler.emitTerminal(eventService, runId, terminal);
             return terminal;
         } catch (RuntimeException ex) {
@@ -589,8 +636,11 @@ public class AskOrchestrationService {
         // T3.5 VQR 命中：提案引用 vqr_id（完整性闸门已对账候选集）→ 模板绑定 + 既有 execute
         // 全链（八步重校验）；vqr_id 不经 assembleDsl（散装槽位路径），vqrId 不由本层再解释
         if (box.containsKey("vqr_id")) {
+            long vqrRouteStartedAt = stepStarted(runId, AskStep.ROUTE);
+            stepDone(runId, AskStep.ROUTE, "命中已审核的查询模板", vqrRouteStartedAt);
             return executeVqrTerminal(context, runId, (Map<String, Object>) box);
         }
+        long composeStartedAt = stepStarted(runId, AskStep.COMPOSE);
         QueryDsl dsl = assembleDsl(context, (Map<String, Object>) box);
 
         // ADR-0023 v1.1：FUNNEL / RETENTION / ATTRIBUTION / LOOKUP_BATCH 的复杂参数由服务端补齐。
@@ -599,16 +649,25 @@ public class AskOrchestrationService {
         var paramResolution = complexAnalysisParamsResolver.resolve(dsl, utterance, manifest);
         if (!paramResolution.resolved()) {
             log.info("[complexParams][unresolved: {}]", paramResolution.reason());
+            stepSkipped(runId, AskStep.COMPOSE, "复杂分析参数不足，未进入执行");
             return outcome.clarifications().isEmpty()
                     ? outOfCapability(context, paramResolution.reason())
                     : clarificationTerminal(context, outcome, Boolean.TRUE.equals(proposal.get("degraded")));
         }
         dsl = paramResolution.dsl();
+        stepDone(runId, AskStep.COMPOSE, composeDetail(dsl), composeStartedAt);
 
         // M6/W2/T2.4（§3.2）：场景内模式候选 ∩ allowed_analysis_modes（确定性过滤，
         // 越界模式 fail-closed 拒答，不静默改写）；DSL scenarioId 由服务端路由结果盖章，
         // 不采信提案——直传越权在 query 侧 ScenarioRouteGuard 再拦一道（防御纵深）。
-        if (scenario != null && scenario.scenarioId() != null) {
+        // 场景路由判定发生在 DSL 构造之后（先有查询、再按场景收敛模式），
+        // 所以 ROLE 步骤在 COMPOSE 之后下发——事件顺序即真实执行顺序，不按枚举顺序摆放。
+        long routeStartedAt = stepStarted(runId, AskStep.ROUTE);
+        boolean inScenario = scenario != null && scenario.scenarioId() != null;
+        stepDone(runId, AskStep.ROUTE, inScenario
+                ? "命中业务场景「" + scenarioLabel(scenario.scenarioId()) + "」"
+                : "未命中业务场景，按自由问数处理", routeStartedAt);
+        if (inScenario) {
             if (!scenario.allowedModes().isEmpty()
                     && (dsl.getMode() == null
                     || !scenario.allowedModes().contains(dsl.getMode().name().toLowerCase()))) {
@@ -641,17 +700,45 @@ public class AskOrchestrationService {
         // T3.4 第二级路由：Analysis Mode 从指标 allowed_modes 确定性过滤
         filterAnalysisMode(dsl);
 
-        eventService.emit(runId, AskEventService.TOOL_CALL,
-                Map.of("toolName", "execute_query", "argsScope", "server_assembled"));
-        ExecutedQuery executed = executeWithHitl(context, runId, dsl);
+        long executeStartedAt = stepStarted(runId, AskStep.EXECUTE);
+        eventService.emitToolStart(runId, "execute_query", toolArgsSummary(dsl));
+        ExecutedQuery executed;
+        try {
+            executed = executeWithHitl(context, runId, dsl);
+        } catch (SensitiveClosedException closed) {
+            // 审批拒绝 / TTL：不是执行故障，工具与步骤都按「已收尾」记录
+            eventService.emitToolEnd(runId, "execute_query", "closed",
+                    List.of("审批未放行"), elapsedMs(executeStartedAt));
+            stepSkipped(runId, AskStep.EXECUTE, "审批未放行，已按原因码收尾");
+            throw closed;
+        } catch (RuntimeException ex) {
+            eventService.emitToolEnd(runId, "execute_query", "failed",
+                    List.of("执行未通过"), elapsedMs(executeStartedAt));
+            stepFailed(runId, AskStep.EXECUTE, "执行未通过（已按原因码处置）", executeStartedAt);
+            throw ex;
+        }
+        int rowCount = executed.result() == null ? 0 : executed.result().getRowCount();
+        eventService.emitToolEnd(runId, "execute_query", "succeeded",
+                toolResultSummary(executed.result()), elapsedMs(executeStartedAt));
+        stepDone(runId, AskStep.EXECUTE, "返回 " + rowCount + " 行", executeStartedAt);
 
         // 会话投影（F-1：每轮全量覆盖）；requestId 与审计行同源（HITL 放行重放是 -replay 新 ID）
         sessionStateService.project(context, SessionProjection.of(dsl), "query",
                 executed.requestId());
 
+        // 审计与查询同一事务（审计写入失败即整单失败）——执行成功即已落库。
+        // 这里没有独立时钟可测（同一事务内已提交），不发耗时，避免出现「0 ms」的假精确。
+        eventService.emitStep(runId, AskStep.AUDIT, AskStep.Status.RUNNING, null, null);
+        eventService.emitStep(runId, AskStep.AUDIT, AskStep.Status.DONE,
+                "已随查询原子写入，可在审计页追溯", null);
+
         Map<String, Object> terminal = terminalAssembler.query(executed.requestId(),
-                executed.result() == null ? 0 : executed.result().getRowCount(),
+                new TerminalAssembler.QueryStats(rowCount,
+                        executed.result() != null && executed.result().isTruncated(),
+                        executed.result() == null ? 0L : executed.result().getElapsedMs()),
                 executed.result() == null ? List.of() : executed.result().getRows(),
+                executed.result() == null ? List.of()
+                        : columnsOf(executed.result().getColumns(), dsl.getMetricId()),
                 Boolean.TRUE.equals(proposal.get("degraded")));
         terminalAssembler.emitTerminal(eventService, runId, terminal);
         return terminal;
@@ -1064,6 +1151,264 @@ public class AskOrchestrationService {
         } catch (RuntimeException ignored) {
             // 收尾失败不掩盖原始异常
         }
+    }
+
+    // ---------- 过程事件（过程可见性）：步骤是链路事实，detail 只放业务话术 ----------
+
+    private long stepStarted(String runId, AskStep step) {
+        eventService.emitStep(runId, step, AskStep.Status.RUNNING, null, null);
+        return System.nanoTime();
+    }
+
+    private void stepDone(String runId, AskStep step, String detail, long startedAt) {
+        eventService.emitStep(runId, step, AskStep.Status.DONE, detail, elapsedMs(startedAt));
+    }
+
+    private void stepFailed(String runId, AskStep step, String detail, long startedAt) {
+        eventService.emitStep(runId, step, AskStep.Status.FAILED, detail, elapsedMs(startedAt));
+    }
+
+    private void stepSkipped(String runId, AskStep step, String detail) {
+        eventService.emitStep(runId, step, AskStep.Status.SKIPPED, detail, null);
+    }
+
+    private static long elapsedMs(long startedAtNanos) {
+        return Math.max(0, (System.nanoTime() - startedAtNanos) / 1_000_000);
+    }
+
+    /** 检索摘要：只出业务叫法与数量，不出资产 ID。 */
+    private String retrievalDetail(RetrievalOutcome outcome) {
+        List<String> terms = outcome.dslReady().stream()
+                .map(RetrievedCandidate::matchedTerm)
+                .filter(term -> term != null && !term.isBlank())
+                .distinct()
+                .limit(3)
+                .toList();
+        StringBuilder detail = new StringBuilder("命中 ")
+                .append(outcome.dslReady().size()).append(" 项");
+        if (!terms.isEmpty()) {
+            detail.append("：").append(String.join("、", terms));
+            if (outcome.dslReady().size() > terms.size()) {
+                detail.append(" 等");
+            }
+        }
+        if (!outcome.fuzzyOnly().isEmpty()) {
+            detail.append("；模糊候选 ").append(outcome.fuzzyOnly().size()).append(" 项");
+        }
+        if (!outcome.clarifications().isEmpty()) {
+            detail.append("；需要确认 ").append(outcome.clarifications().size()).append(" 处口径");
+        }
+        return detail.toString();
+    }
+
+    /** 提案摘要：指标 / 维度 / 时间窗 / 模式；ID 一律换成业务名。 */
+    private String proposalDetail(Map<String, Object> proposal) {
+        List<String> parts = new ArrayList<>();
+        Object raw = proposal.get("sub_intents");
+        if (raw instanceof List<?> items && !items.isEmpty() && items.get(0) instanceof Map<?, ?> box) {
+            if (box.get("metric_id") instanceof String metricId && !metricId.isBlank()) {
+                parts.add(labelOf(metricId));
+            }
+            if (box.get("dimensions") instanceof List<?> dimensions && !dimensions.isEmpty()) {
+                List<String> labels = dimensions.stream()
+                        .filter(String.class::isInstance)
+                        .map(String.class::cast)
+                        .map(this::labelOf)
+                        .toList();
+                parts.add("按" + String.join("、", labels));
+            }
+            if (box.get("time_expression_raw") instanceof String time && !time.isBlank()) {
+                parts.add(time);
+            }
+            String mode = modeLabel(stringOf(box.get("analysis_mode")));
+            if (mode != null) {
+                parts.add(mode);
+            }
+        }
+        if (Boolean.TRUE.equals(proposal.get("degraded"))) {
+            parts.add("确定性模式");
+        }
+        return parts.isEmpty() ? "未解析出可用槽位" : String.join(" · ", parts);
+    }
+
+    private String composeDetail(QueryDsl dsl) {
+        List<String> parts = new ArrayList<>();
+        parts.add("指标 " + labelOf(dsl.getMetricId()));
+        if (!dsl.getDimensions().isEmpty()) {
+            List<String> labels = dsl.getDimensions().stream().map(this::labelOf).toList();
+            parts.add("维度 " + String.join("、", labels));
+        }
+        if (!dsl.getFilters().isEmpty()) {
+            parts.add("过滤 " + dsl.getFilters().size() + " 项");
+        }
+        if (dsl.getTimeExpressionRaw() != null && !dsl.getTimeExpressionRaw().isBlank()) {
+            parts.add("时间 " + dsl.getTimeExpressionRaw());
+        }
+        String mode = modeLabel(dsl.getMode() == null ? null : dsl.getMode().name());
+        if (mode != null) {
+            parts.add(mode);
+        }
+        return String.join(" · ", parts);
+    }
+
+    private List<String> toolArgsSummary(QueryDsl dsl) {
+        List<String> summary = new ArrayList<>();
+        summary.add("指标 " + labelOf(dsl.getMetricId()));
+        if (!dsl.getDimensions().isEmpty()) {
+            List<String> labels = dsl.getDimensions().stream().map(this::labelOf).toList();
+            summary.add("维度 " + String.join("、", labels));
+        }
+        if (dsl.getLimit() != null) {
+            summary.add("上限 " + dsl.getLimit() + " 行");
+        }
+        return summary;
+    }
+
+    private List<String> toolResultSummary(com.ontos.module.query.core.executor.QueryResult result) {
+        List<String> summary = new ArrayList<>();
+        if (result == null) {
+            summary.add("无返回结果");
+            return summary;
+        }
+        summary.add("返回 " + result.getRowCount() + " 行");
+        summary.add(result.isTruncated() ? "已按上限截断" : "未截断");
+        summary.add(result.isCached() ? "命中结果缓存" : "只读连接执行");
+        return summary;
+    }
+
+    /** 场景 ID → 业务场景名（场景名是资产内容，可对外；ID 不对外）。 */
+    private String scenarioLabel(String scenarioId) {
+        ManifestPayload.ScenarioMeta meta = scenariosById().get(scenarioId);
+        return meta != null && meta.getName() != null && !meta.getName().isBlank()
+                ? meta.getName() : "当前业务场景";
+    }
+
+    /** 资产 ID → 业务名。无清单或查不到时给中性文案，**不回退 ID**（ID 不上屏）。 */
+    private String labelOf(String assetId) {
+        if (assetId == null || assetId.isBlank()) {
+            return "未指定";
+        }
+        var manifest = manifestService.getActiveManifestOrNull();
+        if (manifest == null || manifest.getSemantic() == null) {
+            return "未命名资产";
+        }
+        String label = manifest.getSemantic().getMetrics().stream()
+                .filter(metric -> assetId.equals(metric.getId()))
+                .map(SemanticManifest.Metric::getName)
+                .filter(name -> name != null && !name.isBlank())
+                .findFirst()
+                .orElse(null);
+        if (label == null) {
+            label = manifest.getSemantic().getDimensions().stream()
+                    .filter(dimension -> assetId.equals(dimension.getId()))
+                    .map(SemanticManifest.Dimension::getName)
+                    .filter(name -> name != null && !name.isBlank())
+                    .findFirst()
+                    .orElse(null);
+        }
+        return label == null ? "未命名资产" : label;
+    }
+
+    private static String modeLabel(String mode) {
+        if (mode == null || mode.isBlank()) {
+            return null;
+        }
+        return switch (mode.toUpperCase()) {
+            case "QUERY" -> "聚合查询";
+            case "LOOKUP" -> "明细查询";
+            case "LOOKUP_BATCH" -> "批量明细";
+            case "FUNNEL" -> "漏斗分析";
+            case "YOY_MOM" -> "同环比";
+            case "ATTRIBUTION" -> "归因分析";
+            case "RETENTION" -> "留存分析";
+            case "DISCOVERY" -> "能力发现";
+            default -> null;
+        };
+    }
+
+    /**
+     * 结果列元数据：把 SQL 列别名（{@code value} / {@code dim.region} / {@code step_1}）
+     * 翻成业务表头。列顺序沿用结果集顺序，**不排序**（排序会改变用户看到的列序）。
+     *
+     * <p>身份列（{@code __identity}、{@code subject}）不下发——它们只服务内部对齐，
+     * 对用户没有意义，也就没有泄曝面。
+     */
+    private List<TerminalAssembler.Column> columnsOf(List<String> keys, String metricId) {
+        if (keys == null || keys.isEmpty()) {
+            return List.of();
+        }
+        var manifest = manifestService.getActiveManifestOrNull();
+        java.util.Set<String> dimensionIds = manifest == null || manifest.getSemantic() == null
+                ? java.util.Set.of()
+                : manifest.getSemantic().getDimensions().stream()
+                        .map(SemanticManifest.Dimension::getId)
+                        .collect(java.util.stream.Collectors.toSet());
+        String metricLabel = metricId == null || metricId.isBlank() ? "指标值" : labelOf(metricId);
+        List<TerminalAssembler.Column> columns = new ArrayList<>();
+        for (String key : keys) {
+            if (key == null || key.isBlank() || "__identity".equals(key) || "subject".equals(key)) {
+                continue;
+            }
+            if ("value".equals(key) || "metric_value".equals(key)
+                    || "attributed_metric_value".equals(key)) {
+                columns.add(new TerminalAssembler.Column(key, metricLabel, "metric", true));
+                continue;
+            }
+            if (dimensionIds.contains(key)) {
+                columns.add(new TerminalAssembler.Column(key, labelOf(key), "dimension", false));
+                continue;
+            }
+            TerminalAssembler.Column special = specialColumn(key);
+            columns.add(special != null ? special
+                    : new TerminalAssembler.Column(key, key, "other", false));
+        }
+        return columns;
+    }
+
+    /** 分析模式产出的固定列（语义由编译器决定，这里只是业务化命名，不是猜测）。 */
+    private static TerminalAssembler.Column specialColumn(String key) {
+        if (key.startsWith("step_")) {
+            return new TerminalAssembler.Column(key, "第 " + key.substring(5) + " 步", "step", true);
+        }
+        if (key.startsWith("conversion_")) {
+            return new TerminalAssembler.Column(key, "第 " + key.substring(11) + " 步转化率",
+                    "conversion", true);
+        }
+        return switch (key) {
+            case "cohort_period" -> new TerminalAssembler.Column(key, "同期群", "cohort", false);
+            case "cohort_users" -> new TerminalAssembler.Column(key, "同期群用户数", "cohort", true);
+            case "retained", "retained_users" ->
+                    new TerminalAssembler.Column(key, "留存用户数", "cohort", true);
+            case "retention_rate" -> new TerminalAssembler.Column(key, "留存率", "cohort", true);
+            case "conversion_id" -> new TerminalAssembler.Column(key, "转化事件", "cohort", false);
+            case "touched_events" -> new TerminalAssembler.Column(key, "触达人次", "cohort", true);
+            case "converted_events" -> new TerminalAssembler.Column(key, "转化人次", "cohort", true);
+            case "yoy" -> new TerminalAssembler.Column(key, "同比", "conversion", true);
+            case "mom" -> new TerminalAssembler.Column(key, "环比", "conversion", true);
+            case "period" -> new TerminalAssembler.Column(key, "时间周期", "cohort", false);
+            case "period_index" -> new TerminalAssembler.Column(key, "周期序号", "cohort", true);
+            case "channel_name" -> new TerminalAssembler.Column(key, "渠道", "dimension", false);
+            case "attributed_channel_id" ->
+                    new TerminalAssembler.Column(key, "归因渠道", "dimension", false);
+            default -> null;
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String terminalDetail(Map<String, Object> terminal) {
+        String type = String.valueOf(terminal.get("terminal"));
+        Map<String, Object> body = terminal.get("body") instanceof Map<?, ?> box
+                ? (Map<String, Object>) box : Map.of();
+        return switch (type) {
+            case "query" -> "已返回 " + body.getOrDefault("rowCount", 0) + " 行结果";
+            case "composite" -> "已返回 " + (body.get("subResults") instanceof List<?> list
+                    ? list.size() : 0) + " 个子结果";
+            case "clarification" -> "需要你确认口径后才能继续";
+            case "discovery" -> "已返回当前可查询的能力清单";
+            case "waiting" -> "查询在等待审批决策";
+            case "out_of_capability" -> "已给出可回答范围";
+            default -> "已完成";
+        };
     }
 
     private RequestContext runContext() {

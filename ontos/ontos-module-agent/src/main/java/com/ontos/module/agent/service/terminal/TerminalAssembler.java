@@ -40,13 +40,33 @@ public class TerminalAssembler {
         this.sessionStateService = sessionStateService;
     }
 
-    /** 复用（回答）终态：结果 + 编译产物回放引用（/plan/{requestId}）。 */
-    public Map<String, Object> query(String requestId, int rowCount, List<?> rows, boolean degraded) {
+    /**
+     * 结果列元数据（前端表格表头 / 图表轴 / 数值右对齐的唯一来源）。
+     *
+     * <p>{@code key} 只用于取值（形如 {@code dim.region}、{@code value}），**不上屏**；
+     * 展示一律用 {@code label}（清单里的业务名）。role 让前端决定图表轴与对齐方式，
+     * 不靠猜列名。
+     */
+    public record Column(String key, String label, String role, boolean numeric) {
+    }
+
+    /** 结果统计（行数 / 是否截断 / 耗时）：页面直接展示，不用前端反推。 */
+    public record QueryStats(int rowCount, boolean truncated, long elapsedMs) {
+    }
+
+    /** 复用（回答）终态：结果 + 列元数据 + 编译产物回放引用（/plan/{requestId}）。 */
+    public Map<String, Object> query(String requestId, QueryStats stats, List<?> rows,
+                                     List<Column> columns, boolean degraded) {
         Map<String, Object> terminal = base("query", requestId);
         terminal.put("planRef", "/api/v1/query/plan/" + requestId);
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("rowCount", rowCount);
+        body.put("rowCount", stats == null ? 0 : stats.rowCount());
         body.put("rows", rows == null ? List.of() : rows);
+        body.put("columns", columns == null ? List.of() : columns);
+        if (stats != null) {
+            body.put("truncated", stats.truncated());
+            body.put("elapsedMs", stats.elapsedMs());
+        }
         terminal.put("body", body);
         terminal.put("degraded", degraded);
         return terminal;

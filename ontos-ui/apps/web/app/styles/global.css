@@ -4,6 +4,33 @@
 @source "../";
 @source "../../../../packages/ontos-ui/src";
 
+/*
+ * 语义 token → Tailwind 颜色工具类。
+ * 没有这段映射，`text-muted-foreground` / `bg-card` / `border-border` 这类类名不会生成，
+ * 页面只剩浏览器默认样式（表象是「简陋」，实际是样式类失效）。
+ * 只做映射，不新增色值：真源仍是 styles.css 的 :root / .dark。
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+}
+
 html,
 body,
 #root {
