@@ -20,6 +20,7 @@ public final class StubDataSourcePlugin implements DataSourcePlugin {
     private final String descriptorType;
     private final String apiVersion;
     private final Set<DataSourceCapability> capabilities;
+    private final List<DataSourceDescriptor.ConfigField> configFields;
     final List<String> schemas;
     final List<com.ontos.spi.datasource.TableMeta> tables;
     final List<com.ontos.spi.datasource.ColumnMeta> columns;
@@ -45,7 +46,8 @@ public final class StubDataSourcePlugin implements DataSourcePlugin {
                 List.of(new com.ontos.spi.datasource.TableMeta("orders", "BASE TABLE"),
                         new com.ontos.spi.datasource.TableMeta("channel", "BASE TABLE")),
                 List.of(new com.ontos.spi.datasource.ColumnMeta("id", "integer", false),
-                        new com.ontos.spi.datasource.ColumnMeta("amount", "numeric", true)));
+                        new com.ontos.spi.datasource.ColumnMeta("amount", "numeric", true)),
+                List.of());
     }
 
     public StubDataSourcePlugin(String type, String descriptorType, String apiVersion,
@@ -53,6 +55,15 @@ public final class StubDataSourcePlugin implements DataSourcePlugin {
                                 List<String> schemas,
                                 List<com.ontos.spi.datasource.TableMeta> tables,
                                 List<com.ontos.spi.datasource.ColumnMeta> columns) {
+        this(type, descriptorType, apiVersion, capabilities, schemas, tables, columns, List.of());
+    }
+
+    public StubDataSourcePlugin(String type, String descriptorType, String apiVersion,
+                                Set<DataSourceCapability> capabilities,
+                                List<String> schemas,
+                                List<com.ontos.spi.datasource.TableMeta> tables,
+                                List<com.ontos.spi.datasource.ColumnMeta> columns,
+                                List<DataSourceDescriptor.ConfigField> configFields) {
         this.type = type;
         this.descriptorType = descriptorType;
         this.apiVersion = apiVersion;
@@ -60,6 +71,7 @@ public final class StubDataSourcePlugin implements DataSourcePlugin {
         this.schemas = schemas;
         this.tables = tables;
         this.columns = columns;
+        this.configFields = configFields;
     }
 
     @Override
@@ -70,7 +82,7 @@ public final class StubDataSourcePlugin implements DataSourcePlugin {
     @Override
     public DataSourceDescriptor descriptor() {
         return new DataSourceDescriptor(descriptorType, descriptorType, apiVersion,
-                capabilities, List.of());
+                capabilities, configFields);
     }
 
     @Override

@@ -21,4 +21,11 @@ public interface ErrorCodeConstants {
     ErrorCode DATASOURCE_TYPE_INVALID = new ErrorCode(1_006_000_105, "数据源类型非法: {}");
 
     ErrorCode DATASOURCE_NOT_CONFIGURED = new ErrorCode(1_006_000_106, "当前查询数据源未配置");
+
+    // —— 注册配置（B2 Phase 2 前半，ADR-0025 凭据加密）——
+    ErrorCode DATASOURCE_CONFIG_NOT_FOUND = new ErrorCode(1_006_000_107, "数据源配置不存在: {}");
+    ErrorCode DATASOURCE_NAME_DUPLICATE = new ErrorCode(1_006_000_108, "数据源名称已存在: {}");
+    ErrorCode DATASOURCE_MASTER_KEY_MISSING =
+            new ErrorCode(1_006_000_109, "数据源凭据主密钥未配置（ontos.datasource.master-key）");
+    ErrorCode DATASOURCE_SECRET_CIPHER_FAILED = new ErrorCode(1_006_000_110, "数据源凭据加解密失败: {}");
 }

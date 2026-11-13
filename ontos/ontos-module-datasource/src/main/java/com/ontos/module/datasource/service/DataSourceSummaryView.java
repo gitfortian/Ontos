@@ -22,7 +22,13 @@ public record DataSourceSummaryView(String id,
     public record ManifestTable(String name, int propertyCount, List<String> propertyIds) {
     }
 
-    /** 已注册插件：type 全局唯一，capabilities 是唯一能力事实源。 */
-    public record PluginView(String type, String displayName, Set<String> capabilities) {
+    /** 已注册插件：type 全局唯一，capabilities 是唯一能力事实源；configFields 驱动前端注册表单。 */
+    public record PluginView(String type, String displayName, Set<String> capabilities,
+                             List<ConfigFieldView> configFields) {
+    }
+
+    /** 连接配置字段声明（key/label/required/secret/placeholder）。 */
+    public record ConfigFieldView(String key, String label, boolean required, boolean secret,
+                                  String placeholder) {
     }
 }

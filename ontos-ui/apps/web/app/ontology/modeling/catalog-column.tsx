@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
-  browseDataSourceCatalog,
+  browseDataSourceByTarget,
   dataSourceQueryKeys,
-  getDataSourceColumns,
+  getDataSourceColumnsByTarget,
 } from "@/service/catalog";
 
 import { SelectField } from "../definitions/controls";
@@ -27,12 +27,12 @@ export function CatalogColumnField({ label, testId, value, onChange }: CatalogCo
   const [table, setTable] = useState(value.includes(".") ? value.split(".")[0]! : "");
 
   const browseQuery = useQuery({
-    queryKey: dataSourceQueryKeys.browse(schema),
-    queryFn: ({ signal }) => browseDataSourceCatalog(schema, signal),
+    queryKey: dataSourceQueryKeys.browse("current", schema),
+    queryFn: ({ signal }) => browseDataSourceByTarget("current", schema, signal),
   });
   const columnsQuery = useQuery({
-    queryKey: dataSourceQueryKeys.columns(schema, table),
-    queryFn: ({ signal }) => getDataSourceColumns(schema, table, signal),
+    queryKey: dataSourceQueryKeys.columns("current", schema, table),
+    queryFn: ({ signal }) => getDataSourceColumnsByTarget("current", schema, table, signal),
     enabled: table !== "",
   });
 

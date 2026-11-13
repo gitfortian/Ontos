@@ -74,7 +74,12 @@ public class DataSourceCatalogService {
                         plugin.type(), plugin.descriptor().displayName(),
                         plugin.descriptor().capabilities().stream()
                                 .map(Enum::name)
-                                .collect(Collectors.toUnmodifiableSet())))
+                                .collect(Collectors.toUnmodifiableSet()),
+                        plugin.descriptor().configFields().stream()
+                                .map(field -> new DataSourceSummaryView.ConfigFieldView(
+                                        field.key(), field.label(), field.required(),
+                                        field.secret(), field.placeholder()))
+                                .toList()))
                 .toList();
         return new DataSourceSummaryView(
                 "query",

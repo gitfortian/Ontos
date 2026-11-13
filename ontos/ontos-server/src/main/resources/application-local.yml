@@ -2,6 +2,9 @@
 # 本地弱口令只允许出现在本文件（local profile）；非 local 环境凭据必须经环境变量显式提供。
 ontos:
   datasource:
+    # 凭据加密 master key（ADR-0025）：本 Base64 32 字节序列仅覆盖本地开发库凭据，
+    # 生产必须经环境变量注入随机 key；key 缺失时凭据加密/解密 fail-closed 拒绝。
+    master-key: "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8="
     system:
       username: postgres
       password: 123456

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Input, PageHeader, SectionCard, Spinner } from "@ontos/ui";
 
@@ -32,6 +33,7 @@ import {
   conceptFormOf,
   propertyFormOf,
   relationFormOf,
+  valueTypeOfColumn,
   type ConceptFormValues,
   type PropertyFormValues,
   type RelationFormValues,
@@ -84,6 +86,9 @@ interface Row {
 interface EditorState {
   mode: "create" | "edit";
   draft?: SemanticAssetVO;
+  /** 从数据源目录跳转预填（B1 P2-C 前半）：仅 create 模式消费。 */
+  prefilledColumn?: string;
+  prefilledDataType?: string;
 }
 
 function rowsOf(tab: TabKey, options: SemanticAssetOptionsVO | undefined): Row[] {
@@ -139,6 +144,7 @@ export function ModelingPage() {
   const [busy, setBusy] = useState(false);
   const [synthesis, setSynthesis] = useState<SemanticSynthesisVO | null>(null);
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const optionsQuery = useQuery({
     queryKey: semanticAssetQueryKeys.options,
@@ -146,6 +152,27 @@ export function ModelingPage() {
   });
   const options = optionsQuery.data;
   const assetType = ASSET_TYPE[tab];
+
+  // 目录扫描建资产（B1 P2-C 前半）：数据源页「建信息项」跳转预填；仅挂载时消费一次并清参
+  useEffect(() => {
+    const pendingColumn = searchParams.get("column");
+    if (!pendingColumn) return;
+    const pendingTab = searchParams.get("tab");
+    setTab(
+      pendingTab === "properties" || pendingTab === "concepts" || pendingTab === "relations"
+        ? (pendingTab as TabKey)
+        : "properties",
+    );
+    setSelectedId(null);
+    setValidation(null);
+    setEditor({
+      mode: "create",
+      prefilledColumn: pendingColumn,
+      prefilledDataType: searchParams.get("dataType") ?? undefined,
+    });
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载消费一次
+  }, []);
   const draftsQuery = useQuery({
     queryKey: semanticAssetQueryKeys.list(assetType, "", "", 1, 50),
     queryFn: ({ signal }) => listSemanticAssets(assetType, { page: 1, pageSize: 50 }, signal),
@@ -287,12 +314,16 @@ export function ModelingPage() {
       return { id: "", name: "", domain: "", aliases: "", summary: "", identityProperty: "" };
     }
     if (tab === "properties") {
+      const mapped =
+        editor?.mode === "create" && editor.prefilledDataType
+          ? valueTypeOfColumn(editor.prefilledDataType)
+          : null;
       return {
         id: "",
         name: "",
         conceptId: "",
-        column: "",
-        valueType: "string",
+        column: editor?.mode === "create" ? (editor.prefilledColumn ?? "") : "",
+        valueType: mapped ?? "string",
         aliases: "",
         summary: "",
         filterable: false,
