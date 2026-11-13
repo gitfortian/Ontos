@@ -146,3 +146,6 @@
 **B1 语义定义工作台（2026-11-12）**
 
 - [B1 P0 真服务冒烟证据 v1](evaluation/B1-P0真服务冒烟证据-v1.json)（Flyway V21 实际执行 success；7 端点 HTTP 200 + revision 0→3 递增；旧 revision 返回 `1005000104`；`dev-allow-all=false` 下管理端点 `403`、对照端点正常；active 未变、测试草稿已删）
+- [B1 产品骨架真服务证据 v1](evaluation/B1-产品骨架真服务证据-v1.json)（8090 临时实例：`/catalog/data-sources` 返回 6 张物理表 + 只读连接信息；`/catalog/assets/options` 6/23/6/9/7 且对象带 domain/summary/propertyCount、关联带 from/to；前端 39 例 + build、后端 768/0）
+- [B2 数据源插件真服务证据 v1](evaluation/B2-数据源插件真服务证据-v1.json)（SPI + PG 插件经 ServiceLoader 发现；真实目录 7 张表（含清单未引用的 sales_order）；orders 列元数据；未知类型 1006000101；连通性测试通过；`dev-allow-all=false` 下数据源端点 403、对照端点正常）
+- [B1 发布合成真服务证据 v1](evaluation/B1-发布合成真服务证据-v1.json)（跨草稿引用批次提交 → synthesize 生成 **2026.11.13-first** 并激活（concepts 6→7 / properties 23→24）→ 运行时可见 → 回滚演练切回 v22；snapshot 不可变触发器实证，冒烟发布按正式历史保留并补齐资产行）

@@ -1,0 +1,60 @@
+{
+  "setId": "b1-product-shell",
+  "version": "v1",
+  "generatedAt": "2026-11-13",
+  "purpose": "B1 产品骨架：导航分组、数据源/本体建模/链路调试三个页面、数据源目录只读接口与 options 扩充",
+  "environment": {
+    "profile": "local",
+    "port": 8090,
+    "activeManifest": "2026.11.12-twenty-second",
+    "note": "8080 为 IDE 运行实例（09:11 启动，早于本次改动）；验证用 8090 临时实例，验后已停，未干扰 8080"
+  },
+  "backend": {
+    "tests": 769,
+    "failures": 0,
+    "errors": 0,
+    "reports": 85
+  },
+  "frontend": {
+    "check": "EXIT=0（39 例）",
+    "build": "pass"
+  },
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/v1/catalog/data-sources",
+      "code": 0,
+      "readOnly": true,
+      "schema": "public",
+      "manifestId": "2026.11.12-twenty-second",
+      "tables": ["channel", "customer", "event", "order_item", "orders", "product"],
+      "urlMasked": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/catalog/assets/options",
+      "code": 0,
+      "counts": {
+        "concepts": 6,
+        "properties": 23,
+        "dimensions": 6,
+        "metrics": 9,
+        "relations": 7
+      },
+      "enriched": ["domain", "summary", "propertyCount", "from", "to"]
+    }
+  ],
+  "routes": [
+    "/ask（产品对话，调试面板已迁出）",
+    "/data/sources",
+    "/ontology/modeling",
+    "/ontology/definitions",
+    "/debug",
+    "/prototype（静态原型，仅演示）"
+  ],
+  "limits": [
+    "数据源页只读：不建连、不改配置、不扫库；表清单来自清单属性 column 反推",
+    "本体建模页只读：对象/属性/关系草稿接口已具备，编辑表单 P2 接入",
+    "8080 需重启才能加载新接口"
+  ]
+}

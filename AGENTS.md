@@ -40,7 +40,8 @@ JSON 工具 `JsonUtils` 均**直接照搬 yudao-boot-mini**（`cn.iocoder.yudao.
 只在文件头注明来源与必要改动（如 Jackson 2 → Jackson 3、javax → jakarta）。
 **通用工具类不要自行发挥**，遇到需求先去 yudao 对应实现里找。
 
-错误码分段：`0-999` 全局保留；`1_001_xxx_xxx` ontology；`1_002_xxx_xxx` query；`1_003_xxx_xxx` system。
+错误码分段：`0-999` 全局保留；`1_001_xxx_xxx` ontology；`1_002_xxx_xxx` query；`1_003_xxx_xxx` system；
+`1_005_xxx_xxx` catalog（语义资产草稿/合成发布）；`1_006_xxx_xxx` datasource（数据源插件）。
 新增错误码只能追加，不得复用或修改已发布码值。
 
 ## 4. 安全与确定性约束（不可协商）

@@ -115,6 +115,20 @@ public class JdbcSemanticAssetRepository implements SemanticAssetRepository {
     }
 
     @Override
+    public List<SemanticAssetRecord> findAllByStatus(String status) {
+        return jdbcTemplate.query(
+                SELECT_FIELDS + " WHERE status = :status ORDER BY asset_type, id",
+                Map.of("status", status), ROW_MAPPER);
+    }
+
+    @Override
+    public List<SemanticAssetRecord> findAllPending() {
+        return jdbcTemplate.query(
+                SELECT_FIELDS + " WHERE status IN ('draft', 'reviewing') ORDER BY asset_type, id",
+                Map.of(), ROW_MAPPER);
+    }
+
+    @Override
     public int updateStatus(String assetType, String id, String fromStatus, String toStatus,
                             long expectedRevision) {
         String sql = """
@@ -128,6 +142,40 @@ public class JdbcSemanticAssetRepository implements SemanticAssetRepository {
         params.put("id", id);
         params.put("fromStatus", fromStatus);
         params.put("toStatus", toStatus);
+        params.put("expectedRevision", expectedRevision);
+        return jdbcTemplate.update(sql, params);
+    }
+
+    @Override
+    public int markPublished(String assetType, String id, long expectedRevision) {
+        String sql = """
+                UPDATE semantic_asset_definition
+                   SET status = 'published', published_at = now(),
+                       revision = revision + 1, updated_at = now()
+                 WHERE asset_type = :assetType AND id = :id
+                   AND status = 'reviewing' AND revision = :expectedRevision
+                """;
+        return jdbcTemplate.update(sql,
+                Map.of("assetType", assetType, "id", id, "expectedRevision", expectedRevision));
+    }
+
+    @Override
+    public int reviseToDraft(String assetType, String id, String definitionJson, String name,
+                             String summary, long expectedRevision) {
+        String sql = """
+                UPDATE semantic_asset_definition
+                   SET status = 'draft', definition = CAST(:definition AS jsonb),
+                       name = :name, summary = :summary, published_at = NULL,
+                       revision = revision + 1, updated_at = now()
+                 WHERE asset_type = :assetType AND id = :id
+                   AND status IN ('published', 'retired') AND revision = :expectedRevision
+                """;
+        Map<String, Object> params = new HashMap<>();
+        params.put("assetType", assetType);
+        params.put("id", id);
+        params.put("definition", definitionJson);
+        params.put("name", name);
+        params.put("summary", summary);
         params.put("expectedRevision", expectedRevision);
         return jdbcTemplate.update(sql, params);
     }

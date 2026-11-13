@@ -1,6 +1,8 @@
 package com.ontos.module.catalog.service.asset;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.ontos.module.ontology.core.OntologySnapshot;
 import com.ontos.module.ontology.core.PublishedManifest;
@@ -39,13 +41,21 @@ public class SemanticAssetOptionsService {
                 relations(ontology));
     }
 
-    private static List<SemanticAssetOptionsView.AssetOption> concepts(OntologySnapshot ontology) {
+    private static List<SemanticAssetOptionsView.ConceptOption> concepts(OntologySnapshot ontology) {
         if (ontology == null || ontology.getConcepts() == null) {
             return List.of();
         }
+        Map<String, Long> propertyCounts = ontology.getProperties() == null
+                ? Map.of()
+                : ontology.getProperties().stream()
+                        .filter(property -> property.getConceptId() != null
+                                && !property.getConceptId().isBlank())
+                        .collect(Collectors.groupingBy(
+                                OntologySnapshot.Property::getConceptId, Collectors.counting()));
         return ontology.getConcepts().stream()
-                .map(concept -> new SemanticAssetOptionsView.AssetOption(
-                        concept.getId(), concept.getName()))
+                .map(concept -> new SemanticAssetOptionsView.ConceptOption(
+                        concept.getId(), concept.getName(), concept.getDomain(), concept.getSummary(),
+                        propertyCounts.getOrDefault(concept.getId(), 0L).intValue()))
                 .toList();
     }
 
@@ -56,7 +66,7 @@ public class SemanticAssetOptionsService {
         return ontology.getProperties().stream()
                 .map(property -> new SemanticAssetOptionsView.PropertyOption(
                         property.getId(), property.getName(), property.getConceptId(),
-                        property.getValueType()))
+                        property.getValueType(), property.getSummary(), property.isFilterable()))
                 .toList();
     }
 
@@ -80,13 +90,14 @@ public class SemanticAssetOptionsService {
                 .toList();
     }
 
-    private static List<SemanticAssetOptionsView.AssetOption> relations(OntologySnapshot ontology) {
+    private static List<SemanticAssetOptionsView.RelationOption> relations(OntologySnapshot ontology) {
         if (ontology == null || ontology.getRelations() == null) {
             return List.of();
         }
         return ontology.getRelations().stream()
-                .map(relation -> new SemanticAssetOptionsView.AssetOption(
-                        relation.getId(), relation.getName()))
+                .map(relation -> new SemanticAssetOptionsView.RelationOption(
+                        relation.getId(), relation.getName(), relation.getSummary(),
+                        relation.getFrom(), relation.getTo()))
                 .toList();
     }
 }

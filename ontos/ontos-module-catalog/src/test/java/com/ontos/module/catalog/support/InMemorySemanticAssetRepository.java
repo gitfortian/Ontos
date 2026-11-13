@@ -1,6 +1,8 @@
 package com.ontos.module.catalog.support;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +71,45 @@ public class InMemorySemanticAssetRepository implements SemanticAssetRepository 
     }
 
     @Override
+    public List<SemanticAssetRecord> findAllByStatus(String status) {
+        List<SemanticAssetRecord> rows = new ArrayList<>();
+        for (SemanticAssetRecord record : store.values()) {
+            if (record.getStatus().equals(status)) {
+                rows.add(record);
+            }
+        }
+        rows.sort(Comparator.comparing(SemanticAssetRecord::getAssetType)
+                .thenComparing(SemanticAssetRecord::getId));
+        return rows;
+    }
+
+    @Override
+    public int markPublished(String assetType, String id, long expectedRevision) {
+        SemanticAssetRecord current = store.get(key(assetType, id));
+        if (current == null || current.getRevision() != expectedRevision
+                || !"reviewing".equals(current.getStatus())) {
+            return 0;
+        }
+        current.setStatus("published");
+        current.setPublishedAt(Instant.now());
+        current.setRevision(current.getRevision() + 1);
+        return 1;
+    }
+
+    @Override
+    public List<SemanticAssetRecord> findAllPending() {
+        List<SemanticAssetRecord> rows = new ArrayList<>();
+        for (SemanticAssetRecord record : store.values()) {
+            if ("draft".equals(record.getStatus()) || "reviewing".equals(record.getStatus())) {
+                rows.add(record);
+            }
+        }
+        rows.sort(Comparator.comparing(SemanticAssetRecord::getAssetType)
+                .thenComparing(SemanticAssetRecord::getId));
+        return rows;
+    }
+
+    @Override
     public int updateStatus(String assetType, String id, String fromStatus, String toStatus,
                             long expectedRevision) {
         SemanticAssetRecord current = store.get(key(assetType, id));
@@ -77,6 +118,24 @@ public class InMemorySemanticAssetRepository implements SemanticAssetRepository 
             return 0;
         }
         current.setStatus(toStatus);
+        current.setRevision(current.getRevision() + 1);
+        return 1;
+    }
+
+    @Override
+    public int reviseToDraft(String assetType, String id, String definitionJson, String name,
+                             String summary, long expectedRevision) {
+        SemanticAssetRecord current = store.get(key(assetType, id));
+        if (current == null || current.getRevision() != expectedRevision
+                || !("published".equals(current.getStatus())
+                        || "retired".equals(current.getStatus()))) {
+            return 0;
+        }
+        current.setStatus("draft");
+        current.setDefinitionJson(definitionJson);
+        current.setName(name);
+        current.setSummary(summary);
+        current.setPublishedAt(null);
         current.setRevision(current.getRevision() + 1);
         return 1;
     }

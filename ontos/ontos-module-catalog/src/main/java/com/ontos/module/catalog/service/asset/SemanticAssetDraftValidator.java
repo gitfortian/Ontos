@@ -6,6 +6,8 @@ import java.util.function.Function;
 
 import com.ontos.framework.common.util.json.JsonUtils;
 import com.ontos.module.catalog.core.SemanticAssetDefinition;
+import com.ontos.module.catalog.dal.dataobject.SemanticAssetRecord;
+import com.ontos.module.catalog.dal.mysql.SemanticAssetRepository;
 import com.ontos.module.catalog.core.SemanticAssetType;
 import com.ontos.module.ontology.core.ManifestPayload;
 import com.ontos.module.ontology.core.ManifestStructureValidator;
@@ -36,10 +38,13 @@ import static com.ontos.module.catalog.enums.ErrorCodeConstants.ASSET_VALIDATION
 @Service
 public class SemanticAssetDraftValidator {
 
+    private final SemanticAssetRepository repository;
     private final ManifestService manifestService;
     private final ManifestStructureValidator structureValidator = new ManifestStructureValidator();
 
-    public SemanticAssetDraftValidator(ManifestService manifestService) {
+    public SemanticAssetDraftValidator(SemanticAssetRepository repository,
+                                       ManifestService manifestService) {
+        this.repository = repository;
         this.manifestService = manifestService;
     }
 
@@ -119,6 +124,20 @@ public class SemanticAssetDraftValidator {
         if (merged.getSemantic() == null) {
             merged.setSemantic(new SemanticManifest());
         }
+        // B1/P1-B：合并视图升级为「生效清单 + 全部审核中草稿」——跨草稿引用（新对象 + 挂在其上的
+        // 属性）在提交/校验阶段即可成立；最终一致性由合成发布对整包清单的全量校验兜底。
+        for (SemanticAssetRecord sibling : repository.findAllPending()) {
+            SemanticAssetType siblingType = SemanticAssetType.of(sibling.getAssetType());
+            if (siblingType == type && sibling.getId().equals(id)) {
+                continue;
+            }
+            apply(merged, siblingType, sibling.getDefinitionJson());
+        }
+        apply(merged, type, definitionJson);
+        return merged;
+    }
+
+    private void apply(ManifestPayload merged, SemanticAssetType type, String definitionJson) {
         try {
             switch (type) {
                 case CONCEPT -> merged.getOntology().setConcepts(upsert(
@@ -145,7 +164,6 @@ public class SemanticAssetDraftValidator {
         } catch (RuntimeException ex) {
             throw exception(ASSET_DEFINITION_INVALID, "definition 结构无法解析: " + ex.getMessage());
         }
-        return merged;
     }
 
     private static <T> List<T> upsert(List<T> existing, T draft, Function<T, String> idOf) {

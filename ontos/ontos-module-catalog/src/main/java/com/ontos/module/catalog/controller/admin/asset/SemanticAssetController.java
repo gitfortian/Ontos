@@ -11,6 +11,7 @@ import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetRespVO;
 import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetRevisionReqVO;
 import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetSaveReqVO;
 import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetSummaryVO;
+import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetSynthesisRespVO;
 import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetValidateReqVO;
 import com.ontos.module.catalog.controller.admin.asset.vo.SemanticAssetValidationRespVO;
 import com.ontos.module.catalog.core.SemanticAssetType;
@@ -18,6 +19,8 @@ import com.ontos.module.catalog.service.asset.SemanticAssetView;
 import com.ontos.module.catalog.service.asset.SemanticAssetDraftValidator;
 import com.ontos.module.catalog.service.asset.SemanticAssetLifecycleService;
 import com.ontos.module.catalog.service.asset.SemanticAssetOptionsService;
+import com.ontos.module.catalog.service.asset.SemanticAssetRevisionService;
+import com.ontos.module.catalog.service.asset.SemanticAssetSynthesisService;
 import com.ontos.module.ontology.service.publish.PublishGuard;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -53,16 +56,29 @@ public class SemanticAssetController {
     private final SemanticAssetLifecycleService lifecycleService;
     private final SemanticAssetDraftValidator draftValidator;
     private final SemanticAssetOptionsService optionsService;
+    private final SemanticAssetSynthesisService synthesisService;
+    private final SemanticAssetRevisionService revisionService;
     private final PublishGuard publishGuard;
 
     public SemanticAssetController(SemanticAssetLifecycleService lifecycleService,
                                    SemanticAssetDraftValidator draftValidator,
                                    SemanticAssetOptionsService optionsService,
+                                   SemanticAssetSynthesisService synthesisService,
+                                   SemanticAssetRevisionService revisionService,
                                    PublishGuard publishGuard) {
         this.lifecycleService = lifecycleService;
         this.draftValidator = draftValidator;
         this.optionsService = optionsService;
+        this.synthesisService = synthesisService;
+        this.revisionService = revisionService;
         this.publishGuard = publishGuard;
+    }
+
+    @PostMapping("/synthesize")
+    @Operation(summary = "合成发布：全部审核中资产合并进新清单并激活（B1/P1-B）")
+    public CommonResult<SemanticAssetSynthesisRespVO> synthesize() {
+        publishGuard.requirePublishAllowed("catalog.asset.synthesize");
+        return success(SemanticAssetSynthesisRespVO.from(synthesisService.synthesize()));
     }
 
     @GetMapping("/options")
@@ -159,6 +175,16 @@ public class SemanticAssetController {
         SemanticAssetView view = lifecycleService.submitReview(
                 assetType, id, requireRevision(request.getExpectedRevision()));
         return success(toResp(view));
+    }
+
+    @PostMapping("/{assetType}/{id}/revise")
+    @Operation(summary = "修订已生效资产：以生效清单为内容回迁为草稿（B1/P1-B UI 补齐）")
+    public CommonResult<SemanticAssetRespVO> revise(
+            @PathVariable("assetType") String assetType,
+            @PathVariable("id") String id) {
+        publishGuard.requirePublishAllowed("catalog.asset.revise");
+        return success(toResp(revisionService.revise(assetType, id,
+                publishGuard.currentPublisher())));
     }
 
     @PostMapping("/{assetType}/{id}/withdraw-review")

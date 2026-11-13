@@ -7,6 +7,7 @@ import {
   getSemanticAsset,
   getSemanticAssetOptions,
   listSemanticAssets,
+  reviseSemanticAsset,
   saveSemanticAssetDraft,
   semanticAssetQueryKeys,
   submitSemanticAssetReview,
@@ -144,10 +145,27 @@ export function DefinitionsPage() {
     onError: (error) => toast.error(failureMessage(error)),
   });
 
+  const reviseMutation = useMutation({
+    mutationFn: (id: string) => reviseSemanticAsset(type, id),
+    onSuccess: async (revised) => {
+      setSelectedId(revised.id);
+      setCreating(false);
+      setValidation(null);
+      await invalidate();
+      toast.success("已回迁为草稿，可编辑后重新提交");
+    },
+    onError: (error) => toast.error(failureMessage(error)),
+  });
+
   const options = optionsQuery.data ?? EMPTY_OPTIONS;
+  const published = type === "metric" ? options.metrics : options.dimensions;
   const list = listQuery.data?.list ?? [];
   const detail = detailQuery.data;
-  const busy = saveMutation.isPending || submitMutation.isPending || validateMutation.isPending;
+  const busy =
+    saveMutation.isPending ||
+    submitMutation.isPending ||
+    validateMutation.isPending ||
+    reviseMutation.isPending;
 
   const switchType = (next: SemanticAssetType) => {
     setType(next);
@@ -194,64 +212,101 @@ export function DefinitionsPage() {
 
       {optionsQuery.isSuccess && (
         <div className="mt-4 grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <SectionCard title={`草稿（${listQuery.data?.total ?? 0}）`}>
-            <div className="flex flex-col gap-2 p-3">
-              <div className="flex gap-2">
-                <select
-                  className="h-8 min-w-0 flex-1 rounded border border-[var(--border)] bg-[var(--background)] px-2 text-xs"
-                  value={statusFilter}
-                  aria-label="状态筛选"
-                  onChange={(event) => setStatusFilter(event.target.value)}
-                >
-                  <option value="">全部状态</option>
-                  <option value="draft">草稿</option>
-                  <option value="reviewing">审核中</option>
-                </select>
-                <input
-                  className="h-8 min-w-0 flex-1 rounded border border-[var(--border)] bg-[var(--background)] px-2 text-xs"
-                  placeholder="搜索 ID / 名称"
-                  value={keyword}
-                  onChange={(event) => setKeyword(event.target.value)}
-                />
-              </div>
-              {listQuery.isError && <Alert>{failureMessage(listQuery.error)}</Alert>}
-              {listQuery.isPending && <Spinner />}
-              {listQuery.isSuccess && list.length === 0 && (
-                <div className="py-6 text-center text-xs text-[var(--muted-foreground)]">
-                  没有符合条件的草稿
+          <div className="space-y-4">
+            <SectionCard title={`草稿（${listQuery.data?.total ?? 0}）`}>
+              <div className="flex flex-col gap-2 p-3">
+                <div className="flex gap-2">
+                  <select
+                    className="h-8 min-w-0 flex-1 rounded border border-[var(--border)] bg-[var(--background)] px-2 text-xs"
+                    value={statusFilter}
+                    aria-label="状态筛选"
+                    onChange={(event) => setStatusFilter(event.target.value)}
+                  >
+                    <option value="">全部状态</option>
+                    <option value="draft">草稿</option>
+                    <option value="reviewing">审核中</option>
+                  </select>
+                  <input
+                    className="h-8 min-w-0 flex-1 rounded border border-[var(--border)] bg-[var(--background)] px-2 text-xs"
+                    placeholder="搜索 ID / 名称"
+                    value={keyword}
+                    onChange={(event) => setKeyword(event.target.value)}
+                  />
                 </div>
-              )}
-              <ul className="space-y-1">
-                {list.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedId(item.id);
-                        setCreating(false);
-                        setValidation(null);
-                      }}
-                      className={`w-full rounded border px-2 py-1.5 text-left ${
-                        selectedId === item.id
-                          ? "border-[var(--primary)] bg-[var(--accent)]"
-                          : "border-transparent hover:border-[var(--border)]"
-                      }`}
+                {listQuery.isError && <Alert>{failureMessage(listQuery.error)}</Alert>}
+                {listQuery.isPending && <Spinner />}
+                {listQuery.isSuccess && list.length === 0 && (
+                  <div className="py-6 text-center text-xs text-[var(--muted-foreground)]">
+                    没有符合条件的草稿
+                  </div>
+                )}
+                <ul className="space-y-1">
+                  {list.map((item) => (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedId(item.id);
+                          setCreating(false);
+                          setValidation(null);
+                        }}
+                        className={`w-full rounded border px-2 py-1.5 text-left ${
+                          selectedId === item.id
+                            ? "border-[var(--primary)] bg-[var(--accent)]"
+                            : "border-transparent hover:border-[var(--border)]"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-sm">{item.name}</span>
+                          <span className="shrink-0 text-xs text-[var(--muted-foreground)]">
+                            {STATUS_LABEL[item.status]}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 truncate font-mono text-xs text-[var(--muted-foreground)]">
+                          {item.id}
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </SectionCard>
+
+            <SectionCard title={`生效资产（${published.length}）`}>
+              <div className="p-3 pt-1">
+                <p className="mb-2 text-xs text-[var(--muted-foreground)]">
+                  修订会把生效清单中的定义回迁为草稿（内容以清单为准），编辑器随后按清单内容预填。
+                </p>
+                <ul className="space-y-1">
+                  {published.map((item) => (
+                    <li
+                      key={item.id}
+                      className="flex items-center justify-between gap-2 rounded px-2 py-1.5 hover:bg-[var(--accent)]"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-sm">{item.name}</span>
-                        <span className="shrink-0 text-xs text-[var(--muted-foreground)]">
-                          {STATUS_LABEL[item.status]}
-                        </span>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm">{item.name}</div>
+                        <div className="truncate font-mono text-xs text-[var(--muted-foreground)]">
+                          {item.id}
+                        </div>
                       </div>
-                      <div className="mt-0.5 truncate font-mono text-xs text-[var(--muted-foreground)]">
-                        {item.id}
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </SectionCard>
+                      <Button
+                        size="small"
+                        disabled={reviseMutation.isPending}
+                        onClick={() => reviseMutation.mutate(item.id)}
+                      >
+                        修订
+                      </Button>
+                    </li>
+                  ))}
+                  {published.length === 0 && (
+                    <li className="py-4 text-center text-xs text-[var(--muted-foreground)]">
+                      当前类型还没有生效资产
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </SectionCard>
+          </div>
 
           <SectionCard
             title={

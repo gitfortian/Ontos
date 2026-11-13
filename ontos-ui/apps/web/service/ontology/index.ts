@@ -14,6 +14,7 @@ import type {
   SemanticAssetType,
   SemanticAssetVO,
   SemanticValidationVO,
+  SemanticSynthesisVO,
 } from "./types";
 
 const ONTOLOGY_API = `${API_PREFIX}/ontology`;
@@ -163,6 +164,18 @@ export const submitSemanticAssetReview = (
     { expectedRevision },
   );
 
+export const synthesizeSemanticAssets = (): Promise<SemanticSynthesisVO> =>
+  HttpUtils.postData<SemanticSynthesisVO>(`${CATALOG_API}/synthesize`, {});
+
+export const reviseSemanticAsset = (
+  type: SemanticAssetType,
+  id: string,
+): Promise<SemanticAssetVO> =>
+  HttpUtils.postData<SemanticAssetVO>(
+    `${CATALOG_API}/${type}/${encodeURIComponent(id)}/revise`,
+    {},
+  );
+
 export const withdrawSemanticAssetReview = (
   type: SemanticAssetType,
   id: string,
@@ -173,4 +186,4 @@ export const withdrawSemanticAssetReview = (
     { expectedRevision },
   );
 
-export type { ManifestVO } from "./types";
+export type { ManifestVO, SemanticSynthesisVO } from "./types";

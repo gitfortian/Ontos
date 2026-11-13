@@ -42,9 +42,14 @@ export function checkArchitectureImports(relativePath, content, root) {
     resolve(layout, "navigation"),
     resolve(layout, "navigation-path"),
   ]);
-  const featureRoots = ["ask", "ontology", "approvals", "audit"].map((name) => resolve(app, name));
+  const featureRoots = ["ask", "data", "debug", "ontology", "approvals", "audit"].map((name) =>
+    resolve(app, name),
+  );
   const publicPageEntries = new Set([
     resolve(app, "ask/page"),
+    resolve(app, "data/sources/page"),
+    resolve(app, "debug/page"),
+    resolve(app, "ontology/modeling/page"),
     resolve(app, "ontology/manifests/page"),
     resolve(app, "ontology/assets/page"),
     resolve(app, "ontology/definitions/page"),

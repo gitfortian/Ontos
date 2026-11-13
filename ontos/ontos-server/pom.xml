@@ -37,6 +37,15 @@
     </dependency>
     <dependency>
       <groupId>com.ontos</groupId>
+      <artifactId>ontos-module-datasource</artifactId>
+    </dependency>
+    <!-- 数据源插件经 ServiceLoader 发现，必须出现在运行期 classpath -->
+    <dependency>
+      <groupId>com.ontos</groupId>
+      <artifactId>ontos-plugin-jdbc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.ontos</groupId>
       <artifactId>ontos-module-query</artifactId>
     </dependency>
     <dependency>

@@ -10,10 +10,12 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * 多模块依赖方向守护。
  *
  * <p>允许方向：server → module / framework；module-catalog → module-ontology / framework（管理面，
- * 不承载运行时）；module-query → module-ontology / module-system；module-session → module-query /
+ * 不承载运行时）；module-datasource → module-ontology / spi-datasource / framework（B2 管理面目录域）；
+ * module-query → module-ontology / module-system；module-session → module-query /
  * module-ontology / module-system；module-agent（W3）→ module-session 等；
  * 所有模块 → framework。framework 不得反向依赖任何业务模块，业务模块之间不得出现环形依赖。
- * 运行时只读已发布清单的 scenarios/skills/vqrs 段，因此 query/system/session/agent 不得依赖 catalog。
+ * 运行时只读已发布清单的 scenarios/skills/vqrs 段，因此 query/system/session/agent 不得依赖 catalog，
+ * 也不得依赖 datasource——插件只提供连接与元数据，SQL 由编译链产出并经只读通道执行。
  */
 @AnalyzeClasses(packages = "com.ontos")
 class ArchitectureTest {
@@ -70,6 +72,26 @@ class ArchitectureTest {
                     .should().dependOnClassesThat().resideInAPackage("com.ontos.module.catalog..")
                     .because("除 server 装配层外，任何运行时模块都不得依赖 catalog；"
                             + "Scenario/Skill/VQR 的运行时来源只能是 PublishedManifest");
+
+    @ArchTest
+    static final ArchRule datasource_must_not_depend_on_runtime_modules =
+            noClasses().that().resideInAPackage("com.ontos.module.datasource..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage("com.ontos.module.query..", "com.ontos.module.system..",
+                            "com.ontos.module.session..", "com.ontos.module.agent..",
+                            "com.ontos.module.catalog..")
+                    .because("datasource 是管理面目录域（B2）；查询执行只能走 query 模块的只读通道，"
+                            + "插件不得借道执行链");
+
+    @ArchTest
+    static final ArchRule only_server_may_depend_on_datasource =
+            noClasses().that().resideInAnyPackage("com.ontos.module.ontology..",
+                            "com.ontos.module.catalog..", "com.ontos.module.query..",
+                            "com.ontos.module.system..", "com.ontos.module.session..",
+                            "com.ontos.module.agent..")
+                    .should().dependOnClassesThat().resideInAPackage("com.ontos.module.datasource..")
+                    .because("除 server 装配层外，任何模块都不得依赖 datasource；"
+                            + "SPI 插件经 ServiceLoader 由 server 装配进 classpath");
 
     @ArchTest
     static final ArchRule controllers_must_not_touch_dal =

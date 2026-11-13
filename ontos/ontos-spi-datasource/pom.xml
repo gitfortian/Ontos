@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.ontos</groupId>
+    <artifactId>ontos</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>ontos-spi-datasource</artifactId>
+  <name>ontos-spi-datasource</name>
+  <description>数据源插件 SPI：稳定契约（B2 Phase 1），纯 Java、无 Spring、无业务 DTO；插件不得生成或执行 SQL</description>
+
+</project>

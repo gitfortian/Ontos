@@ -26,4 +26,12 @@ public interface ErrorCodeConstants {
     ErrorCode ASSET_VALIDATION_FAILED = new ErrorCode(1_005_000_106, "语义资产校验未通过: {}");
     ErrorCode ASSET_DEFINITION_INVALID = new ErrorCode(1_005_000_107, "语义资产定义非法: {}");
     ErrorCode ASSET_ID_IMMUTABLE = new ErrorCode(1_005_000_108, "语义资产 ID 不可修改: {}");
+
+    // ========== B1/P1-B 合成发布（109 起） ==========
+
+    ErrorCode ASSET_SYNTHESIS_EMPTY = new ErrorCode(1_005_000_109, "没有处于审核中的资产，无需合成发布");
+
+    ErrorCode ASSET_SYNTHESIS_NO_ACTIVE_MANIFEST = new ErrorCode(1_005_000_110, "当前没有生效清单，无法合成发布");
+
+    ErrorCode ASSET_SYNTHESIS_REJECTED = new ErrorCode(1_005_000_111, "合成发布被校验拒绝: {}");
 }

@@ -1,0 +1,55 @@
+{
+  "setId": "b1-publish-synthesis",
+  "version": "v1",
+  "generatedAt": "2026-11-13",
+  "purpose": "B1 P1-B 合成发布：跨草稿引用批次提交 → 合成发布（dry-run 预检 + 确认 + 激活）→ 运行时生效 → 回滚演练",
+  "environment": {
+    "profile": "local",
+    "port": 8090,
+    "activeManifestBefore": "2026.11.12-twenty-second",
+    "note": "8080 为 IDE 运行实例（未动）；验证用 8090 临时实例，验后已停"
+  },
+  "backend": {
+    "tests": 810,
+    "failures": 0,
+    "errors": 0,
+    "reports": 90,
+    "note": "新增 7 例（合成服务 5 + 跨草稿合并视图 1 + 控制器构造随迁 1）；合并视图升级为「生效清单 + 全部待发布批次（draft+reviewing）」"
+  },
+  "frontend": {
+    "check": "EXIT=0（39 例）",
+    "build": "pass"
+  },
+  "steps": [
+    {
+      "step": "1. 两个互相引用的草稿（新对象 concept.warehouse + 它的属性 property.warehouse.code，column 取自 B2 真实目录 orders.region）",
+      "result": "create code=0 ×2"
+    },
+    {
+      "step": "2. 提交审核 ×2（待发布批次合并视图：draft+reviewing 互相可见）",
+      "result": "code=0 ×2，status=reviewing——P2-B 阶段必然失败的跨草稿引用在此成立"
+    },
+    {
+      "step": "3. POST /catalog/assets/synthesize（dry-run 预检 → 确认发布 → 激活 → markPublished）",
+      "result": "manifestId=2026.11.13-first，previous=2026.11.12-twenty-second，contentHash=8a79e42b…，published=[concept, property]，counts concepts 6→7 / properties 23→24"
+    },
+    {
+      "step": "4. 运行时生效验证（GET /catalog/assets/options）",
+      "result": "concepts=7，concept.warehouse 可见"
+    },
+    {
+      "step": "5. 回滚演练（既有激活端点 POST /ontology/manifests/{v22}/activate）",
+      "result": "code=0，运行时回到 v22，options concepts=6、warehouse 不再可见"
+    }
+  ],
+  "finalLocalState": {
+    "note": "published_snapshot 有不可变触发器（reject_published_snapshot_mutation），冒烟发布作为正式历史保留；冒烟资产两行按 published 状态补回，账实一致；下次启动生效清单=2026.11.13-first（含仓库对象与其属性）",
+    "assetRows": "published=2（concept.warehouse / property.warehouse.code）",
+    "latestSnapshot": "2026.11.13-first"
+  },
+  "limits": [
+    "审批卡点未接：reviewing 即视为已审（负责人定档）；分批合成未做（当前为全量 reviewing 一起）",
+    "发布顺序 = 发布 → 激活 → markPublished：落定阶段并发冲突显式 ASSET_REVISION_CONFLICT，不静默",
+    "8080 需重启才能加载新接口与新清单"
+  ]
+}

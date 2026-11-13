@@ -97,19 +97,35 @@ export interface SemanticAssetOptionVO {
   name: string;
 }
 
+/** 业务对象：带领域、说明与属性数，供本体建模页展示。 */
+export interface SemanticConceptOptionVO extends SemanticAssetOptionVO {
+  domain?: string;
+  summary?: string;
+  propertyCount: number;
+}
+
 /** 属性选项带 conceptId：前端据此过滤「所选业务对象下的属性」。 */
 export interface SemanticPropertyOptionVO extends SemanticAssetOptionVO {
   conceptId: string;
   valueType: string;
+  summary?: string;
+  filterable: boolean;
+}
+
+/** 业务关联：带起止对象，供本体建模页展示关系两端。 */
+export interface SemanticRelationOptionVO extends SemanticAssetOptionVO {
+  summary?: string;
+  from: string;
+  to: string;
 }
 
 /** GET /catalog/assets/options：编辑候选元数据（不返回物理列）。 */
 export interface SemanticAssetOptionsVO {
-  concepts: SemanticAssetOptionVO[];
+  concepts: SemanticConceptOptionVO[];
   properties: SemanticPropertyOptionVO[];
   dimensions: SemanticAssetOptionVO[];
   metrics: SemanticAssetOptionVO[];
-  relations: SemanticAssetOptionVO[];
+  relations: SemanticRelationOptionVO[];
 }
 
 export interface SemanticAssetSummaryVO {
@@ -143,4 +159,19 @@ export interface SemanticValidationVO {
 export interface PageResultVO<T> {
   list: T[];
   total: number;
+}
+
+export interface SemanticSynthesisAssetVO {
+  assetType: string;
+  id: string;
+}
+
+/** POST /catalog/assets/synthesize：审核中批次 → 新生效清单。 */
+export interface SemanticSynthesisVO {
+  manifestId: string;
+  contentHash: string;
+  previousManifestId: string;
+  published: SemanticSynthesisAssetVO[];
+  assetCounts: Record<string, number>;
+  invalidatedVqrs: string[];
 }

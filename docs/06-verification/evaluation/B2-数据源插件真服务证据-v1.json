@@ -1,0 +1,76 @@
+{
+  "setId": "b2-datasource-plugin",
+  "version": "v1",
+  "generatedAt": "2026-11-13",
+  "purpose": "B2 数据源插件化 Phase 1：SPI + PG 插件 + 注册表 + 真实库目录/连通性测试真服务验证",
+  "environment": {
+    "profile": "local",
+    "port": 8090,
+    "activeManifest": "2026.11.12-twenty-second",
+    "note": "8080 为 IDE 运行实例（未动）；验证用 8090 临时实例，验后已停；闸门验证另起 8091（dev-allow-all=false），验后已停"
+  },
+  "backend": {
+    "tests": 804,
+    "failures": 0,
+    "errors": 0,
+    "reports": 89,
+    "note": "新增 37 例（SPI 5 / PG 插件 8 / 注册表 6 / 目录服务 12 / 控制器 6）；catalog 旧数据源实现及 3 例测试随职责迁移移除"
+  },
+  "frontend": {
+    "check": "EXIT=0（39 例）",
+    "build": "pass"
+  },
+  "pluginRegistry": {
+    "discovered": ["postgresql"],
+    "apiVersion": "1",
+    "capabilities": ["CONNECTION_TEST", "CATALOG_METADATA"]
+  },
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/v1/catalog/data-sources",
+      "code": 0,
+      "jdbcUrlMasked": true,
+      "manifestTables": 6,
+      "plugins": ["postgresql"]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/catalog/data-sources/current/catalog",
+      "code": 0,
+      "schemas": ["public"],
+      "schema": "public",
+      "tables": ["channel", "customer", "event", "order_item", "orders", "product", "sales_order"],
+      "note": "真实目录 7 张表，多于清单引用的 6 张（sales_order 未被语义模型引用），证明读的是真实库而非清单反推"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/catalog/data-sources/current/columns?schema=public&table=orders",
+      "code": 0,
+      "sampleColumns": ["id text", "tenant_id text", "customer_id text", "channel_id text", "channel text"]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/catalog/data-sources/mysql/test",
+      "code": 1006000101,
+      "msg": "数据源插件未注册: mysql"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/catalog/data-sources/postgresql/test",
+      "code": 0,
+      "data": true,
+      "config": "jdbc:postgresql://localhost:5432/ontos_queryds（ontos_query_ro）"
+    }
+  ],
+  "managementGate": {
+    "instance": "8091 (ontos.policy.dev-allow-all=false)",
+    "datasources": { "code": 403, "msg": "没有该操作权限" },
+    "controlEndpoint": "/api/v1/ontology/manifests/current code=0"
+  },
+  "limits": [
+    "插件只提供连接与元数据，不生成、不执行 SQL；执行仍走 QueryExecutor 只读通道",
+    "未保存连接配置；多源注册与 datasetId 化属 Phase 2",
+    "8080 需重启才能加载新接口"
+  ]
+}

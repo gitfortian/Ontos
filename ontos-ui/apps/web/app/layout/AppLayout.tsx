@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
-import { isNavigationActive, NAVIGATION } from "./navigation";
+import { isNavigationActive, NAVIGATION_SECTIONS } from "./navigation";
 
 const ACTIVE_CLASS = "bg-[var(--accent)] text-[var(--primary)]";
 const IDLE_CLASS = "text-[var(--muted-foreground)] hover:bg-[var(--accent)]";
@@ -15,24 +15,33 @@ export default function AppLayout() {
           <div className="text-base font-semibold text-[var(--foreground)]">Ontos</div>
           <div className="mt-1 text-xs text-[var(--muted-foreground)]">本体驱动问数控制台</div>
         </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {NAVIGATION.map((item) => {
-            const Icon = item.icon;
-            const active = isNavigationActive(pathname, item.path);
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={`block rounded-[var(--radius)] px-3 py-2.5 ${active ? ACTIVE_CLASS : IDLE_CLASS}`}
-              >
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Icon size={15} aria-hidden="true" />
-                  {item.label}
-                </div>
-                <div className="mt-1 pl-[23px] text-xs opacity-70">{item.hint}</div>
-              </NavLink>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto p-3">
+          {NAVIGATION_SECTIONS.map((section) => (
+            <div key={section.group} className="mb-3 last:mb-0">
+              <div className="px-3 pb-1.5 text-[11px] font-medium tracking-wide text-[var(--muted-foreground)]">
+                {section.group}
+              </div>
+              <div className="space-y-1">
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = isNavigationActive(pathname, item.path);
+                  return (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      className={`block rounded-[var(--radius)] px-3 py-2.5 ${active ? ACTIVE_CLASS : IDLE_CLASS}`}
+                    >
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Icon size={15} aria-hidden="true" />
+                        {item.label}
+                      </div>
+                      <div className="mt-1 pl-[23px] text-xs opacity-70">{item.hint}</div>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
         <div className="border-t border-[var(--border)] px-5 py-4 text-xs text-[var(--muted-foreground)]">
           Spring Boot 4.0.x · JDK 21

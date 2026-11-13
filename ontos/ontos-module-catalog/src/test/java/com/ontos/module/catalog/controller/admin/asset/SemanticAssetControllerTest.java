@@ -13,6 +13,10 @@ import com.ontos.module.catalog.service.asset.SemanticAssetDraftValidator;
 import com.ontos.module.catalog.service.asset.SemanticAssetLifecycleService;
 import com.ontos.module.catalog.service.asset.SemanticAssetOptionsService;
 import com.ontos.module.catalog.support.InMemorySemanticAssetRepository;
+import com.ontos.module.catalog.service.asset.SemanticAssetRevisionService;
+import com.ontos.module.catalog.service.asset.SemanticAssetSynthesisService;
+import com.ontos.module.catalog.support.InMemorySemanticAssetRepository;
+import com.ontos.module.catalog.support.StubPublishService;
 import com.ontos.module.catalog.support.TestManifests;
 import com.ontos.module.ontology.service.publish.PublishGuard;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,9 +38,10 @@ class SemanticAssetControllerTest {
     void setUp() {
         repository = new InMemorySemanticAssetRepository();
         validator = new SemanticAssetDraftValidator(
-                TestManifests.manifestService(TestManifests.activeV22()));
+                repository, TestManifests.manifestService(TestManifests.activeV22()));
         controller = new SemanticAssetController(
-                new SemanticAssetLifecycleService(repository, validator), validator, optionsService(), allowGuard());
+                new SemanticAssetLifecycleService(repository, validator), validator, optionsService(),
+                synthesisService(), revisionService(), allowGuard());
     }
 
     @Test
@@ -88,7 +93,8 @@ class SemanticAssetControllerTest {
             }
         };
         SemanticAssetController guarded = new SemanticAssetController(
-                new SemanticAssetLifecycleService(repository, validator), validator, optionsService(), denied);
+                new SemanticAssetLifecycleService(repository, validator), validator, optionsService(),
+                synthesisService(), revisionService(), denied);
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> guarded.create("metric", createReq(metricDraft("GMV"))));
@@ -124,6 +130,16 @@ class SemanticAssetControllerTest {
 
         assertEquals("attacker", request.getUnknownFields().get("owner"));
         assertEquals("published", request.getUnknownFields().get("status"));
+    }
+
+    private static SemanticAssetRevisionService revisionService() {
+        return new SemanticAssetRevisionService(new InMemorySemanticAssetRepository(),
+                TestManifests.manifestService(TestManifests.activeV22()));
+    }
+
+    private static SemanticAssetSynthesisService synthesisService() {
+        return new SemanticAssetSynthesisService(new InMemorySemanticAssetRepository(),
+                TestManifests.manifestService(TestManifests.activeV22()), new StubPublishService());
     }
 
     private static SemanticAssetOptionsService optionsService() {
