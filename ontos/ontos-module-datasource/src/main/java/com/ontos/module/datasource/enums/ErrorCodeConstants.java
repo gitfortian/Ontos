@@ -36,4 +36,8 @@ public interface ErrorCodeConstants {
     ErrorCode DATASOURCE_VIEW_ID_DUPLICATE = new ErrorCode(1_006_000_113, "数据视图 ID 已存在: {}");
     ErrorCode DATASOURCE_VIEW_REACTIVATE_CONFLICT =
             new ErrorCode(1_006_000_114, "同源同表已存在 active 数据视图: {}");
+    ErrorCode DATASOURCE_CONFIG_REFERENCED =
+            new ErrorCode(1_006_000_115, "数据源仍被 active 数据视图引用，无法删除: {}（先退役相关视图）");
+    ErrorCode DATASOURCE_VIEW_ID_INVALID =
+            new ErrorCode(1_006_000_116, "数据视图 ID 非法（须为 view. 开头的小写字母/数字/下划线/连字符）: {}");
 }

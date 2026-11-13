@@ -32,6 +32,7 @@ class DatasourceConfigServiceTest {
     private StubDataSourcePlugin plugin;
 
     private InMemoryDatasourceConfigRepository repository;
+    private com.ontos.module.datasource.support.InMemoryDataViewRepository viewRepository;
     private DatasourceConfigService service;
     private MockEnvironment environment;
 
@@ -50,11 +51,12 @@ class DatasourceConfigServiceTest {
                         new DataSourceDescriptor.ConfigField("database", "数据库", true, false, null),
                         new DataSourceDescriptor.ConfigField("password", "密码", false, true, null)));
         repository = new InMemoryDatasourceConfigRepository();
+        viewRepository = new com.ontos.module.datasource.support.InMemoryDataViewRepository();
         environment = new MockEnvironment()
                 .withProperty("ontos.datasource.master-key", KEY);
         service = new DatasourceConfigService(
                 new DataSourcePluginRegistry(Map.of("postgresql", plugin)),
-                repository, environment);
+                repository, viewRepository, environment);
     }
 
     private Map<String, Object> config(String password) {
@@ -162,10 +164,36 @@ class DatasourceConfigServiceTest {
     }
 
     @Test
+    void deleteFailsClosedWhenActiveViewReferences() {
+        service.create("被引用源", "postgresql", config(null), "alice");
+        String id = repository.findAll().get(0).getId();
+        // 挂一个 active 视图引用该配置
+        com.ontos.module.datasource.dal.dataobject.DataViewRecord view =
+                new com.ontos.module.datasource.dal.dataobject.DataViewRecord();
+        view.setId("view.blocker");
+        view.setName("拦截视图");
+        view.setSourceConfigId(id);
+        view.setSourceSchema("public");
+        view.setSourceTable("orders");
+        view.setColumnsJson("[]");
+        view.setContentHash("h");
+        view.setStatus("active");
+        viewRepository.insert(view);
+        ServiceException exception = assertThrows(ServiceException.class,
+                () -> service.delete(id));
+        assertEquals(1_006_000_115, exception.getCode());
+        // 退役后允许删除（retired 视图只是历史元数据，运行时编译走清单快照）
+        view.setStatus("retired");
+        viewRepository.updateStatus(view.getId(), "active", "retired");
+        service.delete(id);
+        assertTrue(repository.findAll().isEmpty());
+    }
+
+    @Test
     void createWithSecretFailsClosedWhenMasterKeyMissing() {
         DatasourceConfigService keyless = new DatasourceConfigService(
                 new DataSourcePluginRegistry(Map.of("postgresql", plugin)),
-                repository, new MockEnvironment());
+                repository, viewRepository, new MockEnvironment());
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> keyless.create("无key源", "postgresql", config("s3cr3t"), "alice"));
         assertEquals(1_006_000_109, exception.getCode());
@@ -196,7 +224,7 @@ class DatasourceConfigServiceTest {
                 service.create("换key库", "postgresql", config("s3cr3t"), "alice");
         DatasourceConfigService wrongKey = new DatasourceConfigService(
                 new DataSourcePluginRegistry(Map.of("postgresql", plugin)),
-                repository, new MockEnvironment()
+                repository, viewRepository, new MockEnvironment()
                         .withProperty("ontos.datasource.master-key",
                                 "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+fic="));
         // testStoredConfig 要解密：错 key → 110

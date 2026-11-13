@@ -34,7 +34,8 @@ public class DataViewController {
         this.publishGuard = publishGuard;
     }
 
-    public record ScanReqVO(String configId, String schema, String table, String name) {
+    public record ScanReqVO(String configId, String schema, String table, String name,
+            String requestedId) {
     }
 
     @PostMapping("/scan")
@@ -42,7 +43,7 @@ public class DataViewController {
     public CommonResult<DataViewService.ScanResult> scan(@RequestBody ScanReqVO request) {
         publishGuard.requirePublishAllowed("datasource.view.scan");
         return success(service.scan(request.configId(), request.schema(), request.table(),
-                request.name(), publishGuard.currentPublisher()));
+                request.name(), request.requestedId(), publishGuard.currentPublisher()));
     }
 
     @GetMapping

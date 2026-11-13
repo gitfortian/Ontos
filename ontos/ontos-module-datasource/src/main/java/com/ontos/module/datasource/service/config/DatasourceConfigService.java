@@ -27,6 +27,7 @@ import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exc
 import static com.ontos.module.datasource.enums.ErrorCodeConstants.DATASOURCE_CATALOG_FAILED;
 import static com.ontos.module.datasource.enums.ErrorCodeConstants.DATASOURCE_CONFIG_INVALID;
 import static com.ontos.module.datasource.enums.ErrorCodeConstants.DATASOURCE_CONFIG_NOT_FOUND;
+import static com.ontos.module.datasource.enums.ErrorCodeConstants.DATASOURCE_CONFIG_REFERENCED;
 import static com.ontos.module.datasource.enums.ErrorCodeConstants.DATASOURCE_CONNECT_FAILED;
 import static com.ontos.module.datasource.enums.ErrorCodeConstants.DATASOURCE_MASTER_KEY_MISSING;
 import static com.ontos.module.datasource.enums.ErrorCodeConstants.DATASOURCE_NAME_DUPLICATE;
@@ -56,13 +57,17 @@ public class DatasourceConfigService {
 
     private final DataSourcePluginRegistry registry;
     private final DatasourceConfigRepository repository;
+    /** 数据视图仓储（G1 删除守卫：active 视图引用即拒删）。 */
+    private final com.ontos.module.datasource.dal.mysql.DataViewRepository viewRepository;
     private final DatasourceSecretCipher cipher;
 
     public DatasourceConfigService(DataSourcePluginRegistry registry,
                                    DatasourceConfigRepository repository,
+                                   com.ontos.module.datasource.dal.mysql.DataViewRepository viewRepository,
                                    Environment environment) {
         this.registry = registry;
         this.repository = repository;
+        this.viewRepository = viewRepository;
         this.cipher = new DatasourceSecretCipher(environment.getProperty("ontos.datasource.master-key"));
     }
 
@@ -126,10 +131,25 @@ public class DatasourceConfigService {
         return viewOf(require(id));
     }
 
+    /** 删除：仍被 active 数据视图引用时 fail-closed（G1）——引用视图的目录/重扫描依赖本配置。 */
     public void delete(String id) {
+        require(id);
+        java.util.List<com.ontos.module.datasource.dal.dataobject.DataViewRecord> referencing =
+                viewRepository.findAllActiveByConfig(id);
+        if (!referencing.isEmpty()) {
+            throw exception(DATASOURCE_CONFIG_REFERENCED,
+                    id + "（" + referencing.size() + " 个视图："
+                            + referencing.stream().map(r -> r.getId()).limit(5).reduce(
+                                    (a, b) -> a + ", " + b).orElse("") + "…）");
+        }
         if (repository.delete(id) == 0) {
             throw exception(DATASOURCE_CONFIG_NOT_FOUND, id);
         }
+    }
+
+    /** 存在性检查（不解密凭据，activate 守卫用，G3）。 */
+    public boolean configExists(String id) {
+        return repository.find(id).isPresent();
     }
 
     /** 脱敏视图列表：secret 字段以掩码出现，明文/密文不出服务。 */

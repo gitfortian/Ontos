@@ -75,6 +75,13 @@ public class JdbcDataViewRepository implements DataViewRepository {
     }
 
     @Override
+    public List<DataViewRecord> findAllActiveByConfig(String sourceConfigId) {
+        return jdbcTemplate.query(
+                SELECT_FIELDS + " WHERE status = 'active' AND source_config_id = :configId ORDER BY id",
+                Map.of("configId", sourceConfigId), ROW_MAPPER);
+    }
+
+    @Override
     public List<DataViewRecord> findAll() {
         return jdbcTemplate.query(SELECT_FIELDS + " ORDER BY id", Map.of(), ROW_MAPPER);
     }

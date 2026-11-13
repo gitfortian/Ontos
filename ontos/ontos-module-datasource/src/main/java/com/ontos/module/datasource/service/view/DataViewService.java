@@ -22,7 +22,9 @@ import com.ontos.module.ontology.service.manifest.ManifestService;
 import org.springframework.stereotype.Service;
 
 import static com.ontos.framework.common.exception.util.ServiceExceptionUtil.exception;
+import static com.ontos.module.datasource.enums.ErrorCodeConstants.DATASOURCE_CONFIG_NOT_FOUND;
 import static com.ontos.module.datasource.enums.ErrorCodeConstants.DATASOURCE_VIEW_ID_DUPLICATE;
+import static com.ontos.module.datasource.enums.ErrorCodeConstants.DATASOURCE_VIEW_ID_INVALID;
 import static com.ontos.module.datasource.enums.ErrorCodeConstants.DATASOURCE_VIEW_NOT_FOUND;
 import static com.ontos.module.datasource.enums.ErrorCodeConstants.DATASOURCE_VIEW_REACTIVATE_CONFLICT;
 import static com.ontos.module.datasource.enums.ErrorCodeConstants.DATASOURCE_VIEW_REFERENCED;
@@ -61,8 +63,14 @@ public class DataViewService {
         this.manifestService = manifestService;
     }
 
-    /** 扫描固化：拉列 → 规范化 ID → upsert（同源同表覆盖更新）。返回视图 + 漂移 diff。 */
-    public ScanResult scan(String configId, String schema, String table, String name, String actor) {
+    /**
+     * 扫描固化：拉列 → 规范化 ID → upsert（同源同表覆盖更新）。返回视图 + 漂移 diff。
+     *
+     * <p>{@code requestedId} 非空时作为新视图 ID（B3 §3.1「创建时允许手改」）——须匹配
+     * {@code view.[a-z0-9_-]+} 且不与既有视图冲突；同源同表覆盖更新路径忽略该参数（ID 不变）。
+     */
+    public ScanResult scan(String configId, String schema, String table, String name,
+                           String requestedId, String actor) {
         List<DataSourceColumnView> columns = fetchColumns(configId, schema, table);
         String hash = hashOf(columns);
         Optional<DataViewRecord> existing = repository.findActiveBySource(configId, schema, table);
@@ -79,7 +87,7 @@ public class DataViewService {
                     referencedRemoved);
         }
         DataViewRecord record = new DataViewRecord();
-        record.setId(nextId(table, hash, configId));
+        record.setId(nextId(table, hash, configId, requestedId));
         record.setName(name != null && !name.isBlank() ? name : table);
         record.setSourceConfigId(configId);
         record.setSourceSchema(schema);
@@ -127,10 +135,15 @@ public class DataViewService {
         }
     }
 
-    /** 重新激活：同源同表不得已有另一个 active 视图（uk_dv_source 冲突前置拒绝）。 */
+    /** 重新激活：源配置必须仍存在（G3 fail-closed）+ 同源同表不得已有另一个 active 视图。 */
     public void activate(String id) {
         DataViewRecord current = repository.find(id)
                 .orElseThrow(() -> exception(DATASOURCE_VIEW_NOT_FOUND, id));
+        if (current.getSourceConfigId() != null && !current.getSourceConfigId().isBlank()
+                && !configService.configExists(current.getSourceConfigId())) {
+            throw exception(DATASOURCE_CONFIG_NOT_FOUND,
+                    current.getSourceConfigId() + "（视图 " + id + " 的来源配置已删除，无法重新激活）");
+        }
         if (repository.findActiveBySource(current.getSourceConfigId(), current.getSourceSchema(),
                 current.getSourceTable()).isPresent()) {
             throw exception(DATASOURCE_VIEW_REACTIVATE_CONFLICT,
@@ -162,8 +175,17 @@ public class DataViewService {
                 .orElseThrow(() -> exception(DATASOURCE_VIEW_NOT_FOUND, id));
     }
 
-    /** ID 生成规范（B3 §3.1）：view. + 规范化表名（小写/非法字符转下划线/截 40），冲突追加 hash 尾。 */
-    private String nextId(String table, String hash, String configId) {
+    /** ID 生成规范（B3 §3.1）：view. + 规范化表名（小写/非法字符转下划线/截 40），冲突追加 hash 尾；手改 ID 优先。 */
+    private String nextId(String table, String hash, String configId, String requestedId) {
+        if (requestedId != null && !requestedId.isBlank()) {
+            if (!requestedId.matches("^view\\.[a-z0-9_-]+$")) {
+                throw exception(DATASOURCE_VIEW_ID_INVALID, requestedId);
+            }
+            if (repository.find(requestedId).isPresent()) {
+                throw exception(DATASOURCE_VIEW_ID_DUPLICATE, requestedId);
+            }
+            return requestedId;
+        }
         String base = table.toLowerCase().replaceAll("[^a-z0-9_]", "_")
                 .replaceAll("_+", "_").replaceAll("^_+|_+$", "");
         if (base.length() > 40) {

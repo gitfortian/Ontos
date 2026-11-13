@@ -110,4 +110,6 @@ export interface DataViewScanReqVO {
   schema: string;
   table: string;
   name?: string;
+  /** 视图 ID 手改（B3 §3.1）：留空 = 按物理名规范化生成；仅新视图生效，覆盖路径忽略。 */
+  requestedId?: string;
 }

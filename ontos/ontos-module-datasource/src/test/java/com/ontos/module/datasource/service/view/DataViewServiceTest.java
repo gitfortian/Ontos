@@ -32,6 +32,7 @@ class DataViewServiceTest {
 
     private StubDataSourcePlugin stub;
     private InMemoryDataViewRepository repository;
+    private com.ontos.module.datasource.service.config.DatasourceConfigService configService;
     private DataViewService service;
 
     @BeforeEach
@@ -42,7 +43,10 @@ class DataViewServiceTest {
                 List.of("public"),
                 List.of(new com.ontos.spi.datasource.TableMeta("orders", "BASE TABLE")),
                 List.of(new ColumnMeta("id", "integer", false),
-                        new ColumnMeta("amount", "numeric", true)));
+                        new ColumnMeta("amount", "numeric", true)),
+                List.of(new DataSourceDescriptor.ConfigField("jdbcUrl", "JDBC URL", false, false, null),
+                        new DataSourceDescriptor.ConfigField("host", "主机", true, false, null),
+                        new DataSourceDescriptor.ConfigField("password", "密码", false, true, null)));
         repository = new InMemoryDataViewRepository();
         MockEnvironment environment = new MockEnvironment()
                 .withProperty("ontos.datasource.query.jdbc-url",
@@ -80,9 +84,10 @@ class DataViewServiceTest {
                 throw new UnsupportedOperationException("test");
             }
         };
+        configService = new DatasourceConfigService(registry, configRepository, repository, environment);
         service = new DataViewService(repository,
                 new DataSourceCatalogService(registry, environment, manifestService),
-                new DatasourceConfigService(registry, configRepository, environment),
+                configService,
                 manifestService);
     }
 
@@ -100,7 +105,7 @@ class DataViewServiceTest {
 
     @Test
     void scanCreatesViewWithNormalizedId() {
-        DataViewService.ScanResult result = service.scan(null, "public", "orders", "订单表", "alice");
+        DataViewService.ScanResult result = service.scan(null, "public", "orders", "订单表", null, "alice");
 
         assertEquals("view.orders", result.view().id());
         assertEquals("订单表", result.view().name());
@@ -111,8 +116,8 @@ class DataViewServiceTest {
 
     @Test
     void scanSameSourceTableUpsertsInsteadOfDuplicating() {
-        service.scan(null, "public", "orders", "订单表", "alice");
-        DataViewService.ScanResult second = service.scan(null, "public", "orders", "订单表2", "alice");
+        service.scan(null, "public", "orders", "订单表", null, "alice");
+        DataViewService.ScanResult second = service.scan(null, "public", "orders", "订单表2", null, "alice");
 
         assertEquals("view.orders", second.view().id());
         assertEquals("订单表2", second.view().name());
@@ -123,24 +128,24 @@ class DataViewServiceTest {
     @Test
     void idNormalizationHandlesDirtyPhysicalNames() {
         DataViewService.ScanResult result =
-                service.scan(null, "public", "Dw.Dwd-Order Info!", null, "alice");
+                service.scan(null, "public", "Dw.Dwd-Order Info!", null, null, "alice");
         assertEquals("view.dw_dwd_order_info", result.view().id());
     }
 
     @Test
     void idConflictAppendsHashSuffix() {
         // "orders!" 与 "orders" 规范化后同为 orders：第二个必须追加 hash 尾
-        service.scan(null, "public", "orders", null, "alice");
+        service.scan(null, "public", "orders", null, null, "alice");
         stub.setColumns(List.of(new ColumnMeta("id", "integer", false)));
         DataViewService.ScanResult conflicting =
-                service.scan(null, "public", "ORDERS!", null, "alice");
+                service.scan(null, "public", "ORDERS!", null, null, "alice");
         assertNotEquals("view.orders", conflicting.view().id());
         assertTrue(conflicting.view().id().startsWith("view.orders-"));
     }
 
     @Test
     void rescanDetectsDriftAndFlagsReferencedRemovedColumns() {
-        service.scan(null, "public", "orders", "订单表", "alice");
+        service.scan(null, "public", "orders", "订单表", null, "alice");
         // 漂移：amount 被删（生效清单 property.order.amount 引用中）、region 新增
         stub.setColumns(List.of(new ColumnMeta("id", "integer", false),
                 new ColumnMeta("region", "text", true)));
@@ -156,7 +161,7 @@ class DataViewServiceTest {
 
     @Test
     void retireFailsClosedWhenActiveManifestStillReferences() {
-        service.scan(null, "public", "orders", "订单表", "alice");
+        service.scan(null, "public", "orders", "订单表", null, "alice");
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> service.retire("view.orders"));
         assertEquals(1_006_000_112, exception.getCode());
@@ -167,7 +172,7 @@ class DataViewServiceTest {
     void retireAndReactivateRoundTripWhenUnreferenced() {
         // 清单只引用 orders：先扫一张无关表（event 不在桩目录里 → 用 catalog 变更模拟）
         stub.setColumns(List.of(new ColumnMeta("id", "integer", false)));
-        service.scan(null, "public", "orders", "无关表", "alice"); // 此时清单引用列已不在快照
+        service.scan(null, "public", "orders", "无关表", null, "alice"); // 此时清单引用列已不在快照
         // 注意：清单仍引用 orders.amount → 仍应拒；换一张清单没引用的表
         stub.setColumns(List.of(new ColumnMeta("id", "integer", false),
                 new ColumnMeta("amount", "numeric", true)));
@@ -207,5 +212,42 @@ class DataViewServiceTest {
 
     private static void assertFalse(boolean condition) {
         org.junit.jupiter.api.Assertions.assertFalse(condition);
+    }
+
+    @Test
+    void scanRequestedIdManualOverrideAndGuards() {
+        // 合法手改 ID 生效
+        DataViewService.ScanResult ok = service.scan(null, "public", "orders", "订单表",
+                "view.custom_orders", "alice");
+        assertEquals("view.custom_orders", ok.view().id());
+        // 非法格式 → 116
+        ServiceException invalid = assertThrows(ServiceException.class,
+                () -> service.scan(null, "public", "items", null, "view.Bad_Id!", "alice"));
+        assertEquals(1_006_000_116, invalid.getCode());
+        // 重复 → 113
+        ServiceException dup = assertThrows(ServiceException.class,
+                () -> service.scan(null, "public", "items", null, "view.custom_orders", "alice"));
+        assertEquals(1_006_000_113, dup.getCode());
+        // 覆盖路径忽略手改 ID（ID 不变）
+        DataViewService.ScanResult rescan = service.scan(null, "public", "orders", "订单表2",
+                "view.other", "alice");
+        assertEquals("view.custom_orders", rescan.view().id());
+    }
+
+    @Test
+    void activateFailsClosedWhenSourceConfigMissing() {
+        // 建配置 → 扫描视图 → 退役 → 删除配置 → 重激活 fail-closed（G3）
+        configService.create("冒烟源", "postgresql",
+                Map.of("host", "localhost", "port", "5432", "database", "ontos_queryds",
+                        "jdbcUrl", "jdbc:postgresql://localhost:5432/ontos_queryds"), "alice");
+        String configId = configService.list().get(0).id();
+        // 用未被清单桩引用的表（orders 被 orders.amount/order_no 引用，retire 会被 112 拦）
+        DataViewService.ScanResult created = service.scan(configId, "public", "items", "明细表",
+                null, "alice");
+        service.retire(created.view().id());
+        configService.delete(configId);
+        ServiceException missing = assertThrows(ServiceException.class,
+                () -> service.activate(created.view().id()));
+        assertEquals(1_006_000_107, missing.getCode());
     }
 }

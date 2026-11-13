@@ -17,6 +17,9 @@ public interface DataViewRepository {
     /** 全部 active 视图，按 id 排序（合成发布快照与校验的稳定序）。 */
     List<DataViewRecord> findAllActive();
 
+    /** 指定数据源配置下的全部 active 视图（配置删除守卫用，G1）。 */
+    List<DataViewRecord> findAllActiveByConfig(String sourceConfigId);
+
     List<DataViewRecord> findAll();
 
     void insert(DataViewRecord record);

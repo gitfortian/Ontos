@@ -41,6 +41,16 @@ public class InMemoryDataViewRepository implements DataViewRepository {
     }
 
     @Override
+    public List<DataViewRecord> findAllActiveByConfig(String sourceConfigId) {
+        return store.values().stream()
+                .filter(record -> "active".equals(record.getStatus()))
+                .filter(record -> sourceConfigId != null
+                        && sourceConfigId.equals(record.getSourceConfigId()))
+                .sorted(java.util.Comparator.comparing(DataViewRecord::getId))
+                .toList();
+    }
+
+    @Override
     public List<DataViewRecord> findAll() {
         List<DataViewRecord> rows = new ArrayList<>(store.values());
         rows.sort(Comparator.comparing(DataViewRecord::getId));

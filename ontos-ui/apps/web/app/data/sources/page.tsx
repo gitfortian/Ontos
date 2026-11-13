@@ -74,9 +74,12 @@ export function DataSourcesPage() {
   });
   const views = viewsQuery.data ?? [];
   const [viewAlert, setViewAlert] = useState<DataViewScanVO | null>(null);
-  const [scanForm, setScanForm] = useState<{ schema: string; table: string; name: string } | null>(
-    null,
-  );
+  const [scanForm, setScanForm] = useState<{
+    schema: string;
+    table: string;
+    name: string;
+    requestedId: string;
+  } | null>(null);
 
   const browseQuery = useQuery({
     queryKey: dataSourceQueryKeys.browse(target, schema),
@@ -383,7 +386,12 @@ export function DataSourcesPage() {
                 size="small"
                 variant="primary"
                 onClick={() =>
-                  setScanForm({ schema: browse?.schema ?? "public", table: "", name: "" })
+                  setScanForm({
+                    schema: browse?.schema ?? "public",
+                    table: "",
+                    name: "",
+                    requestedId: "",
+                  })
                 }
               >
                 扫描固化视图
@@ -450,6 +458,7 @@ export function DataSourcesPage() {
                         schema: scanForm.schema.trim(),
                         table: scanForm.table.trim(),
                         name: scanForm.name.trim() || undefined,
+                        requestedId: scanForm.requestedId.trim() || undefined,
                       })
                     }
                   >
