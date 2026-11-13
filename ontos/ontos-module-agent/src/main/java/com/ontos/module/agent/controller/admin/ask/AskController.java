@@ -137,6 +137,13 @@ public class AskController {
         return success(runStateService.listSessions(context, Math.max(1, Math.min(limit, 50))));
     }
 
+    @GetMapping("/scenarios")
+    @Operation(summary = "已发布且当前用户已授权的场景目录（侧栏参考目录；只读，不改变路由语义）")
+    public CommonResult<List<Map<String, Object>>> listScenarios() {
+        RequestContext context = RequestContextHolder.require();
+        return success(orchestrationService.listAuthorizedScenarios(context));
+    }
+
     @GetMapping("/sessions/{sessionId}/runs")
     @Operation(summary = "会话内轮次摘要（侧栏历史展开；只读，不触发任何执行）")
     public CommonResult<List<Map<String, Object>>> listSessionRuns(

@@ -71,3 +71,16 @@ export const replayAskEvents = (runId: string, afterSeq = 0): Promise<AskRunEven
   HttpUtils.getData<AskRunEventVO[]>(
     `${ASK_API}/run/${encodeURIComponent(runId)}/events?afterSeq=${afterSeq}`,
   );
+
+/** 已发布且当前用户已授权的场景目录项（侧栏参考目录；进入仍由路由确认通道）。 */
+export interface AskScenarioVO {
+  scenarioId: string;
+  name: string;
+  summary: string | null;
+  /** manual_only | recommend_or_confirm | auto_if_confident */
+  entryMode: string | null;
+}
+
+/** 场景目录（只读事实呈现；不提供钉住/旁路语义——那是 M6 路由扩展，单独设计）。 */
+export const listAskScenarios = (signal?: AbortSignal): Promise<AskScenarioVO[]> =>
+  HttpUtils.getData<AskScenarioVO[]>(`${ASK_API}/scenarios`, { signal });

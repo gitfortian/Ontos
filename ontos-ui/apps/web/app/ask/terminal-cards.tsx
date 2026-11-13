@@ -1,8 +1,12 @@
 import type { ReactNode } from "react";
 
+import { useForm } from "@tanstack/react-form";
+
 import { Button } from "@ontos/ui";
 
 import type { AskCandidate, AskTerminalVO } from "@/service/ask";
+
+import { buildClarificationSchema } from "./schemas/clarification-schema";
 
 /**
  * 五态卡片：全部按真实载荷渲染。
@@ -106,6 +110,21 @@ export function ClarificationCard({
 }) {
   const body = terminal.body ?? {};
   const candidates = body.candidates ?? [];
+  // 批复第 4 条：回传参数走 TanStack Form + Zod 强类型校验——candidateId 必须
+  // 属于本轮候选集（服务端 R5 还有同型闸门，这里是前端第一道）；matchedTerm
+  // 由提交时从候选集反查，不采信调用方传入值。
+  const form = useForm({
+    defaultValues: { candidateId: "" },
+    validators: {
+      onSubmit: buildClarificationSchema(new Set(candidates.map((c) => c.assetId))),
+    },
+    onSubmit: async ({ value }) => {
+      const chosen = candidates.find((candidate) => candidate.assetId === value.candidateId);
+      if (chosen) {
+        onChoose(chosen.assetId, chosen.label ?? chosen.matchedTerm);
+      }
+    },
+  });
   return (
     <CardShell tone="warning" label="需要确认">
       <p className="text-[13px] leading-relaxed">
@@ -117,7 +136,14 @@ export function ClarificationCard({
         </p>
       ) : null}
       {candidates.length > 0 ? (
-        <CandidateList candidates={candidates} onChoose={onChoose} disabled={disabled} />
+        <CandidateList
+          candidates={candidates}
+          disabled={disabled}
+          onChoose={(candidateId) => {
+            form.setFieldValue("candidateId", candidateId);
+            void form.handleSubmit();
+          }}
+        />
       ) : (
         <p className="mt-2 text-[11px] text-muted-foreground">
           没有可用候选，请换一个更具体的说法，例如点名某个指标。

@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.ontos.framework.common.pojo.CommonResult;
+import com.ontos.framework.web.core.context.RequestContext;
+import com.ontos.framework.web.core.context.RequestContextHolder;
 import com.ontos.module.query.controller.admin.vo.QueryCompileRespVO;
 import com.ontos.module.query.controller.admin.vo.QueryCompositeRespVO;
 import com.ontos.module.query.controller.admin.vo.QueryDryRunRespVO;
@@ -153,7 +155,33 @@ public class QueryController {
     @GetMapping("/plan/{requestId}")
     @Operation(summary = "按 request_id 回放最近一次编译产物（SQL / 绑定值 / 路径 / 计划）")
     public CommonResult<QueryPlanRespVO> replayPlan(@PathVariable String requestId) {
-        return success(toPlanVO(queryService.replayPlan(requestId)));
+        RequestContext context = RequestContextHolder.require();
+        return success(maskForPresentation(toPlanVO(queryService.replayPlan(requestId)), context));
+    }
+
+    /**
+     * W5 脱敏：编译 SQL 与绑定值含物理表列名与标识类值，Join 对象含物理表列——
+     * 仅开发态（dev 头默认身份）或 debug 角色可完整回放；其余剥离物理字段，
+     * 保留业务关系路径（relationId/direction/cardinality）。溯源抽屉默认态物理层不可达。
+     */
+    static QueryPlanRespVO maskForPresentation(QueryPlanRespVO vo, RequestContext context) {
+        if (context.devMode() || context.roles().contains("debug")) {
+            return vo;
+        }
+        vo.setSql(null);
+        vo.setBindValues(null);
+        vo.setJoins(vo.getJoins() == null ? null
+                : vo.getJoins().stream().map(QueryController::maskJoin).toList());
+        return vo;
+    }
+
+    /** Join 业务化掩码：只留语义字段，物理表/列不出接口。 */
+    private static QueryDsl.ResolvedJoin maskJoin(QueryDsl.ResolvedJoin join) {
+        QueryDsl.ResolvedJoin masked = new QueryDsl.ResolvedJoin();
+        masked.setRelationId(join.getRelationId());
+        masked.setDirection(join.getDirection());
+        masked.setCardinality(join.getCardinality());
+        return masked;
     }
 
     @PostMapping("/composite/execute")

@@ -4,10 +4,11 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
-import { Button, Tooltip, TooltipContent, TooltipTrigger } from "@ontos/ui";
+import { Button } from "@ontos/ui";
 
 import { useSessions } from "@/app/ask/hooks/use-sessions";
 import { useAskWorkbenchStore } from "@/app/ask/stores/ask-workbench-store";
+import { listAskScenarios, type AskScenarioVO } from "@/service/ask";
 import { fetchSessionRuns, type AskSessionRunVO } from "@/service/sessions";
 
 /** 终态名 → 侧栏摘要文案（与后端六态冻结一致）。 */
@@ -113,10 +114,58 @@ function SessionItem({
   );
 }
 
-/** 左栏：场景切换器 + 历史会话列表（可展开轮次摘要）。场景清单 P1 接入（当前展示固定入口）。 */
+/** 场景入口模式 → 展示文案（与 ScenarioEntryMode 冻结枚举一致）。 */
+const entryModeLabel = (entryMode: string | null): string =>
+  ({
+    manual_only: "仅手动进入",
+    recommend_or_confirm: "推荐后确认",
+    auto_if_confident: "高置信自动",
+  })[entryMode ?? ""] ?? "推荐后确认";
+
+/** 场景目录项：只读事实呈现——进入场景仍由路由推荐后确认（M6 语义），目录不提供钉住。 */
+function ScenarioItem({ scenario }: { scenario: AskScenarioVO }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div>
+      <button
+        type="button"
+        className="w-full rounded-md px-1.5 py-1 text-left text-[11px] transition-colors hover:bg-accent"
+        onClick={() => setExpanded((value) => !value)}
+      >
+        <span className="flex items-center gap-1">
+          {expanded ? (
+            <ChevronDown aria-hidden="true" size={11} />
+          ) : (
+            <ChevronRight aria-hidden="true" size={11} />
+          )}
+          <span className="min-w-0 truncate">{scenario.name}</span>
+        </span>
+      </button>
+      {expanded ? (
+        <div className="mb-1 ml-3 border-l border-border pl-2">
+          {scenario.summary ? (
+            <p className="py-0.5 text-[10px] leading-relaxed text-muted-foreground">
+              {scenario.summary}
+            </p>
+          ) : null}
+          <p className="py-0.5 text-[10px] text-muted-foreground">
+            {entryModeLabel(scenario.entryMode)} · 提问命中后按提示确认即可进入
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** 左栏：场景目录 + 历史会话列表（可展开轮次摘要）。 */
 export function SessionsSidebar() {
   const navigate = useNavigate();
   const { data: sessions, isPending } = useSessions();
+  const { data: scenarios, isPending: scenariosPending } = useQuery({
+    queryKey: ["ask", "scenarios"],
+    queryFn: ({ signal }) => listAskScenarios(signal),
+    staleTime: 5 * 60_000,
+  });
   const activeSessionId = useAskWorkbenchStore((state) => state.activeSessionId);
   const setActiveSession = useAskWorkbenchStore((state) => state.setActiveSession);
 
@@ -140,17 +189,25 @@ export function SessionsSidebar() {
       </Button>
 
       <p className="px-1.5 pt-2 text-[11px] text-muted-foreground">业务场景</p>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <NavLink
-            to="/ask"
-            className="rounded-md px-1.5 py-1 text-[11px] text-muted-foreground hover:bg-accent"
-          >
-            自由问数（全部场景）
-          </NavLink>
-        </TooltipTrigger>
-        <TooltipContent>场景切换器随场景清单端点接入（P1）</TooltipContent>
-      </Tooltip>
+      <nav className="space-y-0.5 px-0.5">
+        {scenariosPending ? (
+          <p className="px-1.5 py-0.5 text-[11px] text-muted-foreground">加载场景目录…</p>
+        ) : (scenarios ?? []).length === 0 ? (
+          <p className="px-1.5 py-0.5 text-[11px] text-muted-foreground">
+            当前清单没有已发布场景，自由问数即可
+          </p>
+        ) : (
+          (scenarios ?? []).map((scenario) => (
+            <ScenarioItem key={scenario.scenarioId} scenario={scenario} />
+          ))
+        )}
+        <NavLink
+          to="/ask"
+          className="block rounded-md px-1.5 py-1 text-[11px] text-muted-foreground hover:bg-accent"
+        >
+          自由问数（全部场景）
+        </NavLink>
+      </nav>
 
       <p className="px-1.5 pt-3 text-[11px] text-muted-foreground">历史会话</p>
       <nav className="flex-1 space-y-1 overflow-y-auto">

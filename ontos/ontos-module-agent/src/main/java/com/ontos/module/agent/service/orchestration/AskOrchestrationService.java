@@ -1298,6 +1298,14 @@ public class AskOrchestrationService {
                 .map(this::labelOf).toList());
         if (dsl.getTimeExpressionRaw() != null && !dsl.getTimeExpressionRaw().isBlank()) {
             summary.put("timeLabel", dsl.getTimeExpressionRaw());
+        } else if (dsl.getTimeRange() != null && dsl.getTimeRange().getFrom() != null
+                && dsl.getTimeRange().getTo() != null) {
+            // timeExpressionRaw 为空但时间窗存在（服务端解析器产物）：格式化区间下发，
+            // Context Chips 不缺时间标签；口径按上海墙钟（冻结口径）。
+            java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter
+                    .ofPattern("yyyy-MM-dd").withZone(java.time.ZoneId.of("Asia/Shanghai"));
+            summary.put("timeLabel", fmt.format(dsl.getTimeRange().getFrom()) + " ~ "
+                    + fmt.format(dsl.getTimeRange().getTo()));
         }
         if (!dsl.getFilters().isEmpty()) {
             // 过滤条件业务化：字段走 AssetLabelResolver（property 段），值原样——
@@ -1334,6 +1342,31 @@ public class AskOrchestrationService {
         ManifestPayload.ScenarioMeta meta = scenariosById().get(scenarioId);
         return meta != null && meta.getName() != null && !meta.getName().isBlank()
                 ? meta.getName() : "当前业务场景";
+    }
+
+    /**
+     * 已发布且当前用户已授权的场景目录（侧栏参考目录；只读）。
+     *
+     * <p>场景的进入仍由路由决策走确认通道（M6 五态语义，manual_only 不参与推荐）——
+     * 本目录只做「有哪些场景可用」的事实呈现，不提供钉住/旁路语义（那需要单独的
+     * 路由扩展设计，不在 UX 工作包内私搭）。
+     */
+    public List<Map<String, Object>> listAuthorizedScenarios(RequestContext context) {
+        java.util.Set<String> authorized = authorizedScenarioIds(context);
+        List<Map<String, Object>> items = new ArrayList<>();
+        scenariosById().values().stream()
+                .filter(meta -> authorized.contains(meta.getId()))
+                .sorted(java.util.Comparator.comparing(
+                        meta -> meta.getName() == null ? "" : meta.getName()))
+                .forEach(meta -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("scenarioId", meta.getId());
+                    item.put("name", meta.getName());
+                    item.put("summary", meta.getSummary());
+                    item.put("entryMode", meta.getEntryMode());
+                    items.add(item);
+                });
+        return items;
     }
 
     /** 资产 ID → 业务名（统一走 AssetLabelResolver；查不到回退中性文案，不回退 ID）。 */
