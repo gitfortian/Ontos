@@ -27,6 +27,8 @@ public class PublishedManifest {
     private String payloadJson;
     private SemanticManifest semantic;
     private OntologySnapshot ontology;
+    /** 数据视图快照（B3）：随 payload 组装；编译经 BindingResolver 解析。 */
+    private List<ManifestPayload.DataView> dataViews = List.of();
     private OntologyGraph ontologyGraph;
     /** 判定标准（published 全集），M2 规则求值消费。 */
     private List<ManifestPayload.Rule> rules = List.of();

@@ -240,7 +240,7 @@ public class SqlCompiler {
                     || !property.isLookupProjectable()) {
                 throw exception(LOOKUP_ATTRIBUTE_NOT_PROJECTABLE, attributeId);
             }
-            String current = tableOf(property.getColumn());
+            String current = resolver.tableOfProperty(property);
             if (current == null || (table != null && !table.equals(current))) {
                 throw exception(LOOKUP_CROSS_TABLE_UNSUPPORTED, attributeId);
             }
@@ -256,7 +256,7 @@ public class SqlCompiler {
                 : queryDsl.getIdentityPropertyId();
         OntologySnapshot.Property identity = ontology.propertyIndex().get(identityPropertyId);
         if (identity == null || !entityId.equals(identity.getConceptId())
-                || !table.equals(tableOf(identity.getColumn()))) {
+                || !table.equals(resolver.tableOfProperty(identity))) {
             throw exception(LOOKUP_IDENTITY_REQUIRED, "identityPropertyId=" + identityPropertyId);
         }
 
@@ -343,11 +343,11 @@ public class SqlCompiler {
         OntologySnapshot.Concept concept = manifest.getOntology().conceptIndex().get(queryDsl.getEntityId());
         OntologySnapshot.Property subjectProperty = concept == null ? null
                 : manifest.getOntology().propertyIndex().get(concept.getIdentityProperty());
-        if (subjectProperty == null || tableOf(subjectProperty.getColumn()) == null) {
+        if (subjectProperty == null || resolver.tableOfProperty(subjectProperty) == null) {
             throw exception(RULE_SUBJECT_PATH_NOT_UNIQUE, "主体标识属性缺失");
         }
         String subjectColumn = subjectProperty.getColumn();
-        String subjectTable = tableOf(subjectColumn);
+        String subjectTable = resolver.tableOfProperty(subjectProperty);
         String metricTable = resolver.tableOf(metric);
 
         // 连接「主体表 ↔ 规则指标表」的关系必须唯一，禁止猜测关联列
@@ -439,10 +439,10 @@ public class SqlCompiler {
         OntologySnapshot.Property timeProperty = requireEventProperty(ontology, events.get(0).getTimeProperty());
         OntologySnapshot.Property participantProperty =
                 requireEventProperty(ontology, events.get(0).getParticipantProperty());
-        String eventTable = tableOf(timeProperty.getColumn());
+        String eventTable = resolver.tableOfProperty(timeProperty);
         if (eventTable == null
-                || !eventTable.equals(tableOf(typeProperty.getColumn()))
-                || !eventTable.equals(tableOf(participantProperty.getColumn()))) {
+                || !eventTable.equals(resolver.tableOfProperty(typeProperty))
+                || !eventTable.equals(resolver.tableOfProperty(participantProperty))) {
             throw exception(FUNNEL_EVENT_MAPPING_MISSING, "事件映射属性跨表或缺少表限定");
         }
 
@@ -455,11 +455,11 @@ public class SqlCompiler {
         String stepInterval = toInterval(params.getStepWindow());
 
         OntologySnapshot.Property subject = ontology.propertyIndex().get(params.getSubjectPropertyId());
-        if (subject == null || tableOf(subject.getColumn()) == null) {
+        if (subject == null || resolver.tableOfProperty(subject) == null) {
             throw exception(FUNNEL_EVENT_MAPPING_MISSING,
                     "subjectPropertyId 无法解析物理列: " + params.getSubjectPropertyId());
         }
-        String subjectTable = tableOf(subject.getColumn());
+        String subjectTable = resolver.tableOfProperty(subject);
         List<String> dimensionIds = queryDsl.getDimensions() == null
                 ? List.of() : queryDsl.getDimensions();
         List<SemanticManifest.Dimension> dimensions = new ArrayList<>();
@@ -637,18 +637,18 @@ public class SqlCompiler {
         OntologySnapshot.Property timeProperty = eventProperty(ontology, cohortEvent.getTimeProperty());
         OntologySnapshot.Property participantProperty =
                 eventProperty(ontology, cohortEvent.getParticipantProperty());
-        String eventTable = tableOf(timeProperty.getColumn());
+        String eventTable = resolver.tableOfProperty(timeProperty);
         if (eventTable == null
-                || !eventTable.equals(tableOf(typeProperty.getColumn()))
-                || !eventTable.equals(tableOf(participantProperty.getColumn()))) {
+                || !eventTable.equals(resolver.tableOfProperty(typeProperty))
+                || !eventTable.equals(resolver.tableOfProperty(participantProperty))) {
             throw exception(DSL_INVALID, "retention 事件映射属性跨表或缺少表限定");
         }
         OntologySnapshot.Property subject = ontology.propertyIndex().get(params.getSubjectPropertyId());
-        if (subject == null || tableOf(subject.getColumn()) == null) {
+        if (subject == null || resolver.tableOfProperty(subject) == null) {
             throw exception(DSL_INVALID,
                     "retention subjectPropertyId 无法解析物理列: " + params.getSubjectPropertyId());
         }
-        String subjectTable = tableOf(subject.getColumn());
+        String subjectTable = resolver.tableOfProperty(subject);
         List<String> dimensionIds = queryDsl.getDimensions() == null ? List.of() : queryDsl.getDimensions();
         List<SemanticManifest.Dimension> dimensions = new ArrayList<>();
         for (String dimensionId : dimensionIds) {
@@ -886,16 +886,16 @@ public class SqlCompiler {
         OntologySnapshot.Property eventDedup = attributionProperty(ontology, EVENT_DEDUP_KEY_PROPERTY_ID);
         OntologySnapshot.Property channelName = attributionProperty(ontology, CHANNEL_NAME_PROPERTY_ID);
         OntologySnapshot.Property channelId = attributionProperty(ontology, CHANNEL_ID_PROPERTY_ID);
-        String eventTable = tableOf(convTime.getColumn());
+        String eventTable = resolver.tableOfProperty(convTime);
         if (eventTable == null
-                || !eventTable.equals(tableOf(touchTime.getColumn()))
-                || !eventTable.equals(tableOf(convType.getColumn()))
-                || !eventTable.equals(tableOf(convParticipant.getColumn()))
-                || !eventTable.equals(tableOf(touchType.getColumn()))
-                || !eventTable.equals(tableOf(touchParticipant.getColumn()))
-                || !eventTable.equals(tableOf(touchChannel.getColumn()))
-                || !eventTable.equals(tableOf(eventId.getColumn()))
-                || !eventTable.equals(tableOf(eventDedup.getColumn()))) {
+                || !eventTable.equals(resolver.tableOfProperty(touchTime))
+                || !eventTable.equals(resolver.tableOfProperty(convType))
+                || !eventTable.equals(resolver.tableOfProperty(convParticipant))
+                || !eventTable.equals(resolver.tableOfProperty(touchType))
+                || !eventTable.equals(resolver.tableOfProperty(touchParticipant))
+                || !eventTable.equals(resolver.tableOfProperty(touchChannel))
+                || !eventTable.equals(resolver.tableOfProperty(eventId))
+                || !eventTable.equals(resolver.tableOfProperty(eventDedup))) {
             throw exception(DSL_INVALID, "attribution 转化 / 触点事件映射未落在同一物理表");
         }
         OntologySnapshot.Relation relation =
@@ -963,7 +963,7 @@ public class SqlCompiler {
                 .as("attributed_channel_id"));
         attributed.addSelect(chName.as("channel_name"));
         attributed.addFrom(DSL.table(DSL.name("conversions")).as("c"));
-        attributed.addJoin(DSL.table(tableName(tableOf(channelName.getColumn()))).as("ch"),
+        attributed.addJoin(DSL.table(tableName(resolver.tableOfProperty(channelName))).as("ch"),
                 org.jooq.JoinType.LEFT_OUTER_JOIN,
                 chId.eq(DSL.field(DSL.name("c", "attributed_channel_id"), String.class)));
 

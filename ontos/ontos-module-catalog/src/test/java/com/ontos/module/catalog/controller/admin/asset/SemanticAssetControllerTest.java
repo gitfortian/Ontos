@@ -1,5 +1,6 @@
 package com.ontos.module.catalog.controller.admin.asset;
 
+import java.util.List;
 import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.framework.common.exception.enums.GlobalErrorCodeConstants;
 import com.ontos.framework.common.util.json.JsonUtils;
@@ -38,7 +39,8 @@ class SemanticAssetControllerTest {
     void setUp() {
         repository = new InMemorySemanticAssetRepository();
         validator = new SemanticAssetDraftValidator(
-                repository, TestManifests.manifestService(TestManifests.activeV22()));
+                repository, TestManifests.manifestService(TestManifests.activeV22()),
+                List::of);
         controller = new SemanticAssetController(
                 new SemanticAssetLifecycleService(repository, validator), validator, optionsService(),
                 synthesisService(), revisionService(), allowGuard());
@@ -139,7 +141,8 @@ class SemanticAssetControllerTest {
 
     private static SemanticAssetSynthesisService synthesisService() {
         return new SemanticAssetSynthesisService(new InMemorySemanticAssetRepository(),
-                TestManifests.manifestService(TestManifests.activeV22()), new StubPublishService());
+                TestManifests.manifestService(TestManifests.activeV22()), new StubPublishService(),
+                List::of);
     }
 
     private static SemanticAssetOptionsService optionsService() {

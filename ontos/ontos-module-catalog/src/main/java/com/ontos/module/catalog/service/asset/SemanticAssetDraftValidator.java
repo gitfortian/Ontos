@@ -41,11 +41,15 @@ public class SemanticAssetDraftValidator {
     private final SemanticAssetRepository repository;
     private final ManifestService manifestService;
     private final ManifestStructureValidator structureValidator = new ManifestStructureValidator();
+    /** 资源侧 active 视图供给（B3）：草稿引用新扫描视图时，合并视图需并入（资源事实即时生效）。 */
+    private final com.ontos.module.ontology.service.dataview.DataViewSnapshotProvider viewProvider;
 
     public SemanticAssetDraftValidator(SemanticAssetRepository repository,
-                                       ManifestService manifestService) {
+                                       ManifestService manifestService,
+                                       com.ontos.module.ontology.service.dataview.DataViewSnapshotProvider viewProvider) {
         this.repository = repository;
         this.manifestService = manifestService;
+        this.viewProvider = viewProvider;
     }
 
     /** 校验结果：valid 为 true 时 violations 必为空。 */
@@ -113,6 +117,7 @@ public class SemanticAssetDraftValidator {
     /** 深拷贝基线后覆盖草稿：避免修改 ManifestService 持有的/缓存的清单对象。 */
     private ManifestPayload merge(ManifestPayload active, SemanticAssetType type, String id,
                                   String definitionJson) {
+        active = mergeDataViews(active);
         ManifestPayload merged = JsonUtils.parseObject(
                 JsonUtils.toJsonString(active), ManifestPayload.class);
         if (merged == null) {
@@ -177,5 +182,19 @@ public class SemanticAssetDraftValidator {
         }
         list.add(draft);
         return list;
+    }
+
+    /** 生效清单视图 ∪ 资源侧 active 视图（按 id 去重，资源侧优先——资源事实即时生效）。 */
+    private ManifestPayload mergeDataViews(ManifestPayload active) {
+        java.util.LinkedHashMap<String, com.ontos.module.ontology.core.ManifestPayload.DataView> byId =
+                new java.util.LinkedHashMap<>();
+        for (com.ontos.module.ontology.core.ManifestPayload.DataView view : active.getDataViews()) {
+            byId.put(view.getId(), view);
+        }
+        for (com.ontos.module.ontology.core.ManifestPayload.DataView view : viewProvider.activeViews()) {
+            byId.put(view.getId(), view);
+        }
+        active.setDataViews(List.copyOf(byId.values()));
+        return active;
     }
 }

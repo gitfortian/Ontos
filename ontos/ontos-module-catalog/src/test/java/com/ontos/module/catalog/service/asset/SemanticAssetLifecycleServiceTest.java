@@ -127,7 +127,7 @@ class SemanticAssetLifecycleServiceTest {
     }
 
     private static SemanticAssetDraftValidator fixedValidator(boolean valid) {
-        return new SemanticAssetDraftValidator(null, null) {
+        return new SemanticAssetDraftValidator(null, null, List::of) {
             @Override
             public ValidationResult validate(SemanticAssetType type, String definitionJson) {
                 return valid

@@ -57,7 +57,7 @@ class SemanticAssetSynthesisServiceTest {
         }
     };
     private final SemanticAssetSynthesisService service =
-            new SemanticAssetSynthesisService(repository, manifestService, publishService);
+            new SemanticAssetSynthesisService(repository, manifestService, publishService, List::of);
 
     private static SemanticAssetRecord reviewing(String assetType, String id, String definition) {
         SemanticAssetRecord record = new SemanticAssetRecord();
@@ -146,7 +146,7 @@ class SemanticAssetSynthesisServiceTest {
                     public int markPublished(String assetType, String id, long expectedRevision) {
                         return 0;
                     }
-                }, manifestService, publishService);
+                }, manifestService, publishService, List::of);
 
         ServiceException exception = assertThrows(ServiceException.class, failing::synthesize);
         assertEquals(1_005_000_104, exception.getCode());

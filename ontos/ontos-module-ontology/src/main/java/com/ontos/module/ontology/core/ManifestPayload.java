@@ -28,6 +28,8 @@ public class ManifestPayload {
     private List<SkillMeta> skills = List.of();
     /** VQR 资产（v1.4 §11，M6/T3.4）：参数化查询模板——只存模板与资产引用，不存可执行 SQL。 */
     private List<VqrMeta> vqrs = List.of();
+    /** 数据视图快照（B3）：合成发布时快照 active 全量；运行时确定性锚点（清单不可变）。 */
+    private List<DataView> dataViews = List.of();
 
     /** 判定标准（ADR-0004 2.3）：随清单版本化，运行时只认 published。 */
     @Data
@@ -301,5 +303,94 @@ public class ManifestPayload {
         List<String> result = new java.util.ArrayList<>();
         node.forEach(item -> result.add(item.asString()));
         return List.copyOf(result);
+    }
+
+    /** 数据视图（B3）：单表/单视图镜像 + 列快照；编译经 id 解析物理表。 */
+    public static class DataView {
+        private String id;
+        private String name;
+        private String schema;
+        private String table;
+        private List<Column> columns = List.of();
+        private String contentHash;
+
+        public String getId() {
+            return id;
+        }
+
+        public void setId(String id) {
+            this.id = id;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getSchema() {
+            return schema;
+        }
+
+        public void setSchema(String schema) {
+            this.schema = schema;
+        }
+
+        public String getTable() {
+            return table;
+        }
+
+        public void setTable(String table) {
+            this.table = table;
+        }
+
+        public List<Column> getColumns() {
+            return columns;
+        }
+
+        public void setColumns(List<Column> columns) {
+            this.columns = columns;
+        }
+
+        public String getContentHash() {
+            return contentHash;
+        }
+
+        public void setContentHash(String contentHash) {
+            this.contentHash = contentHash;
+        }
+
+        /** 列快照项。 */
+        public static class Column {
+            private String name;
+            private String type;
+            private boolean nullable;
+
+            public String getName() {
+                return name;
+            }
+
+            public void setName(String name) {
+                this.name = name;
+            }
+
+            public String getType() {
+                return type;
+            }
+
+            public void setType(String type) {
+                this.type = type;
+            }
+
+            public boolean isNullable() {
+                return nullable;
+            }
+
+            public void setNullable(boolean nullable) {
+                this.nullable = nullable;
+            }
+        }
     }
 }

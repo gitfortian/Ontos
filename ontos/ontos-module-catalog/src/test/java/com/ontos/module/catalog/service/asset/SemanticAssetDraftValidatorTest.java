@@ -1,5 +1,6 @@
 package com.ontos.module.catalog.service.asset;
 
+import java.util.List;
 import com.ontos.framework.common.exception.ServiceException;
 import com.ontos.module.catalog.core.SemanticAssetType;
 import com.ontos.module.catalog.dal.dataobject.SemanticAssetRecord;
@@ -24,7 +25,7 @@ class SemanticAssetDraftValidatorTest {
     void setUp() {
         validator = new SemanticAssetDraftValidator(
                 new InMemorySemanticAssetRepository(),
-                TestManifests.manifestService(TestManifests.activeV22()));
+                TestManifests.manifestService(TestManifests.activeV22()), List::of);
     }
 
     @Test
@@ -112,7 +113,7 @@ class SemanticAssetDraftValidatorTest {
                         + "\"sensitivity\":\"INTERNAL\",\"lookupProjectable\":true,"
                         + "\"existenceSensitive\":false}"));
         SemanticAssetDraftValidator batchAware = new SemanticAssetDraftValidator(
-                drafts, TestManifests.manifestService(TestManifests.activeV22()));
+                drafts, TestManifests.manifestService(TestManifests.activeV22()), List::of);
 
         SemanticAssetDraftValidator.ValidationResult conceptResult = batchAware.validate(
                 SemanticAssetType.CONCEPT,

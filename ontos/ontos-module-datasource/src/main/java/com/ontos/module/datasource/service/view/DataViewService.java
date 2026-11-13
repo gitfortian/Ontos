@@ -270,15 +270,16 @@ public class DataViewService {
         if (ontology == null || ontology.getProperties() == null) {
             return referencing;
         }
-        // Phase A：清单仍为旧口径（property.column = "表.列"），按 (table, column) 匹配；
-        // Phase B（T4）给 Property 增加 viewId 字段后，此处同步补新口径 property.viewId 匹配。
+        // B3 双口径引用检测：新口径 property.viewId + 裸列名；迁移期旧口径 表.列。
         for (OntologySnapshot.Property property : ontology.getProperties()) {
+            boolean referencedByViewId = viewId.equals(property.getViewId())
+                    && columns.contains(property.getColumn());
             String legacyColumn = property.getColumn() == null ? "" : property.getColumn();
             int dot = legacyColumn.lastIndexOf('.');
-            boolean referenced = dot > 0
+            boolean referencedByLegacy = dot > 0
                     && legacyColumn.substring(0, dot).equalsIgnoreCase(table)
                     && columns.contains(legacyColumn.substring(dot + 1));
-            if (referenced) {
+            if (referencedByViewId || referencedByLegacy) {
                 referencing.add(property.getId());
             }
         }
@@ -297,8 +298,12 @@ public class DataViewService {
         if (ontology == null || ontology.getProperties() == null) {
             return referencing;
         }
-        // Phase A：仅旧口径；Phase B（T4）同步补 property.viewId 匹配。
+        // B3 双口径退役检测：新口径 property.viewId；迁移期旧口径 表.列。
         for (OntologySnapshot.Property property : ontology.getProperties()) {
+            if (record.getId().equals(property.getViewId())) {
+                referencing.add(property.getId());
+                continue;
+            }
             String legacyColumn = property.getColumn() == null ? "" : property.getColumn();
             int dot = legacyColumn.lastIndexOf('.');
             if (dot > 0

@@ -64,7 +64,7 @@ public class JoinPathResolver {
         }
 
         OntologySnapshot ontology = manifest.getOntology();
-        Map<String, String> conceptByTable = conceptByTable(ontology);
+        Map<String, String> conceptByTable = conceptByTable(ontology, binding);
         String rootConcept = conceptByTable.get(rootTable);
         if (rootConcept == null) {
             throw exception(PATH_UNREACHABLE, "指标表无法定位业务对象: " + rootTable);
@@ -165,11 +165,18 @@ public class JoinPathResolver {
         return "UNKNOWN";
     }
 
-    /** 物理表 → 业务对象：由清单 Property 的限定列名反推，冲突即拒绝（禁止猜测）。 */
-    private static Map<String, String> conceptByTable(OntologySnapshot ontology) {
+    /** 物理表 → 业务对象：由清单 Property 的绑定解析反推（B3 双形态），冲突即拒绝（禁止猜测）。 */
+    private static Map<String, String> conceptByTable(OntologySnapshot ontology,
+                                                      BindingResolver binding) {
         Map<String, String> result = new HashMap<>();
         for (OntologySnapshot.Property property : nullToEmpty(ontology.getProperties())) {
-            String table = tableOf(property.getColumn());
+            String table;
+            try {
+                table = binding.tableOfProperty(property);
+            } catch (RuntimeException ex) {
+                // 旧形态裸列名/引用计数属性等无法反推表名的，跳过（join 规划只关心可定位的表）
+                continue;
+            }
             if (table == null || property.getConceptId() == null) {
                 continue;
             }

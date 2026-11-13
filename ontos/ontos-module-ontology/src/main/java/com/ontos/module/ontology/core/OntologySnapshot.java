@@ -80,8 +80,10 @@ public class OntologySnapshot {
         private boolean existenceSensitive;
         /** 受控展示转换提示（如 date_fmt / enum_label / mask）。 */
         private List<String> displayHints = List.of();
-        /** 物理列（schema.table.column），LLM 不可见。 */
+        /** 物理列（B3 双形态）：旧口径为限定名（table.column），新口径为裸列名并搭配 viewId。LLM 不可见。 */
         private String column;
+        /** 所属数据视图资产（B3 新口径）；null = 迁移期旧口径（限定名 column）。 */
+        private String viewId;
     }
 
     /** 业务关联（Ontology Relation）。 */

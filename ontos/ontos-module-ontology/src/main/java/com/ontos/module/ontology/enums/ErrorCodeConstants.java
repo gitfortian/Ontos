@@ -23,6 +23,10 @@ public interface ErrorCodeConstants {
      * <p>落在本段而非 query 段：判定发生在 {@code BindingResolver}（ontology 模块，
      * query 与 agent 共用），错误码必须跟随所属模块。
      */
+    ErrorCode DATA_VIEW_MISSING = new ErrorCode(1_001_000_011,
+            "数据视图不在生效清单: {}");
+    ErrorCode OBJECT_VIEW_COLUMN_MISSING = new ErrorCode(1_001_000_012,
+            "数据视图缺少被引用列: {}");
     ErrorCode OBJECT_TABLE_MISMATCH = new ErrorCode(1_001_000_010,
             "对象的聚合属性与主表不在同一物理表，B0 不支持跨表聚合: {}");
 

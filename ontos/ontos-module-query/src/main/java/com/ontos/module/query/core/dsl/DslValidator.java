@@ -313,7 +313,7 @@ public class DslValidator {
         if (subject == null) {
             throw exception(DSL_INVALID, "subjectPropertyId 未发布: " + params.getSubjectPropertyId());
         }
-        String subjectTable = tableOf(subject.getColumn());
+        String subjectTable = binding.tableOfProperty(subject);
         // 编译器以「首个步骤事件」的物理映射为整条 CTE 的判定列/时间列/主体列。
         // 若后续事件映射到别的属性或表，编译结果会静默按首事件解读后续步骤——
         // 那是「看起来成功、数字全错」，必须在入口拒绝，而不是留给 SQL 去猜。
@@ -431,7 +431,7 @@ public class DslValidator {
             throw exception(DSL_INVALID, "retention 观察窗起点晚于终点");
         }
         OntologySnapshot.Property subject = ontology.propertyIndex().get(params.getSubjectPropertyId());
-        if (subject == null || tableOf(subject.getColumn()) == null) {
+        if (subject == null || binding.tableOfProperty(subject) == null) {
             throw exception(DSL_INVALID,
                     "retention subjectPropertyId 无法解析物理列: " + params.getSubjectPropertyId());
         }
@@ -455,7 +455,7 @@ public class DslValidator {
                     "retention timeRange.field 必须是 cohort 事件时间属性: " + cohortEvent.getTimeProperty());
         }
 
-        String subjectTable = tableOf(subject.getColumn());
+        String subjectTable = binding.tableOfProperty(subject);
         boolean sensitiveDimension = false;
         for (String dimensionId : dsl.getDimensions() == null ? List.<String>of() : dsl.getDimensions()) {
             SemanticManifest.Dimension dimension = semantic.requireDimension(dimensionId);
@@ -523,18 +523,18 @@ public class DslValidator {
             throw exception(DSL_INVALID, "attribution 转化窗起点晚于终点");
         }
         OntologySnapshot.Property subject = ontology.propertyIndex().get(params.getSubjectPropertyId());
-        if (subject == null || tableOf(subject.getColumn()) == null) {
+        if (subject == null || binding.tableOfProperty(subject) == null) {
             throw exception(DSL_INVALID,
                     "attribution subjectPropertyId 无法解析物理列: " + params.getSubjectPropertyId());
         }
         OntologySnapshot.EventDef conversionEvent = requireAttributionEvent(
-                ontology, params.getConversionEvent(), "conversionEvent", subject, false);
+                ontology, binding, params.getConversionEvent(), "conversionEvent", subject, false);
         OntologySnapshot.EventDef touchEvent = requireAttributionEvent(
-                ontology, params.getTouchEvent(), "touchEvent", subject, true);
+                ontology, binding, params.getTouchEvent(), "touchEvent", subject, true);
         String eventTable = tableOf(requireEventMappingProperty(
                 ontology, conversionEvent, conversionEvent.getTimeProperty()).getColumn());
-        if (eventTable == null || !sameTable(ontology, conversionEvent, eventTable)
-                || !sameTable(ontology, touchEvent, eventTable)) {
+        if (eventTable == null || !sameTable(ontology, binding, conversionEvent, eventTable)
+                || !sameTable(ontology, binding, touchEvent, eventTable)) {
             throw exception(ATTRIBUTION_EVENT_NOT_FOUND,
                     "转化 / 触点事件的判定列、时间列、主体列必须同表: " + eventTable);
         }
@@ -572,7 +572,8 @@ public class DslValidator {
      * 归因事件：唯一已发布定义 + 三件物理映射齐备 + participantClass 与主体一致；
      * 触点事件额外要求 channelPropertyId（渠道物理来源）已发布、可过滤且与事件映射同表。
      */
-    private static OntologySnapshot.EventDef requireAttributionEvent(OntologySnapshot ontology, String eventType,
+    private static OntologySnapshot.EventDef requireAttributionEvent(OntologySnapshot ontology,
+                                                                    BindingResolver binding, String eventType,
                                                                      String field,
                                                                      OntologySnapshot.Property subject,
                                                                      boolean requireChannel) {
@@ -607,8 +608,8 @@ public class DslValidator {
         if (!channel.isFilterable()) {
             throw exception(ATTRIBUTION_EVENT_NOT_FOUND, "渠道属性不可过滤: " + channel.getId());
         }
-        String eventTable = tableOf(requireEventMappingProperty(ontology, event, event.getTimeProperty()).getColumn());
-        if (!Objects.equals(tableOf(channel.getColumn()), eventTable)) {
+        String eventTable = binding.tableOfProperty(requireEventMappingProperty(ontology, event, event.getTimeProperty()));
+        if (!Objects.equals(binding.tableOfProperty(channel), eventTable)) {
             throw exception(ATTRIBUTION_EVENT_NOT_FOUND,
                     "渠道属性与事件映射不同表: " + channel.getId());
         }
@@ -625,11 +626,12 @@ public class DslValidator {
         return property;
     }
 
-    private static boolean sameTable(OntologySnapshot ontology, OntologySnapshot.EventDef event, String table) {
+    private static boolean sameTable(OntologySnapshot ontology, BindingResolver binding,
+                                     OntologySnapshot.EventDef event, String table) {
         for (String propertyId : List.of(event.getEventTypeProperty(), event.getTimeProperty(),
                 event.getParticipantProperty())) {
             OntologySnapshot.Property property = requireEventMappingProperty(ontology, event, propertyId);
-            if (!Objects.equals(table, tableOf(property.getColumn()))) {
+            if (!Objects.equals(table, binding.tableOfProperty(property))) {
                 return false;
             }
         }

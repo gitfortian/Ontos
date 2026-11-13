@@ -1,6 +1,7 @@
 package com.ontos.module.ontology.core;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -29,20 +30,31 @@ public final class BindingResolver {
 
     private final Map<String, OntologySnapshot.Property> propertyById;
     private final Map<String, OntologySnapshot.Concept> conceptById;
+    /** 数据视图索引（B3）：id → 视图；仅 of(PublishedManifest) 路径可用，of(OntologySnapshot) 为空（旧口径）。 */
+    private final Map<String, ManifestPayload.DataView> viewById;
     private final Map<String, Binding> metricCache = new HashMap<>();
     private final Map<String, Binding> dimensionCache = new HashMap<>();
 
-    private BindingResolver(OntologySnapshot ontology) {
+    private BindingResolver(OntologySnapshot ontology, List<ManifestPayload.DataView> dataViews) {
         this.propertyById = ontology == null ? Map.of() : ontology.propertyIndex();
         this.conceptById = ontology == null ? Map.of() : ontology.conceptIndex();
+        Map<String, ManifestPayload.DataView> views = new HashMap<>();
+        if (dataViews != null) {
+            for (ManifestPayload.DataView view : dataViews) {
+                views.put(view.getId(), view);
+            }
+        }
+        this.viewById = Map.copyOf(views);
     }
 
     public static BindingResolver of(PublishedManifest manifest) {
-        return new BindingResolver(manifest == null ? null : manifest.getOntology());
+        return new BindingResolver(manifest == null ? null : manifest.getOntology(),
+                manifest == null ? List.of() : manifest.getDataViews());
     }
 
+    /** 旧形态路径（无清单上下文）：视图索引为空，property 走限定名旧口径。 */
     public static BindingResolver of(OntologySnapshot ontology) {
-        return new BindingResolver(ontology);
+        return new BindingResolver(ontology, List.of());
     }
 
     /** 解析结果：{@code table} 供 FROM/JOIN 用；{@code column} 恒为限定名（含表前缀）。 */
@@ -154,9 +166,11 @@ public final class BindingResolver {
             throw exception(ErrorCodeConstants.ASSET_NOT_FOUND,
                     "对象属性不存在: " + effectivePropertyId);
         }
-        String table = tableOf(property.getColumn());
+        String table = tableOfProperty(property);
+        // Binding.column 恒为限定名：新形态裸列名经 qualify 补前缀；旧形态已限定名原样返回
+        String qualifiedColumn = qualify(table, property.getColumn());
         if (!assertObjectTable) {
-            return new Binding(table, property.getColumn());
+            return new Binding(table, qualifiedColumn);
         }
         String identityTable = identityTableOf(concept);
         if (!Objects.equals(table, identityTable)) {
@@ -164,12 +178,45 @@ public final class BindingResolver {
                     objectId + " / " + effectivePropertyId
                             + "（属性表 " + table + "，主表 " + identityTable + "）");
         }
-        return new Binding(table, property.getColumn());
+        return new Binding(table, qualifiedColumn);
     }
 
     private String identityTableOf(OntologySnapshot.Concept concept) {
         OntologySnapshot.Property identity = propertyById.get(concept.getIdentityProperty());
-        return identity == null ? null : tableOf(identity.getColumn());
+        return identity == null ? null : tableOfProperty(identity);
+    }
+
+    /**
+     * 属性 → 物理表（B3 双形态）：
+     * 有 viewId → 数据视图快照解析（视图缺失 DATA_VIEW_MISSING、列缺失 OBJECT_VIEW_COLUMN_MISSING，均 fail-closed）；
+     * 无 viewId → 迁移期旧口径（限定名前缀，B0 行为）。
+     */
+    public String tableOfProperty(OntologySnapshot.Property property) {
+        String viewId = property.getViewId();
+        if (viewId == null || viewId.isBlank()) {
+            return tableOf(property.getColumn());
+        }
+        ManifestPayload.DataView view = viewById.get(viewId);
+        if (view == null) {
+            throw exception(ErrorCodeConstants.DATA_VIEW_MISSING, viewId);
+        }
+        String column = property.getColumn();
+        if (column != null && column.contains(".")) {
+            // 新形态列必须是裸名；带点说明数据混用两种形态，fail-closed 不猜
+            throw exception(ErrorCodeConstants.OBJECT_VIEW_COLUMN_MISSING,
+                    viewId + "." + column + "（新口径列必须为裸名）");
+        }
+        boolean found = view.getColumns().stream()
+                .anyMatch(c -> column != null && column.equals(c.getName()));
+        if (!found) {
+            throw exception(ErrorCodeConstants.OBJECT_VIEW_COLUMN_MISSING, viewId + "." + column);
+        }
+        return view.getTable();
+    }
+
+    /** 属性 → 限定列名（恒含表前缀，供 SQL 编译直接消费）。 */
+    public String qualifiedColumnOfProperty(OntologySnapshot.Property property) {
+        return qualify(tableOfProperty(property), property.getColumn());
     }
 
     /** 限定列名：裸列名补表前缀，已含点则原样返回（与 {@code SqlCompiler.assetColumn} 同口径）。 */

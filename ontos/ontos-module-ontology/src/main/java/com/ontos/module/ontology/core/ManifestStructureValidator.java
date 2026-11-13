@@ -55,8 +55,9 @@ public final class ManifestStructureValidator {
                 .filter(rule -> "published".equals(rule.getStatus()))
                 .map(ManifestPayload.Rule::getId)
                 .collect(java.util.stream.Collectors.toSet());
-        validateSemantic(payload.getSemantic(), payload.getOntology(), publishedRuleIds, violations);
-        validateOntology(payload.getOntology(), violations);
+        validateSemantic(payload.getSemantic(), payload.getOntology(), publishedRuleIds,
+                orEmpty(payload.getDataViews()), violations);
+        validateOntology(payload.getOntology(), orEmpty(payload.getDataViews()), violations);
         validateRules(payload, violations);
         validateScenarios(payload, violations);
         validateSkills(payload, violations);
@@ -99,7 +100,7 @@ public final class ManifestStructureValidator {
     }
 
     private void validateSemantic(SemanticManifest semantic, OntologySnapshot ontology,
-                                  Set<String> publishedRuleIds, List<Violation> violations) {
+                                  Set<String> publishedRuleIds, List<ManifestPayload.DataView> dataViews, List<Violation> violations) {
         if (semantic == null) {
             violations.add(new Violation("semantic", "缺少 semantic 段"));
             return;
@@ -146,7 +147,7 @@ public final class ManifestStructureValidator {
             if (orEmpty(metric.getAllowedModes()).isEmpty()) {
                 violations.add(new Violation(at, "allowedModes 不能为空"));
             }
-            validateCaliberVariants(metric, dimensionById, propertyById, violations);
+            validateCaliberVariants(metric, dimensionById, propertyById, dataViews, violations);
             metricIds.add(metric.getId());
         }
         if (metricIds.isEmpty()) {
@@ -259,6 +260,7 @@ public final class ManifestStructureValidator {
     private void validateCaliberVariants(SemanticManifest.Metric metric,
                                          Map<String, SemanticManifest.Dimension> dimensionById,
                                          Map<String, OntologySnapshot.Property> propertyById,
+                                         List<ManifestPayload.DataView> dataViews,
                                          List<Violation> violations) {
         List<SemanticManifest.CaliberVariant> variants = orEmpty(metric.getCaliberVariants());
         if (variants.isEmpty()) {
@@ -297,8 +299,8 @@ public final class ManifestStructureValidator {
             }
             // 同表判定按绑定形态取表：v19 直取 table，v20 由 property.column 推导（B0/R8）。
             // 任一取不到表（已由 R4 报错）则跳过，避免重复计违规。
-            String metricTable = tableOfBinding(metric, propertyById);
-            String dimensionTable = tableOfBinding(dimension, propertyById);
+            String metricTable = tableOfBinding(metric, propertyById, dataViews);
+            String dimensionTable = tableOfBinding(dimension, propertyById, dataViews);
             if (metricTable != null && dimensionTable != null
                     && !metricTable.equals(dimensionTable)) {
                 violations.add(new Violation(at,
@@ -319,7 +321,9 @@ public final class ManifestStructureValidator {
         }
     }
 
-    private void validateOntology(OntologySnapshot ontology, List<Violation> violations) {
+    private void validateOntology(OntologySnapshot ontology,
+                                  List<ManifestPayload.DataView> dataViews,
+                                  List<Violation> violations) {
         if (ontology == null) {
             violations.add(new Violation("ontology", "缺少 ontology 段"));
             return;
@@ -354,7 +358,30 @@ public final class ManifestStructureValidator {
             if (property.getSensitivity() == null) {
                 violations.add(new Violation(at, "缺少 sensitivity"));
             }
-            requirePhysicalName(property.getColumn(), at + ".column", violations);
+            // B3 R-View：双形态校验——新口径 viewId+裸列名走视图快照；旧口径限定名保持 B0 规则
+            if (property.getViewId() != null && !property.getViewId().isBlank()) {
+                ManifestPayload.DataView view = orEmpty(dataViews).stream()
+                        .filter(item -> property.getViewId().equals(item.getId()))
+                        .findFirst().orElse(null);
+                if (view == null) {
+                    violations.add(new Violation(at,
+                            "viewId 引用不存在的数据视图: " + property.getViewId()));
+                } else {
+                    if (property.getColumn() != null && property.getColumn().contains(".")) {
+                        violations.add(new Violation(at + ".column",
+                                "新口径列必须为裸名（不含表前缀）: " + property.getColumn()));
+                    }
+                    boolean columnFound = property.getColumn() != null
+                            && orEmpty(view.getColumns()).stream()
+                                    .anyMatch(item -> property.getColumn().equals(item.getName()));
+                    if (!columnFound) {
+                        violations.add(new Violation(at + ".column", "数据视图缺少被引用列: "
+                                + property.getViewId() + "." + property.getColumn()));
+                    }
+                }
+            } else {
+                requirePhysicalName(property.getColumn(), at + ".column", violations);
+            }
             propertyIds.add(property.getId());
             propertyById.put(property.getId(), property);
         }
@@ -445,9 +472,9 @@ public final class ManifestStructureValidator {
                 if (property == null) {
                     continue; // 已在上面单独报错
                 }
-                String table = tableOf(property.getColumn());
+                String table = tableOfProperty(property, dataViews);
                 if (table == null) {
-                    violations.add(new Violation(at, "事件映射属性缺少表限定列名: " + propertyId));
+                    violations.add(new Violation(at, "事件映射属性缺少可解析的表绑定: " + propertyId));
                 } else if (eventTable == null) {
                     eventTable = table;
                 } else if (!eventTable.equals(table)) {
@@ -602,6 +629,17 @@ public final class ManifestStructureValidator {
     }
 
     /** "table.column" / "schema.table.column" → 表限定名；裸列名返回 null。 */
+    /** 属性表解析（B3 双形态）：viewId → 视图表；旧口径限定名前缀。事件映射与变体同表判定共用。 */
+    private static String tableOfProperty(OntologySnapshot.Property property,
+                                          List<ManifestPayload.DataView> dataViews) {
+        if (property.getViewId() != null && !property.getViewId().isBlank()) {
+            return orEmpty(dataViews).stream()
+                    .filter(view -> property.getViewId().equals(view.getId()))
+                    .findFirst().map(ManifestPayload.DataView::getTable).orElse(null);
+        }
+        return tableOf(property.getColumn());
+    }
+
     private static String tableOf(String column) {
         if (column == null) {
             return null;
@@ -616,26 +654,29 @@ public final class ManifestStructureValidator {
      * <p>v20 下属性缺失或列名为裸名时返回 null——调用方据此跳过依赖表的判定，不静默放行。
      */
     private static String tableOfBinding(SemanticManifest.Metric metric,
-                                         Map<String, OntologySnapshot.Property> propertyById) {
+                                         Map<String, OntologySnapshot.Property> propertyById,
+                                         List<ManifestPayload.DataView> dataViews) {
         if (metric.bindingForm() != SemanticManifest.BindingForm.V20_SEMANTIC) {
             return metric.getTable();
         }
-        return tableOfBinding(metric.getPropertyId(), propertyById);
+        return tableOfBinding(metric.getPropertyId(), propertyById, dataViews);
     }
 
     /** 维度的物理表（B0 双形态），口径同 {@link #tableOfBinding(SemanticManifest.Metric, Map)}。 */
     private static String tableOfBinding(SemanticManifest.Dimension dimension,
-                                         Map<String, OntologySnapshot.Property> propertyById) {
+                                         Map<String, OntologySnapshot.Property> propertyById,
+                                         List<ManifestPayload.DataView> dataViews) {
         if (dimension.bindingForm() != SemanticManifest.BindingForm.V20_SEMANTIC) {
             return dimension.getTable();
         }
-        return tableOfBinding(dimension.getPropertyId(), propertyById);
+        return tableOfBinding(dimension.getPropertyId(), propertyById, dataViews);
     }
 
     private static String tableOfBinding(String propertyId,
-                                         Map<String, OntologySnapshot.Property> propertyById) {
+                                         Map<String, OntologySnapshot.Property> propertyById,
+                                         List<ManifestPayload.DataView> dataViews) {
         OntologySnapshot.Property property = propertyById.get(propertyId);
-        return property == null ? null : tableOf(property.getColumn());
+        return property == null ? null : tableOfProperty(property, dataViews);
     }
 
     private static boolean blank(String value) {

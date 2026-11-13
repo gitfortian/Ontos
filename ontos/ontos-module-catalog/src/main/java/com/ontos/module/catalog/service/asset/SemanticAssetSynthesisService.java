@@ -54,13 +54,17 @@ public class SemanticAssetSynthesisService {
     private final SemanticAssetRepository repository;
     private final ManifestService manifestService;
     private final PublishService publishService;
+    /** 资源侧 active 视图供给（B3）：合成时快照进新清单（D1：资源事实即时生效，发布锚定快照）。 */
+    private final com.ontos.module.ontology.service.dataview.DataViewSnapshotProvider viewProvider;
 
     public SemanticAssetSynthesisService(SemanticAssetRepository repository,
                                          ManifestService manifestService,
-                                         PublishService publishService) {
+                                         PublishService publishService,
+                                         com.ontos.module.ontology.service.dataview.DataViewSnapshotProvider viewProvider) {
         this.repository = repository;
         this.manifestService = manifestService;
         this.publishService = publishService;
+        this.viewProvider = viewProvider == null ? List::of : viewProvider;
     }
 
     public SemanticAssetSynthesisReport synthesize() {
@@ -74,6 +78,8 @@ public class SemanticAssetSynthesisService {
             throw exception(ASSET_SYNTHESIS_NO_ACTIVE_MANIFEST);
         }
         Map<String, Object> payload = JsonUtils.parseObject(active.getPayloadJson(), Map.class);
+        // B3：数据视图快照进新清单（D1：资源事实即时生效，发布锚定快照）——upsert 前写入
+        payload.put("dataViews", viewProvider.activeViews());
         for (SemanticAssetRecord record : reviewing) {
             upsert(payload, record);
         }

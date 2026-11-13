@@ -167,6 +167,7 @@ public class ManifestServiceImpl implements ManifestService, ApplicationRunner {
         manifest.setScenarios(payload.getScenarios());
         manifest.setSkills(payload.getSkills());
         manifest.setVqrs(payload.getVqrs());
+        manifest.setDataViews(payload.getDataViews());
         manifest.setCreatedAt(snapshot.getCreatedAt());
         return manifest;
     }
