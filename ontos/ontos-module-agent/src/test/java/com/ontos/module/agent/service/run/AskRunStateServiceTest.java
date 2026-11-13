@@ -52,6 +52,15 @@ class AskRunStateServiceTest {
     }
 
     @Test
+    void sessionRunsClampLimitAndScopeByContext() {
+        service.listSessionRuns(context, "sess-9", null);
+        verify(mapper).listSessionRuns("t1", "u1", "sess-9", 20);
+
+        service.listSessionRuns(context, "sess-9", 999);
+        verify(mapper).listSessionRuns("t1", "u1", "sess-9", 50);
+    }
+
+    @Test
     void terminalCannotTransitBack() {
         // FINISHED/FAILED/EXPIRED 是终态：迁移表无以终态为 key 的条目 → 一律非法
         assertThrows(ServiceException.class,

@@ -31,11 +31,13 @@ export interface AskColumnMeta {
   numeric: boolean;
 }
 
-/** 上下文锚点（Context Chips）数据源：本轮生效口径，全部业务名，服务端下发。 */
+/** 上下文锚点（Context Chips）/ 溯源口径树数据源：本轮生效口径，全部业务名，服务端下发。 */
 export interface AskContextSummary {
   metricLabel?: string;
   dimensionLabels?: string[];
   timeLabel?: string;
+  /** 过滤条件（业务名 + 算子中文 + 值；W4 溯源抽屉口径树用）。 */
+  filterLabels?: string[];
   modeLabel?: string;
   scenarioLabel?: string;
 }

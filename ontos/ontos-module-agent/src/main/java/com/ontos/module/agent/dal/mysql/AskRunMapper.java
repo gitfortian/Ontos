@@ -115,6 +115,50 @@ public class AskRunMapper {
                 });
     }
 
+    /**
+     * 会话内轮次摘要（侧栏历史展开）：归属裁剪在 WHERE 内；话术取 RUN_STARTED、
+     * 终态摘要取最近一条 CUSTOM ontos.terminal（LATERAL 一次取齐 terminal/copy/rowCount）。
+     * 只读，不触发任何执行。
+     */
+    public List<Map<String, Object>> listSessionRuns(String tenantId, String userId,
+                                                     String sessionId, int limit) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("tenantId", tenantId);
+        params.put("userId", userId);
+        params.put("sessionId", sessionId);
+        params.put("limit", limit);
+        return jdbcTemplate.query(
+                "SELECT r.run_id::text AS run_id, r.turn_index, r.status,"
+                        + " r.created_at::text AS created_at,"
+                        + " (SELECT e.payload->'input'->>'utterance' FROM ask_run_event e"
+                        + "  WHERE e.run_id = r.run_id AND e.type = 'RUN_STARTED'"
+                        + "   AND coalesce(e.payload->'input'->>'utterance', '') <> ''"
+                        + "  ORDER BY e.created_at DESC, e.seq DESC LIMIT 1) AS utterance,"
+                        + " t.payload->'value'->>'terminal' AS terminal,"
+                        + " t.payload->'value'->'copy'->>'text' AS summary_text,"
+                        + " t.payload->'value'->'body'->>'rowCount' AS row_count"
+                        + " FROM ask_run r LEFT JOIN LATERAL ("
+                        + "   SELECT e.payload FROM ask_run_event e WHERE e.run_id = r.run_id"
+                        + "    AND e.type = 'CUSTOM' AND e.payload->>'name' = 'ontos.terminal'"
+                        + "   ORDER BY e.created_at DESC, e.seq DESC LIMIT 1) t ON true"
+                        + " WHERE r.tenant_id = :tenantId AND r.user_id = :userId"
+                        + "  AND r.session_id = :sessionId"
+                        + " ORDER BY r.turn_index ASC, r.created_at ASC LIMIT :limit",
+                params, (rs, rowNum) -> {
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("runId", rs.getString("run_id"));
+                    row.put("turnIndex", rs.getInt("turn_index"));
+                    row.put("status", rs.getString("status"));
+                    row.put("createdAt", rs.getString("created_at"));
+                    row.put("utterance", rs.getString("utterance"));
+                    row.put("terminal", rs.getString("terminal"));
+                    row.put("summaryText", rs.getString("summary_text"));
+                    Object rowCount = rs.getObject("row_count");
+                    row.put("rowCount", rowCount == null ? null : Integer.valueOf(rowCount.toString()));
+                    return row;
+                });
+    }
+
     /** 期望旧状态的原子迁移：迁移表校验由服务层完成，这里只做「旧状态匹配才更新」。 */
     public boolean transition(String runId, String fromStatus, String toStatus) {
         Map<String, Object> params = new HashMap<>();

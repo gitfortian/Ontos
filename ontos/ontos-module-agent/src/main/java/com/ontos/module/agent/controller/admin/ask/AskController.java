@@ -137,6 +137,15 @@ public class AskController {
         return success(runStateService.listSessions(context, Math.max(1, Math.min(limit, 50))));
     }
 
+    @GetMapping("/sessions/{sessionId}/runs")
+    @Operation(summary = "会话内轮次摘要（侧栏历史展开；只读，不触发任何执行）")
+    public CommonResult<List<Map<String, Object>>> listSessionRuns(
+            @PathVariable("sessionId") String sessionId,
+            @RequestParam(value = "limit", defaultValue = "20") Integer limit) {
+        RequestContext context = RequestContextHolder.require();
+        return success(runStateService.listSessionRuns(context, sessionId, limit));
+    }
+
     @GetMapping("/run/{runId}/events")
     @Operation(summary = "run 事件只读重放（afterSeq 断线重连；重复请求不触发任何执行）")
     public CommonResult<List<Map<String, Object>>> replayEvents(

@@ -166,6 +166,11 @@ public class QueryServiceImpl implements QueryService {
             if (cacheKey != null) {
                 Optional<QueryResult> cached = queryCacheService.get(cacheKey);
                 if (cached.isPresent()) {
+                    // W4 溯源回放：命中路径此前不落编译产物，/plan/{requestId} 回放与溯源抽屉
+                    // 对命中轮一律 404。编译是 (dsl, manifest) 的纯函数（纯内存、毫秒级），
+                    // 这里补一次编译仅为落产物（不执行）——T4.4「跳过编译」的性能意图不受影响。
+                    CompiledQuery hitCompiled = sqlCompiler.compile(queryDsl, manifest);
+                    persistArtifact(context, context.traceId(), hitCompiled, null);
                     // 缓存命中同样记账并判定（M4/W2，§4.8「每请求一行」字面口径）：
                     // 命中返回数据本身就是一次敏感访问；拒答档触发后的「临时冻结」必须覆盖命中路径，
                     // 否则同参重复请求会绕过冻结拿到旧结果（E2E 实测暴露）。触发过记账的请求

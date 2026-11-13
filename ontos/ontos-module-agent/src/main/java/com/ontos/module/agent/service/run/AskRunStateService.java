@@ -94,6 +94,16 @@ public class AskRunStateService {
         return mapper.listSessions(context.tenantId(), context.userId(), limit);
     }
 
+    /**
+     * 会话内轮次摘要（侧栏历史展开）：与 {@link #listSessions} 同纪律——归属三元组
+     * 直接进 SQL WHERE，无跨租户泄露面；只读重放语义，不触发任何执行。
+     */
+    public List<Map<String, Object>> listSessionRuns(RequestContext context, String sessionId,
+                                                     Integer limit) {
+        int safeLimit = limit == null ? 20 : Math.max(1, Math.min(limit, 50));
+        return mapper.listSessionRuns(context.tenantId(), context.userId(), sessionId, safeLimit);
+    }
+
     public AskRunDO require(String runId, RequestContext context) {
         AskRunDO run = mapper.findById(runId)
                 .orElseThrow(() -> exception(AskErrorCodeConstants.ASK_RUN_NOT_FOUND, runId));

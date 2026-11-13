@@ -163,7 +163,7 @@ function CopilotKitWorkspace() {
                       }
                       disabled={busy}
                       onOpenApprovals={() => navigate("/approvals")}
-                      onTrace={() => openTrace(turn.terminal?.requestId ?? null)}
+                      onTrace={() => openTrace(turn.terminal?.requestId ?? null, turn.terminal)}
                       onDrill={(utterance) => void submit(utterance)}
                     />
                   ) : null}

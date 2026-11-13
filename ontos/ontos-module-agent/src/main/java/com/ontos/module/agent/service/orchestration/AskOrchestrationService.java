@@ -1299,6 +1299,14 @@ public class AskOrchestrationService {
         if (dsl.getTimeExpressionRaw() != null && !dsl.getTimeExpressionRaw().isBlank()) {
             summary.put("timeLabel", dsl.getTimeExpressionRaw());
         }
+        if (!dsl.getFilters().isEmpty()) {
+            // 过滤条件业务化：字段走 AssetLabelResolver（property 段），值原样——
+            // 溯源抽屉的口径树用它；不含任何物理列名。
+            summary.put("filterLabels", dsl.getFilters().stream()
+                    .map(filter -> labelOf(filter.getFieldId()) + " " + operatorLabel(filter.getOperator())
+                            + " " + String.join("、", filter.getValues()))
+                    .toList());
+        }
         String mode = modeLabel(dsl.getMode() == null ? null : dsl.getMode().name());
         if (mode != null) {
             summary.put("modeLabel", mode);
@@ -1307,6 +1315,18 @@ public class AskOrchestrationService {
             summary.put("scenarioLabel", scenarioLabel(dsl.getScenarioId()));
         }
         return summary;
+    }
+
+    /** 过滤算子 → 中文（溯源口径树用；不含物理列名）。 */
+    private static String operatorLabel(QueryDsl.Operator operator) {
+        return switch (operator == null ? QueryDsl.Operator.EQ : operator) {
+            case EQ -> "等于";
+            case IN -> "属于";
+            case NOT_IN -> "不属于";
+            case GTE -> "≥";
+            case LTE -> "≤";
+            case BETWEEN -> "介于";
+        };
     }
 
     /** 场景 ID → 业务场景名（场景名是资产内容，可对外；ID 不对外）。 */

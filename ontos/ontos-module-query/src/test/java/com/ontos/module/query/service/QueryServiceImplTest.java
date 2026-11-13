@@ -1002,13 +1002,17 @@ class QueryServiceImplTest {
         cached.setCached(true);
         when(queryCacheService.get(any())).thenReturn(Optional.of(cached));
         when(manifestService.validateManifest("manifest-001")).thenReturn(TestFixtures.manifest());
+        // W4 溯源回放：命中路径补一次编译仅为落产物（/plan/{requestId} 对命中轮可用）；
+        // 执行仍然被跳过。
+        when(sqlCompiler.compile(any(), any())).thenReturn(plannedProduct());
 
         QueryResult result = service(new TimeWindowResolver()).execute(TestFixtures.query());
 
         assertTrue(result.isCached());
         assertEquals(3, result.getRowCount());
-        // 命中后不得再编译或查库
-        verify(sqlCompiler, never()).compile(any(), any());
+        // 命中后不得查库；编译仅为产物落库（持久化一次，不执行）
+        verify(sqlCompiler).compile(any(), any());
+        verify(queryArtifactRepository).upsert(any());
         verify(queryExecutor, never()).execute(any(), any());
         verify(requestStateService).transition(any(), eq("trace-1"), eq(RequestStatus.EXECUTED), any());
         ArgumentCaptor<AuditLogCreateReqDTO> captor = ArgumentCaptor.forClass(AuditLogCreateReqDTO.class);

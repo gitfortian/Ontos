@@ -34,12 +34,14 @@ export interface AskContextChip {
 interface AskWorkbenchState {
   drawerOpen: boolean;
   traceRequestId: string | null;
+  /** 被溯源轮次的终态快照（口径树数据源：contextSummary 业务名）。 */
+  traceTerminal: AskTerminalVO | null;
   activeSessionId: string | null;
   chips: AskContextChip[];
   runs: AskRunTurn[];
 
   setDrawerOpen: (open: boolean) => void;
-  openTrace: (requestId: string | null) => void;
+  openTrace: (requestId: string | null, terminal?: AskTerminalVO) => void;
   setActiveSession: (sessionId: string | null) => void;
   removeChip: (chip: AskContextChip) => void;
   clearRuns: () => void;
@@ -68,12 +70,14 @@ const chipsFromTerminal = (terminal: AskTerminalVO): AskContextChip[] => {
 export const useAskWorkbenchStore = create<AskWorkbenchState>((set, get) => ({
   drawerOpen: false,
   traceRequestId: null,
+  traceTerminal: null,
   activeSessionId: null,
   chips: [],
   runs: [],
 
   setDrawerOpen: (drawerOpen) => set({ drawerOpen }),
-  openTrace: (traceRequestId) => set({ traceRequestId, drawerOpen: true }),
+  openTrace: (traceRequestId, terminal) =>
+    set({ traceRequestId, traceTerminal: terminal ?? null, drawerOpen: true }),
   setActiveSession: (activeSessionId) => set({ activeSessionId, runs: [] }),
   removeChip: (chip) =>
     set((state) => ({
