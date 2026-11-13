@@ -17,14 +17,20 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const BASE = process.env.ONTOS_BASE_URL ?? "http://127.0.0.1:8080";
-const GOLD = resolve(repo, "docs/06-verification/evaluation/M6-Golden-v1.json");
-const MODE = process.argv.includes("--mode=check") ? "check" : "backfill";
-
+/** 支持 `--key value` 与 `--key=value` 两种写法。 */
 const argOf = (name, fallback) => {
+  const inline = process.argv.find((item) => item.startsWith(`${name}=`));
+  if (inline) {
+    return inline.slice(name.length + 1);
+  }
   const index = process.argv.indexOf(name);
   return index > -1 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
 };
+// 支持环境变量与 --base-url 双通道（与 golden-sql 同口径）；8080 被其他实例占用时可指向冒烟实例
+const BASE = argOf("--base-url", process.env.ONTOS_BASE_URL ?? "http://127.0.0.1:8080");
+const GOLD = resolve(repo, "docs/06-verification/evaluation/M6-Golden-v1.json");
+const MODE = process.argv.includes("--mode=check") ? "check" : "backfill";
+
 
 const HEADERS = {
   "Content-Type": "application/json",

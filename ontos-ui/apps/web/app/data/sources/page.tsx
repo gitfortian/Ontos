@@ -46,9 +46,9 @@ type FormState = { mode: "create" } | { mode: "edit"; config: DataSourceConfigVO
 const CURRENT_TARGET = "current";
 
 /**
- * 数据源（B2）：当前查询库 + 注册数据源（Phase 2 前半）+ 真实库目录。
+ * 数据源（B2 + B3）：当前查询库 + 注册数据源（Phase 2 前半）+ 数据视图资产 + 真实库目录。
  * 注册走 /configs CRUD（凭据 AES-GCM 加密落库，ADR-0025）；目录浏览按目标切换；
- * 列行可「建信息项」直接预填本体建模表单（B1 P2-C 前半）。
+ * 列行「建信息项」经视图资产预填建模表单（B3/T8：表未固化视图时提示先扫描）。
  */
 export function DataSourcesPage() {
   const navigate = useNavigate();
@@ -652,13 +652,26 @@ export function DataSourcesPage() {
                                 <td className="px-3 py-2">
                                   <Button
                                     size="small"
-                                    onClick={() =>
+                                    onClick={() => {
+                                      const view = views.find(
+                                        (item) =>
+                                          item.status === "active" &&
+                                          item.sourceTable === selectedTable,
+                                      );
+                                      if (!view) {
+                                        toast.error(
+                                          `表 ${selectedTable} 还没有固化数据视图——请先在上方「数据视图」扫描`,
+                                        );
+                                        return;
+                                      }
                                       navigate(
-                                        `/ontology/modeling?tab=properties&create=1&column=${encodeURIComponent(
-                                          `${selectedTable}.${column.name}`,
-                                        )}&dataType=${encodeURIComponent(column.dataType)}`,
-                                      )
-                                    }
+                                        `/ontology/modeling?tab=properties&create=1&viewId=${encodeURIComponent(
+                                          view.id,
+                                        )}&column=${encodeURIComponent(column.name)}&dataType=${encodeURIComponent(
+                                          column.dataType,
+                                        )}`,
+                                      );
+                                    }}
                                   >
                                     建信息项
                                   </Button>

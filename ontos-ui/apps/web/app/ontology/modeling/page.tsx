@@ -86,7 +86,8 @@ interface Row {
 interface EditorState {
   mode: "create" | "edit";
   draft?: SemanticAssetVO;
-  /** 从数据源目录跳转预填（B1 P2-C 前半）：仅 create 模式消费。 */
+  /** 从数据源目录跳转预填（B1 P2-C 前半 + B3/T8）：仅 create 模式消费。 */
+  prefilledViewId?: string;
   prefilledColumn?: string;
   prefilledDataType?: string;
 }
@@ -167,6 +168,7 @@ export function ModelingPage() {
     setValidation(null);
     setEditor({
       mode: "create",
+      prefilledViewId: searchParams.get("viewId") ?? undefined,
       prefilledColumn: pendingColumn,
       prefilledDataType: searchParams.get("dataType") ?? undefined,
     });
@@ -322,6 +324,7 @@ export function ModelingPage() {
         id: "",
         name: "",
         conceptId: "",
+        viewId: editor?.mode === "create" ? (editor.prefilledViewId ?? "") : "",
         column: editor?.mode === "create" ? (editor.prefilledColumn ?? "") : "",
         valueType: mapped ?? "string",
         aliases: "",

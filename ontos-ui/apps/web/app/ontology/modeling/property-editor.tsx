@@ -4,7 +4,7 @@ import { Button, fieldProps } from "@ontos/ui";
 import type { SemanticAssetOptionsVO, SemanticValidationVO } from "@/service/ontology/types";
 
 import { BooleanField, SelectField, TextField } from "../definitions/controls";
-import { CatalogColumnField } from "./catalog-column";
+import { ViewColumnField } from "./view-column";
 import {
   VALUE_TYPES,
   VALUE_TYPE_LABEL,
@@ -30,8 +30,8 @@ const VALUE_TYPE_OPTIONS = VALUE_TYPES.map((value) => ({
 }));
 
 /**
- * 信息项草稿编辑器（B1/P2-B）：column 从数据源插件的真实目录三段选择
- * （共享 {@link CatalogColumnField}），选中列自动映射 valueType。
+ * 信息项草稿编辑器（B1/P2-B + B3/T8）：物理绑定经数据视图资产选择
+ * （{@link ViewColumnField}：视图 → 列，列清单来自视图快照），选中列自动映射 valueType。
  */
 export function PropertyEditor({
   initial,
@@ -98,20 +98,26 @@ export function PropertyEditor({
         )}
       </form.Field>
 
-      <form.Field name="column">
-        {(field) => (
-          <CatalogColumnField
-            label="物理列"
-            testId="property-catalog-column"
-            value={field.state.value}
-            onChange={(column, dataType) => {
-              field.handleChange(column);
-              const mapped = dataType ? valueTypeOfColumn(dataType) : null;
-              if (mapped) {
-                form.setFieldValue("valueType", mapped);
-              }
-            }}
-          />
+      <form.Field name="viewId">
+        {(viewField) => (
+          <form.Field name="column">
+            {(columnField) => (
+              <ViewColumnField
+                label="视图列"
+                testId="property-view-column"
+                viewId={viewField.state.value}
+                column={columnField.state.value}
+                onChange={(nextViewId, nextColumn, dataType) => {
+                  viewField.handleChange(nextViewId);
+                  columnField.handleChange(nextColumn);
+                  const mapped = dataType ? valueTypeOfColumn(dataType) : null;
+                  if (mapped) {
+                    form.setFieldValue("valueType", mapped);
+                  }
+                }}
+              />
+            )}
+          </form.Field>
         )}
       </form.Field>
 

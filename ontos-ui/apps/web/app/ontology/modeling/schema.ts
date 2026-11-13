@@ -37,16 +37,29 @@ export const conceptFormSchema = z.object({
 });
 export type ConceptFormValues = z.infer<typeof conceptFormSchema>;
 
-export const propertyFormSchema = z.object({
-  id: z.string().regex(PROPERTY_ID, "ID 形如 property.order.amount"),
-  name: z.string().min(1, "业务名必填"),
-  conceptId: z.string().regex(CONCEPT_ID, "请选择所属业务对象"),
-  column: z.string().regex(PHYSICAL_COLUMN, "物理列形如 表名.列名"),
-  valueType: z.enum(VALUE_TYPES),
-  aliases: z.string().min(1, "至少一个常见叫法"),
-  summary: z.string().min(1, "业务说明必填"),
-  filterable: z.boolean(),
-});
+export const propertyFormSchema = z
+  .object({
+    id: z.string().regex(PROPERTY_ID, "ID 形如 property.order.amount"),
+    name: z.string().min(1, "业务名必填"),
+    conceptId: z.string().regex(CONCEPT_ID, "请选择所属业务对象"),
+    /** 所属数据视图（B3/T8）：建模经视图资产引用物理列，不再直持表名。 */
+    viewId: z.string().min(1, "请选择数据视图"),
+    column: z.string().min(1, "物理列必填"),
+    valueType: z.enum(VALUE_TYPES),
+    aliases: z.string().min(1, "至少一个常见叫法"),
+    summary: z.string().min(1, "业务说明必填"),
+    filterable: z.boolean(),
+  })
+  .superRefine((values, ctx) => {
+    // 新口径：viewId + 裸列名；带表前缀说明数据混用两种形态，表单侧直接拒绝
+    if (values.viewId && values.column.includes(".")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["column"],
+        message: "视图列应为裸列名（不含表前缀）",
+      });
+    }
+  });
 export type PropertyFormValues = z.infer<typeof propertyFormSchema>;
 
 export const relationFormSchema = z.object({
@@ -84,6 +97,7 @@ export function toPropertyDefinition(values: PropertyFormValues): Record<string,
     id: values.id,
     name: values.name,
     conceptId: values.conceptId,
+    viewId: values.viewId,
     column: values.column,
     valueType: values.valueType,
     aliases: splitAliases(values.aliases),
@@ -136,6 +150,7 @@ export function propertyFormOf(definition: Record<string, unknown>): PropertyFor
     id: str(definition.id),
     name: str(definition.name),
     conceptId: str(definition.conceptId),
+    viewId: str(definition.viewId),
     column: str(definition.column),
     valueType: (VALUE_TYPES as readonly string[]).includes(str(definition.valueType))
       ? (str(definition.valueType) as ValueType)

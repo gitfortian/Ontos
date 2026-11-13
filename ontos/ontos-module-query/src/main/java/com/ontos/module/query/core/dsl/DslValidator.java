@@ -774,10 +774,12 @@ public class DslValidator {
             throw exception(LOOKUP_ATTRIBUTE_NOT_PROJECTABLE, "attributes 为空");
         }
         Set<String> tables = new HashSet<>();
+        BindingResolver lookupBinding = BindingResolver.of(manifest);
         for (String attributeId : attributes) {
-            String table = tableOf(requireLookupProperty(ontology, entityId, attributeId, true).getColumn());
+            String table = lookupBinding
+                    .tableOfProperty(requireLookupProperty(ontology, entityId, attributeId, true));
             if (table == null) {
-                throw exception(LOOKUP_CROSS_TABLE_UNSUPPORTED, "属性缺少表限定: " + attributeId);
+                throw exception(LOOKUP_CROSS_TABLE_UNSUPPORTED, "属性无法解析物理表: " + attributeId);
             }
             tables.add(table);
         }

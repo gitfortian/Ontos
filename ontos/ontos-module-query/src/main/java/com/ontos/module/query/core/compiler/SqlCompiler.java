@@ -261,7 +261,7 @@ public class SqlCompiler {
         }
 
         SelectQuery<Record> select = dsl.selectQuery();
-        select.addSelect(DSL.field(columnName(identity.getColumn())).as(IDENTITY_ALIAS));
+        select.addSelect(DSL.field(assetColumn(table, identity.getColumn())).as(IDENTITY_ALIAS));
         for (OntologySnapshot.Property property : attributes) {
             select.addSelect(DSL.field(assetColumn(table, property.getColumn()))
                     .as(DSL.name(property.getId())));
@@ -273,12 +273,12 @@ public class SqlCompiler {
         select.addFrom(DSL.table(tableName(table)));
         int appliedLimit;
         if (mode == QueryDsl.AnalysisMode.LOOKUP) {
-            select.addConditions(DSL.field(columnName(identity.getColumn()))
+            select.addConditions(DSL.field(assetColumn(table, identity.getColumn()))
                     .eq(queryDsl.getIdentity().getValue()));
             appliedLimit = 2;
         } else {
             List<String> identities = queryDsl.getIdentities() == null ? List.of() : queryDsl.getIdentities();
-            select.addConditions(DSL.field(columnName(identity.getColumn())).in(identities));
+            select.addConditions(DSL.field(assetColumn(table, identity.getColumn())).in(identities));
             appliedLimit = queryDsl.getLimit() == null ? identities.size() : queryDsl.getLimit();
         }
         select.addLimit(appliedLimit);
@@ -389,7 +389,7 @@ public class SqlCompiler {
         subquery.addGroupBy(groupField);
         subquery.addHaving(having);
         return DSL.field("{0} in ({1})", Boolean.class,
-                DSL.field(columnName(subjectColumn)), subquery).as(DSL.name(booleanMetricId));
+                DSL.field(assetColumn(subjectTable, subjectColumn)), subquery).as(DSL.name(booleanMetricId));
     }
 
     /**
@@ -446,9 +446,9 @@ public class SqlCompiler {
             throw exception(FUNNEL_EVENT_MAPPING_MISSING, "事件映射属性跨表或缺少表限定");
         }
 
-        Field<Timestamp> eventTime = DSL.field(columnName(timeProperty.getColumn()), Timestamp.class);
-        Field<String> eventType = DSL.field(columnName(typeProperty.getColumn()), String.class);
-        Field<String> participant = DSL.field(columnName(participantProperty.getColumn()), String.class);
+        Field<Timestamp> eventTime = DSL.field(assetColumn(eventTable, timeProperty.getColumn()), Timestamp.class);
+        Field<String> eventType = DSL.field(assetColumn(eventTable, typeProperty.getColumn()), String.class);
+        Field<String> participant = DSL.field(assetColumn(eventTable, participantProperty.getColumn()), String.class);
 
         Timestamp cohortFrom = shanghaiTimestamp(params.getCohortWindow().getFrom());
         Timestamp cohortTo = shanghaiTimestamp(params.getCohortWindow().getTo());
@@ -485,7 +485,7 @@ public class SqlCompiler {
         cohort.addFrom(DSL.table(tableName(eventTable)));
         if (!dimensions.isEmpty() || !filters.isEmpty()) {
             cohort.addJoin(DSL.table(tableName(subjectTable)),
-                    DSL.field(columnName(subject.getColumn())).eq(participant));
+                    DSL.field(assetColumn(subjectTable, subject.getColumn())).eq(participant));
         }
         cohort.addConditions(
                 eventType.eq(events.get(0).getEventTypeValue()),
@@ -517,7 +517,7 @@ public class SqlCompiler {
                 // 全局过滤：每个步进 CTE 共享同一组主体维度条件（规格 §3），
                 // 只在 cohort 过滤会让后续步骤把「被过滤掉主体的行为」算回转化
                 step.addJoin(DSL.table(tableName(subjectTable)),
-                        DSL.field(columnName(subject.getColumn())).eq(participant));
+                        DSL.field(assetColumn(subjectTable, subject.getColumn())).eq(participant));
             }
             step.addConditions(
                     eventType.eq(event.getEventTypeValue()),
@@ -655,9 +655,9 @@ public class SqlCompiler {
             dimensions.add(semantic.requireDimension(dimensionId));
         }
 
-        Field<Timestamp> eventTime = DSL.field(columnName(timeProperty.getColumn()), Timestamp.class);
-        Field<String> eventType = DSL.field(columnName(typeProperty.getColumn()), String.class);
-        Field<String> participant = DSL.field(columnName(participantProperty.getColumn()), String.class);
+        Field<Timestamp> eventTime = DSL.field(assetColumn(eventTable, timeProperty.getColumn()), Timestamp.class);
+        Field<String> eventType = DSL.field(assetColumn(eventTable, typeProperty.getColumn()), String.class);
+        Field<String> participant = DSL.field(assetColumn(eventTable, participantProperty.getColumn()), String.class);
 
         // 完整周期判定：以上海「今日」为观察锚点，最后一个完整周期是当前周期的前一周期
         LocalDate today = LocalDate.now(clock);
@@ -697,7 +697,7 @@ public class SqlCompiler {
         cohort.addFrom(DSL.table(DSL.name("cohort_first")));
         if (!dimensions.isEmpty()) {
             cohort.addJoin(DSL.table(tableName(subjectTable)),
-                    DSL.field(columnName(subject.getColumn())).eq(firstSubject));
+                    DSL.field(assetColumn(subjectTable, subject.getColumn())).eq(firstSubject));
         }
         List<Field<?>> cohortGroup = new ArrayList<>();
         cohortGroup.add(firstSubject);
