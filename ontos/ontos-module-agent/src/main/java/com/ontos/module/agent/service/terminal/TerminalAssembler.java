@@ -1,5 +1,6 @@
 package com.ontos.module.agent.service.terminal;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,11 +34,14 @@ public class TerminalAssembler {
 
     private final CopyTemplateService copyTemplateService;
     private final SessionStateService sessionStateService;
+    private final AssetLabelResolver assetLabelResolver;
 
     public TerminalAssembler(CopyTemplateService copyTemplateService,
-                             SessionStateService sessionStateService) {
+                             SessionStateService sessionStateService,
+                             AssetLabelResolver assetLabelResolver) {
         this.copyTemplateService = copyTemplateService;
         this.sessionStateService = sessionStateService;
+        this.assetLabelResolver = assetLabelResolver;
     }
 
     /**
@@ -99,11 +103,32 @@ public class TerminalAssembler {
             body.put("skippable", true);
         } else {
             body.put("ambiguity", payload.mention());
-            body.put("candidates", payload.candidates().stream()
-                    .map(candidate -> Map.of("assetId", candidate.assetId(),
-                            "assetType", candidate.assetType(), "matchedTerm", candidate.matchedTerm()))
-                    .toList());
-            body.put("defaultSuggestion", payload.defaultSuggestion());
+            // 候选给 label（资产业务名）：matchedTerm 是检索词（「订单收」这类用户叫法），
+            // 同名不同资产时用户无法分辨——展示名与回传值分离（A.4：ID 不上屏）。
+            // 同一资产的多个同义词命中合并为一张卡（检索词表一物多名是常态，不去重会
+            // 出现 5 张「订单数」卡片）；其余叫法进 aliases。
+            java.util.LinkedHashMap<String, Map<String, Object>> merged = new java.util.LinkedHashMap<>();
+            for (RetrievedCandidate candidate : payload.candidates()) {
+                Map<String, Object> box = merged.computeIfAbsent(candidate.assetId(), id -> {
+                    Map<String, Object> created = new LinkedHashMap<>();
+                    created.put("assetId", id);
+                    created.put("assetType", candidate.assetType());
+                    created.put("matchedTerm", candidate.matchedTerm());
+                    created.put("label", assetLabelResolver.label(id));
+                    created.put("aliases", new ArrayList<String>());
+                    return created;
+                });
+                @SuppressWarnings("unchecked")
+                List<String> aliases = (List<String>) box.get("aliases");
+                if (!candidate.matchedTerm().equals(box.get("matchedTerm"))
+                        && !aliases.contains(candidate.matchedTerm())) {
+                    aliases.add(candidate.matchedTerm());
+                }
+            }
+            body.put("candidates", List.copyOf(merged.values()));
+            // defaultSuggestion 可能是资产 ID（确定性规划器传 assetId）也可能是文案：
+            // 形如 ID 时翻成业务名，绝不把 ID 透给用户。
+            body.put("defaultSuggestion", suggestable(payload.defaultSuggestion()));
             body.put("skippable", payload.skippable());
             // R5：候选持久化——下一轮 clarificationChoice 的合法性以此集合为准
             persistClarification(context, payload);
@@ -113,18 +138,20 @@ public class TerminalAssembler {
         return terminal;
     }
 
-    /** discovery 终态：授权 scope 内能力清单（已发布引用，不由 LLM 生成）。 */
+    /** discovery 终态：授权 scope 内能力清单（已发布引用，不由 LLM 生成）。展示用业务名。 */
     public Map<String, Object> discovery(List<RetrievedCandidate> metrics,
                                          List<RetrievedCandidate> dimensions) {
         Map<String, Object> terminal = base("discovery", null);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("metrics", metrics == null ? List.of() : metrics.stream()
                 .map(candidate -> Map.of("assetId", candidate.assetId(),
-                        "matchedTerm", candidate.matchedTerm()))
+                        "matchedTerm", candidate.matchedTerm(),
+                        "label", assetLabelResolver.label(candidate.assetId())))
                 .toList());
         body.put("dimensions", dimensions == null ? List.of() : dimensions.stream()
                 .map(candidate -> Map.of("assetId", candidate.assetId(),
-                        "matchedTerm", candidate.matchedTerm()))
+                        "matchedTerm", candidate.matchedTerm(),
+                        "label", assetLabelResolver.label(candidate.assetId())))
                 .toList());
         terminal.put("body", body);
         return terminal;
@@ -169,6 +196,15 @@ public class TerminalAssembler {
         event.put("name", TERMINAL_EVENT_NAME);
         event.put("value", terminal);
         eventService.emit(runId, AskEventService.CUSTOM, event);
+    }
+
+    /** 默认建议：形如资产 ID 时翻业务名，其余（真实文案）原样。 */
+    private String suggestable(String suggestion) {
+        if (suggestion == null || suggestion.isBlank()) {
+            return null;
+        }
+        return assetLabelResolver.looksLikeAssetId(suggestion)
+                ? assetLabelResolver.label(suggestion) : suggestion;
     }
 
     private Map<String, Object> base(String terminal, String requestId) {

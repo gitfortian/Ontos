@@ -12,7 +12,12 @@ export type AskTerminal =
 export interface AskCandidate {
   assetId: string;
   assetType: string;
+  /** 检索词（用户叫法，可能与资产业务名不同或同名不同资产）。 */
   matchedTerm: string;
+  /** 资产业务名（服务端从清单翻译；展示用它，assetId 只作回传值）。 */
+  label?: string;
+  /** 同一资产的其它叫法（同义词命中合并后保留）。 */
+  aliases?: string[];
 }
 
 /**

@@ -90,6 +90,7 @@ public class AskOrchestrationService {
     private final SessionCandidateContextProvider candidateProvider;
     private final ManifestService manifestService;
     private final TerminalAssembler terminalAssembler;
+    private final com.ontos.module.agent.service.terminal.AssetLabelResolver assetLabelResolver;
     private final HitlNotifier hitlNotifier;
     private final ApprovalRequestMapper approvalRequestMapper;
     private final AskProperties askProperties;
@@ -113,6 +114,7 @@ public class AskOrchestrationService {
                                    SessionCandidateContextProvider candidateProvider,
                                    ManifestService manifestService,
                                    TerminalAssembler terminalAssembler,
+                                   com.ontos.module.agent.service.terminal.AssetLabelResolver assetLabelResolver,
                                    HitlNotifier hitlNotifier,
                                    ApprovalRequestMapper approvalRequestMapper,
                                    AskProperties askProperties,
@@ -132,6 +134,7 @@ public class AskOrchestrationService {
         this.candidateProvider = candidateProvider;
         this.manifestService = manifestService;
         this.terminalAssembler = terminalAssembler;
+        this.assetLabelResolver = assetLabelResolver;
         this.hitlNotifier = hitlNotifier;
         this.approvalRequestMapper = approvalRequestMapper;
         this.askProperties = askProperties;
@@ -1291,30 +1294,9 @@ public class AskOrchestrationService {
                 ? meta.getName() : "当前业务场景";
     }
 
-    /** 资产 ID → 业务名。无清单或查不到时给中性文案，**不回退 ID**（ID 不上屏）。 */
+    /** 资产 ID → 业务名（统一走 AssetLabelResolver；查不到回退中性文案，不回退 ID）。 */
     private String labelOf(String assetId) {
-        if (assetId == null || assetId.isBlank()) {
-            return "未指定";
-        }
-        var manifest = manifestService.getActiveManifestOrNull();
-        if (manifest == null || manifest.getSemantic() == null) {
-            return "未命名资产";
-        }
-        String label = manifest.getSemantic().getMetrics().stream()
-                .filter(metric -> assetId.equals(metric.getId()))
-                .map(SemanticManifest.Metric::getName)
-                .filter(name -> name != null && !name.isBlank())
-                .findFirst()
-                .orElse(null);
-        if (label == null) {
-            label = manifest.getSemantic().getDimensions().stream()
-                    .filter(dimension -> assetId.equals(dimension.getId()))
-                    .map(SemanticManifest.Dimension::getName)
-                    .filter(name -> name != null && !name.isBlank())
-                    .findFirst()
-                    .orElse(null);
-        }
-        return label == null ? "未命名资产" : label;
+        return assetLabelResolver.label(assetId);
     }
 
     private static String modeLabel(String mode) {

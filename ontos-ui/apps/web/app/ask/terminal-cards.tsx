@@ -50,32 +50,45 @@ function CandidateList({
 }) {
   return (
     <div className="mt-2 flex flex-col gap-1.5">
-      {candidates.map((candidate) => (
-        <button
-          key={candidate.assetId}
-          type="button"
-          disabled={disabled || !onChoose}
-          onClick={() => onChoose?.(candidate.assetId, candidate.matchedTerm)}
-          className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-left text-xs transition-colors hover:border-primary hover:bg-accent disabled:cursor-default disabled:hover:border-border disabled:hover:bg-transparent"
-        >
-          <span>{candidate.matchedTerm}</span>
-          <span className="ml-auto text-[11px] text-muted-foreground">
-            {candidate.assetType === "metric"
-              ? "指标"
-              : candidate.assetType === "dimension"
-                ? "分析维度"
-                : candidate.assetType === "entity" || candidate.assetType === "concept"
-                  ? "业务对象"
-                  : candidate.assetType === "property"
-                    ? "信息项"
-                    : candidate.assetType === "scenario"
-                      ? "业务场景"
-                      : candidate.assetType === "approximation"
-                        ? "近似能力"
-                        : "资产"}
-          </span>
-        </button>
-      ))}
+      {candidates.map((candidate) => {
+        const name = candidate.label ?? candidate.matchedTerm;
+        const extraTerms = (candidate.aliases ?? []).filter(
+          (term) => term !== name && term !== candidate.matchedTerm,
+        );
+        return (
+          <button
+            key={candidate.assetId}
+            type="button"
+            disabled={disabled || !onChoose}
+            onClick={() => onChoose?.(candidate.assetId, name)}
+            className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-left text-xs transition-colors hover:border-primary hover:bg-accent disabled:cursor-default disabled:hover:border-border disabled:hover:bg-transparent"
+          >
+            <span className="min-w-0">
+              <span className="font-medium">{name}</span>
+              {extraTerms.length > 0 ? (
+                <span className="ml-1.5 text-[11px] text-muted-foreground">
+                  也叫「{extraTerms.join("、")}」
+                </span>
+              ) : null}
+            </span>
+            <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
+              {candidate.assetType === "metric"
+                ? "指标"
+                : candidate.assetType === "dimension"
+                  ? "分析维度"
+                  : candidate.assetType === "entity" || candidate.assetType === "concept"
+                    ? "业务对象"
+                    : candidate.assetType === "property"
+                      ? "信息项"
+                      : candidate.assetType === "scenario"
+                        ? "业务场景"
+                        : candidate.assetType === "approximation"
+                          ? "近似能力"
+                          : "资产"}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -110,7 +123,8 @@ export function ClarificationCard({
           没有可用候选，请换一个更具体的说法，例如点名某个指标。
         </p>
       )}
-      {body.defaultSuggestion ? (
+      {body.defaultSuggestion &&
+      !/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/.test(body.defaultSuggestion) ? (
         <p className="mt-2 text-[11px] text-muted-foreground">默认建议：{body.defaultSuggestion}</p>
       ) : null}
       {body.skippable ? (
