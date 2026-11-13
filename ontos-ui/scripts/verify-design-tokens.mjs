@@ -13,7 +13,13 @@ const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "
 const SCAN = ["apps/web", "packages/ontos-ui/src"];
 const EXTENSIONS = [".tsx", ".css"];
 
-const ALLOWED = new Set(["packages/ontos-ui/src/styles.css"]);
+const ALLOWED = new Set([
+  "packages/ontos-ui/src/styles.css",
+  // apps/web/app/ask/cards/result-chart.tsx：ECharts 是 canvas 渲染，无法消费 Tailwind 类；
+  // 图表颜色运行时优先读 CSS 变量（--primary/--muted-foreground/--border），
+  // hex 仅在变量缺失时兜底，主题切换仍生效。
+  "apps/web/app/ask/cards/result-chart.tsx",
+]);
 
 /* Token definition files are where literals belong; everything else consumes them. */
 const ALLOWED_PREFIXES = [];

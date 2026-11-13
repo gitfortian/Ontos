@@ -136,3 +136,46 @@ test("closed tool is shown as skipped, not as a success", () => {
   assert.equal(entry.status, "skipped");
   assert.equal(entry.detail, "审批未放行");
 });
+
+test("tool summaries survive via CUSTOM ontos.tool (AG-UI enforce stripped TOOL_CALL_*)", () => {
+  const start = toolOf(
+    parseRunEvent({
+      seq: 11,
+      type: "CUSTOM",
+      payload: JSON.stringify({
+        name: "ontos.tool",
+        value: {
+          phase: "start",
+          toolName: "execute_query",
+          argsSummary: ["指标 GMV", "维度 渠道"],
+        },
+      }),
+    }),
+  );
+  const end = toolOf(
+    parseRunEvent({
+      seq: 12,
+      type: "CUSTOM",
+      payload: JSON.stringify({
+        name: "ontos.tool",
+        value: {
+          phase: "end",
+          toolName: "execute_query",
+          status: "succeeded",
+          resultSummary: ["返回 2 行", "未截断"],
+          elapsedMs: 42,
+        },
+      }),
+    }),
+  );
+  assert.equal(start.phase, "start");
+  assert.equal(end.phase, "end");
+  assert.deepEqual(start.argsSummary, ["指标 GMV", "维度 渠道"]);
+  assert.deepEqual(end.resultSummary, ["返回 2 行", "未截断"]);
+
+  let entries = reduceStep([], 11, toolStep(start, start.phase));
+  entries = reduceStep(entries, 12, toolStep(end, end.phase));
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].status, "done");
+  assert.equal(entries[0].elapsedMs, 42);
+});

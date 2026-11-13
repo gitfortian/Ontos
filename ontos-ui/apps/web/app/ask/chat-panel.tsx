@@ -25,6 +25,7 @@ function TerminalView({
   disabled,
   onOpenApprovals,
   onTrace,
+  onDrill,
 }: {
   terminal: import("@/service/ask").AskTerminalVO;
   stuckClarification?: boolean;
@@ -32,10 +33,13 @@ function TerminalView({
   disabled: boolean;
   onOpenApprovals: () => void;
   onTrace: () => void;
+  onDrill: (utterance: string) => void;
 }) {
   switch (terminal.terminal) {
     case "query":
-      return <ResultCard terminal={terminal} onTrace={onTrace} />;
+      return (
+        <ResultCard terminal={terminal} onTrace={onTrace} onDrill={onDrill} disabled={disabled} />
+      );
     case "composite":
       return <CompositeCard terminal={terminal} />;
     case "clarification":
@@ -160,6 +164,7 @@ function CopilotKitWorkspace() {
                       disabled={busy}
                       onOpenApprovals={() => navigate("/approvals")}
                       onTrace={() => openTrace(turn.terminal?.requestId ?? null)}
+                      onDrill={(utterance) => void submit(utterance)}
                     />
                   ) : null}
 

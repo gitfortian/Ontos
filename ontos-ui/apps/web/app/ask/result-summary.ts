@@ -50,38 +50,114 @@ export const summarizeResult = (
   };
 };
 
-export interface ResultBar {
+/** 图表数据点：rawLabel 保留原始维度值（下钻拼话术用），label 是展示值。 */
+export interface ChartPoint {
   label: string;
+  rawLabel: string;
   value: number;
+}
+
+export interface ChartData {
+  dimensionKey: string;
+  dimensionLabel: string;
+  metricKey: string;
+  metricLabel: string;
+  points: ChartPoint[];
+  truncated: boolean;
 }
 
 /**
  * 图表数据：只接受「一个维度 + 一个指标」，超过上限截断并如实返回 truncated。
  * 维度值可能是日期、编码或文本——不做类型猜测，统一按分类轴呈现。
  */
-export const buildBars = (
+export const buildChartData = (
   rows: Array<Record<string, unknown>>,
   columns: AskColumnMeta[],
   limit = 12,
-): { bars: ResultBar[]; truncated: boolean } => {
+): ChartData | null => {
   const dimension = columns.find((column) => column.role === "dimension");
   const metric = columns.find((column) => column.role === "metric" && column.numeric);
   if (!dimension || !metric) {
-    return { bars: [], truncated: false };
+    return null;
   }
-  const bars: ResultBar[] = [];
+  const points: ChartPoint[] = [];
   for (const row of rows) {
     const value = row[metric.key];
     if (typeof value !== "number" || !Number.isFinite(value)) {
       continue;
     }
-    const rawLabel = row[dimension.key];
-    bars.push({ label: rawLabel == null ? "—" : String(rawLabel), value });
+    const raw = row[dimension.key];
+    const rawLabel = raw == null ? "—" : String(raw);
+    points.push({ label: rawLabel, rawLabel, value });
   }
-  if (bars.length <= limit) {
-    return { bars, truncated: false };
+  const data: ChartData = {
+    dimensionKey: dimension.key,
+    dimensionLabel: dimension.label,
+    metricKey: metric.key,
+    metricLabel: metric.label,
+    points,
+    truncated: points.length > limit,
+  };
+  if (data.truncated) {
+    data.points = points.slice(0, limit);
   }
-  return { bars: bars.slice(0, limit), truncated: true };
+  return data;
+};
+
+/**
+ * 确定性洞察（InsightSummary 数据源）：全部由 rows 实算——合计、最高项及占比。
+ * 没有对照数据就不出增长率；没有任何可算结论就返回空数组（不出空话）。
+ */
+export const buildInsights = (
+  rows: Array<Record<string, unknown>>,
+  columns: AskColumnMeta[],
+): string[] => {
+  const metric = columns.find((column) => column.role === "metric" && column.numeric);
+  if (!metric || rows.length === 0) {
+    return [];
+  }
+  const dimension = columns.find((column) => column.role === "dimension");
+  const numericRows = rows
+    .map((row) => ({ row, value: row[metric.key] }))
+    .filter(
+      (item): item is { row: Record<string, unknown>; value: number } =>
+        typeof item.value === "number" && Number.isFinite(item.value),
+    );
+  if (numericRows.length === 0) {
+    return [];
+  }
+  const total = numericRows.reduce((sum, item) => sum + item.value, 0);
+  const insights: string[] = [
+    `共 ${numericRows.length} 行，${metric.label}合计 ${formatCellValue(total)}`,
+  ];
+
+  const dimensionValue = (row: Record<string, unknown>): string => {
+    if (!dimension) {
+      return "";
+    }
+    const raw = row[dimension.key];
+    return raw == null ? "—" : String(raw);
+  };
+
+  if (numericRows.length === 1) {
+    const only = numericRows[0];
+    const subject = dimensionValue(only.row);
+    insights.push(
+      subject
+        ? `「${subject}」${metric.label}为 ${formatCellValue(only.value)}`
+        : `${metric.label}为 ${formatCellValue(only.value)}`,
+    );
+    return insights;
+  }
+
+  if (dimension && total > 0) {
+    const top = numericRows.reduce((best, item) => (item.value > best.value ? item : best));
+    const share = (top.value / total) * 100;
+    insights.push(
+      `「${dimensionValue(top.row)}」最高（${formatCellValue(top.value)}，占 ${share.toFixed(1)}%）`,
+    );
+  }
+  return insights;
 };
 
 /** 数值展示：保留两位小数，整数不补零；非数值原样转字符串。 */
@@ -111,4 +187,24 @@ export const orderColumnsForDisplay = (columns: AskColumnMeta[]): AskColumnMeta[
     .map((column, index) => ({ column, index }))
     .sort((left, right) => rank(left.column) - rank(right.column) || left.index - right.index)
     .map((item) => item.column);
+};
+
+/** CSV 单元转义：含逗号/引号/换行时加引号，内部引号翻倍。 */
+const escapeCsvCell = (value: string): string => {
+  if (/[",\r\n]/.test(value)) {
+    return `"${value.replaceAll('"', '""')}"`;
+  }
+  return value;
+};
+
+/**
+ * 导出 CSV（W3 交互区）：列顺序用服务端下发的原始顺序，BOM 头保证 Excel 中文不乱码。
+ * 行数据只来自结果集，不掺任何前端计算列。
+ */
+export const toCsv = (rows: Array<Record<string, unknown>>, columns: AskColumnMeta[]): string => {
+  const header = columns.map((column) => escapeCsvCell(column.label || column.key)).join(",");
+  const lines = rows.map((row) =>
+    columns.map((column) => escapeCsvCell(formatCellValue(row[column.key]))).join(","),
+  );
+  return `\uFEFF${[header, ...lines].join("\r\n")}`;
 };
