@@ -1,5 +1,6 @@
 package com.ontos.module.agent.service.run;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -83,6 +84,14 @@ public class AskRunStateService {
         return mapper.findActiveBySession(tenantId, userId, sessionId).stream().findFirst()
                 .map(AskRunDO::getRunId)
                 .orElse(null);
+    }
+
+    /**
+     * 会话列表（侧栏）：只查当前租户/用户自己的会话（归属裁剪在 SQL WHERE 内，
+     * 不存在跨租户泄露面）；标题取最近一条有话术的 RUN_STARTED。
+     */
+    public List<Map<String, Object>> listSessions(RequestContext context, int limit) {
+        return mapper.listSessions(context.tenantId(), context.userId(), limit);
     }
 
     public AskRunDO require(String runId, RequestContext context) {

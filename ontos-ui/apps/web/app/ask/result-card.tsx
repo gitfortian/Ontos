@@ -106,7 +106,13 @@ function BarChart({
   );
 }
 
-export function ResultCard({ terminal }: { terminal: AskTerminalVO }) {
+export function ResultCard({
+  terminal,
+  onTrace,
+}: {
+  terminal: AskTerminalVO;
+  onTrace?: () => void;
+}) {
   const body = terminal.body ?? {};
   const rows = body.rows ?? [];
   const columns = body.columns ?? [];
@@ -150,6 +156,15 @@ export function ResultCard({ terminal }: { terminal: AskTerminalVO }) {
       <ResultTable rows={rows} columns={columns} />
 
       <footer className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2">
+        {onTrace ? (
+          <button
+            type="button"
+            className="text-[11px] text-primary hover:underline"
+            onClick={onTrace}
+          >
+            数据溯源
+          </button>
+        ) : null}
         {terminal.planRef ? (
           <a
             className="text-[11px] text-primary hover:underline"
@@ -157,7 +172,7 @@ export function ResultCard({ terminal }: { terminal: AskTerminalVO }) {
             target="_blank"
             rel="noreferrer"
           >
-            查看执行计划与口径
+            执行计划回放
           </a>
         ) : null}
         <span className="text-[11px] text-muted-foreground">

@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@ontos/ui";
+
 import type { AskStepEntry, AskStepStatus } from "@/service/ask";
 
 /**
@@ -44,26 +46,25 @@ export function ProcessPanel({ entries, running }: { entries: AskStepEntry[]; ru
   }
 
   return (
-    <section className="rounded-xl border border-border bg-card">
-      <header className="flex items-center gap-2 border-b border-border px-3.5 py-2.5">
-        <h3 className="text-xs font-medium">执行过程</h3>
-        <span className="text-[11px] text-muted-foreground">按服务端事件顺序</span>
-        <span className="ml-auto text-[11px] text-muted-foreground">
-          {entries.length > 0 ? `${entries.length} 条记录` : "等待事件"}
-        </span>
-        <button
-          type="button"
-          className="text-[11px] text-primary hover:underline"
-          onClick={() => setExpanded((value) => !value)}
-        >
-          {expanded ? "收起过程" : "展开过程"}
-        </button>
-      </header>
-
-      {expanded ? (
-        <div className="px-3.5">
+    <Accordion
+      type="single"
+      collapsible
+      value={expanded ? "process" : "collapsed"}
+      onValueChange={(value) => setExpanded(value === "process")}
+    >
+      <AccordionItem
+        value="process"
+        className="rounded-xl border border-border bg-card px-3.5 last:border-b-0"
+      >
+        <AccordionTrigger className="py-2.5 text-xs hover:no-underline">
+          <span className="font-medium">执行过程</span>
+          <span className="text-[11px] font-normal text-muted-foreground">
+            {entries.length > 0 ? `${entries.length} 条记录 · 按服务端事件顺序` : "等待事件"}
+          </span>
+        </AccordionTrigger>
+        <AccordionContent className="pb-2">
           {entries.length === 0 ? (
-            <p className="py-3 text-xs text-muted-foreground">已发起，等待第一条过程事件…</p>
+            <p className="py-2 text-[11px] text-muted-foreground">已发起，等待第一条过程事件…</p>
           ) : (
             entries.map((entry) => (
               <article
@@ -128,14 +129,11 @@ export function ProcessPanel({ entries, running }: { entries: AskStepEntry[]; ru
               </article>
             ))
           )}
-        </div>
-      ) : null}
-
-      <footer className="border-t border-border px-3.5 py-1.5">
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          同一步骤可重复出现（修复重试、审批重放）；按事件顺序排列，不代表固定流程。
-        </p>
-      </footer>
-    </section>
+          <p className="pt-2 text-[11px] leading-relaxed text-muted-foreground">
+            同一步骤可重复出现（修复重试、审批重放）；按事件顺序排列，不代表固定流程。
+          </p>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 }

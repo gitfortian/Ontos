@@ -751,6 +751,9 @@ public class AskOrchestrationService {
                 executed.result() == null ? List.of()
                         : columnsOf(executed.result().getColumns(), dsl.getMetricId()),
                 Boolean.TRUE.equals(proposal.get("degraded")));
+        // 上下文锚点（Context Chips）数据源：本轮实际生效的口径，全部业务名。
+        // 前端不做本地推导，避免与服务端会话投影漂移。
+        terminal.put("contextSummary", contextSummaryOf(dsl));
         terminalAssembler.emitTerminal(eventService, runId, terminal);
         return terminal;
     }
@@ -1284,6 +1287,25 @@ public class AskOrchestrationService {
         summary.add("返回 " + result.getRowCount() + " 行");
         summary.add(result.isTruncated() ? "已按上限截断" : "未截断");
         summary.add(result.isCached() ? "命中结果缓存" : "只读连接执行");
+        return summary;
+    }
+
+    /** 本轮生效口径摘要（Context Chips 数据源）：只含业务名，ID 不进展示面。 */
+    private Map<String, Object> contextSummaryOf(QueryDsl dsl) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("metricLabel", labelOf(dsl.getMetricId()));
+        summary.put("dimensionLabels", dsl.getDimensions().stream()
+                .map(this::labelOf).toList());
+        if (dsl.getTimeExpressionRaw() != null && !dsl.getTimeExpressionRaw().isBlank()) {
+            summary.put("timeLabel", dsl.getTimeExpressionRaw());
+        }
+        String mode = modeLabel(dsl.getMode() == null ? null : dsl.getMode().name());
+        if (mode != null) {
+            summary.put("modeLabel", mode);
+        }
+        if (dsl.getScenarioId() != null) {
+            summary.put("scenarioLabel", scenarioLabel(dsl.getScenarioId()));
+        }
         return summary;
     }
 

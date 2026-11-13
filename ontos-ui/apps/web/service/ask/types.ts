@@ -31,6 +31,15 @@ export interface AskColumnMeta {
   numeric: boolean;
 }
 
+/** 上下文锚点（Context Chips）数据源：本轮生效口径，全部业务名，服务端下发。 */
+export interface AskContextSummary {
+  metricLabel?: string;
+  dimensionLabels?: string[];
+  timeLabel?: string;
+  modeLabel?: string;
+  scenarioLabel?: string;
+}
+
 /** 结构化终态载荷（CUSTOM ontos.terminal 的 value / POST /ask/runs 的 data）。 */
 export interface AskTerminalVO {
   terminal: AskTerminal;
@@ -39,6 +48,7 @@ export interface AskTerminalVO {
   reasonCode?: string;
   copy?: { text: string; templateId: string; fallback?: boolean };
   degraded?: boolean;
+  contextSummary?: AskContextSummary;
   body?: {
     rowCount?: number;
     rows?: Array<Record<string, unknown>>;

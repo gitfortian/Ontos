@@ -79,6 +79,42 @@ public class AskRunMapper {
         return ids.get(0);
     }
 
+    /**
+     * 会话列表（侧栏）：按 session 聚合当前租户/用户的 run，附首条话术作标题。
+     * 标题取该会话最近一条 RUN_STARTED 的 utterance（澄清轮 utterance 为空时自然回退到
+     * 更早的有话术轮次）；全部为空则由调用方回退 session_id 前缀。
+     */
+    public List<Map<String, Object>> listSessions(String tenantId, String userId, int limit) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("tenantId", tenantId);
+        params.put("userId", userId);
+        params.put("limit", limit);
+        return jdbcTemplate.query(
+                "WITH scoped AS ("
+                        + " SELECT session_id, count(*) AS run_count, max(updated_at) AS last_active_at"
+                        + " FROM ask_run WHERE tenant_id = :tenantId AND user_id = :userId"
+                        + " GROUP BY session_id"
+                        + ") SELECT s.session_id::text AS session_id, s.run_count,"
+                        + " s.last_active_at::text AS last_active_at,"
+                        + " (SELECT e.payload->'input'->>'utterance' FROM ask_run_event e"
+                        + "  JOIN ask_run r ON r.run_id = e.run_id"
+                        + "  WHERE r.tenant_id = :tenantId AND r.user_id = :userId"
+                        + "   AND r.session_id = s.session_id AND e.type = 'RUN_STARTED'"
+                        + "   AND coalesce(e.payload->'input'->>'utterance', '') <> ''"
+                        + "  ORDER BY e.created_at DESC, e.seq DESC LIMIT 1) AS title"
+                        + " FROM scoped s ORDER BY s.last_active_at DESC LIMIT :limit",
+                params, (rs, rowNum) -> {
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("sessionId", rs.getString("session_id"));
+                    row.put("runCount", rs.getInt("run_count"));
+                    row.put("lastActiveAt", rs.getString("last_active_at"));
+                    String title = rs.getString("title");
+                    row.put("title", title == null || title.isBlank()
+                            ? "会话 " + rs.getString("session_id").substring(0, 8) : title);
+                    return row;
+                });
+    }
+
     /** 期望旧状态的原子迁移：迁移表校验由服务层完成，这里只做「旧状态匹配才更新」。 */
     public boolean transition(String runId, String fromStatus, String toStatus) {
         Map<String, Object> params = new HashMap<>();

@@ -15,6 +15,7 @@ export default defineConfig({
     dedupe: ["react", "react-dom"],
     alias: {
       "@": webRoot,
+      "@ontos/ui/": fileURLToPath(new URL("../../packages/ontos-ui/src/", import.meta.url)),
       "@ontos/ui": fileURLToPath(new URL("../../packages/ontos-ui/src/index.ts", import.meta.url)),
     },
   },
