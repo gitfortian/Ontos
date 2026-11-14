@@ -7,6 +7,9 @@ import java.util.Map;
 
 import com.ontos.framework.web.core.context.RequestContext;
 import com.ontos.module.agent.service.event.AskEventService;
+import com.ontos.module.ontology.core.PublishedManifest;
+import com.ontos.module.ontology.core.SemanticManifest;
+import com.ontos.module.ontology.service.manifest.ManifestService;
 import com.ontos.module.query.service.copy.CopyTemplateService;
 import com.ontos.module.session.service.retrieval.ClarificationPayload;
 import com.ontos.module.session.service.retrieval.RetrievedCandidate;
@@ -35,13 +38,16 @@ public class TerminalAssembler {
     private final CopyTemplateService copyTemplateService;
     private final SessionStateService sessionStateService;
     private final AssetLabelResolver assetLabelResolver;
+    private final ManifestService manifestService;
 
     public TerminalAssembler(CopyTemplateService copyTemplateService,
                              SessionStateService sessionStateService,
-                             AssetLabelResolver assetLabelResolver) {
+                             AssetLabelResolver assetLabelResolver,
+                             ManifestService manifestService) {
         this.copyTemplateService = copyTemplateService;
         this.sessionStateService = sessionStateService;
         this.assetLabelResolver = assetLabelResolver;
+        this.manifestService = manifestService;
     }
 
     /**
@@ -101,6 +107,8 @@ public class TerminalAssembler {
             body.put("candidates", List.of());
             body.put("defaultSuggestion", null);
             body.put("skippable", true);
+            // 空候选澄清（LLM 对无命中话术的兜底）同样给真实示例，避免「没有任何提示」感
+            body.put("suggestions", buildSuggestions());
         } else {
             body.put("ambiguity", payload.mention());
             // 候选给 label（资产业务名）：matchedTerm 是检索词（「订单收」这类用户叫法），
@@ -162,8 +170,43 @@ public class TerminalAssembler {
         Map<String, Object> terminal = base("out_of_capability", context.traceId());
         terminal.put("reasonCode", reasonCode);
         terminal.put("copy", renderCopy(reasonCode, Map.of()));
-        terminal.put("body", Map.of());
+        // W6.1 无命中友好引导：寒暄/超范围时下发真实可问的示例（指标×维度业务名拼装），
+        // 前端渲染为可点击建议——「直接结束没有任何提示」的修复。
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("suggestions", buildSuggestions());
+        terminal.put("body", body);
         return terminal;
+    }
+
+    /**
+     * 真实可问的示例问题（引导用）：从生效清单拼「近 30 天各{维度}的{指标}」——
+     * 全部业务名、时间词走已发布模式（tep.last_n_days），不编造资产。
+     * ruleId 型布尔指标跳过（不能进 QUERY 示例）。
+     */
+    private List<String> buildSuggestions() {
+        PublishedManifest manifest = manifestService.getActiveManifestOrNull();
+        if (manifest == null || manifest.getSemantic() == null) {
+            return List.of();
+        }
+        List<SemanticManifest.Dimension> dimensions = manifest.getSemantic().getDimensions();
+        List<String> suggestions = new ArrayList<>();
+        for (SemanticManifest.Metric metric : manifest.getSemantic().getMetrics()) {
+            if (suggestions.size() >= 3) {
+                break;
+            }
+            String metricName = metric.getName();
+            if (metricName == null || metricName.isBlank() || metric.getRuleId() != null) {
+                continue;
+            }
+            SemanticManifest.Dimension dimension = dimensions.isEmpty()
+                    ? null : dimensions.get(suggestions.size() % dimensions.size());
+            if (dimension != null && dimension.getName() != null && !dimension.getName().isBlank()) {
+                suggestions.add("近 30 天各" + dimension.getName() + "的" + metricName + "是多少");
+            } else {
+                suggestions.add("近 30 天" + metricName + "是多少");
+            }
+        }
+        return suggestions;
     }
 
     /** HITL 等待中间态：run 已进入 WAITING_APPROVAL，终态经事件通道跟踪。 */

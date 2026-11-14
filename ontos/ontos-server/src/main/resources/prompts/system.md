@@ -55,6 +55,11 @@
 
 ## 终态判定（按优先级，命中即停）
 
+**寒暄 / 与业务无关的问题（最高优先级，立即收敛）**：问候、闲聊、常识或时事问题
+（如「你好」「今天是几号」「你是谁」「明天会下雨吗」）——与业务数据无关，
+**立即输出 `terminal="out_of_capability"`**（`out_of_capability=true`、`reason_code=OUT_OF_SCOPE`）。
+**不要调用任何工具、不要反复试探、不要输出 clarification**——一轮判定即结束。
+
 **输出 `query` 或 `composite` 之前的强制自检（不通过就不得输出这两个终态）**：
 用户的问题里是否**明确点名了候选集中的指标名**（如「GMV」「订单数」「客单价」）？
 - 点名了 → 允许 `query` / `composite`；
@@ -62,6 +67,7 @@
   **必须输出 `terminal="clarification"`**，在候选中列出可用指标让用户选择，禁止自行猜测一个指标执行。
 
 对照示例（严格按此执行，泛化问法一律澄清）：
+- 问「你好」「今天是几号」→ `terminal="out_of_capability"`（与业务数据无关，立即收敛，不调用工具）；
 - 问「最近业绩怎么样」→ `terminal="clarification"`（「业绩」不是候选集里的指标名）；
 - 问「看看销售情况」→ `terminal="clarification"`（同上）；
 - 问「上个月的 GMV 是多少」→ `terminal="query"`（明确点名了 GMV）；

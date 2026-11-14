@@ -22,7 +22,8 @@ class TerminalAssemblerTest {
 
     private final TerminalAssembler assembler = new TerminalAssembler(
             Mockito.mock(CopyTemplateService.class), Mockito.mock(SessionStateService.class),
-            Mockito.mock(AssetLabelResolver.class));
+            Mockito.mock(AssetLabelResolver.class),
+            Mockito.mock(com.ontos.module.ontology.service.manifest.ManifestService.class));
 
     private static RequestContext context() {
         return new RequestContext("tenant-demo", "user-dev", "session-1", 1,
@@ -65,7 +66,8 @@ class TerminalAssemblerTest {
         Mockito.when(resolver.label("metric.order_count")).thenReturn("订单数");
         Mockito.when(resolver.looksLikeAssetId("metric.order_count")).thenReturn(true);
         TerminalAssembler local = new TerminalAssembler(Mockito.mock(CopyTemplateService.class),
-                Mockito.mock(SessionStateService.class), resolver);
+                Mockito.mock(SessionStateService.class), resolver,
+                Mockito.mock(com.ontos.module.ontology.service.manifest.ManifestService.class));
 
         ClarificationPayload payload = new ClarificationPayload("订单收入",
                 List.of(new RetrievedCandidate("metric.order_count", "metric", "订单", 2, false, 60)),

@@ -26,6 +26,7 @@ function TerminalView({
   onOpenApprovals,
   onTrace,
   onDrill,
+  onSuggestion,
 }: {
   terminal: import("@/service/ask").AskTerminalVO;
   stuckClarification?: boolean;
@@ -34,6 +35,7 @@ function TerminalView({
   onOpenApprovals: () => void;
   onTrace: () => void;
   onDrill: (utterance: string) => void;
+  onSuggestion: (utterance: string) => void;
 }) {
   switch (terminal.terminal) {
     case "query":
@@ -49,6 +51,7 @@ function TerminalView({
           onChoose={onChoose}
           disabled={disabled}
           stuck={stuckClarification}
+          onSuggestion={onSuggestion}
         />
       );
     case "discovery":
@@ -56,7 +59,7 @@ function TerminalView({
     case "waiting":
       return <WaitingCard terminal={terminal} onOpenApprovals={onOpenApprovals} />;
     default:
-      return <OutOfCapabilityCard terminal={terminal} />;
+      return <OutOfCapabilityCard terminal={terminal} onSuggestion={onSuggestion} />;
   }
 }
 
@@ -199,6 +202,7 @@ function CopilotKitWorkspace() {
                       onOpenApprovals={() => navigate("/approvals")}
                       onTrace={() => openTrace(turn.terminal?.requestId ?? null, turn.terminal)}
                       onDrill={(utterance) => void submit(utterance)}
+                      onSuggestion={(utterance) => setDraft(utterance)}
                     />
                   ) : null}
 

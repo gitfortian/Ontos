@@ -66,6 +66,8 @@ export interface AskTerminalVO {
     dimensions?: AskCandidate[];
     approvalId?: string | null;
     hint?: string;
+    /** 无命中引导（W6.1）：真实可问的示例问题（服务端从清单拼装，点击填入输入框）。 */
+    suggestions?: string[];
   };
   note?: string;
 }

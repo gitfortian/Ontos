@@ -102,11 +102,13 @@ export function ClarificationCard({
   onChoose,
   disabled,
   stuck,
+  onSuggestion,
 }: {
   terminal: AskTerminalVO;
   onChoose: (candidateId: string, matchedTerm: string) => void;
   disabled: boolean;
   stuck?: boolean;
+  onSuggestion?: (utterance: string) => void;
 }) {
   const body = terminal.body ?? {};
   const candidates = body.candidates ?? [];
@@ -145,9 +147,12 @@ export function ClarificationCard({
           }}
         />
       ) : (
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          没有可用候选，请换一个更具体的说法，例如点名某个指标。
-        </p>
+        <>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            没有识别到可回答的业务问题——换个具体的说法，或从下面的示例开始。
+          </p>
+          <SuggestionList suggestions={body.suggestions ?? []} onSuggestion={onSuggestion} />
+        </>
       )}
       {body.defaultSuggestion &&
       !/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/.test(body.defaultSuggestion) ? (
@@ -205,7 +210,45 @@ export function DiscoveryCard({ terminal }: { terminal: AskTerminalVO }) {
   );
 }
 
-export function OutOfCapabilityCard({ terminal }: { terminal: AskTerminalVO }) {
+/** 建议问题列表（W6.1 无命中引导）：点击填入输入框（不自动发送，用户可改口径）。 */
+function SuggestionList({
+  suggestions,
+  onSuggestion,
+}: {
+  suggestions: string[];
+  onSuggestion?: (utterance: string) => void;
+}) {
+  if (suggestions.length === 0) {
+    return null;
+  }
+  return (
+    <div className="mt-2">
+      <p className="text-[11px] text-muted-foreground">可以试试这些问题（点击填入输入框）：</p>
+      <div className="mt-1.5 flex flex-col gap-1.5">
+        {suggestions.map((suggestion) => (
+          <button
+            key={suggestion}
+            type="button"
+            disabled={!onSuggestion}
+            onClick={() => onSuggestion?.(suggestion)}
+            className="rounded-lg border border-border px-3 py-2 text-left text-xs transition-colors hover:border-primary hover:bg-accent"
+          >
+            {suggestion}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function OutOfCapabilityCard({
+  terminal,
+  onSuggestion,
+}: {
+  terminal: AskTerminalVO;
+  onSuggestion?: (utterance: string) => void;
+}) {
+  const suggestions = terminal.body?.suggestions ?? [];
   return (
     <CardShell tone="danger" label="这次没能回答">
       <p className="text-[13px] leading-relaxed">
@@ -214,6 +257,7 @@ export function OutOfCapabilityCard({ terminal }: { terminal: AskTerminalVO }) {
       <p className="mt-2 text-[11px] text-muted-foreground">
         可以换成已发布的指标或维度再问一次；原因明细已记录在审计里。
       </p>
+      <SuggestionList suggestions={suggestions} onSuggestion={onSuggestion} />
     </CardShell>
   );
 }
