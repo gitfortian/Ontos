@@ -20,7 +20,7 @@
 
 ## 目录结构
 
-```
+```text
 ontos/                          后端（唯一部署单元是 ontos-server）
 ├── ontos-framework/
 │   ├── ontos-common/           通用返回、错误码、异常、JSON 工具
